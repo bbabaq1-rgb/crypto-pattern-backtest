@@ -212,7 +212,9 @@ if __name__ == "__main__":
 def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
                                     step_min=0.008, step_max=0.06,
                                     total_min=0.03, total_max=0.12,
-                                    profile: VolumeProfile = None) -> Signal:
+                                    profile: VolumeProfile = None,
+                                    decel_ratio=None,
+                                    breakout_mult=1.5) -> Signal:
     """
     하강 채널형 삼중바닥: 저점이 a>c>e로 계단식 하강(e 최저)한 뒤 저항 돌파.
     저점 하락폭이 수평형 허용오차(3%)를 넘으므로 triple_bottom 과 절대 안 겹친다.
@@ -220,7 +222,11 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
     if not ohlcv or not isinstance(ohlcv[0], (list, tuple)) or len(ohlcv[0]) < 6:
         return Signal("error", "none", 0.0, None, {"reason": "OHLCV(volume) 필요"})
     if profile is None:
-        profile = VolumeProfile()
+        profile = VolumeProfile(breakout_mult=breakout_mult)
+    else:
+        # 호출자가 profile을 직접 넘긴 경우 breakout_mult로 덮어쓴다
+        profile = VolumeProfile(breakout_mult=breakout_mult,
+                                expect_decline=profile.expect_decline)
 
     closes  = [c[4] for c in ohlcv]
     volumes = [c[5] for c in ohlcv]
@@ -245,6 +251,11 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
         steps_ok = (step_min <= step1 <= step_max) and (step_min <= step2 <= step_max)
         total_ok = total_min < total <= total_max    # >3% : 수평형과 배타
         if not (steps_ok and total_ok):
+            continue
+
+        # 감속 조건: 2차낙폭/1차낙폭 <= decel_ratio (None이면 조건 끔)
+        decel_ratio_actual = step2 / step1 if step1 > 0 else float("inf")
+        if decel_ratio is not None and decel_ratio_actual > decel_ratio:
             continue
 
         resistance = max(h1.price, h2.price)
@@ -283,6 +294,7 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
                         lows=[round(a, 2), round(c, 2), round(e, 2)],
                         step1_pct=round(step1 * 100, 2), step2_pct=round(step2 * 100, 2),
                         total_drop_pct=round(total * 100, 2),
+                        decel_ratio_actual=round(decel_ratio_actual, 4),
                         resistance=round(resistance, 2),
                         measured_target=round(resistance + height, 2),
                         stop_suggestion=round(e * 0.99, 2),
