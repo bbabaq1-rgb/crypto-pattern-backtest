@@ -253,10 +253,10 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
         if not (steps_ok and total_ok):
             continue
 
-        # 감속 조건: 2차낙폭/1차낙폭 <= decel_ratio (None이면 조건 끔)
-        decel_ratio_actual = step2 / step1 if step1 > 0 else float("inf")
-        if decel_ratio is not None and decel_ratio_actual > decel_ratio:
-            continue
+        # 낙폭 감속 비율 = 2차낙폭 / 1차낙폭 (값 작을수록 강한 감속)
+        decel_actual = step2 / step1 if step1 > 0 else float("inf")
+        # 감속 조건: None이면 끔, 아니면 decel_actual <= decel_ratio 일 때만 통과
+        decel_ok = decel_ratio is None or decel_actual <= decel_ratio
 
         resistance = max(h1.price, h2.price)
         breakout_idx = None
@@ -280,7 +280,7 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
             breakout_idx=breakout_idx,
             low_pivot_idxs=[a_p.index, c_p.index, e_p.index], profile=profile)
 
-        matched = bool(broke and vconf)
+        matched = bool(broke and vconf and decel_ok)
         confidence = round(shape * (0.5 + 0.5 * vscore), 3) if matched else round(shape * 0.3, 3)
 
         height = resistance - e
@@ -294,7 +294,7 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
                         lows=[round(a, 2), round(c, 2), round(e, 2)],
                         step1_pct=round(step1 * 100, 2), step2_pct=round(step2 * 100, 2),
                         total_drop_pct=round(total * 100, 2),
-                        decel_ratio_actual=round(decel_ratio_actual, 4),
+                        decel_actual=round(decel_actual, 4),
                         resistance=round(resistance, 2),
                         measured_target=round(resistance + height, 2),
                         stop_suggestion=round(e * 0.99, 2),
