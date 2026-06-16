@@ -214,7 +214,8 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
                                     total_min=0.03, total_max=0.12,
                                     profile: VolumeProfile = None,
                                     decel_ratio=None,
-                                    breakout_mult=1.5) -> Signal:
+                                    breakout_mult=1.5,
+                                    max_lookback_pivots=None) -> Signal:
     """
     하강 채널형 삼중바닥: 저점이 a>c>e로 계단식 하강(e 최저)한 뒤 저항 돌파.
     저점 하락폭이 수평형 허용오차(3%)를 넘으므로 triple_bottom 과 절대 안 겹친다.
@@ -234,7 +235,12 @@ def detect_triple_bottom_descending(ohlcv, zigzag_threshold=0.04,
     if len(pivots) < 5:
         return Signal("none", "none", 0.0, "forming", {"pivots": len(pivots)})
 
-    for s in range(len(pivots) - 5, -1, -1):
+    # 스캔 하한: max_lookback_pivots가 주어지면 최근 그만큼의 5-피벗 윈도만 본다.
+    # 탐지기는 '가장 최근 유효 패턴'을 반환하고 더 오래된 패턴은 형성 당시 이미
+    # 한 번 반환되었으므로(백테스트 dedup), 최근 K개만 봐도 결과가 동일하다.
+    scan_lo = -1 if max_lookback_pivots is None \
+        else max(-1, len(pivots) - 5 - max_lookback_pivots)
+    for s in range(len(pivots) - 5, scan_lo, -1):
         w = pivots[s:s + 5]
         if [x.kind for x in w] != ["L", "H", "L", "H", "L"]:
             continue
