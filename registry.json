@@ -1,0 +1,116 @@
+{
+  "patterns": [
+    {
+      "id": "engulfing",
+      "name": "Engulfing",
+      "category": "캔들",
+      "difficulty": 1,
+      "status": "needs_impl",
+      "detector_file": "detector_engulfing.py"
+    },
+    {
+      "id": "pin_bar",
+      "name": "Pin Bar",
+      "category": "캔들",
+      "difficulty": 1,
+      "status": "needs_impl",
+      "detector_file": "detector_pin_bar.py"
+    },
+    {
+      "id": "nr7",
+      "name": "NR7 (Narrow Range 7)",
+      "category": "변동성",
+      "difficulty": 1,
+      "status": "needs_impl",
+      "detector_file": "detector_nr7.py"
+    },
+    {
+      "id": "bb_squeeze",
+      "name": "Bollinger Band Squeeze",
+      "category": "변동성",
+      "difficulty": 1,
+      "status": "needs_impl",
+      "detector_file": "detector_bb_squeeze.py"
+    },
+    {
+      "id": "double_bottom",
+      "name": "Double Bottom",
+      "category": "패턴",
+      "difficulty": 1,
+      "status": "needs_impl",
+      "detector_file": "reversal_patterns.py"
+    },
+    {
+      "id": "liquidity_sweep",
+      "name": "Liquidity Sweep",
+      "category": "SMC",
+      "difficulty": 2,
+      "status": "holding",
+      "detector_file": "detector_liquidity_sweep.py"
+    },
+    {
+      "id": "fvg",
+      "name": "Fair Value Gap",
+      "category": "SMC",
+      "difficulty": 2,
+      "status": "needs_impl",
+      "detector_file": "detector_fvg.py"
+    },
+    {
+      "id": "inverse_hs",
+      "name": "Inverse Head&Shoulders",
+      "category": "패턴",
+      "difficulty": 2,
+      "status": "needs_impl",
+      "detector_file": "reversal_patterns.py"
+    },
+    {
+      "id": "rsi_divergence",
+      "name": "RSI Divergence",
+      "category": "지표",
+      "difficulty": 2,
+      "status": "needs_impl",
+      "detector_file": "detector_rsi_divergence.py"
+    },
+    {
+      "id": "macd_divergence",
+      "name": "MACD Divergence",
+      "category": "지표",
+      "difficulty": 2,
+      "status": "needs_impl",
+      "detector_file": "detector_macd_divergence.py"
+    },
+    {
+      "id": "order_block",
+      "name": "Order Block",
+      "category": "SMC",
+      "difficulty": 3,
+      "status": "needs_impl",
+      "detector_file": "detector_order_block.py"
+    },
+    {
+      "id": "bos_choch",
+      "name": "BOS / CHoCH",
+      "category": "SMC",
+      "difficulty": 3,
+      "status": "needs_impl",
+      "detector_file": "detector_bos_choch.py"
+    },
+    {
+      "id": "spring_wyckoff",
+      "name": "Wyckoff Spring",
+      "category": "패턴",
+      "difficulty": 3,
+      "status": "needs_impl",
+      "detector_file": "detector_spring_wyckoff.py"
+    },
+    {
+      "id": "triple_bottom_desc",
+      "name": "Triple Bottom (descending)",
+      "category": "패턴",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "triple_bottom_volume.py"
+    }
+  ]
+}

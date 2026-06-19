@@ -102,22 +102,37 @@ def label(rows, si):
     return "neutral"
 
 
-def main():
-    per = {}                       # sym -> dict(n, real, fake, neutral)
+def evaluate(date_from=None, date_to=None):
+    """
+    오케스트레이터 표준 인터페이스.
+    date_from/date_to(YYYY-MM-DD)로 신호 발생일을 필터(OOS 시간분할용).
+    반환: dict(agg={n,real,fake,neutral}, per={sym:{...}})
+    """
+    per = {}
     agg = dict(n=0, real=0, fake=0, neutral=0)
     for sym in SYMBOLS:
         try:
             rows = load_ohlcv(sym)
         except FileNotFoundError:
-            print(f"[경고] {sym} 일봉 없음 — 스킵")
             continue
         c = dict(n=0, real=0, fake=0, neutral=0)
         for si in detect_sweeps(rows):
-            lab = label(rows, si)
-            c["n"] += 1; c[lab] += 1
+            d = rows[si]["date"]
+            if date_from and d < date_from:
+                continue
+            if date_to and d > date_to:
+                continue
+            c["n"] += 1
+            c[label(rows, si)] += 1
         per[sym] = c
         for kk in agg:
             agg[kk] += c[kk]
+    return dict(agg=agg, per=per)
+
+
+def main():
+    res = evaluate()
+    per, agg = res["per"], res["agg"]
 
     def pct(c, k):
         return f"{c[k]/c['n']*100:5.1f}%" if c["n"] else "  -  "
