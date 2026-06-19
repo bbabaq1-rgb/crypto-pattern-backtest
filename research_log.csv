@@ -1,0 +1,2 @@
+﻿timestamp,pattern,symbol,params_json,n,true_rate,verdict,git_commit
+2026-06-19T09:37:56+00:00,liquidity_sweep,ALL7,"{""sweep_lookback"": 30, ""eq_tol"": 0.005, ""sweep_depth"": 0.005, ""recover_bars"": 3, ""vol_lookback"": 20, ""vol_mult"": 2.0, ""label_window"": 20, ""rise_thr"": 0.15, ""fall_thr"": -0.1}",12,0.25,보류(표본부족),a02a3117a56e125adc46f433686a93d4401bf525
