@@ -69,7 +69,7 @@
       "name": "RSI Divergence",
       "category": "지표",
       "difficulty": 2,
-      "status": "needs_impl",
+      "status": "rejected",
       "detector_file": "detector_rsi_divergence.py"
     },
     {

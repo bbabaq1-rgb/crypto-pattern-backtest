@@ -34,8 +34,9 @@ VOL_LOOKBACK   = 20      # 거래량 기준 평균 봉수
 VOL_MULT       = 2.0     # 거래량 폭발 배수
 
 LABEL_WINDOW   = 20      # 라벨 관찰 봉수
-RISE_THR       = 0.15    # 진짜 상승 임계 (+15%)
+RISE_THR       = 0.10    # 진짜 상승 임계 (+10%, 대칭 — 2026-06 보정 동결)
 FALL_THR       = -0.10   # 페이크 하락 임계 (-10%)
+FEE            = 0.002   # 왕복 수수료 (0.2%)
 
 PATTERN = "liquidity_sweep"
 SYMBOLS = ["BTC", "SOL", "ETH", "BNB", "XRP", "ADA", "AVAX"]
@@ -90,26 +91,28 @@ def detect_sweeps(rows):
     return signals
 
 
-def label(rows, si):
+def outcome(rows, si):
+    """(label, ret) — 트리플배리어. ret은 수수료 차감 후 실현수익."""
     base = rows[si]["c"]
     up, dn = base * (1 + RISE_THR), base * (1 + FALL_THR)
     hi = min(si + LABEL_WINDOW, len(rows) - 1)
     for j in range(si + 1, hi + 1):
         if rows[j]["c"] >= up:
-            return "real"
+            return "real", rows[j]["c"] / base - 1 - FEE
         if rows[j]["c"] <= dn:
-            return "fake"
-    return "neutral"
+            return "fake", rows[j]["c"] / base - 1 - FEE
+    return "neutral", rows[hi]["c"] / base - 1 - FEE      # 시간정지(window end)
 
 
 def evaluate(date_from=None, date_to=None):
     """
     오케스트레이터 표준 인터페이스.
     date_from/date_to(YYYY-MM-DD)로 신호 발생일을 필터(OOS 시간분할용).
-    반환: dict(agg={n,real,fake,neutral}, per={sym:{...}})
+    반환: dict(agg={n,real,fake,neutral}, per={sym:{...}}, rets=[수수료차감 수익,...])
     """
     per = {}
     agg = dict(n=0, real=0, fake=0, neutral=0)
+    rets = []
     for sym in SYMBOLS:
         try:
             rows = load_ohlcv(sym)
@@ -122,12 +125,14 @@ def evaluate(date_from=None, date_to=None):
                 continue
             if date_to and d > date_to:
                 continue
+            lab, ret = outcome(rows, si)
             c["n"] += 1
-            c[label(rows, si)] += 1
+            c[lab] += 1
+            rets.append(ret)
         per[sym] = c
         for kk in agg:
             agg[kk] += c[kk]
-    return dict(agg=agg, per=per)
+    return dict(agg=agg, per=per, rets=rets)
 
 
 def main():
@@ -160,25 +165,14 @@ def main():
           f"{agg['fake']:>3} ({pct(agg,'fake')})  "
           f"{agg['neutral']:>3} ({pct(agg,'neutral')})")
 
-    # ---- gate verdict (다중비교 보정 적용) ----
+    # ---- 기대값 미리보기 (정식 판정/로그는 orchestrator 담당) ----
+    import statistics as st
+    rets = res["rets"]
     n = agg["n"]
-    true_rate = agg["real"] / n if n else 0.0
-    T = gate.count_trials()                       # append 전 시점 = 보정 기준
-    verdict, eff = gate.decide(n, true_rate, T)
-
-    print("\n" + "=" * 70)
-    print(f"VERDICT: {verdict}")
-    print(f"  n={n}, 진짜율={true_rate*100:.1f}%, "
-          f"기존시험T={T}, 보정 통과기준={eff*100:.2f}%")
-    print("=" * 70)
-
-    # ---- research_log 기록 ----
-    params = dict(sweep_lookback=SWEEP_LOOKBACK, eq_tol=EQ_TOL,
-                  sweep_depth=SWEEP_DEPTH, recover_bars=RECOVER_BARS,
-                  vol_lookback=VOL_LOOKBACK, vol_mult=VOL_MULT,
-                  label_window=LABEL_WINDOW, rise_thr=RISE_THR, fall_thr=FALL_THR)
-    research_log.append_log(PATTERN, "ALL7", params, n, true_rate, verdict)
-    print(f"[기록] research_log.csv 에 1행 추가 (pattern={PATTERN}, symbol=ALL7)")
+    if rets:
+        print(f"\n  기대값: 평균={st.mean(rets)*100:+.2f}%, "
+              f"중앙값={st.median(rets)*100:+.2f}% (수수료 차감, n={n})")
+    print("  (정식 verdict/로그는 orchestrator.py 실행 시)")
 
 
 if __name__ == "__main__":

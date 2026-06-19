@@ -17,6 +17,7 @@ import json
 import os
 import sys
 import importlib
+import statistics as st
 
 import gate
 import research_log
@@ -84,21 +85,29 @@ def true_rate(agg):
     return agg["real"] / agg["n"] if agg["n"] else 0.0
 
 
-def test_and_gate(mod, pattern_id, period_label, date_from=None, date_to=None):
-    """백테스트 1회 -> gate -> research_log 기록. (verdict, n, rate, agg) 반환."""
-    res = mod.evaluate(date_from, date_to)
-    agg = res["agg"]
+def expectancy(res):
+    """evaluate 결과에서 (n, true_rate, mean_ret, median_ret)."""
+    agg = res["agg"]; rets = res.get("rets", [])
     n = agg["n"]
-    rate = true_rate(agg)
+    tr = true_rate(agg)
+    mean_r = st.mean(rets) if rets else 0.0
+    med_r = st.median(rets) if rets else 0.0
+    return n, tr, mean_r, med_r
+
+
+def test_and_gate(mod, pattern_id, period_label, date_from=None, date_to=None):
+    """백테스트 1회 -> 기대값 gate -> research_log 기록. verdict 반환."""
+    res = mod.evaluate(date_from, date_to)
+    n, tr, mean_r, med_r = expectancy(res)
     T = gate.count_trials()                       # 기록 전 시점 = 보정 기준
-    verdict, eff = gate.decide(n, rate, T)
+    verdict, eff = gate.decide(n, mean_r, med_r, T)
     research_log.append_log(
         pattern_id, period_label,
         {"period": period_label, "from": date_from, "to": date_to},
-        n, rate, verdict)
-    print(f"    [{period_label}] n={n}, 진짜율={rate*100:.1f}%, "
-          f"T={T}, 통과기준={eff*100:.2f}% -> {verdict}")
-    return verdict, n, rate, agg
+        n, tr, mean_r, med_r, verdict)
+    print(f"    [{period_label}] n={n}, 평균={mean_r*100:+.2f}%, 중앙값={med_r*100:+.2f}%, "
+          f"진짜율={tr*100:.1f}%, T={T}, 평균임계={eff*100:.2f}% -> {verdict}")
+    return verdict
 
 
 def process(p):
@@ -125,15 +134,14 @@ def process(p):
         print(f"    -> needs_impl ({note})")
         return p["status"]
 
-    # (c) 테스트 + 게이트 (전체 기간)
-    agg = full["agg"]
-    n, rate = agg["n"], true_rate(agg)
+    # (c) 테스트 + 게이트 (전체 기간, 기대값 기반)
+    n, tr, mean_r, med_r = expectancy(full)
     T = gate.count_trials()
-    verdict, eff = gate.decide(n, rate, T)
+    verdict, eff = gate.decide(n, mean_r, med_r, T)
     research_log.append_log(p["id"], SYMBOLS_LABEL,
-                            {"period": "full"}, n, rate, verdict)
-    print(f"    [full] n={n}, 진짜율={rate*100:.1f}%, "
-          f"T={T}, 통과기준={eff*100:.2f}% -> {verdict}")
+                            {"period": "full"}, n, tr, mean_r, med_r, verdict)
+    print(f"    [full] n={n}, 평균={mean_r*100:+.2f}%, 중앙값={med_r*100:+.2f}%, "
+          f"진짜율={tr*100:.1f}%, T={T}, 평균임계={eff*100:.2f}% -> {verdict}")
 
     # (e) 보류/기각
     if verdict.startswith("보류"):
@@ -143,8 +151,8 @@ def process(p):
     elif verdict == "통과":
         # (d) OOS 재테스트
         print("    통과 -> OOS 재테스트(시간분할) 진입")
-        v_is, _, _, _   = test_and_gate(mod, p["id"], f"OOS@{SPLIT_IS[0]}~{SPLIT_IS[1]}", *SPLIT_IS)
-        v_oos, _, _, _  = test_and_gate(mod, p["id"], f"OOS@{SPLIT_OOS[0]}~{SPLIT_OOS[1]}", *SPLIT_OOS)
+        v_is  = test_and_gate(mod, p["id"], f"OOS@{SPLIT_IS[0]}~{SPLIT_IS[1]}", *SPLIT_IS)
+        v_oos = test_and_gate(mod, p["id"], f"OOS@{SPLIT_OOS[0]}~{SPLIT_OOS[1]}", *SPLIT_OOS)
         if v_is == "통과" and v_oos == "통과":
             p["status"] = "passed"
         else:

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 # ======================================================================
 LOG_PATH = "research_log.csv"
 FIELDS = ["timestamp", "pattern", "symbol", "params_json",
-          "n", "true_rate", "verdict", "git_commit"]
+          "n", "true_rate", "mean_ret", "median_ret", "verdict", "git_commit"]
 
 
 def git_head():
@@ -28,7 +28,8 @@ def git_head():
         return "unknown"
 
 
-def append_log(pattern, symbol, params, n, true_rate, verdict, log_path=LOG_PATH):
+def append_log(pattern, symbol, params, n, true_rate, mean_ret, median_ret,
+               verdict, log_path=LOG_PATH):
     """시험 1건을 CSV에 추가. 파일 없으면 헤더 먼저 기록."""
     new = not os.path.exists(log_path)
     with open(log_path, "a", newline="", encoding="utf-8-sig") as f:
@@ -39,5 +40,6 @@ def append_log(pattern, symbol, params, n, true_rate, verdict, log_path=LOG_PATH
             datetime.now(timezone.utc).isoformat(timespec="seconds"),
             pattern, symbol,
             json.dumps(params, ensure_ascii=False),
-            n, round(true_rate, 4), verdict, git_head(),
+            n, round(true_rate, 4), round(mean_ret, 5), round(median_ret, 5),
+            verdict, git_head(),
         ])

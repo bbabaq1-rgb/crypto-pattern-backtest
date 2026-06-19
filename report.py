@@ -65,22 +65,33 @@ def main():
     L.append("")
 
     # 패턴별 상세
+    def pctf(v):
+        try:
+            return f"{float(v)*100:+.2f}%"
+        except (TypeError, ValueError):
+            return "-"
+
     L.append("## 패턴별 결과\n")
-    L.append("| 패턴 | status | n | 진짜율 | verdict(전체) | OOS |")
-    L.append("|---|---|---|---|---|---|")
+    L.append("판정=기대값 기반(평균수익>임계 AND 중앙값>0 AND n>=20). 진짜율은 참고용.\n")
+    L.append("| 패턴 | status | n | 평균수익 | 중앙값 | 진짜율 | verdict(전체) | OOS |")
+    L.append("|---|---|---|---|---|---|---|---|")
     for p in pats:
         fr = full_row(p["id"])
         if fr:
-            n = fr["n"]; tr = f"{float(fr['true_rate'])*100:.1f}%"; vd = fr["verdict"]
+            n = fr["n"]
+            mr = pctf(fr.get("mean_ret"))
+            md = pctf(fr.get("median_ret"))
+            tr = f"{float(fr['true_rate'])*100:.1f}%" if fr.get("true_rate") else "-"
+            vd = fr["verdict"]
         else:
-            n = "-"; tr = "-"; vd = "(미시험)"
+            n = mr = md = tr = "-"; vd = "(미시험)"
         oos = oos_rows(p["id"])
         if oos:
-            oss = " / ".join(f"{r['symbol'].split('@')[1]}:{r['verdict']}({r['n']})"
+            oss = " / ".join(f"{r['symbol'].split('@')[1]}:{r['verdict']}(n{r['n']},{pctf(r.get('mean_ret'))})"
                              for r in oos)
         else:
             oss = "-"
-        L.append(f"| {p['id']} | {p['status']} | {n} | {tr} | {vd} | {oss} |")
+        L.append(f"| {p['id']} | {p['status']} | {n} | {mr} | {md} | {tr} | {vd} | {oss} |")
     L.append("")
 
     # 살아있는 후보
