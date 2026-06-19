@@ -5,7 +5,7 @@
       "name": "Engulfing",
       "category": "캔들",
       "difficulty": 1,
-      "status": "needs_impl",
+      "status": "rejected",
       "detector_file": "detector_engulfing.py"
     },
     {

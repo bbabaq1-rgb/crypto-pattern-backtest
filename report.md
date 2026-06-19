@@ -1,22 +1,22 @@
 # 자동 패턴 연구 보고서
 
 - 등재 패턴: **14개**
-- 누적 시험(로그 행): **2건**
-- 상태 분포: holding 1, needs_impl 12, rejected 1
+- 누적 시험(로그 행): **3건**
+- 상태 분포: holding 1, needs_impl 11, rejected 2
 
 ## 상태 분류
 
 | status | 패턴 |
 |---|---|
 | holding | liquidity_sweep |
-| rejected | triple_bottom_desc |
-| needs_impl | engulfing, pin_bar, nr7, bb_squeeze, double_bottom, fvg, inverse_hs, rsi_divergence, macd_divergence, order_block, bos_choch, spring_wyckoff |
+| rejected | engulfing, triple_bottom_desc |
+| needs_impl | pin_bar, nr7, bb_squeeze, double_bottom, fvg, inverse_hs, rsi_divergence, macd_divergence, order_block, bos_choch, spring_wyckoff |
 
 ## 패턴별 결과
 
 | 패턴 | status | n | 진짜율 | verdict(전체) | OOS |
 |---|---|---|---|---|---|
-| engulfing | needs_impl | - | - | (미시험) | - |
+| engulfing | rejected | 60 | 33.3% | 기각 | - |
 | pin_bar | needs_impl | - | - | (미시험) | - |
 | nr7 | needs_impl | - | - | (미시험) | - |
 | bb_squeeze | needs_impl | - | - | (미시험) | - |
@@ -40,4 +40,5 @@
 
 ## 기각(rejected) 요약
 
+- engulfing (Engulfing) — 전체 verdict=기각, 진짜율 33.3% (n=60)
 - triple_bottom_desc (Triple Bottom (descending)) — 사전 기각(별도 분석)
