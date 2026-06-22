@@ -7,7 +7,40 @@
       "difficulty": 1,
       "status": "passed",
       "detector_file": "detector_engulfing.py",
-      "passed_tf": "1d"
+      "passed_tf": "1d",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 10,
+            "mean": 0.03058,
+            "median": 0.10138
+          },
+          "down": {
+            "n": 21,
+            "mean": 0.05704,
+            "median": 0.10226
+          },
+          "side": {
+            "n": 22,
+            "mean": -0.00065,
+            "median": -0.0035
+          },
+          "na": {
+            "n": 7,
+            "mean": 0.08079,
+            "median": 0.10453
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00364,
+          "excess_mean": 0.03061,
+          "p_mean": 0.033,
+          "significant": true
+        }
+      },
+      "regime_dependent": false
     },
     {
       "id": "pin_bar",
@@ -46,8 +79,41 @@
       "name": "Liquidity Sweep",
       "category": "SMC",
       "difficulty": 2,
-      "status": "pending",
-      "detector_file": "detector_liquidity_sweep.py"
+      "status": "rejected",
+      "detector_file": "detector_liquidity_sweep.py",
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 27,
+            "mean": -0.00515,
+            "median": -0.02761
+          },
+          "down": {
+            "n": 33,
+            "mean": 0.02424,
+            "median": 0.01957
+          },
+          "side": {
+            "n": 169,
+            "mean": 0.00169,
+            "median": -0.00077
+          },
+          "na": {
+            "n": 1,
+            "mean": 0.17699,
+            "median": 0.17699
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": 1e-05,
+          "excess_mean": 0.00488,
+          "p_mean": 0.159,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
     },
     {
       "id": "fvg",
@@ -70,8 +136,9 @@
       "name": "RSI Divergence",
       "category": "지표",
       "difficulty": 2,
-      "status": "pending",
-      "detector_file": "detector_rsi_divergence.py"
+      "status": "rejected",
+      "detector_file": "detector_rsi_divergence.py",
+      "reject_reason": "기대값 음수"
     },
     {
       "id": "macd_divergence",

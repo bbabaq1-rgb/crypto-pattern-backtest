@@ -21,11 +21,13 @@ import statistics as st
 
 import gate
 import research_log
+import analysis
 
 sys.path.insert(0, ".")
 
 REGISTRY = "registry.json"
 SYMBOLS_LABEL = "ALL7"
+STOP_ON_PASSED = False    # 이번 라운드: passed에도 멈추지 않고 큐 소진
 # 패턴 × 타임프레임 순회 (거친->고운 순, 표본 부족시 자동 하강)
 TIMEFRAMES = ["1d", "4h", "1h"]
 # OOS 시간분할
@@ -143,6 +145,7 @@ def process(p):
 
     # (c~e) 타임프레임 순회: 표본 부족(보류)이면 더 고운 TF로 하강.
     saw_holding = False
+    reject_reason = None
     for tf in TIMEFRAMES:
         full = mod.evaluate(None, None, tf)
         n, tr, mean_r, med_r = expectancy(full)
@@ -158,16 +161,57 @@ def process(p):
             print(f"    [{tf}] 통과 -> OOS 시간분할 재테스트")
             v_is  = test_and_gate(mod, p["id"], f"OOS@{tf}@IS",  tf, *SPLIT_IS)
             v_oos = test_and_gate(mod, p["id"], f"OOS@{tf}@OOS", tf, *SPLIT_OOS)
-            if v_is == "통과" and v_oos == "통과":
+            oos_ok = (v_is == "통과" and v_oos == "통과")
+
+            # 레짐 분해 (항상 기록)
+            rb = analysis.regime_breakdown(analysis.per_signal(mod, tf))
+            p.setdefault("regime", {})[tf] = rb
+            up_only = ("up" in rb) and all(
+                rb.get(g, {}).get("mean", -1) <= 0 for g in ("down", "side"))
+
+            # 베이스라인 대조 (무작위 진입 대비 유의성)
+            bt = analysis.baseline_compare(mod, tf, mean_r, med_r, n)
+            base_ok = bool(bt and bt["significant"])
+            if bt:
+                research_log.append_log(
+                    p["id"], f"BASE@{tf}",
+                    {"tf": tf, "null_mean": round(bt["null_mean"], 5), "p_mean": bt["p_mean"]},
+                    n, 0.0, bt["excess_mean"], bt["excess_median"],
+                    "유의" if base_ok else "베이스라인미초과")
+                p.setdefault("baseline", {})[tf] = dict(
+                    null_mean=round(bt["null_mean"], 5),
+                    excess_mean=round(bt["excess_mean"], 5),
+                    p_mean=bt["p_mean"], significant=base_ok)
+                print(f"    [{tf}] 베이스라인 null평균={bt['null_mean']*100:+.2f}%, "
+                      f"초과={bt['excess_mean']*100:+.2f}%, p={bt['p_mean']:.3f} "
+                      f"-> {'유의(엣지)' if base_ok else '미초과(편승)'}")
+            if rb:
+                print(f"    [{tf}] 레짐별 평균: " + ", ".join(
+                    f"{g}:{v['mean']*100:+.2f}%(n{v['n']})" for g, v in rb.items()))
+
+            # 최종 판정: OOS 통과 AND 베이스라인 유의해야 passed
+            if oos_ok and base_ok:
                 p["status"] = "passed"
                 p["passed_tf"] = tf
-                print(f"    => PASSED at {tf} (전체+OOS 양구간 통과)")
+                p["regime_dependent"] = up_only
+                print(f"    => PASSED at {tf} (전체+OOS+베이스라인 유의)"
+                      + (" [단 상승장 의존 주의]" if up_only else ""))
                 return "passed"
-            print(f"    -> {tf} 전체통과했으나 OOS 미통과: 과최적화(이 TF 기각)")
+            elif oos_ok and not base_ok:
+                reject_reason = "베이스라인 미초과(상승장 편승)"
+                print(f"    -> {tf} OOS 통과했으나 {reject_reason}")
+            else:
+                reject_reason = "OOS 미통과(과최적화)"
+                print(f"    -> {tf} {reject_reason}")
         elif verdict.startswith("보류"):
             saw_holding = True              # 표본부족 -> 다음(고운) TF로 하강
 
-    p["status"] = "holding" if saw_holding else "rejected"
+    if reject_reason:
+        p["status"] = "rejected"; p["reject_reason"] = reject_reason
+    elif saw_holding:
+        p["status"] = "holding"
+    else:
+        p["status"] = "rejected"; p["reject_reason"] = "기대값 음수"
     print(f"    => status={p['status']}")
     return p["status"]
 
@@ -188,8 +232,9 @@ def main():
         save_registry(reg)                  # 매 단계 즉시 반영
         if status == "passed":
             passed_any.append(p)
-            print("\n[모델선정 게이트] passed 발생 -> 루프 정지")
-            break
+            if STOP_ON_PASSED:
+                print("\n[모델선정 게이트] passed 발생 -> 루프 정지")
+                break
 
     # (3) 모델선정 게이트
     print("\n" + "=" * 64)

@@ -76,13 +76,14 @@ def main():
 
     # 패턴 x 타임프레임 상세
     L.append("## 패턴 × 타임프레임 결과\n")
-    L.append("| 패턴 | TF | n | 평균수익 | 중앙값 | 진짜율 | verdict | OOS(IS/OOS) |")
-    L.append("|---|---|---|---|---|---|---|---|")
+    L.append("| 패턴 | TF | n | 평균수익 | 중앙값 | 진짜율 | verdict | OOS(IS/OOS) | 베이스라인 초과(p) |")
+    L.append("|---|---|---|---|---|---|---|---|---|")
     for p in pats:
         tfs = [tf for tf in TF_ORDER if pt.get((p["id"], tf), {}).get("full")]
         if not tfs:
-            L.append(f"| {p['id']} | - | - | - | - | - | (미시험) | - |")
+            L.append(f"| {p['id']} | - | - | - | - | - | (미시험) | - | - |")
             continue
+        base = p.get("baseline", {})
         for tf in tfs:
             rec = pt[(p["id"], tf)]
             fr = rec["full"]
@@ -94,8 +95,30 @@ def main():
                     for seg in ("IS", "OOS") if seg in oo)
             else:
                 oss = "-"
+            b = base.get(tf)
+            if b:
+                bcol = (f"{pctf(b.get('excess_mean'))} (p={b.get('p_mean')}, "
+                        f"{'유의' if b.get('significant') else '미초과'})")
+            else:
+                bcol = "-"
             L.append(f"| {p['id']} | {tf} | {fr['n']} | {pctf(fr.get('mean_ret'))} | "
-                     f"{pctf(fr.get('median_ret'))} | {tr} | {fr['verdict']} | {oss} |")
+                     f"{pctf(fr.get('median_ret'))} | {tr} | {fr['verdict']} | {oss} | {bcol} |")
+    L.append("")
+
+    # 레짐별 결과 (regime breakdown 보유 패턴만)
+    L.append("## 레짐별 기대값 (상승장 편승 여부 검증)\n")
+    any_reg = False
+    for p in pats:
+        reg = p.get("regime", {})
+        for tf, rb in reg.items():
+            any_reg = True
+            bits = ", ".join(
+                f"{g} n{v['n']} 평균{v['mean']*100:+.2f}%/중앙{v['median']*100:+.2f}%"
+                for g, v in rb.items())
+            note = " [상승장 의존]" if p.get("regime_dependent") else ""
+            L.append(f"- **{p['id']}** @{tf}: {bits}{note}")
+    if not any_reg:
+        L.append("- (레짐 분해된 패턴 없음)")
     L.append("")
 
     # 살아있는 수익모델 후보
@@ -133,7 +156,10 @@ def main():
     if rej:
         for p in rej:
             tfs = [tf for tf in TF_ORDER if pt.get((p["id"], tf), {}).get("full")]
-            if tfs:
+            reason = p.get("reject_reason")
+            if reason:
+                L.append(f"- {p['id']} ({p['name']}) — {reason}")
+            elif tfs:
                 bits = []
                 for tf in tfs:
                     fr = pt[(p["id"], tf)]["full"]
