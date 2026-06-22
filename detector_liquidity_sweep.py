@@ -40,12 +40,12 @@ FEE            = 0.002   # 왕복 수수료 (0.2%)
 
 PATTERN = "liquidity_sweep"
 SYMBOLS = ["BTC", "SOL", "ETH", "BNB", "XRP", "ADA", "AVAX"]
-CSV_1D  = lambda s: f"data/{s.lower()}_1d.csv"
+CSV = lambda s, tf: f"data/{s.lower()}_{tf}.csv"
 
 
-def load_ohlcv(sym):
+def load_ohlcv(sym, tf="1d"):
     rows = []
-    with open(CSV_1D(sym), newline="") as f:
+    with open(CSV(sym, tf), newline="") as f:
         for r in csv.DictReader(f):
             ts = int(float(r["timestamp"]))
             d  = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
@@ -104,10 +104,10 @@ def outcome(rows, si):
     return "neutral", rows[hi]["c"] / base - 1 - FEE      # 시간정지(window end)
 
 
-def evaluate(date_from=None, date_to=None):
+def evaluate(date_from=None, date_to=None, tf="1d"):
     """
     오케스트레이터 표준 인터페이스.
-    date_from/date_to(YYYY-MM-DD)로 신호 발생일을 필터(OOS 시간분할용).
+    date_from/date_to(YYYY-MM-DD)로 신호 발생일 필터(OOS 시간분할), tf로 타임프레임 선택.
     반환: dict(agg={n,real,fake,neutral}, per={sym:{...}}, rets=[수수료차감 수익,...])
     """
     per = {}
@@ -115,7 +115,7 @@ def evaluate(date_from=None, date_to=None):
     rets = []
     for sym in SYMBOLS:
         try:
-            rows = load_ohlcv(sym)
+            rows = load_ohlcv(sym, tf)
         except FileNotFoundError:
             continue
         c = dict(n=0, real=0, fake=0, neutral=0)

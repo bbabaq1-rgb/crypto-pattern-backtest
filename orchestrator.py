@@ -26,6 +26,8 @@ sys.path.insert(0, ".")
 
 REGISTRY = "registry.json"
 SYMBOLS_LABEL = "ALL7"
+# 패턴 × 타임프레임 순회 (거친->고운 순, 표본 부족시 자동 하강)
+TIMEFRAMES = ["1d", "4h", "1h"]
 # OOS 시간분할
 SPLIT_IS  = ("2021-01-01", "2023-12-31")   # in-sample
 SPLIT_OOS = ("2024-01-01", "2026-12-31")   # out-of-sample (2024+)
@@ -95,36 +97,41 @@ def expectancy(res):
     return n, tr, mean_r, med_r
 
 
-def test_and_gate(mod, pattern_id, period_label, date_from=None, date_to=None):
+def test_and_gate(mod, pattern_id, symbol_label, tf, date_from=None, date_to=None):
     """백테스트 1회 -> 기대값 gate -> research_log 기록. verdict 반환."""
-    res = mod.evaluate(date_from, date_to)
+    res = mod.evaluate(date_from, date_to, tf)
     n, tr, mean_r, med_r = expectancy(res)
     T = gate.count_trials()                       # 기록 전 시점 = 보정 기준
     verdict, eff = gate.decide(n, mean_r, med_r, T)
     research_log.append_log(
-        pattern_id, period_label,
-        {"period": period_label, "from": date_from, "to": date_to},
+        pattern_id, symbol_label,
+        {"tf": tf, "from": date_from, "to": date_to},
         n, tr, mean_r, med_r, verdict)
-    print(f"    [{period_label}] n={n}, 평균={mean_r*100:+.2f}%, 중앙값={med_r*100:+.2f}%, "
+    print(f"    [{symbol_label}] n={n}, 평균={mean_r*100:+.2f}%, 중앙값={med_r*100:+.2f}%, "
           f"진짜율={tr*100:.1f}%, T={T}, 평균임계={eff*100:.2f}% -> {verdict}")
     return verdict
 
 
+def is_runnable(mod):
+    """evaluate가 구현돼 호출 가능한지(스켈레톤/미적합 제외)."""
+    if mod is None or not hasattr(mod, "evaluate"):
+        return False
+    try:
+        mod.evaluate(None, None, "1d")     # 스켈레톤은 NotImplementedError/TypeError
+        return True
+    except (NotImplementedError, TypeError):
+        return False
+    except FileNotFoundError:
+        return True                         # 데이터 문제는 실행 가능으로 간주
+
+
 def process(p):
-    """후보 1개 처리. 갱신된 status 반환."""
+    """후보 1개를 타임프레임 순회로 처리. 갱신된 status 반환."""
     print(f"\n>> [{p['id']}] {p['name']} (난이도 {p['difficulty']}, {p['category']})")
     mod = import_detector(p.get("detector_file"))
 
     # (b) 실행 가능한 detector 없음 -> 스켈레톤 + needs_impl
-    runnable = False
-    full = None
-    if mod is not None:
-        try:
-            full = mod.evaluate()              # 스켈레톤은 NotImplementedError
-            runnable = True
-        except NotImplementedError:
-            runnable = False
-    if not runnable:
+    if not is_runnable(mod):
         if not p.get("detector_file"):
             make_skeleton(p)
             note = "스켈레톤 생성됨"
@@ -134,30 +141,33 @@ def process(p):
         print(f"    -> needs_impl ({note})")
         return p["status"]
 
-    # (c) 테스트 + 게이트 (전체 기간, 기대값 기반)
-    n, tr, mean_r, med_r = expectancy(full)
-    T = gate.count_trials()
-    verdict, eff = gate.decide(n, mean_r, med_r, T)
-    research_log.append_log(p["id"], SYMBOLS_LABEL,
-                            {"period": "full"}, n, tr, mean_r, med_r, verdict)
-    print(f"    [full] n={n}, 평균={mean_r*100:+.2f}%, 중앙값={med_r*100:+.2f}%, "
-          f"진짜율={tr*100:.1f}%, T={T}, 평균임계={eff*100:.2f}% -> {verdict}")
+    # (c~e) 타임프레임 순회: 표본 부족(보류)이면 더 고운 TF로 하강.
+    saw_holding = False
+    for tf in TIMEFRAMES:
+        full = mod.evaluate(None, None, tf)
+        n, tr, mean_r, med_r = expectancy(full)
+        T = gate.count_trials()
+        verdict, eff = gate.decide(n, mean_r, med_r, T)
+        research_log.append_log(p["id"], f"{SYMBOLS_LABEL}@{tf}",
+                                {"tf": tf, "period": "full"}, n, tr, mean_r, med_r, verdict)
+        print(f"    [{tf}] n={n}, 평균={mean_r*100:+.2f}%, 중앙값={med_r*100:+.2f}%, "
+              f"진짜율={tr*100:.1f}%, T={T}, 평균임계={eff*100:.2f}% -> {verdict}")
 
-    # (e) 보류/기각
-    if verdict.startswith("보류"):
-        p["status"] = "holding"
-    elif verdict == "기각":
-        p["status"] = "rejected"
-    elif verdict == "통과":
-        # (d) OOS 재테스트
-        print("    통과 -> OOS 재테스트(시간분할) 진입")
-        v_is  = test_and_gate(mod, p["id"], f"OOS@{SPLIT_IS[0]}~{SPLIT_IS[1]}", *SPLIT_IS)
-        v_oos = test_and_gate(mod, p["id"], f"OOS@{SPLIT_OOS[0]}~{SPLIT_OOS[1]}", *SPLIT_OOS)
-        if v_is == "통과" and v_oos == "통과":
-            p["status"] = "passed"
-        else:
-            p["status"] = "rejected"
-            print("    -> OOS 한쪽 이상 미통과: 과최적화로 rejected")
+        if verdict == "통과":
+            # (d) OOS 재테스트 (해당 TF)
+            print(f"    [{tf}] 통과 -> OOS 시간분할 재테스트")
+            v_is  = test_and_gate(mod, p["id"], f"OOS@{tf}@IS",  tf, *SPLIT_IS)
+            v_oos = test_and_gate(mod, p["id"], f"OOS@{tf}@OOS", tf, *SPLIT_OOS)
+            if v_is == "통과" and v_oos == "통과":
+                p["status"] = "passed"
+                p["passed_tf"] = tf
+                print(f"    => PASSED at {tf} (전체+OOS 양구간 통과)")
+                return "passed"
+            print(f"    -> {tf} 전체통과했으나 OOS 미통과: 과최적화(이 TF 기각)")
+        elif verdict.startswith("보류"):
+            saw_holding = True              # 표본부족 -> 다음(고운) TF로 하강
+
+    p["status"] = "holding" if saw_holding else "rejected"
     print(f"    => status={p['status']}")
     return p["status"]
 
@@ -186,7 +196,7 @@ def main():
     if passed_any:
         print("수익모델 후보 - 대표님 승인 대기:")
         for p in passed_any:
-            print(f"  - {p['id']} ({p['name']})  [전체+OOS 통과]")
+            print(f"  - {p['id']} ({p['name']})  [{p.get('passed_tf','?')} 전체+OOS 통과]")
     else:
         print("passed 패턴 없음 - 승인 대기 후보 없음. 큐 계속 소진.")
     print("=" * 64)

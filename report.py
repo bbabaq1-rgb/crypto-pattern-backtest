@@ -1,8 +1,8 @@
 """
-report.py — research_log.csv + registry.json 을 읽어 report.md 자동 생성.
+report.py — research_log.csv + registry.json 을 읽어 report.md 완성형 생성.
 
-내용: 시험한 패턴 수, status 분류표, 패턴별 n·진짜율·verdict·OOS결과,
-      현재 살아있는 후보, 기각 사유 요약.
+내용: 시험 요약, status 분류, 패턴 x 타임프레임별 n·평균·중앙값·진짜율·verdict·OOS,
+      현재 살아있는 수익모델 후보, 기각 요약.
 """
 import csv
 import json
@@ -12,6 +12,7 @@ from collections import defaultdict, Counter
 LOG = "research_log.csv"
 REGISTRY = "registry.json"
 OUT = "report.md"
+TF_ORDER = ["1d", "4h", "1h"]
 
 
 def load_log():
@@ -26,33 +27,42 @@ def load_registry():
         return json.load(f)["patterns"]
 
 
+def pctf(v):
+    try:
+        return f"{float(v)*100:+.2f}%"
+    except (TypeError, ValueError):
+        return "-"
+
+
 def main():
     rows = load_log()
     pats = load_registry()
 
-    # 패턴별 시험 기록 묶기
-    by_pat = defaultdict(list)
+    # (pattern, tf) -> {"full": row, "oos": {seg: row}}
+    pt = defaultdict(lambda: {"full": None, "oos": {}})
     for r in rows:
-        by_pat[r["pattern"]].append(r)
-
-    # 패턴별 전체기간 최신 결과 + OOS 결과
-    def full_row(pid):
-        fr = [r for r in by_pat.get(pid, []) if r["symbol"] == "ALL7"]
-        return fr[-1] if fr else None
-
-    def oos_rows(pid):
-        return [r for r in by_pat.get(pid, []) if r["symbol"].startswith("OOS@")]
+        sym = r["symbol"]
+        if sym.startswith("ALL7@"):
+            tf = sym.split("@", 1)[1]
+            pt[(r["pattern"], tf)]["full"] = r        # 최신 우선(덮어씀)
+        elif sym.startswith("OOS@"):
+            parts = sym.split("@")
+            if len(parts) >= 3:
+                tf, seg = parts[1], parts[2]
+                pt[(r["pattern"], tf)]["oos"][seg] = r
 
     status_cnt = Counter(p["status"] for p in pats)
     L = []
     L.append("# 자동 패턴 연구 보고서\n")
     L.append(f"- 등재 패턴: **{len(pats)}개**")
     L.append(f"- 누적 시험(로그 행): **{len(rows)}건**")
-    L.append(f"- 상태 분포: " +
+    L.append("- 상태 분포: " +
              ", ".join(f"{k} {v}" for k, v in sorted(status_cnt.items())))
+    L.append("- 게이트(동결): n>=20 AND 평균수익>임계 AND 중앙값>0, 라벨 대칭 ±10%, "
+             "수수료 왕복 0.2%, 다중비교 보정은 평균임계.")
     L.append("")
 
-    # 상태 분류표
+    # 상태 분류
     L.append("## 상태 분류\n")
     L.append("| status | 패턴 |")
     L.append("|---|---|")
@@ -64,65 +74,73 @@ def main():
             L.append(f"| {st} | {', '.join(by_status[st])} |")
     L.append("")
 
-    # 패턴별 상세
-    def pctf(v):
-        try:
-            return f"{float(v)*100:+.2f}%"
-        except (TypeError, ValueError):
-            return "-"
-
-    L.append("## 패턴별 결과\n")
-    L.append("판정=기대값 기반(평균수익>임계 AND 중앙값>0 AND n>=20). 진짜율은 참고용.\n")
-    L.append("| 패턴 | status | n | 평균수익 | 중앙값 | 진짜율 | verdict(전체) | OOS |")
+    # 패턴 x 타임프레임 상세
+    L.append("## 패턴 × 타임프레임 결과\n")
+    L.append("| 패턴 | TF | n | 평균수익 | 중앙값 | 진짜율 | verdict | OOS(IS/OOS) |")
     L.append("|---|---|---|---|---|---|---|---|")
     for p in pats:
-        fr = full_row(p["id"])
-        if fr:
-            n = fr["n"]
-            mr = pctf(fr.get("mean_ret"))
-            md = pctf(fr.get("median_ret"))
+        tfs = [tf for tf in TF_ORDER if pt.get((p["id"], tf), {}).get("full")]
+        if not tfs:
+            L.append(f"| {p['id']} | - | - | - | - | - | (미시험) | - |")
+            continue
+        for tf in tfs:
+            rec = pt[(p["id"], tf)]
+            fr = rec["full"]
             tr = f"{float(fr['true_rate'])*100:.1f}%" if fr.get("true_rate") else "-"
-            vd = fr["verdict"]
-        else:
-            n = mr = md = tr = "-"; vd = "(미시험)"
-        oos = oos_rows(p["id"])
-        if oos:
-            oss = " / ".join(f"{r['symbol'].split('@')[1]}:{r['verdict']}(n{r['n']},{pctf(r.get('mean_ret'))})"
-                             for r in oos)
-        else:
-            oss = "-"
-        L.append(f"| {p['id']} | {p['status']} | {n} | {mr} | {md} | {tr} | {vd} | {oss} |")
+            oo = rec["oos"]
+            if oo:
+                oss = " / ".join(
+                    f"{seg}:{oo[seg]['verdict']}(n{oo[seg]['n']},{pctf(oo[seg].get('mean_ret'))})"
+                    for seg in ("IS", "OOS") if seg in oo)
+            else:
+                oss = "-"
+            L.append(f"| {p['id']} | {tf} | {fr['n']} | {pctf(fr.get('mean_ret'))} | "
+                     f"{pctf(fr.get('median_ret'))} | {tr} | {fr['verdict']} | {oss} |")
     L.append("")
 
-    # 살아있는 후보
-    live = [p for p in pats if p["status"] == "passed"]
-    hold = [p for p in pats if p["status"] == "holding"]
-    L.append("## 현재 살아있는 후보\n")
-    if live:
-        for p in live:
-            L.append(f"- **{p['id']}** ({p['name']}) — 전체+OOS 통과, 수익모델 후보(승인 대기)")
+    # 살아있는 수익모델 후보
+    L.append("## 현재 살아있는 수익모델 후보\n")
+    passed = [p for p in pats if p["status"] == "passed"]
+    if passed:
+        for p in passed:
+            tf = p.get("passed_tf", "?")
+            L.append(f"- **{p['id']}** ({p['name']}) — {tf} 전체+OOS 통과, 승인 대기")
     else:
         L.append("- 통과(passed) 후보 없음.")
+
+    hold = [p for p in pats if p["status"] == "holding"]
     if hold:
-        L.append("\n보류(표본부족, 재검토 대상):")
+        L.append("\n보류(기대값 유망하나 표본부족, 표본 확대 대상):")
         for p in hold:
-            fr = full_row(p["id"])
-            tr = f"{float(fr['true_rate'])*100:.1f}%" if fr else "-"
-            n = fr["n"] if fr else "-"
-            L.append(f"- {p['id']} ({p['name']}) — n={n}, 진짜율 {tr}")
+            # 가장 좋은(평균 최대) TF 표시
+            best = None
+            for tf in TF_ORDER:
+                fr = pt.get((p["id"], tf), {}).get("full")
+                if not fr or fr.get("mean_ret") in (None, ""):
+                    continue
+                if best is None or float(fr["mean_ret"]) > float(best["mean_ret"]):
+                    best = fr; best_tf = tf
+            if best:
+                L.append(f"- {p['id']} ({p['name']}) — 최고 {best_tf}: n={best['n']}, "
+                         f"평균 {pctf(best.get('mean_ret'))}, 중앙값 {pctf(best.get('median_ret'))}")
+            else:
+                L.append(f"- {p['id']} ({p['name']})")
     L.append("")
 
-    # 기각 사유
+    # 기각 요약
     L.append("## 기각(rejected) 요약\n")
     rej = [p for p in pats if p["status"] == "rejected"]
     if rej:
         for p in rej:
-            fr = full_row(p["id"])
-            if fr:
-                reason = f"전체 verdict={fr['verdict']}, 진짜율 {float(fr['true_rate'])*100:.1f}% (n={fr['n']})"
+            tfs = [tf for tf in TF_ORDER if pt.get((p["id"], tf), {}).get("full")]
+            if tfs:
+                bits = []
+                for tf in tfs:
+                    fr = pt[(p["id"], tf)]["full"]
+                    bits.append(f"{tf} {pctf(fr.get('mean_ret'))}({fr['verdict']})")
+                L.append(f"- {p['id']} ({p['name']}) — " + ", ".join(bits))
             else:
-                reason = "사전 기각(별도 분석)"
-            L.append(f"- {p['id']} ({p['name']}) — {reason}")
+                L.append(f"- {p['id']} ({p['name']}) — 사전 기각(별도 분석)")
     else:
         L.append("- 없음.")
     L.append("")

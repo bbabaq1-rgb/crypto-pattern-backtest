@@ -25,17 +25,18 @@ VOL_LOOKBACK = 20       # 거래량 기준 평균 봉수
 VOL_MULT     = 1.5      # 거래량 동반 배수
 
 LABEL_WINDOW = 20
-RISE_THR     = 0.15
+RISE_THR     = 0.10     # 대칭 (2026-06 보정 동결)
 FALL_THR     = -0.10
+FEE          = 0.002    # 왕복 수수료 (0.2%)
 
 PATTERN = "engulfing"
 SYMBOLS = ["BTC", "SOL", "ETH", "BNB", "XRP", "ADA", "AVAX"]
-CSV_1D  = lambda s: f"data/{s.lower()}_1d.csv"
+CSV = lambda s, tf: f"data/{s.lower()}_{tf}.csv"
 
 
-def load_ohlcv(sym):
+def load_ohlcv(sym, tf="1d"):
     rows = []
-    with open(CSV_1D(sym), newline="") as f:
+    with open(CSV(sym, tf), newline="") as f:
         for r in csv.DictReader(f):
             ts = int(float(r["timestamp"]))
             d  = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
@@ -69,24 +70,26 @@ def detect(rows):
     return sig
 
 
-def label(rows, si):
+def outcome(rows, si):
+    """(label, ret) — 트리플배리어. ret은 수수료 차감 후 실현수익."""
     base = rows[si]["c"]
     up, dn = base * (1 + RISE_THR), base * (1 + FALL_THR)
     hi = min(si + LABEL_WINDOW, len(rows) - 1)
     for j in range(si + 1, hi + 1):
         if rows[j]["c"] >= up:
-            return "real"
+            return "real", rows[j]["c"] / base - 1 - FEE
         if rows[j]["c"] <= dn:
-            return "fake"
-    return "neutral"
+            return "fake", rows[j]["c"] / base - 1 - FEE
+    return "neutral", rows[hi]["c"] / base - 1 - FEE
 
 
-def evaluate(date_from=None, date_to=None):
+def evaluate(date_from=None, date_to=None, tf="1d"):
     per = {}
     agg = dict(n=0, real=0, fake=0, neutral=0)
+    rets = []
     for sym in SYMBOLS:
         try:
-            rows = load_ohlcv(sym)
+            rows = load_ohlcv(sym, tf)
         except FileNotFoundError:
             continue
         cc = dict(n=0, real=0, fake=0, neutral=0)
@@ -96,12 +99,14 @@ def evaluate(date_from=None, date_to=None):
                 continue
             if date_to and d > date_to:
                 continue
+            lab, ret = outcome(rows, si)
             cc["n"] += 1
-            cc[label(rows, si)] += 1
+            cc[lab] += 1
+            rets.append(ret)
         per[sym] = cc
         for k in agg:
             agg[k] += cc[k]
-    return dict(agg=agg, per=per)
+    return dict(agg=agg, per=per, rets=rets)
 
 
 if __name__ == "__main__":
