@@ -5,7 +5,7 @@
       "name": "Engulfing",
       "category": "캔들",
       "difficulty": 1,
-      "status": "passed",
+      "status": "validated",
       "detector_file": "detector_engulfing.py",
       "passed_tf": "1d",
       "regime": {
@@ -40,23 +40,46 @@
           "significant": true
         }
       },
-      "regime_dependent": false
+      "regime_dependent": false,
+      "precision": {
+        "slip": {
+          "mean": 0.03325,
+          "median": 0.09888,
+          "p_mean": 0.033,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 8,
+          "pos": 5,
+          "pos_frac": 0.625,
+          "ok": true
+        },
+        "newsymbols": {
+          "n": 30,
+          "mean": 0.0389,
+          "median": 0.10019,
+          "persym_pos": 3,
+          "ok": true
+        }
+      }
     },
     {
       "id": "pin_bar",
       "name": "Pin Bar",
       "category": "캔들",
       "difficulty": 1,
-      "status": "needs_impl",
-      "detector_file": "detector_pin_bar.py"
+      "status": "rejected",
+      "detector_file": "detector_pin_bar.py",
+      "reject_reason": "기대값 음수"
     },
     {
       "id": "nr7",
       "name": "NR7 (Narrow Range 7)",
       "category": "변동성",
       "difficulty": 1,
-      "status": "needs_impl",
-      "detector_file": "detector_nr7.py"
+      "status": "rejected",
+      "detector_file": "detector_nr7.py",
+      "reject_reason": "기대값 음수"
     },
     {
       "id": "bb_squeeze",
@@ -71,8 +94,69 @@
       "name": "Double Bottom",
       "category": "패턴",
       "difficulty": 1,
-      "status": "needs_impl",
-      "detector_file": "reversal_patterns.py"
+      "status": "rejected",
+      "detector_file": "detector_double_bottom.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 132,
+            "mean": -0.00165,
+            "median": -0.0239
+          },
+          "down": {
+            "n": 161,
+            "mean": 0.00278,
+            "median": -0.01431
+          },
+          "side": {
+            "n": 132,
+            "mean": 0.0128,
+            "median": 0.01724
+          },
+          "na": {
+            "n": 40,
+            "mean": 0.07263,
+            "median": 0.11424
+          }
+        },
+        "1h": {
+          "up": {
+            "n": 351,
+            "mean": 0.01084,
+            "median": 0.0005
+          },
+          "down": {
+            "n": 274,
+            "mean": -0.00413,
+            "median": -0.00366
+          },
+          "side": {
+            "n": 1196,
+            "mean": 0.00512,
+            "median": 0.0023
+          },
+          "na": {
+            "n": 49,
+            "mean": 0.03376,
+            "median": 0.02319
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00373,
+          "excess_mean": 0.00664,
+          "p_mean": 0.144,
+          "significant": false
+        },
+        "1h": {
+          "null_mean": -0.00105,
+          "excess_mean": 0.00664,
+          "p_mean": 0.0,
+          "significant": true
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
     },
     {
       "id": "liquidity_sweep",

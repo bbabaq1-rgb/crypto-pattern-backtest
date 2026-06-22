@@ -69,7 +69,7 @@ def main():
     by_status = defaultdict(list)
     for p in pats:
         by_status[p["status"]].append(p["id"])
-    for st in ["passed", "holding", "rejected", "needs_impl", "testing", "pending"]:
+    for st in ["validated", "passed", "holding", "rejected", "needs_impl", "testing", "pending"]:
         if by_status.get(st):
             L.append(f"| {st} | {', '.join(by_status[st])} |")
     L.append("")
@@ -121,15 +121,37 @@ def main():
         L.append("- (레짐 분해된 패턴 없음)")
     L.append("")
 
+    # 정밀검증 (validated/passed 후보)
+    L.append("## 1순위 후보 정밀검증\n")
+    prec_pats = [p for p in pats if p.get("precision")]
+    if prec_pats:
+        for p in prec_pats:
+            pr = p["precision"]
+            s = pr["slip"]; w = pr["walkforward"]; ns = pr["newsymbols"]
+            ok = lambda b: "통과" if b else "실패"
+            L.append(f"- **{p['id']}** ({p['name']}) — status=**{p['status']}**")
+            L.append(f"  - 슬리피지(+0.1%): 평균 {pctf(s['mean'])}, 중앙 {pctf(s['median'])}, "
+                     f"베이스라인 p={s['p_mean']} → {ok(s['ok'])}")
+            L.append(f"  - 워크포워드: 유효윈도우 {w['valid']}개 중 양수 {w['pos']}개 "
+                     f"({w['pos_frac']*100:.0f}%) → {ok(w['ok'])}")
+            L.append(f"  - 표본확대(신규5종): n={ns['n']}, 평균 {pctf(ns['mean'])}, "
+                     f"종목별 양수 {ns['persym_pos']}/5 → {ok(ns['ok'])}")
+            if p.get("precision_note"):
+                L.append(f"  - {p['precision_note']}")
+    else:
+        L.append("- 정밀검증된 후보 없음.")
+    L.append("")
+
     # 살아있는 수익모델 후보
     L.append("## 현재 살아있는 수익모델 후보\n")
-    passed = [p for p in pats if p["status"] == "passed"]
-    if passed:
-        for p in passed:
+    live = [p for p in pats if p["status"] in ("validated", "passed")]
+    if live:
+        for p in live:
             tf = p.get("passed_tf", "?")
-            L.append(f"- **{p['id']}** ({p['name']}) — {tf} 전체+OOS 통과, 승인 대기")
+            tag = "실거래 검토 가능(validated)" if p["status"] == "validated" else "승인 대기(passed)"
+            L.append(f"- **{p['id']}** ({p['name']}) — {tf} 전체+OOS+베이스라인+정밀검증, {tag}")
     else:
-        L.append("- 통과(passed) 후보 없음.")
+        L.append("- 살아있는 후보 없음.")
 
     hold = [p for p in pats if p["status"] == "holding"]
     if hold:

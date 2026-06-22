@@ -1,9 +1,10 @@
 """
-detector_nr7.py — NR7 (Narrow Range 7) 탐지.
+detector_double_bottom.py — Double Bottom 탐지 (롱 반전).
 
-정의: 당일 고저폭(range)이 최근 7봉 중 가장 좁다(변동성 수축).
-  방향성 없는 셋업이라 롱 가정으로 테스트(비교군). 신호 = NR7 당일(i) 종가 진입.
-  (변동성 수축 자체가 롱 엣지인지 베이스라인 대비로 검증)
+정의:
+  (1) 두 개의 swing low L1, L2 가 서로 EQ_TOL 이내(동일 지지선), MAX_GAP 이내 간격.
+  (2) 사이에 반등 고점(넥라인)이 존재, 그 고점 대비 두 저점이 MIN_DROP 이상 아래.
+  (3) L2 이후 종가가 넥라인을 상향 돌파(확정). 신호 = 돌파봉(i) 종가.
 
 라벨/수익(동결): LABEL_WINDOW 트리플배리어 ±10%, ret = 실현 - FEE.
 표준 인터페이스 evaluate(date_from, date_to, tf) -> dict(agg, per, rets).
@@ -11,13 +12,17 @@ detector_nr7.py — NR7 (Narrow Range 7) 탐지.
 import csv
 from datetime import datetime, timezone
 
-NR_PERIOD    = 7        # 최근 7봉 중 최소 range
+PIVOT_HALF = 2
+EQ_TOL     = 0.03      # 두 저점 동일수준 허용 (3%)
+MAX_GAP    = 60        # 두 저점 최대 간격(봉)
+MIN_DROP   = 0.05      # 넥라인 대비 저점 깊이 최소(5%)
+
 LABEL_WINDOW = 20
 RISE_THR     = 0.10
 FALL_THR     = -0.10
 FEE          = 0.002
 
-PATTERN = "nr7"
+PATTERN = "double_bottom"
 SYMBOLS = ["BTC", "SOL", "ETH", "BNB", "XRP", "ADA", "AVAX"]
 CSV = lambda s, tf: f"data/{s.lower()}_{tf}.csv"
 
@@ -34,14 +39,48 @@ def load_ohlcv(sym, tf="1d"):
     return rows
 
 
+def _swing_lows(rows):
+    lo = [r["l"] for r in rows]
+    out = []
+    for i in range(PIVOT_HALF, len(rows) - PIVOT_HALF):
+        if lo[i] == min(lo[i - PIVOT_HALF:i + PIVOT_HALF + 1]):
+            out.append(i)
+    return out
+
+
 def detect(rows):
     n = len(rows)
-    rng = [rows[i]["h"] - rows[i]["l"] for i in range(n)]
+    lo = [r["l"] for r in rows]; hi = [r["h"] for r in rows]; cl = [r["c"] for r in rows]
+    piv = _swing_lows(rows)
     sig = []
-    for i in range(NR_PERIOD, n):
-        if rng[i] == min(rng[i - NR_PERIOD + 1:i + 1]) and rng[i] > 0:
-            sig.append(i)
-    return sig
+    used = set()
+    for a in range(len(piv) - 1):
+        L1 = piv[a]
+        for b in range(a + 1, len(piv)):
+            L2 = piv[b]
+            if L2 - L1 > MAX_GAP:
+                break
+            if L2 - L1 < 3:
+                continue
+            # 두 저점 동일 수준
+            if abs(lo[L2] - lo[L1]) / lo[L1] > EQ_TOL:
+                continue
+            neck = max(hi[L1 + 1:L2])            # 사이 반등 고점
+            if neck <= 0:
+                continue
+            if (neck - max(lo[L1], lo[L2])) / neck < MIN_DROP:
+                continue
+            # L2 이후 넥라인 상향 돌파 봉
+            brk = None
+            for j in range(L2 + 1, min(L2 + MAX_GAP, n)):
+                if cl[j] > neck:
+                    brk = j
+                    break
+            if brk is not None and brk not in used:
+                used.add(brk)
+                sig.append(brk)
+            break                                # L1당 첫 쌍만
+    return sorted(set(sig))
 
 
 def outcome(rows, si):
