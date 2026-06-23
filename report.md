@@ -1,8 +1,8 @@
 # 자동 패턴 연구 보고서
 
 - 등재 패턴: **14개**
-- 누적 시험(로그 행): **39건**
-- 상태 분포: needs_impl 7, rejected 6, validated 1
+- 누적 시험(로그 행): **71건**
+- 상태 분포: passed 1, rejected 12, validated 1
 - 게이트(동결): n>=20 AND 평균수익>임계 AND 중앙값>0, 라벨 대칭 ±10%, 수수료 왕복 0.2%, 다중비교 보정은 평균임계.
 
 ## 상태 분류
@@ -10,8 +10,8 @@
 | status | 패턴 |
 |---|---|
 | validated | engulfing |
-| rejected | pin_bar, nr7, double_bottom, liquidity_sweep, rsi_divergence, triple_bottom_desc |
-| needs_impl | bb_squeeze, fvg, inverse_hs, macd_divergence, order_block, bos_choch, spring_wyckoff |
+| passed | fvg |
+| rejected | pin_bar, nr7, bb_squeeze, double_bottom, liquidity_sweep, inverse_hs, rsi_divergence, macd_divergence, order_block, bos_choch, spring_wyckoff, triple_bottom_desc |
 
 ## 패턴 × 타임프레임 결과
 
@@ -24,22 +24,34 @@
 | nr7 | 1d | 2219 | +0.03% | -0.69% | 38.3% | 기각 | - | - |
 | nr7 | 4h | 13531 | -0.14% | -0.34% | 13.6% | 기각 | - | - |
 | nr7 | 1h | 57090 | -0.16% | -0.24% | 3.1% | 기각 | - | - |
-| bb_squeeze | - | - | - | - | - | (미시험) | - | - |
+| bb_squeeze | 1d | 29 | +0.02% | +1.20% | 37.9% | 기각 | - | - |
+| bb_squeeze | 4h | 162 | -0.88% | -1.82% | 11.7% | 기각 | - | - |
+| bb_squeeze | 1h | 518 | -0.65% | -0.85% | 1.9% | 기각 | - | - |
 | double_bottom | 1d | 465 | +1.04% | +1.02% | 43.2% | 통과 | IS:통과(n254,+1.87%) / OOS:기각(n211,+0.04%) | +0.66% (p=0.144, 미초과) |
 | double_bottom | 4h | 1562 | +0.58% | -0.35% | 22.1% | 기각 | - | - |
 | double_bottom | 1h | 1870 | +0.56% | +0.16% | 12.8% | 통과 | IS:통과(n1382,+0.75%) / OOS:기각(n488,+0.02%) | +0.66% (p=0.0, 유의) |
 | liquidity_sweep | 1d | 12 | +3.31% | +9.92% | 58.3% | 보류(표본부족) | - | - |
 | liquidity_sweep | 4h | 230 | +0.49% | +0.17% | 17.4% | 통과 | IS:기각(n107,-0.08%) / OOS:통과(n123,+0.98%) | +0.49% (p=0.159, 미초과) |
 | liquidity_sweep | 1h | 1463 | -0.18% | +0.05% | 1.8% | 기각 | - | - |
-| fvg | - | - | - | - | - | (미시험) | - | - |
-| inverse_hs | - | - | - | - | - | (미시험) | - | - |
+| fvg | 1d | 534 | +2.80% | +5.67% | 48.5% | 통과 | IS:통과(n288,+4.50%) / OOS:통과(n246,+0.83%) | +2.43% (p=0.0, 유의) |
+| inverse_hs | 1d | 170 | +1.58% | +2.10% | 42.4% | 통과 | IS:통과(n91,+2.28%) / OOS:기각(n79,+0.78%) | +1.21% (p=0.104, 미초과) |
+| inverse_hs | 4h | 1580 | +0.17% | -0.44% | 13.0% | 기각 | - | - |
+| inverse_hs | 1h | 7244 | -0.03% | -0.31% | 3.5% | 기각 | - | - |
 | rsi_divergence | 1d | 378 | -0.75% | -2.30% | 36.8% | 기각 | - | - |
 | rsi_divergence | 4h | 2169 | -0.16% | -0.19% | 13.2% | 기각 | - | - |
 | rsi_divergence | 1h | 8502 | -0.22% | -0.12% | 2.9% | 기각 | - | - |
-| macd_divergence | - | - | - | - | - | (미시험) | - | - |
-| order_block | - | - | - | - | - | (미시험) | - | - |
-| bos_choch | - | - | - | - | - | (미시험) | - | - |
-| spring_wyckoff | - | - | - | - | - | (미시험) | - | - |
+| macd_divergence | 1d | 353 | +0.10% | +0.35% | 41.4% | 기각 | - | - |
+| macd_divergence | 4h | 2112 | +0.00% | -0.14% | 11.9% | 기각 | - | - |
+| macd_divergence | 1h | 7968 | -0.28% | -0.17% | 2.6% | 기각 | - | - |
+| order_block | 1d | 164 | +1.15% | +0.08% | 40.2% | 통과 | IS:통과(n87,+3.48%) / OOS:기각(n77,-1.49%) | +0.78% (p=0.204, 미초과) |
+| order_block | 4h | 849 | +0.36% | -0.17% | 16.5% | 기각 | - | - |
+| order_block | 1h | 3173 | +0.10% | -0.30% | 4.7% | 기각 | - | - |
+| bos_choch | 1d | 692 | +0.44% | -0.85% | 40.5% | 기각 | - | - |
+| bos_choch | 4h | 4405 | +0.28% | -0.32% | 16.0% | 기각 | - | - |
+| bos_choch | 1h | 17940 | -0.05% | -0.30% | 3.8% | 기각 | - | - |
+| spring_wyckoff | 1d | 397 | -0.11% | +0.03% | 42.8% | 기각 | - | - |
+| spring_wyckoff | 4h | 1648 | +0.16% | +0.49% | 18.8% | 기각 | - | - |
+| spring_wyckoff | 1h | 3147 | +0.02% | +0.22% | 7.3% | 기각 | - | - |
 | triple_bottom_desc | - | - | - | - | - | (미시험) | - | - |
 
 ## 레짐별 기대값 (상승장 편승 여부 검증)
@@ -48,6 +60,9 @@
 - **double_bottom** @1d: up n132 평균-0.17%/중앙-2.39%, down n161 평균+0.28%/중앙-1.43%, side n132 평균+1.28%/중앙+1.72%, na n40 평균+7.26%/중앙+11.42%
 - **double_bottom** @1h: up n351 평균+1.08%/중앙+0.05%, down n274 평균-0.41%/중앙-0.37%, side n1196 평균+0.51%/중앙+0.23%, na n49 평균+3.38%/중앙+2.32%
 - **liquidity_sweep** @4h: up n27 평균-0.52%/중앙-2.76%, down n33 평균+2.42%/중앙+1.96%, side n169 평균+0.17%/중앙-0.08%, na n1 평균+17.70%/중앙+17.70%
+- **fvg** @1d: up n166 평균+2.11%/중앙+6.26%, down n164 평균+2.20%/중앙+7.10%, side n154 평균+1.27%/중앙+1.00%, na n50 평균+11.84%/중앙+12.95%
+- **inverse_hs** @1d: up n47 평균+2.81%/중앙+4.18%, down n68 평균+0.26%/중앙-1.91%, side n47 평균+2.33%/중앙+4.91%, na n8 평균+1.21%/중앙+0.18%
+- **order_block** @1d: up n63 평균-0.38%/중앙-1.12%, down n36 평균-0.25%/중앙-0.99%, side n42 평균+0.46%/중앙-0.49%, na n23 평균+8.79%/중앙+12.62%
 
 ## 1순위 후보 정밀검증
 
@@ -55,16 +70,36 @@
   - 슬리피지(+0.1%): 평균 +3.33%, 중앙 +9.89%, 베이스라인 p=0.033 → 통과
   - 워크포워드: 유효윈도우 8개 중 양수 5개 (62%) → 통과
   - 표본확대(신규5종): n=30, 평균 +3.89%, 종목별 양수 3/5 → 통과
+- **fvg** (Fair Value Gap) — status=**passed**
+  - 슬리피지(+0.1%): 평균 +2.71%, 중앙 +5.56%, 베이스라인 p=0.0 → 통과
+  - 워크포워드: 유효윈도우 11개 중 양수 6개 (55%) → 실패
+  - 표본확대(신규5종): n=357, 평균 +1.75%, 종목별 양수 4/5 → 통과
+  - 강등: 워크포워드 미통과
+
+## validated 패턴 순위표
+
+기준: 기대값(평균/중앙) · 베이스라인 초과(p) · 레짐 독립성 · 마모 여부
+
+| 순위 | 패턴 | TF | n | 평균 | 중앙 | 베이스라인 초과(p) | 레짐독립 | 마모 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | engulfing | 1d | 60 | +3.43% | +9.99% | +3.06% (p=0.033) | O | 마모(복원불가) |
 
 ## 현재 살아있는 수익모델 후보
 
 - **engulfing** (Engulfing) — 1d 전체+OOS+베이스라인+정밀검증, 실거래 검토 가능(validated)
+- **fvg** (Fair Value Gap) — 1d 전체+OOS+베이스라인+정밀검증, 승인 대기(passed)
 
 ## 기각(rejected) 요약
 
 - pin_bar (Pin Bar) — 기대값 음수
 - nr7 (NR7 (Narrow Range 7)) — 기대값 음수
+- bb_squeeze (Bollinger Band Squeeze) — 기대값 음수
 - double_bottom (Double Bottom) — OOS 미통과(과최적화)
 - liquidity_sweep (Liquidity Sweep) — OOS 미통과(과최적화)
+- inverse_hs (Inverse Head&Shoulders) — OOS 미통과(과최적화)
 - rsi_divergence (RSI Divergence) — 기대값 음수
+- macd_divergence (MACD Divergence) — 기대값 음수
+- order_block (Order Block) — OOS 미통과(과최적화)
+- bos_choch (BOS / CHoCH) — 기대값 음수
+- spring_wyckoff (Wyckoff Spring) — 기대값 음수
 - triple_bottom_desc (Triple Bottom (descending)) — 사전 기각(별도 분석)

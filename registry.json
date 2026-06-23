@@ -61,6 +61,12 @@
           "persym_pos": 3,
           "ok": true
         }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": -0.0392,
+        "restored": false,
+        "note": "마모 복원 불가(vol2x/regime/position 전부 실패) - 페이퍼테스트 필요"
       }
     },
     {
@@ -86,8 +92,9 @@
       "name": "Bollinger Band Squeeze",
       "category": "변동성",
       "difficulty": 1,
-      "status": "needs_impl",
-      "detector_file": "detector_bb_squeeze.py"
+      "status": "rejected",
+      "detector_file": "detector_bb_squeeze.py",
+      "reject_reason": "기대값 음수"
     },
     {
       "id": "double_bottom",
@@ -204,16 +211,111 @@
       "name": "Fair Value Gap",
       "category": "SMC",
       "difficulty": 2,
-      "status": "needs_impl",
-      "detector_file": "detector_fvg.py"
+      "status": "passed",
+      "detector_file": "detector_fvg.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 166,
+            "mean": 0.02114,
+            "median": 0.06258
+          },
+          "down": {
+            "n": 164,
+            "mean": 0.02196,
+            "median": 0.071
+          },
+          "side": {
+            "n": 154,
+            "mean": 0.01266,
+            "median": 0.01003
+          },
+          "na": {
+            "n": 50,
+            "mean": 0.11839,
+            "median": 0.12953
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00376,
+          "excess_mean": 0.02429,
+          "p_mean": 0.0,
+          "significant": true
+        }
+      },
+      "passed_tf": "1d",
+      "regime_dependent": false,
+      "precision": {
+        "slip": {
+          "mean": 0.02705,
+          "median": 0.05565,
+          "p_mean": 0.0,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 11,
+          "pos": 6,
+          "pos_frac": 0.545,
+          "ok": false
+        },
+        "newsymbols": {
+          "n": 357,
+          "mean": 0.01746,
+          "median": 0.06189,
+          "persym_pos": 4,
+          "ok": true
+        }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": -0.02776,
+        "restored": false,
+        "note": "마모 징후(2025-07+ 음수)"
+      },
+      "precision_note": "강등: 워크포워드 미통과"
     },
     {
       "id": "inverse_hs",
       "name": "Inverse Head&Shoulders",
       "category": "패턴",
       "difficulty": 2,
-      "status": "needs_impl",
-      "detector_file": "reversal_patterns.py"
+      "status": "rejected",
+      "detector_file": "detector_inverse_hs.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 47,
+            "mean": 0.02809,
+            "median": 0.04177
+          },
+          "down": {
+            "n": 68,
+            "mean": 0.00259,
+            "median": -0.01909
+          },
+          "side": {
+            "n": 47,
+            "mean": 0.02333,
+            "median": 0.04912
+          },
+          "na": {
+            "n": 8,
+            "mean": 0.01213,
+            "median": 0.00178
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00369,
+          "excess_mean": 0.01213,
+          "p_mean": 0.104,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
     },
     {
       "id": "rsi_divergence",
@@ -229,32 +331,68 @@
       "name": "MACD Divergence",
       "category": "지표",
       "difficulty": 2,
-      "status": "needs_impl",
-      "detector_file": "detector_macd_divergence.py"
+      "status": "rejected",
+      "detector_file": "detector_macd_divergence.py",
+      "reject_reason": "기대값 음수"
     },
     {
       "id": "order_block",
       "name": "Order Block",
       "category": "SMC",
       "difficulty": 3,
-      "status": "needs_impl",
-      "detector_file": "detector_order_block.py"
+      "status": "rejected",
+      "detector_file": "detector_order_block.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 63,
+            "mean": -0.00379,
+            "median": -0.01122
+          },
+          "down": {
+            "n": 36,
+            "mean": -0.00249,
+            "median": -0.00992
+          },
+          "side": {
+            "n": 42,
+            "mean": 0.0046,
+            "median": -0.00487
+          },
+          "na": {
+            "n": 23,
+            "mean": 0.0879,
+            "median": 0.12621
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.0037,
+          "excess_mean": 0.0078,
+          "p_mean": 0.204,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
     },
     {
       "id": "bos_choch",
       "name": "BOS / CHoCH",
       "category": "SMC",
       "difficulty": 3,
-      "status": "needs_impl",
-      "detector_file": "detector_bos_choch.py"
+      "status": "rejected",
+      "detector_file": "detector_bos_choch.py",
+      "reject_reason": "기대값 음수"
     },
     {
       "id": "spring_wyckoff",
       "name": "Wyckoff Spring",
       "category": "패턴",
       "difficulty": 3,
-      "status": "needs_impl",
-      "detector_file": "detector_spring_wyckoff.py"
+      "status": "rejected",
+      "detector_file": "detector_spring_wyckoff.py",
+      "reject_reason": "기대값 음수"
     },
     {
       "id": "triple_bottom_desc",

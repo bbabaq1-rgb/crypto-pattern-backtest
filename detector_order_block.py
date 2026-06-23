@@ -1,17 +1,27 @@
 """
-detector_order_block.py - Order Block 탐지 (orchestrator 자동 생성 스켈레톤)
-
-TODO: 이 패턴의 탐지 규칙을 구현해야 함 (사람이 채울 자리).
-  - detector_liquidity_sweep.py 구조를 참고.
-  - 아래 evaluate(date_from, date_to)를 구현하면 orchestrator가
-    자동으로 백테스트/게이트/OOS재테스트를 돌린다.
-  - 반환 형식: dict(agg={"n":..,"real":..,"fake":..,"neutral":..},
-                   per={symbol: {...}})
-  - 라벨 기준은 1단계와 동일(+15% 선도달=real, -10% 선도달=fake, 그외 neutral).
+detector_order_block.py — Bullish Order Block (구조 돌파형).
+직전 봉 음봉(마지막 매도 캔들) 다음 당일 양봉이 직전 20봉 고점을 돌파하면
+(구조 상향 전환) 롱 신호. 신호 = 돌파 양봉(i).
 """
+from detlib import SYMBOLS, load_ohlcv, outcome, make_evaluate
 
 PATTERN = "order_block"
+LB = 20
 
 
-def evaluate(date_from=None, date_to=None):
-    raise NotImplementedError("TODO: Order Block 탐지 규칙 구현 필요")
+def detect(rows):
+    n = len(rows)
+    op = [r["o"] for r in rows]; cl = [r["c"] for r in rows]; hi = [r["h"] for r in rows]
+    sig = []
+    for i in range(LB, n):
+        if cl[i - 1] < op[i - 1] and cl[i] > op[i] and cl[i] > max(hi[i - LB:i]):
+            sig.append(i)
+    return sig
+
+
+evaluate = make_evaluate(detect)
+
+if __name__ == "__main__":
+    import statistics as st
+    r = evaluate(); rr = r["rets"]
+    print(PATTERN, r["agg"], f"mean={st.mean(rr)*100:+.2f}%" if rr else "")

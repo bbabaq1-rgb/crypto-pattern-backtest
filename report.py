@@ -142,6 +142,37 @@ def main():
         L.append("- 정밀검증된 후보 없음.")
     L.append("")
 
+    # validated 순위표
+    L.append("## validated 패턴 순위표\n")
+    L.append("기준: 기대값(평균/중앙) · 베이스라인 초과(p) · 레짐 독립성 · 마모 여부\n")
+    vp = [p for p in pats if p["status"] == "validated"]
+    if vp:
+        def vmean(p):
+            tf = p.get("passed_tf")
+            fr = pt.get((p["id"], tf), {}).get("full")
+            try:
+                return float(fr["mean_ret"])
+            except (TypeError, ValueError, KeyError):
+                return -9
+        vp.sort(key=vmean, reverse=True)
+        L.append("| 순위 | 패턴 | TF | n | 평균 | 중앙 | 베이스라인 초과(p) | 레짐독립 | 마모 |")
+        L.append("|---|---|---|---|---|---|---|---|---|")
+        for rank, p in enumerate(vp, 1):
+            tf = p.get("passed_tf", "?")
+            fr = pt.get((p["id"], tf), {}).get("full", {})
+            b = p.get("baseline", {}).get(tf, {})
+            bcol = (f"{pctf(b.get('excess_mean'))} (p={b.get('p_mean')})" if b else "-")
+            reg_indep = "X(상승의존)" if p.get("regime_dependent") else "O"
+            wear = p.get("wear")
+            wcol = ("마모(복원불가)" if wear and not wear.get("restored")
+                    else "복원" if wear else "-")
+            L.append(f"| {rank} | {p['id']} | {tf} | {fr.get('n','-')} | "
+                     f"{pctf(fr.get('mean_ret'))} | {pctf(fr.get('median_ret'))} | "
+                     f"{bcol} | {reg_indep} | {wcol} |")
+    else:
+        L.append("- validated 패턴 없음.")
+    L.append("")
+
     # 살아있는 수익모델 후보
     L.append("## 현재 살아있는 수익모델 후보\n")
     live = [p for p in pats if p["status"] in ("validated", "passed")]
