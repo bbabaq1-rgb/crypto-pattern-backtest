@@ -2,3 +2,7 @@ data/
 __pycache__/
 *.pyc
 *.pyo
+
+# temp/working files
+_*.tmp
+_filter_result.json
