@@ -130,7 +130,7 @@
 | bear | long | short |
 | sideways | FLAT | FLAT |
 
-**현재(2026-06-17) 레짐: bear** -> engulfing:long, fvg:short
+**현재(2026-06-24) 레짐: bear** -> engulfing:long, fvg:short
 
 ## 청산방식 A(±10%/20봉) vs D(손절-8%/반대신호·레짐전환/최대30봉)
 
@@ -161,6 +161,21 @@
 python scheduler.py once      # 1회(데이터 최신 가정, fetch 생략)
 python scheduler.py oncefull  # 1회(fetch 포함)
 python scheduler.py           # 데몬(매일 UTC 00:00 자동)
+```
+
+## 페이퍼테스트 시스템 (실주문 없음)
+
+구성: exchange.py(비트겟 데모 연결, 키 없으면 시뮬레이션) + paper_executor.py(모의 체결, 방식A/D 병행) + scheduler.py(매일 자동) + paper_summary.py(집계).
+자본 $2,000, 포지션당 10%($200), 1x. 체결은 로컬 시가/종가 가정.
+
+- 현재 스냅샷: 누적 체결 13건, 오픈 3건
+  - 방식 A: n=8, 승률 87.5%, 평균 +8.23%, 누적 $+132
+  - 방식 D: n=5, 승률 40.0%, 평균 +6.26%, 누적 $+63
+  - (시드: 최근 60봉 라우팅 신호로 부트스트랩한 초기 표본 — 누적될수록 신뢰↑)
+
+```
+python scheduler.py oncefull   # fetch+레짐+신호+페이퍼체결 1회
+python paper_summary.py        # 현재까지 성과(A vs D, 패턴/레짐별)
 ```
 
 ## 기각(rejected) 요약

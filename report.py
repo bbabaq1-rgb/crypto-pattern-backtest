@@ -273,6 +273,30 @@ def main():
     L.append("```")
     L.append("")
 
+    # 페이퍼테스트 시스템
+    L.append("## 페이퍼테스트 시스템 (실주문 없음)\n")
+    L.append("구성: exchange.py(비트겟 데모 연결, 키 없으면 시뮬레이션) + paper_executor.py"
+             "(모의 체결, 방식A/D 병행) + scheduler.py(매일 자동) + paper_summary.py(집계).")
+    L.append("자본 $2,000, 포지션당 10%($200), 1x. 체결은 로컬 시가/종가 가정.\n")
+    if os.path.exists("paper_trades.json"):
+        import statistics as _st
+        tr = json.load(open("paper_trades.json", encoding="utf-8"))
+        pos = json.load(open("paper_positions.json", encoding="utf-8")) if os.path.exists("paper_positions.json") else []
+        L.append(f"- 현재 스냅샷: 누적 체결 {len(tr)}건, 오픈 {len(pos)}건")
+        for m in ("A", "D"):
+            mt = [t for t in tr if t["method"] == m]
+            if mt:
+                rets = [t["ret"] for t in mt]
+                wr = sum(1 for r in rets if r > 0) / len(rets) * 100
+                pnl = sum(t["pnl_usd"] for t in mt)
+                L.append(f"  - 방식 {m}: n={len(mt)}, 승률 {wr:.1f}%, 평균 {_st.mean(rets)*100:+.2f}%, 누적 ${pnl:+.0f}")
+        L.append("  - (시드: 최근 60봉 라우팅 신호로 부트스트랩한 초기 표본 — 누적될수록 신뢰↑)")
+    L.append("\n```")
+    L.append("python scheduler.py oncefull   # fetch+레짐+신호+페이퍼체결 1회")
+    L.append("python paper_summary.py        # 현재까지 성과(A vs D, 패턴/레짐별)")
+    L.append("```")
+    L.append("")
+
     # 기각 요약
     L.append("## 기각(rejected) 요약\n")
     rej = [p for p in pats if p["status"] == "rejected"]

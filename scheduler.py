@@ -89,6 +89,13 @@ def run_once(do_fetch=True):
     print(f"[5] signals_today.json 저장: 신호 {len(signals)}건")
     for s in signals:
         print(f"    {s['symbol']} {s['pattern']} {s['direction']} @ {s['entry']} 손절 {s['stop']}")
+
+    print("[6] 페이퍼 체결(진입+청산 모니터링)...")
+    import exchange, paper_executor
+    conn = exchange.connect()
+    print(f"    거래소: {conn['mode']} | {conn['note']}")
+    pr = paper_executor.run(stamp)
+    out["paper"] = pr
     return out
 
 
