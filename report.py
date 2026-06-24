@@ -318,6 +318,30 @@ def main():
     L.append("```")
     L.append("")
 
+    # 알트 유니버스 확장
+    if os.path.exists("universe.json"):
+        uni = json.load(open("universe.json", encoding="utf-8"))
+        L.append("## 알트 유니버스 확장 (바이낸스 거래대금 상위 50 알트)\n")
+        L.append("ccxt엔 시총이 없어 24h 거래대금 상위로 대체(유동성 프록시). "
+                 "현재 12종 + 스테이블 제외. <500봉 데이터부족 스킵. "
+                 "종목 채택 = engulfing/fvg 롱·숏 1d 순기대값>0 AND n>=10.\n")
+        L.append(f"- 시도 {uni.get('tried')}종 | 데이터부족 {len(uni.get('data_short', []))}종 | "
+                 f"**채택 {len(uni.get('adopted_new', []))}종**")
+        L.append(f"- 채택: {', '.join(uni.get('adopted_new', []))}")
+        rej = uni.get("rejected", {})
+        L.append(f"- 기각 {len(rej)}종(순기대값 음수): {', '.join(rej.keys())}")
+        L.append(f"- 데이터부족: {', '.join(uni.get('data_short', []))}")
+        L.append(f"- **확장 트레이딩 유니버스: {len(uni.get('trading_universe', []))}종** (기존7+채택21)")
+        pc = uni.get("pool_confirm", {})
+        L.append("\n확장 유니버스 패턴 보존 확인:")
+        for pat, v in pc.items():
+            L.append(f"  - {pat}: n={v['n']}, 평균 {pctf(v['mean'])}, {v['verdict']}, "
+                     f"OOS {v['oos']}, p={v['base_p']} -> {'엣지 보존' if v['passed'] else '주의'}")
+        ms = uni.get("monthly_signals_adopted", {})
+        L.append("\n패턴별 월 총 신호 수(채택 21종 합산): "
+                 + ", ".join(f"{k} {v}건/월" for k, v in ms.items()))
+        L.append("")
+
     # 기각 요약
     L.append("## 기각(rejected) 요약\n")
     rej = [p for p in pats if p["status"] == "rejected"]

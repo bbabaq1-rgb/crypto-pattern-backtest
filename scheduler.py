@@ -16,6 +16,7 @@ scheduler.py — 매일 UTC 00:00 자동 파이프라인 (페이퍼테스트 준
 실주문은 넣지 않는다 — 신호만 기록.
 """
 import sys
+import os
 import json
 import time
 import subprocess
@@ -25,7 +26,15 @@ import detlib
 import regime_switch as rs
 import direction_switch as ds
 
-SYMBOLS = detlib.SYMBOLS
+def _universe():
+    if os.path.exists("universe.json"):
+        u = json.load(open("universe.json", encoding="utf-8")).get("trading_universe")
+        if u:
+            return u
+    return list(detlib.SYMBOLS)
+
+
+SYMBOLS = _universe()
 FOCUS = ["engulfing", "fvg"]
 STOP = 0.08
 MAX_HOLD = 30

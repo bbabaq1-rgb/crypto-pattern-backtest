@@ -184,8 +184,9 @@ def seed(days=60):
     routing = _load("direction_switch.json", {"routing": {}})["routing"]
     positions = _load(POS_FILE, [])
     keys = {(p["symbol"], p["pattern"], p["direction"], p["entry_date"]) for p in positions}
+    universe = _load("universe.json", {}).get("trading_universe") or list(detlib.SYMBOLS)
     added = 0
-    for sym in detlib.SYMBOLS:
+    for sym in universe:
         rows = detlib.load_ohlcv(sym, "1d")
         last = len(rows) - 1
         for pat in ("engulfing", "fvg"):

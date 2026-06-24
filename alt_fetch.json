@@ -1,0 +1,252 @@
+{
+  "TAO": {
+    "bars": 805,
+    "status": "ok",
+    "qv": 253759442
+  },
+  "ZEC": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 79930998
+  },
+  "MEGA": {
+    "bars": 56,
+    "status": "데이터부족",
+    "qv": 73298168
+  },
+  "WLD": {
+    "bars": 1067,
+    "status": "ok",
+    "qv": 72736562
+  },
+  "SPCXB": {
+    "bars": 13,
+    "status": "데이터부족",
+    "qv": 52332950
+  },
+  "DOGE": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 45992782
+  },
+  "TRX": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 36001468
+  },
+  "RLUSD": {
+    "bars": 154,
+    "status": "데이터부족",
+    "qv": 33729998
+  },
+  "SUI": {
+    "bars": 1149,
+    "status": "ok",
+    "qv": 31413831
+  },
+  "RE": {
+    "bars": 7,
+    "status": "데이터부족",
+    "qv": 30692956
+  },
+  "NEAR": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 29376803
+  },
+  "SYN": {
+    "bars": 1219,
+    "status": "ok",
+    "qv": 29230646
+  },
+  "XPL": {
+    "bars": 273,
+    "status": "데이터부족",
+    "qv": 28940384
+  },
+  "TON": {
+    "bars": 686,
+    "status": "ok",
+    "qv": 27553315
+  },
+  "RESOLV": {
+    "bars": 379,
+    "status": "데이터부족",
+    "qv": 24173923
+  },
+  "PAXG": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 23631486
+  },
+  "HEI": {
+    "bars": 497,
+    "status": "데이터부족",
+    "qv": 21723319
+  },
+  "DEXE": {
+    "bars": 1798,
+    "status": "ok",
+    "qv": 18963968
+  },
+  "ENA": {
+    "bars": 814,
+    "status": "ok",
+    "qv": 17724604
+  },
+  "XAUT": {
+    "bars": 91,
+    "status": "데이터부족",
+    "qv": 17659782
+  },
+  "AAVE": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 15069982
+  },
+  "PEPE": {
+    "bars": 1147,
+    "status": "ok",
+    "qv": 13693735
+  },
+  "XLM": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 13433938
+  },
+  "ASTER": {
+    "bars": 262,
+    "status": "데이터부족",
+    "qv": 13134766
+  },
+  "U": {
+    "bars": 163,
+    "status": "데이터부족",
+    "qv": 11393669
+  },
+  "HYPER": {
+    "bars": 429,
+    "status": "데이터부족",
+    "qv": 10865976
+  },
+  "BCH": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 9573692
+  },
+  "OPG": {
+    "bars": 34,
+    "status": "데이터부족",
+    "qv": 9142839
+  },
+  "LAYER": {
+    "bars": 499,
+    "status": "데이터부족",
+    "qv": 8700733
+  },
+  "ONDO": {
+    "bars": 440,
+    "status": "데이터부족",
+    "qv": 8563922
+  },
+  "BICO": {
+    "bars": 1659,
+    "status": "ok",
+    "qv": 8561165
+  },
+  "FET": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 7736611
+  },
+  "DYDX": {
+    "bars": 1750,
+    "status": "ok",
+    "qv": 7630166
+  },
+  "G": {
+    "bars": 706,
+    "status": "ok",
+    "qv": 7336248
+  },
+  "TRUMP": {
+    "bars": 522,
+    "status": "ok",
+    "qv": 7243980
+  },
+  "HBAR": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 6886976
+  },
+  "ALLO": {
+    "bars": 226,
+    "status": "데이터부족",
+    "qv": 6635404
+  },
+  "BEL": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 6631250
+  },
+  "FIL": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 6545189
+  },
+  "DASH": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 6446161
+  },
+  "MMT": {
+    "bars": 233,
+    "status": "데이터부족",
+    "qv": 6317573
+  },
+  "ID": {
+    "bars": 1191,
+    "status": "ok",
+    "qv": 5968951
+  },
+  "JTO": {
+    "bars": 931,
+    "status": "ok",
+    "qv": 5698804
+  },
+  "MUB": {
+    "bars": 14,
+    "status": "데이터부족",
+    "qv": 5650153
+  },
+  "SNDKB": {
+    "bars": 14,
+    "status": "데이터부족",
+    "qv": 5519099
+  },
+  "PENGU": {
+    "bars": 555,
+    "status": "ok",
+    "qv": 5399040
+  },
+  "VIC": {
+    "bars": 944,
+    "status": "ok",
+    "qv": 5302112
+  },
+  "SAHARA": {
+    "bars": 364,
+    "status": "데이터부족",
+    "qv": 5206343
+  },
+  "ALGO": {
+    "bars": 2001,
+    "status": "ok",
+    "qv": 4927063
+  },
+  "TIA": {
+    "bars": 968,
+    "status": "ok",
+    "qv": 4922919
+  }
+}

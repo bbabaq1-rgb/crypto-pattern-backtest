@@ -203,6 +203,22 @@ python scheduler.py oncefull   # fetch+레짐+신호+페이퍼체결 1회
 python paper_summary.py        # 현재까지 성과(A vs D, 패턴/레짐별)
 ```
 
+## 알트 유니버스 확장 (바이낸스 거래대금 상위 50 알트)
+
+ccxt엔 시총이 없어 24h 거래대금 상위로 대체(유동성 프록시). 현재 12종 + 스테이블 제외. <500봉 데이터부족 스킵. 종목 채택 = engulfing/fvg 롱·숏 1d 순기대값>0 AND n>=10.
+
+- 시도 50종 | 데이터부족 19종 | **채택 21종**
+- 채택: ZEC, WLD, TRX, SUI, NEAR, SYN, TON, PAXG, DEXE, AAVE, PEPE, FET, DYDX, TRUMP, HBAR, BEL, FIL, DASH, PENGU, VIC, TIA
+- 기각 10종(순기대값 음수): TAO, DOGE, ENA, XLM, BCH, BICO, G, ID, JTO, ALGO
+- 데이터부족: MEGA, SPCXB, RLUSD, RE, XPL, RESOLV, HEI, XAUT, ASTER, U, HYPER, OPG, LAYER, ONDO, ALLO, MMT, MUB, SNDKB, SAHARA
+- **확장 트레이딩 유니버스: 28종** (기존7+채택21)
+
+확장 유니버스 패턴 보존 확인:
+  - engulfing: n=200, 평균 +2.52%, 통과, OOS 통과/통과, p=0.007 -> 엣지 보존
+  - fvg: n=1743, 평균 +2.76%, 통과, OOS 통과/통과, p=0.0 -> 엣지 보존
+
+패턴별 월 총 신호 수(채택 21종 합산): engulfing 2.12건/월, fvg 18.32건/월
+
 ## 기각(rejected) 요약
 
 - pin_bar (Pin Bar) — 기대값 음수
