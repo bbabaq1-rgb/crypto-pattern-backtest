@@ -342,6 +342,26 @@ def main():
                  + ", ".join(f"{k} {v}건/월" for k, v in ms.items()))
         L.append("")
 
+    # 캔들 패턴 8종 검증
+    if os.path.exists("universe.json"):
+        uni2 = json.load(open("universe.json", encoding="utf-8"))
+        cr = uni2.get("candle_results")
+        if cr:
+            L.append("## 캔들 패턴 8종 검증 (28종목 일봉, 독립 게이트+OOS+베이스라인)\n")
+            L.append("| 패턴 | 방향 | n | 평균 | 중앙 | 게이트 | OOS | 베이스p | 결과 |")
+            L.append("|---|---|---|---|---|---|---|---|---|")
+            for name, v in cr.items():
+                L.append(f"| {name} | {v['direction']} | {v['n']} | {pctf(v['mean'])} | "
+                         f"{pctf(v['median'])} | {v['verdict']} | {v['oos']} | "
+                         f"{v['base_p'] if v['base_p'] is not None else '-'} | "
+                         f"{'✅통과' if v['passed'] else '기각'} |")
+            ap = [a["pattern"] for a in uni2.get("adopted_patterns", [])]
+            L.append(f"\n**통과 채택: {', '.join(ap) if ap else '없음'}** — "
+                     "inverted_hammer(롱,p0.001)·marubozu(롱,p0.028)만 통과. hammer·piercing·"
+                     "dark_cloud·morning/evening_star·marubozu_short은 기대값 음수/게이트 미달로 기각. "
+                     "채택 패턴은 scheduler/paper_executor가 자동 픽업.")
+            L.append("")
+
     # 기각 요약
     L.append("## 기각(rejected) 요약\n")
     rej = [p for p in pats if p["status"] == "rejected"]

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-24T00:43Z",
+  "generated_at": "2026-06-24T05:30Z",
   "regime": "bear",
   "regime_date": "2026-06-24",
   "routing": {
@@ -8,5 +8,5 @@
   },
   "n_signals": 0,
   "signals": [],
-  "note": "페이퍼테스트용 신호 기록 — 실주문 없음"
+  "note": "페이퍼테스트용 신호 기록 - 실주문 없음"
 }

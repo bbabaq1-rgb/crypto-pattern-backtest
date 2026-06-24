@@ -1,7 +1,7 @@
 # 자동 패턴 연구 보고서
 
 - 등재 패턴: **18개**
-- 누적 시험(로그 행): **110건**
+- 누적 시험(로그 행): **118건**
 - 상태 분포: passed 1, rejected 16, validated 1
 - 게이트(동결): n>=20 AND 평균수익>임계 AND 중앙값>0, 라벨 대칭 ±10%, 수수료 왕복 0.2%, 다중비교 보정은 평균임계.
 
@@ -218,6 +218,21 @@ ccxt엔 시총이 없어 24h 거래대금 상위로 대체(유동성 프록시).
   - fvg: n=1743, 평균 +2.76%, 통과, OOS 통과/통과, p=0.0 -> 엣지 보존
 
 패턴별 월 총 신호 수(채택 21종 합산): engulfing 2.12건/월, fvg 18.32건/월
+
+## 캔들 패턴 8종 검증 (28종목 일봉, 독립 게이트+OOS+베이스라인)
+
+| 패턴 | 방향 | n | 평균 | 중앙 | 게이트 | OOS | 베이스p | 결과 |
+|---|---|---|---|---|---|---|---|---|
+| inverted_hammer | long | 641 | +1.78% | +1.27% | 통과 | 통과/통과 | 0.001 | ✅통과 |
+| hammer | long | 699 | -0.84% | -2.07% | 기각 | - | - | 기각 |
+| piercing_line | long | 1624 | -0.02% | -1.40% | 기각 | - | - | 기각 |
+| dark_cloud_cover | short | 1785 | -0.00% | +1.34% | 기각 | - | - | 기각 |
+| morning_star | long | 1191 | -0.24% | -2.27% | 기각 | - | - | 기각 |
+| evening_star | short | 1228 | -0.53% | -0.19% | 기각 | - | - | 기각 |
+| marubozu | long | 90 | +3.20% | +1.82% | 통과 | 통과/통과 | 0.028 | ✅통과 |
+| marubozu_short | short | 65 | -4.10% | -7.41% | 기각 | - | - | 기각 |
+
+**통과 채택: inverted_hammer, marubozu** — inverted_hammer(롱,p0.001)·marubozu(롱,p0.028)만 통과. hammer·piercing·dark_cloud·morning/evening_star·marubozu_short은 기대값 음수/게이트 미달로 기각. 채택 패턴은 scheduler/paper_executor가 자동 픽업.
 
 ## 기각(rejected) 요약
 

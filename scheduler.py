@@ -90,9 +90,30 @@ def run_once(do_fetch=True):
                     strength_vol_ratio=vr, regime=regime,
                     entry=round(entry, 4), stop=stop_px,
                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
+    # 채택된 추가 패턴(캔들 등) — 방향 고정, 레짐 라우팅 없이 최신봉 신호 탐지
+    adopted = []
+    if os.path.exists("universe.json"):
+        adopted = json.load(open("universe.json", encoding="utf-8")).get("adopted_patterns", [])
+    for ap in adopted:
+        mod = importlib.import_module(ap["module"])
+        for sym in SYMBOLS:
+            try:
+                rows = mod.load_ohlcv(sym, "1d")
+            except FileNotFoundError:
+                continue
+            last = len(rows) - 1
+            if last in set(mod.detect(rows)):
+                entry = rows[last]["c"]
+                dd = ap["direction"]
+                stop_px = round(entry * (1 - 0.08), 4) if dd == "long" else round(entry * (1 + 0.08), 4)
+                signals.append(dict(pattern=ap["pattern"], direction=dd, symbol=sym,
+                                    date=rows[last]["date"], strength_vol_ratio=None,
+                                    regime=regime, entry=round(entry, 4), stop=stop_px,
+                                    take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
+
     out = dict(generated_at=stamp, regime=regime, regime_date=latest,
                routing=route, n_signals=len(signals), signals=signals,
-               note="페이퍼테스트용 신호 기록 — 실주문 없음")
+               note="페이퍼테스트용 신호 기록 - 실주문 없음")
     json.dump(out, open("signals_today.json", "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
     print(f"[5] signals_today.json 저장: 신호 {len(signals)}건")
@@ -109,7 +130,7 @@ def run_once(do_fetch=True):
 
 
 def daemon():
-    print("scheduler 데몬 시작 — 매 UTC 00:00 실행 (Ctrl+C 중단)")
+    print("scheduler 데몬 시작 - 매 UTC 00:00 실행 (Ctrl+C 중단)")
     while True:
         now = datetime.now(timezone.utc)
         nxt = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)

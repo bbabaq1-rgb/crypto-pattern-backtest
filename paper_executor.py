@@ -120,8 +120,8 @@ def run(stamp=None):
         if ei is None:
             still_open.append(pos); continue
         pos["entry_idx"] = ei
-        oppmod = importlib.import_module(OPP[(pos["pattern"], pos["direction"])])
-        opp_set = set(oppmod.detect(rows))
+        oppname = OPP.get((pos["pattern"], pos["direction"]))
+        opp_set = set(importlib.import_module(oppname).detect(rows)) if oppname else set()
         if not pos.get("d_closed"):
             ex = eval_D(rows, ei, pos["direction"], opp_set, regmap)
             if ex:

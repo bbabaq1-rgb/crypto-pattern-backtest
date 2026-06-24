@@ -107,5 +107,99 @@
     "engulfing": 2.12,
     "fvg": 18.32
   },
-  "tried": 50
+  "tried": 50,
+  "adopted_patterns": [
+    {
+      "module": "detector_inverted_hammer",
+      "pattern": "inverted_hammer",
+      "direction": "long"
+    },
+    {
+      "module": "detector_marubozu",
+      "pattern": "marubozu",
+      "direction": "long"
+    }
+  ],
+  "candle_results": {
+    "inverted_hammer": {
+      "direction": "long",
+      "n": 641,
+      "mean": 0.01782,
+      "median": 0.01266,
+      "verdict": "통과",
+      "oos": "통과/통과",
+      "base_p": 0.001,
+      "passed": true
+    },
+    "hammer": {
+      "direction": "long",
+      "n": 699,
+      "mean": -0.00844,
+      "median": -0.02072,
+      "verdict": "기각",
+      "oos": "-",
+      "base_p": null,
+      "passed": false
+    },
+    "piercing_line": {
+      "direction": "long",
+      "n": 1624,
+      "mean": -0.00022,
+      "median": -0.01404,
+      "verdict": "기각",
+      "oos": "-",
+      "base_p": null,
+      "passed": false
+    },
+    "dark_cloud_cover": {
+      "direction": "short",
+      "n": 1785,
+      "mean": -4e-05,
+      "median": 0.01336,
+      "verdict": "기각",
+      "oos": "-",
+      "base_p": null,
+      "passed": false
+    },
+    "morning_star": {
+      "direction": "long",
+      "n": 1191,
+      "mean": -0.00238,
+      "median": -0.02269,
+      "verdict": "기각",
+      "oos": "-",
+      "base_p": null,
+      "passed": false
+    },
+    "evening_star": {
+      "direction": "short",
+      "n": 1228,
+      "mean": -0.0053,
+      "median": -0.00192,
+      "verdict": "기각",
+      "oos": "-",
+      "base_p": null,
+      "passed": false
+    },
+    "marubozu": {
+      "direction": "long",
+      "n": 90,
+      "mean": 0.03198,
+      "median": 0.01824,
+      "verdict": "통과",
+      "oos": "통과/통과",
+      "base_p": 0.028,
+      "passed": true
+    },
+    "marubozu_short": {
+      "direction": "short",
+      "n": 65,
+      "mean": -0.04098,
+      "median": -0.07414,
+      "verdict": "기각",
+      "oos": "-",
+      "base_p": null,
+      "passed": false
+    }
+  }
 }
