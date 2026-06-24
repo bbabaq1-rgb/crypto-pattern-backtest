@@ -14,8 +14,19 @@ def available():
                 (os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_ANON_KEY")))
 
 
+def key_role(key):
+    """Supabase 키(JWT)의 role 클레임을 검증 없이 디코드해 반환('service_role'/'anon'/None)."""
+    if not key:
+        return None
+    try:
+        import jwt
+        return jwt.decode(key, options={"verify_signature": False}).get("role")
+    except Exception:
+        return None
+
+
 def get_client(role="service"):
-    """role='service'(쓰기) 또는 'anon'(읽기) 클라이언트 반환."""
+    """role='service'(쓰기, RLS 우회) 또는 'anon'(읽기) 클라이언트 반환."""
     if role in _cache:
         return _cache[role]
     url = os.environ.get("SUPABASE_URL")
@@ -26,6 +37,13 @@ def get_client(role="service"):
             "Supabase 환경변수 미설정: SUPABASE_URL 및 "
             f"SUPABASE_{'SERVICE' if role == 'service' else 'ANON'}_KEY 를 설정하세요 "
             "(.env 또는 GitHub Secrets).")
+    # 슬롯-키 불일치 감지(흔한 permission denied 원인): service 슬롯에 anon 키 등
+    kr = key_role(key)
+    if role == "service" and kr and kr != "service_role":
+        raise RuntimeError(
+            f"SUPABASE_SERVICE_KEY 에 service_role 키가 아니라 '{kr}' 키가 들어있습니다. "
+            "Supabase > Project Settings > Data API 의 'service_role secret' 값을 다시 넣으세요. "
+            "(anon 키로는 RLS에 막혀 permission denied가 납니다.)")
     from supabase import create_client
     cli = create_client(url, key)
     _cache[role] = cli

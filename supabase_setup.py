@@ -73,7 +73,9 @@ def main():
         print("[테스트 스킵] SUPABASE_URL/KEY 미설정")
         return
     try:
-        cli = sc.get_client("service")
+        kr = sc.key_role(os.environ.get("SUPABASE_SERVICE_KEY"))
+        print(f"[테스트] 사용 키 role = {kr} (service_role 이어야 RLS 우회)")
+        cli = sc.get_client("service")          # 쓰기: service_role(RLS 우회)
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         cli.table("daily_summary").upsert(
             {"date": today, "total_open": 0, "signals_count": 0,
