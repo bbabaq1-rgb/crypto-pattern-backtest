@@ -24,6 +24,8 @@ POS_USD = CAPITAL * POS_PCT
 STOP = 0.08
 MAX_HOLD_D = 30
 MAX_HOLD_A = 20
+# TF별 방식D 최대보유(향후 하위TF 통과 대비 준비값). 현재 검증 통과 TF는 1d뿐.
+MAX_HOLD_BY_TF = {"1d": 30, "4h": 20, "1h": 48, "15m": 120}
 FEE = detlib.FEE
 
 POS_FILE = "paper_positions.json"

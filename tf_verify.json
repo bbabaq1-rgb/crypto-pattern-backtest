@@ -1,0 +1,162 @@
+{
+  "engulfing@1d": {
+    "n": 90,
+    "mean": 0.0358,
+    "median": 0.09988,
+    "verdict": "통과",
+    "freq_per_sym_month": 0.11,
+    "oos": "통과/통과",
+    "base_p": 0.007,
+    "passed": true
+  },
+  "engulfing@4h": {
+    "n": 1103,
+    "mean": 0.00747,
+    "median": 0.00439,
+    "verdict": "통과",
+    "freq_per_sym_month": 1.39,
+    "oos": "통과/기각",
+    "base_p": 0.0,
+    "passed": false
+  },
+  "engulfing@1h": {
+    "n": 5801,
+    "mean": -0.00226,
+    "median": -0.00294,
+    "verdict": "기각",
+    "freq_per_sym_month": 7.32,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "engulfing@15m": {
+    "n": 26616,
+    "mean": -0.00206,
+    "median": -0.0025,
+    "verdict": "기각",
+    "freq_per_sym_month": 33.61,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "fvg@1d": {
+    "n": 891,
+    "mean": 0.02363,
+    "median": 0.06189,
+    "verdict": "통과",
+    "freq_per_sym_month": 1.12,
+    "oos": "통과/통과",
+    "base_p": 0.0,
+    "passed": true
+  },
+  "fvg@4h": {
+    "n": 5092,
+    "mean": 0.00567,
+    "median": 7e-05,
+    "verdict": "기각",
+    "freq_per_sym_month": 6.43,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "fvg@1h": {
+    "n": 20348,
+    "mean": 0.00107,
+    "median": -0.002,
+    "verdict": "기각",
+    "freq_per_sym_month": 25.69,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "fvg@15m": {
+    "n": 82511,
+    "mean": -0.00137,
+    "median": -0.00274,
+    "verdict": "기각",
+    "freq_per_sym_month": 104.18,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "engulfing_short@1d": {
+    "n": 147,
+    "mean": 0.00895,
+    "median": 0.0537,
+    "verdict": "통과",
+    "freq_per_sym_month": 0.19,
+    "oos": "통과/기각",
+    "base_p": 0.106,
+    "passed": false
+  },
+  "engulfing_short@4h": {
+    "n": 1445,
+    "mean": -0.00186,
+    "median": -0.00083,
+    "verdict": "기각",
+    "freq_per_sym_month": 1.82,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "engulfing_short@1h": {
+    "n": 6962,
+    "mean": -0.00352,
+    "median": -0.00344,
+    "verdict": "기각",
+    "freq_per_sym_month": 8.79,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "engulfing_short@15m": {
+    "n": 28971,
+    "mean": -0.00239,
+    "median": -0.00245,
+    "verdict": "기각",
+    "freq_per_sym_month": 36.58,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "fvg_short@1d": {
+    "n": 705,
+    "mean": -0.01258,
+    "median": -0.03316,
+    "verdict": "기각",
+    "freq_per_sym_month": 0.89,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "fvg_short@4h": {
+    "n": 4561,
+    "mean": -0.00117,
+    "median": -0.002,
+    "verdict": "기각",
+    "freq_per_sym_month": 5.76,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "fvg_short@1h": {
+    "n": 20485,
+    "mean": -0.00191,
+    "median": -0.00275,
+    "verdict": "기각",
+    "freq_per_sym_month": 25.86,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  },
+  "fvg_short@15m": {
+    "n": 84147,
+    "mean": -0.00278,
+    "median": -0.00308,
+    "verdict": "기각",
+    "freq_per_sym_month": 106.25,
+    "oos": null,
+    "base_p": null,
+    "passed": false
+  }
+}

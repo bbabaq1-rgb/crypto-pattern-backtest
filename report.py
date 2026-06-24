@@ -273,6 +273,27 @@ def main():
     L.append("```")
     L.append("")
 
+    # 타임프레임 확장 검증
+    if os.path.exists("tf_verify.json"):
+        tv = json.load(open("tf_verify.json", encoding="utf-8"))
+        L.append("## 타임프레임 확장 검증 (12종목, 각 TF 독립 게이트)\n")
+        L.append("규칙: 각 TF가 자기 게이트(n>=20·평균>0·중앙>0) + OOS 양구간 + 베이스라인"
+                 "(p<0.05)을 독립 통과해야만 채택. 신호빈도=종목당 월평균.\n")
+        L.append("| 패턴 | TF | n | 평균 | 중앙 | 게이트 | OOS | 베이스p | 월/종목 | 채택 |")
+        L.append("|---|---|---|---|---|---|---|---|---|---|")
+        for key, v in tv.items():
+            pat, tf = key.split("@")
+            L.append(f"| {pat} | {tf} | {v['n']} | {pctf(v['mean'])} | {pctf(v['median'])} | "
+                     f"{v['verdict']} | {v['oos'] or '-'} | "
+                     f"{v['base_p'] if v['base_p'] is not None else '-'} | "
+                     f"{v['freq_per_sym_month']} | {'O' if v['passed'] else 'X'} |")
+        passed_tf = [k for k, v in tv.items() if v["passed"]]
+        L.append(f"\n**채택 TF: {', '.join(passed_tf) if passed_tf else '없음'}** — "
+                 "1d만 통과. 하위 TF는 신호빈도는 급증하나(예: fvg 15m 104건/종목·월) "
+                 "기대값·중앙값이 0 이하로 무너져 전부 기각. **빈도↑ ≠ 엣지↑**(수수료+노이즈). "
+                 "게이트 미조정 — 페이퍼/실거래엔 1d만 유지.")
+        L.append("")
+
     # 페이퍼테스트 시스템
     L.append("## 페이퍼테스트 시스템 (실주문 없음)\n")
     L.append("구성: exchange.py(비트겟 데모 연결, 키 없으면 시뮬레이션) + paper_executor.py"
