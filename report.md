@@ -1,8 +1,8 @@
 # 자동 패턴 연구 보고서
 
-- 등재 패턴: **14개**
-- 누적 시험(로그 행): **71건**
-- 상태 분포: passed 1, rejected 12, validated 1
+- 등재 패턴: **18개**
+- 누적 시험(로그 행): **86건**
+- 상태 분포: passed 1, rejected 16, validated 1
 - 게이트(동결): n>=20 AND 평균수익>임계 AND 중앙값>0, 라벨 대칭 ±10%, 수수료 왕복 0.2%, 다중비교 보정은 평균임계.
 
 ## 상태 분류
@@ -11,7 +11,7 @@
 |---|---|
 | validated | engulfing |
 | passed | fvg |
-| rejected | pin_bar, nr7, bb_squeeze, double_bottom, liquidity_sweep, inverse_hs, rsi_divergence, macd_divergence, order_block, bos_choch, spring_wyckoff, triple_bottom_desc |
+| rejected | pin_bar, nr7, bb_squeeze, double_bottom, liquidity_sweep, inverse_hs, rsi_divergence, macd_divergence, order_block, bos_choch, spring_wyckoff, triple_bottom_desc, engulfing_short, fvg_short, inverse_hs_short, order_block_short |
 
 ## 패턴 × 타임프레임 결과
 
@@ -53,6 +53,18 @@
 | spring_wyckoff | 4h | 1648 | +0.16% | +0.49% | 18.8% | 기각 | - | - |
 | spring_wyckoff | 1h | 3147 | +0.02% | +0.22% | 7.3% | 기각 | - | - |
 | triple_bottom_desc | - | - | - | - | - | (미시험) | - | - |
+| engulfing_short | 1d | 87 | +1.08% | +4.62% | 43.7% | 통과 | IS:통과(n53,+1.63%) / OOS:기각(n34,+0.21%) | +1.87% (p=0.094, 미초과) |
+| engulfing_short | 4h | 870 | -0.39% | -0.29% | 10.8% | 기각 | - | - |
+| engulfing_short | 1h | 4162 | -0.35% | -0.33% | 1.4% | 기각 | - | - |
+| fvg_short | 1d | 426 | -0.88% | -1.39% | 36.1% | 기각 | - | - |
+| fvg_short | 4h | 2755 | -0.15% | -0.32% | 17.1% | 기각 | - | - |
+| fvg_short | 1h | 12203 | -0.16% | -0.27% | 4.3% | 기각 | - | - |
+| inverse_hs_short | 1d | 199 | -1.44% | -3.03% | 34.7% | 기각 | - | - |
+| inverse_hs_short | 4h | 1644 | -0.12% | -0.28% | 13.5% | 기각 | - | - |
+| inverse_hs_short | 1h | 7208 | -0.29% | -0.35% | 2.5% | 기각 | - | - |
+| order_block_short | 1d | 86 | -0.20% | -1.01% | 45.4% | 기각 | - | - |
+| order_block_short | 4h | 741 | -0.68% | -0.87% | 14.4% | 기각 | - | - |
+| order_block_short | 1h | 2566 | -0.38% | -0.53% | 3.7% | 기각 | - | - |
 
 ## 레짐별 기대값 (상승장 편승 여부 검증)
 
@@ -63,6 +75,7 @@
 - **fvg** @1d: up n166 평균+2.11%/중앙+6.26%, down n164 평균+2.20%/중앙+7.10%, side n154 평균+1.27%/중앙+1.00%, na n50 평균+11.84%/중앙+12.95%
 - **inverse_hs** @1d: up n47 평균+2.81%/중앙+4.18%, down n68 평균+0.26%/중앙-1.91%, side n47 평균+2.33%/중앙+4.91%, na n8 평균+1.21%/중앙+0.18%
 - **order_block** @1d: up n63 평균-0.38%/중앙-1.12%, down n36 평균-0.25%/중앙-0.99%, side n42 평균+0.46%/중앙-0.49%, na n23 평균+8.79%/중앙+12.62%
+- **engulfing_short** @1d: up n29 평균+0.09%/중앙+4.62%, down n22 평균-2.13%/중앙-7.86%, side n27 평균+5.76%/중앙+10.55%, na n9 평균-1.95%/중앙-11.81%
 
 ## 1순위 후보 정밀검증
 
@@ -89,6 +102,36 @@
 - **engulfing** (Engulfing) — 1d 전체+OOS+베이스라인+정밀검증, 실거래 검토 가능(validated)
 - **fvg** (Fair Value Gap) — 1d 전체+OOS+베이스라인+정밀검증, 승인 대기(passed)
 
+## 레짐 스위치: 롱/숏 레짐별 기대값
+
+시장레짐 = BTC 200봉 MA기울기 + 도미넌스(프록시: BTC vs 알트 상대강도).
+
+레짐 일수: bull_btc 723, bull_altseason 415, sideways 28, bear 609
+
+| 패턴 | bull_altseason | bull_btc | bear | sideways |
+|---|---|---|---|---|
+| engulfing | -1.35%(n10) | +5.15%(n21) | +2.47%(n22) | - |
+| engulfing_short | +3.45%(n34) | +0.10%(n22) | +4.00%(n17) | -15.29%(n5) |
+| fvg | +0.18%(n160) | +4.34%(n177) | -0.04%(n134) | +8.89%(n13) |
+| fvg_short | +4.24%(n38) | -3.12%(n192) | +1.51%(n167) | -14.85%(n7) |
+| inverse_hs | -0.14%(n33) | +3.98%(n72) | -0.85%(n53) | +5.59%(n4) |
+| inverse_hs_short | +3.61%(n26) | -2.80%(n101) | +0.77%(n58) | -11.32%(n4) |
+| order_block | -1.49%(n49) | +3.21%(n50) | -1.51%(n37) | -9.07%(n5) |
+| order_block_short | +0.40%(n11) | +3.16%(n30) | -0.08%(n31) | - |
+
+## 레짐 -> 방향 -> 패턴 라우팅
+
+규칙: 각 레짐에서 기대값 양수(n>=20)인 방향만 켠다. 둘 다 음수면 FLAT.
+
+| 레짐 | engulfing | fvg |
+|---|---|---|
+| bull_altseason | short | short |
+| bull_btc | long | long |
+| bear | long | short |
+| sideways | FLAT | FLAT |
+
+**현재(2026-06-17) 레짐: bear** -> engulfing:long, fvg:short
+
 ## 기각(rejected) 요약
 
 - pin_bar (Pin Bar) — 기대값 음수
@@ -103,3 +146,7 @@
 - bos_choch (BOS / CHoCH) — 기대값 음수
 - spring_wyckoff (Wyckoff Spring) — 기대값 음수
 - triple_bottom_desc (Triple Bottom (descending)) — 사전 기각(별도 분석)
+- engulfing_short (Engulfing (short)) — OOS 미통과(과최적화)
+- fvg_short (Fair Value Gap (short)) — 기대값 음수
+- inverse_hs_short (H&S Top (short)) — 기대값 음수
+- order_block_short (Order Block (short)) — 기대값 음수

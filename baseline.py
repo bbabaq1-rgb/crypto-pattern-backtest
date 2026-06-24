@@ -29,8 +29,12 @@ def _outcome(rows, si):
 
 
 def entry_pool(mod, tf, date_from=None, date_to=None):
-    """모든 봉을 무작위 진입 후보로 보고 트리플배리어 수익 풀 구성."""
+    """
+    모든 봉을 무작위 진입 후보로 보고 트리플배리어 수익 풀 구성.
+    mod.outcome 를 사용하므로 롱/숏 방향이 자동 정합(숏 패턴이면 숏 베이스라인).
+    """
     pool = []
+    oc = getattr(mod, "outcome", None)
     for sym in mod.SYMBOLS:
         try:
             rows = mod.load_ohlcv(sym, tf)
@@ -42,7 +46,10 @@ def entry_pool(mod, tf, date_from=None, date_to=None):
                 continue
             if date_to and d > date_to:
                 continue
-            pool.append(_outcome(rows, i))
+            if oc is not None:
+                pool.append(oc(rows, i)[1])
+            else:
+                pool.append(_outcome(rows, i))
     return pool
 
 

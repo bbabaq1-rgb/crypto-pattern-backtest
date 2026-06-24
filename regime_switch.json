@@ -1,0 +1,154 @@
+{
+  "regime_days": {
+    "bull_btc": 723,
+    "bull_altseason": 415,
+    "sideways": 28,
+    "bear": 609
+  },
+  "by_pattern": {
+    "engulfing": {
+      "bull_altseason": {
+        "n": 10,
+        "mean": -0.01355
+      },
+      "bull_btc": {
+        "n": 21,
+        "mean": 0.05151
+      },
+      "bear": {
+        "n": 22,
+        "mean": 0.02469
+      },
+      "sideways": {
+        "n": 0,
+        "mean": null
+      }
+    },
+    "engulfing_short": {
+      "bull_altseason": {
+        "n": 34,
+        "mean": 0.03453
+      },
+      "bull_btc": {
+        "n": 22,
+        "mean": 0.00102
+      },
+      "bear": {
+        "n": 17,
+        "mean": 0.03999
+      },
+      "sideways": {
+        "n": 5,
+        "mean": -0.15286
+      }
+    },
+    "fvg": {
+      "bull_altseason": {
+        "n": 160,
+        "mean": 0.0018
+      },
+      "bull_btc": {
+        "n": 177,
+        "mean": 0.04337
+      },
+      "bear": {
+        "n": 134,
+        "mean": -0.00045
+      },
+      "sideways": {
+        "n": 13,
+        "mean": 0.08891
+      }
+    },
+    "fvg_short": {
+      "bull_altseason": {
+        "n": 38,
+        "mean": 0.04241
+      },
+      "bull_btc": {
+        "n": 192,
+        "mean": -0.03121
+      },
+      "bear": {
+        "n": 167,
+        "mean": 0.0151
+      },
+      "sideways": {
+        "n": 7,
+        "mean": -0.14847
+      }
+    },
+    "inverse_hs": {
+      "bull_altseason": {
+        "n": 33,
+        "mean": -0.00136
+      },
+      "bull_btc": {
+        "n": 72,
+        "mean": 0.03981
+      },
+      "bear": {
+        "n": 53,
+        "mean": -0.00853
+      },
+      "sideways": {
+        "n": 4,
+        "mean": 0.05587
+      }
+    },
+    "inverse_hs_short": {
+      "bull_altseason": {
+        "n": 26,
+        "mean": 0.03607
+      },
+      "bull_btc": {
+        "n": 101,
+        "mean": -0.02796
+      },
+      "bear": {
+        "n": 58,
+        "mean": 0.00767
+      },
+      "sideways": {
+        "n": 4,
+        "mean": -0.11324
+      }
+    },
+    "order_block": {
+      "bull_altseason": {
+        "n": 49,
+        "mean": -0.01491
+      },
+      "bull_btc": {
+        "n": 50,
+        "mean": 0.03215
+      },
+      "bear": {
+        "n": 37,
+        "mean": -0.0151
+      },
+      "sideways": {
+        "n": 5,
+        "mean": -0.0907
+      }
+    },
+    "order_block_short": {
+      "bull_altseason": {
+        "n": 11,
+        "mean": 0.00404
+      },
+      "bull_btc": {
+        "n": 30,
+        "mean": 0.03165
+      },
+      "bear": {
+        "n": 31,
+        "mean": -0.00083
+      },
+      "sideways": {
+        "n": 0,
+        "mean": null
+      }
+    }
+  }
+}

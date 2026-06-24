@@ -203,6 +203,38 @@ def main():
                 L.append(f"- {p['id']} ({p['name']})")
     L.append("")
 
+    # 레짐 스위치: 롱/숏 레짐별 기대값
+    if os.path.exists("regime_switch.json"):
+        rsj = json.load(open("regime_switch.json", encoding="utf-8"))
+        REG = ["bull_altseason", "bull_btc", "bear", "sideways"]
+        L.append("## 레짐 스위치: 롱/숏 레짐별 기대값\n")
+        L.append("시장레짐 = BTC 200봉 MA기울기 + 도미넌스(프록시: BTC vs 알트 상대강도).\n")
+        L.append(f"레짐 일수: " + ", ".join(f"{k} {v}" for k, v in rsj.get("regime_days", {}).items()))
+        L.append("")
+        L.append("| 패턴 | " + " | ".join(REG) + " |")
+        L.append("|---|" + "---|" * len(REG))
+        for pid, pr in rsj["by_pattern"].items():
+            cells = []
+            for rg in REG:
+                x = pr.get(rg, {})
+                cells.append(f"{pctf(x.get('mean'))}(n{x.get('n',0)})" if x.get("mean") is not None else "-")
+            L.append(f"| {pid} | " + " | ".join(cells) + " |")
+        L.append("")
+
+    # 방향 라우팅
+    if os.path.exists("direction_switch.json"):
+        dsj = json.load(open("direction_switch.json", encoding="utf-8"))
+        L.append("## 레짐 -> 방향 -> 패턴 라우팅\n")
+        L.append("규칙: 각 레짐에서 기대값 양수(n>=20)인 방향만 켠다. 둘 다 음수면 FLAT.\n")
+        L.append("| 레짐 | engulfing | fvg |")
+        L.append("|---|---|---|")
+        for rg, r in dsj["routing"].items():
+            L.append(f"| {rg} | {r.get('engulfing','-')} | {r.get('fvg','-')} |")
+        cur = dsj.get("current", {})
+        L.append(f"\n**현재({cur.get('date')}) 레짐: {cur.get('regime')}** -> "
+                 + ", ".join(f"{k}:{v}" for k, v in cur.get("action", {}).items()))
+        L.append("")
+
     # 기각 요약
     L.append("## 기각(rejected) 요약\n")
     rej = [p for p in pats if p["status"] == "rejected"]

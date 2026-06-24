@@ -23,19 +23,28 @@ def load_ohlcv(sym, tf="1d"):
     return rows
 
 
-def outcome(rows, si):
+def outcome(rows, si, direction="long"):
+    """트리플배리어. direction='short'이면 라벨/수익 반전(하락 선도달=real)."""
     base = rows[si]["c"]
     up, dn = base * (1 + RISE_THR), base * (1 + FALL_THR)
     hi = min(si + LABEL_WINDOW, len(rows) - 1)
     for j in range(si + 1, hi + 1):
-        if rows[j]["c"] >= up:
-            return "real", rows[j]["c"] / base - 1 - FEE
-        if rows[j]["c"] <= dn:
-            return "fake", rows[j]["c"] / base - 1 - FEE
-    return "neutral", rows[hi]["c"] / base - 1 - FEE
+        c = rows[j]["c"]
+        if direction == "long":
+            if c >= up:
+                return "real", c / base - 1 - FEE
+            if c <= dn:
+                return "fake", c / base - 1 - FEE
+        else:                                   # short: 하락=수익
+            if c <= dn:
+                return "real", (base - c) / base - FEE
+            if c >= up:
+                return "fake", (base - c) / base - FEE
+    r = rows[hi]["c"] / base - 1
+    return "neutral", (r - FEE) if direction == "long" else (-r - FEE)
 
 
-def make_evaluate(detect):
+def make_evaluate(detect, direction="long"):
     def evaluate(date_from=None, date_to=None, tf="1d"):
         per = {}
         agg = dict(n=0, real=0, fake=0, neutral=0)
@@ -52,7 +61,7 @@ def make_evaluate(detect):
                     continue
                 if date_to and d > date_to:
                     continue
-                lab, ret = outcome(rows, si)
+                lab, ret = outcome(rows, si, direction)
                 cc["n"] += 1; cc[lab] += 1; rets.append(ret)
             per[sym] = cc
             for k in agg:

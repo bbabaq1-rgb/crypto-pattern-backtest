@@ -1,0 +1,28 @@
+{
+  "routing": {
+    "bull_altseason": {
+      "engulfing": "short",
+      "fvg": "short"
+    },
+    "bull_btc": {
+      "engulfing": "long",
+      "fvg": "long"
+    },
+    "bear": {
+      "engulfing": "long",
+      "fvg": "short"
+    },
+    "sideways": {
+      "engulfing": "FLAT",
+      "fvg": "FLAT"
+    }
+  },
+  "current": {
+    "date": "2026-06-17",
+    "regime": "bear",
+    "action": {
+      "engulfing": "long",
+      "fvg": "short"
+    }
+  }
+}

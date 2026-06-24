@@ -401,6 +401,74 @@
       "difficulty": 2,
       "status": "rejected",
       "detector_file": "triple_bottom_volume.py"
+    },
+    {
+      "id": "engulfing_short",
+      "name": "Engulfing (short)",
+      "category": "캔들",
+      "difficulty": 1,
+      "status": "rejected",
+      "detector_file": "detector_engulfing_short.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 29,
+            "mean": 0.00087,
+            "median": 0.04623
+          },
+          "down": {
+            "n": 22,
+            "mean": -0.0213,
+            "median": -0.07864
+          },
+          "side": {
+            "n": 27,
+            "mean": 0.05761,
+            "median": 0.10548
+          },
+          "na": {
+            "n": 9,
+            "mean": -0.01953,
+            "median": -0.11811
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": -0.00796,
+          "excess_mean": 0.01872,
+          "p_mean": 0.094,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
+    },
+    {
+      "id": "fvg_short",
+      "name": "Fair Value Gap (short)",
+      "category": "SMC",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_fvg_short.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "inverse_hs_short",
+      "name": "H&S Top (short)",
+      "category": "패턴",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_inverse_hs_short.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "order_block_short",
+      "name": "Order Block (short)",
+      "category": "SMC",
+      "difficulty": 3,
+      "status": "rejected",
+      "detector_file": "detector_order_block_short.py",
+      "reject_reason": "기대값 음수"
     }
   ]
 }
