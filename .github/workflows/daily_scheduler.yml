@@ -1,0 +1,41 @@
+name: Daily Paper Scheduler
+
+on:
+  schedule:
+    - cron: '0 0 * * *'        # 매일 UTC 00:00 (한국시간 09:00)
+  workflow_dispatch: {}         # 수동 실행 허용
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run scheduler (fetch -> regime -> signals -> paper -> Supabase)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          BITGET_DEMO_KEY: ${{ secrets.BITGET_DEMO_KEY }}
+          BITGET_DEMO_SECRET: ${{ secrets.BITGET_DEMO_SECRET }}
+          BITGET_DEMO_PASSPHRASE: ${{ secrets.BITGET_DEMO_PASSPHRASE }}
+        run: python scheduler.py oncefull
+
+      - name: Upload logs/json on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduler-logs
+          path: |
+            *.json
+            scheduler_log.txt
+          if-no-files-found: ignore

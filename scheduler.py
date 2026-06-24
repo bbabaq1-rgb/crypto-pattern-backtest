@@ -126,6 +126,24 @@ def run_once(do_fetch=True):
     print(f"    거래소: {conn['mode']} | {conn['note']}")
     pr = paper_executor.run(stamp)
     out["paper"] = pr
+
+    print("[7] daily_summary 기록...")
+    try:
+        import supabase_client as sc
+        if sc.available():
+            tr = json.load(open("paper_trades.json", encoding="utf-8")) if os.path.exists("paper_trades.json") else []
+            cra = round(sum(t["pnl_usd"] for t in tr if t["method"] == "A") / 2000 * 100, 2)
+            crd = round(sum(t["pnl_usd"] for t in tr if t["method"] == "D") / 2000 * 100, 2)
+            day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            sc.get_client("service").table("daily_summary").upsert(
+                {"date": day, "total_open": pr["open"], "signals_count": len(signals),
+                 "cumulative_return_a": cra, "cumulative_return_d": crd},
+                on_conflict="date").execute()
+            print(f"    daily_summary UPSERT 완료 (open={pr['open']}, sig={len(signals)}, A={cra}%, D={crd}%)")
+        else:
+            print("    DB 미설정 - daily_summary 스킵(로컬 JSON 유지)")
+    except Exception as e:
+        print("    daily_summary 실패(무시):", str(e)[:80])
     return out
 
 

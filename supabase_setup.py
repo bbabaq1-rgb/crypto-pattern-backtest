@@ -1,0 +1,95 @@
+"""
+supabase_setup.py — Supabase 테이블 4종 생성 + INSERT/SELECT 테스트.
+
+DDL은 PostgREST(anon/service 키)로는 실행 불가하므로 아래 순서로 시도:
+  1) SUPABASE_DB_URL(postgres 연결문자열) 있으면 psycopg2로 CREATE TABLE IF NOT EXISTS.
+  2) 없으면 schema.sql 생성 + Supabase SQL Editor에 붙여넣는 안내 출력.
+그 후 supabase-py로 daily_summary INSERT/SELECT 왕복 테스트(테이블 존재 시).
+키는 환경변수에서만 읽는다.
+"""
+import os
+import json
+from datetime import datetime, timezone
+
+import supabase_client as sc
+
+SCHEMA = """create extension if not exists pgcrypto;
+
+create table if not exists signals (
+  id uuid primary key default gen_random_uuid(),
+  date date, symbol text, pattern text, direction text, regime text,
+  entry_price float8, stop_loss float8, created_at timestamptz default now());
+
+create table if not exists positions (
+  id uuid primary key default gen_random_uuid(),
+  symbol text, pattern text, direction text, entry_date date, entry_price float8,
+  stop_loss float8, size_usd float8, status text, method text,
+  created_at timestamptz default now());
+
+create table if not exists trades (
+  id uuid primary key default gen_random_uuid(),
+  symbol text, pattern text, direction text, entry_date date, entry_price float8,
+  exit_date date, exit_price float8, return_pct float8, hold_bars int,
+  exit_reason text, method text, created_at timestamptz default now());
+
+create table if not exists daily_summary (
+  id uuid primary key default gen_random_uuid(),
+  date date unique, total_open int, signals_count int,
+  cumulative_return_a float8, cumulative_return_d float8,
+  created_at timestamptz default now());
+"""
+TABLES = ["signals", "positions", "trades", "daily_summary"]
+
+
+def create_via_psycopg(db_url):
+    import psycopg2
+    conn = psycopg2.connect(db_url)
+    conn.autocommit = True
+    with conn.cursor() as cur:
+        cur.execute(SCHEMA)
+    conn.close()
+    return True
+
+
+def main():
+    open("schema.sql", "w", encoding="utf-8").write(SCHEMA)
+    print("[schema.sql 생성됨]")
+
+    db_url = os.environ.get("SUPABASE_DB_URL")
+    created = False
+    if db_url:
+        try:
+            create_via_psycopg(db_url)
+            print("[1] psycopg2로 테이블 생성/확인 완료 (IF NOT EXISTS)")
+            created = True
+        except Exception as e:
+            print(f"[1] psycopg2 생성 실패: {str(e)[:80]}")
+    if not created:
+        print("[안내] SUPABASE_DB_URL 미설정 또는 실패 -> Supabase SQL Editor에서 schema.sql을")
+        print("       붙여넣어 1회 실행하세요: 대시보드 > SQL Editor > New query > schema.sql 내용 > Run")
+
+    # INSERT/SELECT 왕복 테스트 (테이블이 이미 있어야 성공)
+    if not sc.available():
+        print("[테스트 스킵] SUPABASE_URL/KEY 미설정")
+        return
+    try:
+        cli = sc.get_client("service")
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        cli.table("daily_summary").upsert(
+            {"date": today, "total_open": 0, "signals_count": 0,
+             "cumulative_return_a": 0.0, "cumulative_return_d": 0.0},
+            on_conflict="date").execute()
+        rows = cli.table("daily_summary").select("*").eq("date", today).execute()
+        print(f"[2] INSERT/SELECT 테스트 OK — daily_summary {len(rows.data)}행 조회")
+        for t in TABLES:
+            try:
+                cli.table(t).select("id").limit(1).execute()
+                print(f"    테이블 '{t}' 접근 OK")
+            except Exception as e:
+                print(f"    테이블 '{t}' 접근 실패(미생성?): {str(e)[:60]}")
+    except Exception as e:
+        print(f"[2] 테스트 실패: {str(e)[:100]}")
+
+
+if __name__ == "__main__":
+    main()

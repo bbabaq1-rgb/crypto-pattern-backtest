@@ -90,14 +90,56 @@ def _date_idx(rows, date):
     return None
 
 
-def _record_trade(trades, pos, method, ex):
+def _record_trade(trades, pos, method, ex, exit_date=None):
     j, exit_px, ret, reason = ex
     trades.append(dict(method=method, symbol=pos["symbol"], direction=pos["direction"],
                        pattern=pos["pattern"], regime=pos["regime"],
                        entry_date=pos["entry_date"], entry_price=pos["entry_price"],
-                       exit_price=round(exit_px, 4), ret=round(ret, 5),
+                       exit_date=exit_date, exit_price=round(exit_px, 4), ret=round(ret, 5),
                        pnl_usd=round(ret * POS_USD, 2), hold_bars=j - pos["entry_idx"],
                        reason=reason, method_label=method))
+
+
+# ---- Supabase 동기화 (베스트에포트; 실패/미설정 시 JSON 폴백) ----
+def _db():
+    try:
+        import supabase_client as sc
+        return sc.get_client("service") if sc.available() else None
+    except Exception:
+        return None
+
+
+def push_trades_db(new_trades):
+    cli = _db()
+    if not cli or not new_trades:
+        return 0
+    rows = [{"symbol": t["symbol"], "pattern": t["pattern"], "direction": t["direction"],
+             "entry_date": t["entry_date"], "entry_price": t["entry_price"],
+             "exit_date": t.get("exit_date"), "exit_price": t["exit_price"],
+             "return_pct": round(t["ret"] * 100, 4), "hold_bars": t["hold_bars"],
+             "exit_reason": t["reason"], "method": t["method"]} for t in new_trades]
+    try:
+        cli.table("trades").insert(rows).execute()
+        return len(rows)
+    except Exception as e:
+        print("  [DB] trades insert 실패(로컬 JSON 유지):", str(e)[:60])
+        return 0
+
+
+def push_positions_db(new_positions):
+    cli = _db()
+    if not cli or not new_positions:
+        return 0
+    rows = [{"symbol": p["symbol"], "pattern": p["pattern"], "direction": p["direction"],
+             "entry_date": p["entry_date"], "entry_price": p["entry_price"],
+             "stop_loss": p.get("stop"), "size_usd": p.get("size_usd"),
+             "status": "open", "method": "AD"} for p in new_positions]
+    try:
+        cli.table("positions").insert(rows).execute()
+        return len(rows)
+    except Exception as e:
+        print("  [DB] positions insert 실패(로컬 JSON 유지):", str(e)[:60])
+        return 0
 
 
 def run(stamp=None):
@@ -112,6 +154,8 @@ def run(stamp=None):
             rows_cache[sym] = detlib.load_ohlcv(sym, "1d")
         return rows_cache[sym]
 
+    t0 = len(trades)                  # 이번 실행에서 새로 체결되는 거래 추적
+    new_positions = []
     # 1) 오픈 포지션 청산 모니터링
     still_open = []
     for pos in positions:
@@ -125,11 +169,11 @@ def run(stamp=None):
         if not pos.get("d_closed"):
             ex = eval_D(rows, ei, pos["direction"], opp_set, regmap)
             if ex:
-                _record_trade(trades, pos, "D", ex); pos["d_closed"] = True
+                _record_trade(trades, pos, "D", ex, rows[ex[0]]["date"]); pos["d_closed"] = True
         if not pos.get("a_closed"):
             ex = eval_A(rows, ei, pos["direction"])
             if ex:
-                _record_trade(trades, pos, "A", ex); pos["a_closed"] = True
+                _record_trade(trades, pos, "A", ex, rows[ex[0]]["date"]); pos["a_closed"] = True
         if not (pos.get("d_closed") and pos.get("a_closed")):
             still_open.append(pos)
 
@@ -148,15 +192,21 @@ def run(stamp=None):
             continue
         entry = rows[ei]["c"]
         stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
-        still_open.append(dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
-                               regime=s.get("regime"), entry_date=s["date"], entry_idx=ei,
-                               entry_price=round(entry, 4), stop=round(stop_px, 4),
-                               size_usd=POS_USD, d_closed=False, a_closed=False))
-        new += 1
+        p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
+                 regime=s.get("regime"), entry_date=s["date"], entry_idx=ei,
+                 entry_price=round(entry, 4), stop=round(stop_px, 4),
+                 size_usd=POS_USD, d_closed=False, a_closed=False)
+        still_open.append(p); new_positions.append(p); new += 1
 
+    # JSON은 항상 저장(로컬 폴백/원천)
     _save(POS_FILE, still_open)
     _save(TRD_FILE, trades)
-    print(f"[paper] 신규진입 {new}건 | 오픈 {len(still_open)}건 | 누적 체결 {len(trades)}건")
+    # Supabase 동기화(가능 시): 이번 실행 신규 체결/신규 포지션만 INSERT
+    new_trades = trades[t0:]
+    dbt = push_trades_db(new_trades)
+    dbp = push_positions_db(new_positions)
+    dbmsg = f" | DB동기화 trades+{dbt}/positions+{dbp}" if _db() else " | DB미설정(JSON만)"
+    print(f"[paper] 신규진입 {new}건 | 오픈 {len(still_open)}건 | 누적 체결 {len(trades)}건{dbmsg}")
     return dict(new=new, open=len(still_open), trades=len(trades))
 
 
@@ -213,11 +263,23 @@ def seed(days=60):
     run()
 
 
+def migrate():
+    """기존 JSON(paper_trades/positions)을 Supabase로 1회 마이그레이션."""
+    if not _db():
+        print("[migrate] DB 미설정 - 스킵(JSON 유지)")
+        return
+    n = push_trades_db(_load(TRD_FILE, []))
+    p = push_positions_db(_load(POS_FILE, []))
+    print(f"[migrate] Supabase 이관: trades {n}건 / positions {p}건")
+
+
 if __name__ == "__main__":
     arg = sys.argv[1] if len(sys.argv) > 1 else ""
     if arg == "selftest":
         selftest()
     elif arg == "seed":
         seed()
+    elif arg == "migrate":
+        migrate()
     else:
         run()
