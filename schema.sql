@@ -22,3 +22,9 @@ create table if not exists daily_summary (
   date date unique, total_open int, signals_count int,
   cumulative_return_a float8, cumulative_return_d float8,
   created_at timestamptz default now());
+
+-- 백엔드 전용(공개 클라이언트 없음) -> RLS 비활성화로 permission denied(42501) 방지.
+alter table signals       disable row level security;
+alter table positions     disable row level security;
+alter table trades        disable row level security;
+alter table daily_summary disable row level security;

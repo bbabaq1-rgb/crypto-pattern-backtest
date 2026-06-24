@@ -37,6 +37,18 @@ create table if not exists daily_summary (
   date date unique, total_open int, signals_count int,
   cumulative_return_a float8, cumulative_return_d float8,
   created_at timestamptz default now());
+
+-- 백엔드 전용(공개 클라이언트 없음) -> RLS 비활성화로 permission denied(42501) 방지.
+alter table signals       disable row level security;
+alter table positions     disable row level security;
+alter table trades        disable row level security;
+alter table daily_summary disable row level security;
+"""
+# RLS만 끄는 즉시 적용용(이미 테이블이 있을 때)
+FIX_RLS = """alter table signals       disable row level security;
+alter table positions     disable row level security;
+alter table trades        disable row level security;
+alter table daily_summary disable row level security;
 """
 TABLES = ["signals", "positions", "trades", "daily_summary"]
 
@@ -53,7 +65,8 @@ def create_via_psycopg(db_url):
 
 def main():
     open("schema.sql", "w", encoding="utf-8").write(SCHEMA)
-    print("[schema.sql 생성됨]")
+    open("fix_rls.sql", "w", encoding="utf-8").write(FIX_RLS)
+    print("[schema.sql / fix_rls.sql 생성됨]")
 
     db_url = os.environ.get("SUPABASE_DB_URL")
     created = False
@@ -90,7 +103,12 @@ def main():
             except Exception as e:
                 print(f"    테이블 '{t}' 접근 실패(미생성?): {str(e)[:60]}")
     except Exception as e:
-        print(f"[2] 테스트 실패: {str(e)[:100]}")
+        msg = str(e)
+        print(f"[2] 테스트 실패: {msg[:120]}")
+        if "42501" in msg or "permission denied" in msg:
+            print("    -> 원인: 테이블에 RLS가 켜져 있어 막혔습니다(키 부재 아님).")
+            print("       해결: Supabase SQL Editor에서 fix_rls.sql 내용을 Run 하세요(4개 테이블 RLS 끔).")
+            print("       또는 SUPABASE_SERVICE_KEY 에 진짜 'service_role secret' 키를 넣으세요(RLS 우회).")
 
 
 if __name__ == "__main__":
