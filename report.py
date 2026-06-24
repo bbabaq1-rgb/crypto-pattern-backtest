@@ -235,6 +235,44 @@ def main():
                  + ", ".join(f"{k}:{v}" for k, v in cur.get("action", {}).items()))
         L.append("")
 
+    # 청산방식 A vs D
+    if os.path.exists("method_d.json"):
+        md = json.load(open("method_d.json", encoding="utf-8"))
+        L.append("## 청산방식 A(±10%/20봉) vs D(손절-8%/반대신호·레짐전환/최대30봉)\n")
+        L.append("| 패턴 | 방식 | n | 평균 | 중앙 | 베이스초과(p) | 최대손실 | 평균보유 |")
+        L.append("|---|---|---|---|---|---|---|---|")
+        for pat, mv in md.items():
+            for tag in ("A", "D"):
+                s = mv[tag]
+                L.append(f"| {pat} | {tag} | {s['n']} | {pctf(s['mean'])} | {pctf(s['median'])} | "
+                         f"{pctf(s['excess'])}(p{s['p']}) | {pctf(s['maxloss'])} | {s['avghold']:.1f} |")
+        L.append("\n판정: 방식D는 평균↑·최대손실 대폭↓(-8% 고정)이나 **중앙값 음수**(손절은 -8%로 "
+                 "자르고 승자만 끌고가는 양의 스큐). 동결 게이트(중앙값>0)로는 D가 탈락 — "
+                 "기대값·리스크는 D 우위, 게이트 통과는 A. 리스크관리 우선이면 D, 기준 일관성은 A.")
+        L.append("")
+
+    # 실제 BTC.D 재검증
+    if os.path.exists("btc_dominance.json"):
+        bd = json.load(open("btc_dominance.json", encoding="utf-8"))
+        L.append("## 실제 BTC.D 레짐 재검증\n")
+        L.append(f"- 현재 BTC.D: {bd.get('current_btc_d')}% (CoinGecko global, 취득 성공)")
+        L.append(f"- 히스토리 가용: {bd.get('history_available')} — {bd.get('note')}")
+        L.append(f"- 레짐 산출 기준: {bd.get('regime_basis')}")
+        L.append("- 결론: 무료 API로 BTC.D 히스토리 확보 불가(유료 401) → 레짐은 상대강도 "
+                 "프록시 유지. 라우팅표 불변. 실제 BTC.D 재검증은 유료 데이터 확보 시 가능.")
+        L.append("")
+
+    # 스케줄러 사용법
+    L.append("## 실시간 스케줄러 (scheduler.py)\n")
+    L.append("매 UTC 00:00: 데이터 fetch → 레짐 판정 → direction_switch 갱신 → "
+             "engulfing/fvg 오늘 신호 탐지 → signals_today.json 저장 (실주문 없음, 페이퍼테스트).")
+    L.append("```")
+    L.append("python scheduler.py once      # 1회(데이터 최신 가정, fetch 생략)")
+    L.append("python scheduler.py oncefull  # 1회(fetch 포함)")
+    L.append("python scheduler.py           # 데몬(매일 UTC 00:00 자동)")
+    L.append("```")
+    L.append("")
+
     # 기각 요약
     L.append("## 기각(rejected) 요약\n")
     rej = [p for p in pats if p["status"] == "rejected"]

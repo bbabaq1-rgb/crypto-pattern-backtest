@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-06-24T00:29Z",
+  "regime": "bear",
+  "regime_date": "2026-06-17",
+  "routing": {
+    "engulfing": "long",
+    "fvg": "short"
+  },
+  "n_signals": 0,
+  "signals": [],
+  "note": "페이퍼테스트용 신호 기록 — 실주문 없음"
+}

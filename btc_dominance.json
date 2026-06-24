@@ -1,0 +1,7 @@
+{
+  "current_btc_d": 56.27,
+  "history_available": false,
+  "note": "history 불가(무료 API 제한): HTTP Error 401: Unauthorized",
+  "source": "coingecko free",
+  "regime_basis": "proxy(BTC vs 알트 상대강도) 유지 - 실제 BTC.D 히스토리 API 불가"
+}
