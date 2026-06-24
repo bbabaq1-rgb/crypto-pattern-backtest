@@ -6,6 +6,14 @@ supabase_client.py — 공용 Supabase 클라이언트.
 """
 import os
 
+# 로컬 개발: 프로젝트 루트 .env 파일에서 키를 로드.
+# GitHub Actions는 Secrets로 주입되므로 .env 불필요. .env는 .gitignore에 있어 커밋 안 됨.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=False)   # 이미 설정된 환경변수는 덮어쓰지 않음
+except ImportError:
+    pass
+
 _cache = {}
 
 
