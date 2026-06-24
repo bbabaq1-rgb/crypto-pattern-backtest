@@ -1,8 +1,8 @@
 # 자동 패턴 연구 보고서
 
-- 등재 패턴: **18개**
-- 누적 시험(로그 행): **118건**
-- 상태 분포: passed 1, rejected 16, validated 1
+- 등재 패턴: **20개**
+- 누적 시험(로그 행): **120건**
+- 상태 분포: passed 3, rejected 16, validated 1
 - 게이트(동결): n>=20 AND 평균수익>임계 AND 중앙값>0, 라벨 대칭 ±10%, 수수료 왕복 0.2%, 다중비교 보정은 평균임계.
 
 ## 상태 분류
@@ -10,7 +10,7 @@
 | status | 패턴 |
 |---|---|
 | validated | engulfing |
-| passed | fvg |
+| passed | fvg, inverted_hammer, marubozu |
 | rejected | pin_bar, nr7, bb_squeeze, double_bottom, liquidity_sweep, inverse_hs, rsi_divergence, macd_divergence, order_block, bos_choch, spring_wyckoff, triple_bottom_desc, engulfing_short, fvg_short, inverse_hs_short, order_block_short |
 
 ## 패턴 × 타임프레임 결과
@@ -65,6 +65,8 @@
 | order_block_short | 1d | 86 | -0.20% | -1.01% | 45.4% | 기각 | - | - |
 | order_block_short | 4h | 741 | -0.68% | -0.87% | 14.4% | 기각 | - | - |
 | order_block_short | 1h | 2566 | -0.38% | -0.53% | 3.7% | 기각 | - | - |
+| inverted_hammer | - | - | - | - | - | (미시험) | - | - |
+| marubozu | - | - | - | - | - | (미시험) | - | - |
 
 ## 레짐별 기대값 (상승장 편승 여부 검증)
 
@@ -83,11 +85,23 @@
   - 슬리피지(+0.1%): 평균 +3.33%, 중앙 +9.89%, 베이스라인 p=0.033 → 통과
   - 워크포워드: 유효윈도우 8개 중 양수 5개 (62%) → 통과
   - 표본확대(신규5종): n=30, 평균 +3.89%, 종목별 양수 3/5 → 통과
+  - 마모(2025-07+): 평균 -3.92% (마모 복원 불가(vol2x/regime/position 전부 실패) - 페이퍼테스트 필요)
 - **fvg** (Fair Value Gap) — status=**passed**
   - 슬리피지(+0.1%): 평균 +2.71%, 중앙 +5.56%, 베이스라인 p=0.0 → 통과
   - 워크포워드: 유효윈도우 11개 중 양수 6개 (55%) → 실패
   - 표본확대(신규5종): n=357, 평균 +1.75%, 종목별 양수 4/5 → 통과
+  - 마모(2025-07+): 평균 -2.78% (마모 징후(2025-07+ 음수))
   - 강등: 워크포워드 미통과
+- **inverted_hammer** (Inverted Hammer) — status=**passed**
+  - 슬리피지(+0.1%): 평균 +1.68%, 중앙 +1.17%, 베이스라인 p=0.001 → 통과
+  - 워크포워드: 유효윈도우 11개 중 양수 6개 (55%) → 실패
+  - 마모(2025-07+): 평균 +2.93% (마모 없음)
+  - 강등유지: 워크포워드 미통과
+- **marubozu** (Marubozu) — status=**passed**
+  - 슬리피지(+0.1%): 평균 +3.10%, 중앙 +1.72%, 베이스라인 p=0.028 → 통과
+  - 워크포워드: 유효윈도우 9개 중 양수 5개 (56%) → 실패
+  - 마모(2025-07+): 평균 +5.85% (마모 없음)
+  - 강등유지: 워크포워드 미통과
 
 ## validated 패턴 순위표
 
@@ -101,6 +115,8 @@
 
 - **engulfing** (Engulfing) — 1d 전체+OOS+베이스라인+정밀검증, 실거래 검토 가능(validated)
 - **fvg** (Fair Value Gap) — 1d 전체+OOS+베이스라인+정밀검증, 승인 대기(passed)
+- **inverted_hammer** (Inverted Hammer) — 1d 전체+OOS+베이스라인+정밀검증, 승인 대기(passed)
+- **marubozu** (Marubozu) — 1d 전체+OOS+베이스라인+정밀검증, 승인 대기(passed)
 
 ## 레짐 스위치: 롱/숏 레짐별 기대값
 

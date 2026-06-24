@@ -117,3 +117,5 @@
 2026-06-24T05:29:32+00:00,evening_star,CANDLE@1d,"{""dir"": ""short""}",1228,0.0,-0.0053,-0.00192,기각,827f5a7d1e0badf54f194ac89d345d276803df43
 2026-06-24T05:29:33+00:00,marubozu,CANDLE@1d,"{""dir"": ""long""}",90,0.0,0.03198,0.01824,검증통과,827f5a7d1e0badf54f194ac89d345d276803df43
 2026-06-24T05:29:34+00:00,marubozu_short,CANDLE@1d,"{""dir"": ""short""}",65,0.0,-0.04098,-0.07414,기각,827f5a7d1e0badf54f194ac89d345d276803df43
+2026-06-24T05:46:46+00:00,inverted_hammer,PRECISION@1d,"{""slip_ok"": true, ""wf_ok"": false}",641,0.0,0.01682,0.01166,passed,70304563c62efda014c2c541abf8c6b496db2fd1
+2026-06-24T05:46:47+00:00,marubozu,PRECISION@1d,"{""slip_ok"": true, ""wf_ok"": false}",90,0.0,0.03098,0.01724,passed,70304563c62efda014c2c541abf8c6b496db2fd1

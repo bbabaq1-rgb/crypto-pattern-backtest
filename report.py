@@ -127,15 +127,20 @@ def main():
     if prec_pats:
         for p in prec_pats:
             pr = p["precision"]
-            s = pr["slip"]; w = pr["walkforward"]; ns = pr["newsymbols"]
+            s = pr["slip"]; w = pr["walkforward"]; ns = pr.get("newsymbols")
             ok = lambda b: "통과" if b else "실패"
             L.append(f"- **{p['id']}** ({p['name']}) — status=**{p['status']}**")
             L.append(f"  - 슬리피지(+0.1%): 평균 {pctf(s['mean'])}, 중앙 {pctf(s['median'])}, "
                      f"베이스라인 p={s['p_mean']} → {ok(s['ok'])}")
             L.append(f"  - 워크포워드: 유효윈도우 {w['valid']}개 중 양수 {w['pos']}개 "
                      f"({w['pos_frac']*100:.0f}%) → {ok(w['ok'])}")
-            L.append(f"  - 표본확대(신규5종): n={ns['n']}, 평균 {pctf(ns['mean'])}, "
-                     f"종목별 양수 {ns['persym_pos']}/5 → {ok(ns['ok'])}")
+            if ns:
+                L.append(f"  - 표본확대(신규5종): n={ns['n']}, 평균 {pctf(ns['mean'])}, "
+                         f"종목별 양수 {ns['persym_pos']}/5 → {ok(ns['ok'])}")
+            wr = p.get("wear")
+            if wr:
+                L.append(f"  - 마모(2025-07+): 평균 {pctf(wr.get('base_2025plus_mean'))} "
+                         f"({wr.get('note')})")
             if p.get("precision_note"):
                 L.append(f"  - {p['precision_note']}")
     else:

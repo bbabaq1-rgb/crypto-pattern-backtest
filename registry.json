@@ -469,6 +469,66 @@
       "status": "rejected",
       "detector_file": "detector_order_block_short.py",
       "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "inverted_hammer",
+      "name": "Inverted Hammer",
+      "category": "캔들",
+      "difficulty": 1,
+      "detector_file": "detector_inverted_hammer.py",
+      "status": "passed",
+      "passed_tf": "1d",
+      "precision": {
+        "slip": {
+          "mean": 0.01682,
+          "median": 0.01166,
+          "p_mean": 0.001,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 11,
+          "pos": 6,
+          "pos_frac": 0.545,
+          "ok": false
+        }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": 0.02932,
+        "restored": false,
+        "note": "마모 없음"
+      },
+      "precision_note": "강등유지: 워크포워드 미통과"
+    },
+    {
+      "id": "marubozu",
+      "name": "Marubozu",
+      "category": "캔들",
+      "difficulty": 1,
+      "detector_file": "detector_marubozu.py",
+      "status": "passed",
+      "passed_tf": "1d",
+      "precision": {
+        "slip": {
+          "mean": 0.03098,
+          "median": 0.01724,
+          "p_mean": 0.028,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 9,
+          "pos": 5,
+          "pos_frac": 0.556,
+          "ok": false
+        }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": 0.05855,
+        "restored": false,
+        "note": "마모 없음"
+      },
+      "precision_note": "강등유지: 워크포워드 미통과"
     }
   ]
 }
