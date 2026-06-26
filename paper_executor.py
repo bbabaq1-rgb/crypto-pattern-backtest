@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 
 import detlib
 import regime_switch as rs
+import exchange as ex_mod
 
 CAPITAL = 2000.0
 POS_PCT = 0.10
@@ -183,12 +184,18 @@ def run(stamp=None):
             still_open.append(pos)
 
     # 2) 신규 진입 (signals_today.json)
+    live_conn = ex_mod.connect_live() if ex_mod.is_live() else None
+    if live_conn:
+        print(f"[live] OKX 선물 실거래 모드 | USDT free={live_conn['usdt_free']:.2f}")
     sig = _load("signals_today.json", {"signals": []})
     openkeys = {(p["symbol"], p["pattern"], p["direction"], p["entry_date"]) for p in still_open}
     closedkeys = {(t["symbol"], t["pattern"], t["direction"], t["entry_date"]) for t in trades}
     new = 0
+    live_orders = 0
     for s in sig.get("signals", []):
         rows = rows_of(s["symbol"])
+        if rows is None:
+            continue
         ei = _date_idx(rows, s["date"])
         if ei is None:
             continue
@@ -197,10 +204,23 @@ def run(stamp=None):
             continue
         entry = rows[ei]["c"]
         stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
+        live_info = {}
+        if live_conn:
+            result, reason = ex_mod.place_swap_entry(
+                live_conn, s["symbol"], s["direction"], stop_px
+            )
+            if result is None:
+                print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
+            else:
+                live_info = {"live_order": result, "live_mode": True}
+                live_orders += 1
+                print(f"  [live] {s['symbol']} {s['direction']} 진입 OK | "
+                      f"entry={result['entry_price']:.4f} sl={result['stop_price']:.4f}")
         p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
                  regime=s.get("regime"), entry_date=s["date"], entry_idx=ei,
                  entry_price=round(entry, 4), stop=round(stop_px, 4),
-                 size_usd=POS_USD, d_closed=False, a_closed=False)
+                 size_usd=ex_mod.OKX_LIVE_SIZE_USD if live_conn else POS_USD,
+                 d_closed=False, a_closed=False, **live_info)
         still_open.append(p); new_positions.append(p); new += 1
 
     # JSON은 항상 저장(로컬 폴백/원천)
@@ -211,7 +231,8 @@ def run(stamp=None):
     dbt = push_trades_db(new_trades)
     dbp = push_positions_db(new_positions)
     dbmsg = f" | DB동기화 trades+{dbt}/positions+{dbp}" if _db() else " | DB미설정(JSON만)"
-    print(f"[paper] 신규진입 {new}건 | 오픈 {len(still_open)}건 | 누적 체결 {len(trades)}건{dbmsg}")
+    live_msg = f" | 실거래주문 {live_orders}건" if live_conn else ""
+    print(f"[paper] 신규진입 {new}건 | 오픈 {len(still_open)}건 | 누적 체결 {len(trades)}건{live_msg}{dbmsg}")
     return dict(new=new, open=len(still_open), trades=len(trades))
 
 

@@ -31,6 +31,9 @@ jobs:
           BITGET_DEMO_KEY: ${{ secrets.BITGET_DEMO_KEY }}
           BITGET_DEMO_SECRET: ${{ secrets.BITGET_DEMO_SECRET }}
           BITGET_DEMO_PASSPHRASE: ${{ secrets.BITGET_DEMO_PASSPHRASE }}
+          OKX_KEY: ${{ secrets.OKX_KEY }}
+          OKX_SECRET: ${{ secrets.OKX_SECRET }}
+          OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
         run: python scheduler.py oncefull
 
       - name: Upload result JSONs
