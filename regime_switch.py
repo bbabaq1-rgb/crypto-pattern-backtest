@@ -23,7 +23,7 @@ import detlib
 
 MA_P, SLOPE_LB, SLOPE_THR, DOM_LB = 200, 20, 0.001, 30
 MARKET = "BTC"
-ALTS = ["SOL", "ETH", "BNB", "XRP", "ADA", "AVAX"]
+ALTS = ["SOL", "ETH", "XRP", "ADA", "AVAX", "TRX"]  # BNB -> TRX (OKX 수집 가능)
 REGIMES = ["bull_altseason", "bull_btc", "bear", "sideways"]
 PATTERNS = ["engulfing", "engulfing_short", "fvg", "fvg_short",
             "inverse_hs", "inverse_hs_short", "order_block", "order_block_short"]

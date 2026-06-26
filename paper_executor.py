@@ -151,7 +151,10 @@ def run(stamp=None):
 
     def rows_of(sym):
         if sym not in rows_cache:
-            rows_cache[sym] = detlib.load_ohlcv(sym, "1d")
+            try:
+                rows_cache[sym] = detlib.load_ohlcv(sym, "1d")
+            except (FileNotFoundError, RuntimeError):
+                rows_cache[sym] = None  # OKX 미상장 등 데이터 없음
         return rows_cache[sym]
 
     t0 = len(trades)                  # 이번 실행에서 새로 체결되는 거래 추적
@@ -160,6 +163,8 @@ def run(stamp=None):
     still_open = []
     for pos in positions:
         rows = rows_of(pos["symbol"])
+        if rows is None:          # 데이터 미수집 종목(OKX 미상장 등) -> 포지션 유지
+            still_open.append(pos); continue
         ei = _date_idx(rows, pos["entry_date"])
         if ei is None:
             still_open.append(pos); continue
