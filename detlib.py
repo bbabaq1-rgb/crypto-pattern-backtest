@@ -10,10 +10,15 @@ RISE_THR, FALL_THR, FEE, LABEL_WINDOW = 0.10, -0.10, 0.002, 20
 SYMBOLS = ["BTC", "SOL", "ETH", "BNB", "XRP", "ADA", "AVAX"]
 CSV = lambda s, tf: f"data/{s.lower()}_{tf}.csv"
 
+_fetch_failed: set = set()  # 이번 실행에서 이미 실패한 (sym, tf) 캐시
+
 
 def _auto_fetch(sym, tf):
     """CSV가 없을 때 fetch_data.py로 자동 다운로드. 실패 시 거래소 순서대로 폴백."""
     import sys, os, subprocess
+    key = (sym, tf)
+    if key in _fetch_failed:
+        return  # 이미 실패 확인 -> 즉시 스킵 (같은 프로세스 내 재시도 방지)
     os.makedirs("data", exist_ok=True)
     print(f"  [auto-fetch] {sym} {tf} 없음 -> 다운로드 시도...", flush=True)
     for ex in ("binance", "bybit", "okx"):
@@ -26,6 +31,7 @@ def _auto_fetch(sym, tf):
             print(f"  [auto-fetch] {ex} OK", flush=True)
             return
     print(f"  [auto-fetch] 실패: {sym} {tf} 모든 거래소 불가 - 스킵", flush=True)
+    _fetch_failed.add(key)  # 실패 캐시 -> 이후 같은 심볼 즉시 스킵
     # 파일이 없으면 load_ohlcv 에서 FileNotFoundError 발생 -> 호출부 except 로 처리
 
 
