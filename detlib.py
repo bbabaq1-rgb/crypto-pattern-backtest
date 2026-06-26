@@ -25,7 +25,8 @@ def _auto_fetch(sym, tf):
         if r.returncode == 0:
             print(f"  [auto-fetch] {ex} OK", flush=True)
             return
-    raise RuntimeError(f"fetch_data.py 실패: {sym} {tf} (binance/bybit/okx 모두 실패)")
+    print(f"  [auto-fetch] 실패: {sym} {tf} 모든 거래소 불가 - 스킵", flush=True)
+    # 파일이 없으면 load_ohlcv 에서 FileNotFoundError 발생 -> 호출부 except 로 처리
 
 
 def load_ohlcv(sym, tf="1d"):

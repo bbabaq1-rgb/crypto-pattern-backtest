@@ -66,8 +66,10 @@ def fetch_ohlcv_all(exchange_id, symbol, timeframe, since_ms,
         since = last_ts + tf_ms
         if until_ms and since > until_ms:
             break
-        if len(batch) < limit:                          # 더 받을 게 없음
-            break
+        # len(batch) < limit 으로 종료하지 않음:
+        # OKX 등 per-call 캡이 300인 거래소에서 limit=1000 을 넘기면
+        # 항상 300 < 1000 → 첫 페이지에서 멈추는 버그 방지.
+        # 빈 배치(위의 두 개 if not batch) 가 실제 종료 신호.
         time.sleep(exchange.rateLimit / 1000)
 
     # 타임스탬프 기준 정렬·중복 제거
