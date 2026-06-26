@@ -45,17 +45,31 @@ DETMOD = {("engulfing", "long"): "detector_engulfing",
 
 
 def fetch_all():
+    """유니버스 전체 1d CSV를 순차 fetch (각 subprocess가 완전히 끝난 뒤 다음 진행)."""
+    import os
+    os.makedirs("data", exist_ok=True)
+    ok = err = 0
     for s in SYMBOLS:
-        subprocess.run([sys.executable, "fetch_data.py", "--exchange", "binance",
-                        "--symbol", f"{s}/USDT", "--timeframe", "1d",
-                        "--since", "2021-01-01", "--out", f"data/{s.lower()}_1d.csv"],
-                       capture_output=True)
+        out = f"data/{s.lower()}_1d.csv"
+        r = subprocess.run(
+            [sys.executable, "fetch_data.py", "--exchange", "binance",
+             "--symbol", f"{s}/USDT", "--timeframe", "1d",
+             "--since", "2021-01-01", "--out", out],
+            capture_output=True, text=True)
+        if r.returncode == 0:
+            ok += 1
+        else:
+            print(f"  [fetch] {s} 실패: {r.stderr.strip()[:80]}")
+            err += 1
+    print(f"  [fetch] 완료 {ok}종목 / 실패 {err}종목")
 
 
 def run_once(do_fetch=True):
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     if do_fetch:
-        print("[1] fetch 7종목 일봉..."); fetch_all()
+        print(f"[1] fetch {len(SYMBOLS)}종목 일봉 (순차, 완료 후 진행)...")
+        fetch_all()
+        print("[1] fetch 완료 -> 레짐 판정 시작")
 
     print("[2] 레짐 판정..."); regmap = rs.build_regime_map()
     latest = max(regmap); regime = regmap[latest]

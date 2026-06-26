@@ -20,6 +20,9 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
 
+      - name: Create data directory
+        run: mkdir -p data
+
       - name: Run scheduler (fetch -> regime -> signals -> paper -> Supabase)
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -30,11 +33,23 @@ jobs:
           BITGET_DEMO_PASSPHRASE: ${{ secrets.BITGET_DEMO_PASSPHRASE }}
         run: python scheduler.py oncefull
 
-      - name: Upload logs/json on failure
+      - name: Upload result JSONs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduler-results-${{ github.run_number }}
+          path: |
+            signals_today.json
+            paper_positions.json
+            paper_trades.json
+            direction_switch.json
+          if-no-files-found: ignore
+
+      - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: scheduler-logs
+          name: scheduler-logs-${{ github.run_number }}
           path: |
             *.json
             scheduler_log.txt

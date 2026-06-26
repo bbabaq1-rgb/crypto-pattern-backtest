@@ -11,9 +11,26 @@ SYMBOLS = ["BTC", "SOL", "ETH", "BNB", "XRP", "ADA", "AVAX"]
 CSV = lambda s, tf: f"data/{s.lower()}_{tf}.csv"
 
 
+def _auto_fetch(sym, tf):
+    """CSV가 없을 때 fetch_data.py로 자동 다운로드."""
+    import sys, os, subprocess
+    os.makedirs("data", exist_ok=True)
+    print(f"  [auto-fetch] {sym} {tf} 데이터 없음 -> 다운로드 중...", flush=True)
+    result = subprocess.run(
+        [sys.executable, "fetch_data.py", "--exchange", "binance",
+         "--symbol", f"{sym}/USDT", "--timeframe", tf,
+         "--since", "2021-01-01", "--out", CSV(sym, tf)],
+        capture_output=False)
+    if result.returncode != 0:
+        raise RuntimeError(f"fetch_data.py 실패: {sym} {tf}")
+
+
 def load_ohlcv(sym, tf="1d"):
+    path = CSV(sym, tf)
+    if not __import__("os").path.exists(path):
+        _auto_fetch(sym, tf)
     rows = []
-    with open(CSV(sym, tf), newline="") as f:
+    with open(path, newline="") as f:
         for r in csv.DictReader(f):
             ts = int(float(r["timestamp"]))
             d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
