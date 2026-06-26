@@ -44,24 +44,53 @@ DETMOD = {("engulfing", "long"): "detector_engulfing",
           ("fvg", "short"): "detector_fvg_short"}
 
 
+EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 폴백
+
+
+def _fetch_one(sym, exchange):
+    """단일 종목 fetch, 성공 시 True / 실패 시 False."""
+    import os
+    out = f"data/{sym.lower()}_1d.csv"
+    r = subprocess.run(
+        [sys.executable, "fetch_data.py", "--exchange", exchange,
+         "--symbol", f"{sym}/USDT", "--timeframe", "1d",
+         "--since", "2021-01-01", "--out", out],
+        capture_output=True, text=True)
+    geo_blocked = "451" in r.stdout or "451" in r.stderr or \
+                  "restricted location" in r.stderr or "restricted location" in r.stdout
+    return r.returncode == 0, geo_blocked
+
+
 def fetch_all():
-    """유니버스 전체 1d CSV를 순차 fetch (각 subprocess가 완전히 끝난 뒤 다음 진행)."""
+    """유니버스 전체 1d CSV를 순차 fetch. 거래소 451 차단 시 다음 거래소로 폴백."""
     import os
     os.makedirs("data", exist_ok=True)
     ok = err = 0
-    for s in SYMBOLS:
-        out = f"data/{s.lower()}_1d.csv"
-        r = subprocess.run(
-            [sys.executable, "fetch_data.py", "--exchange", "binance",
-             "--symbol", f"{s}/USDT", "--timeframe", "1d",
-             "--since", "2021-01-01", "--out", out],
-            capture_output=True, text=True)
-        if r.returncode == 0:
+    # 첫 종목으로 어느 거래소가 살아있는지 탐색
+    active_ex = EXCHANGES[0]
+    for ex in EXCHANGES:
+        success, geo = _fetch_one(SYMBOLS[0], ex)
+        if success:
+            active_ex = ex
+            ok += 1
+            print(f"  [fetch] 거래소={ex} 사용 (첫 종목 {SYMBOLS[0]} OK)")
+            break
+        if geo:
+            print(f"  [fetch] {ex} 지역차단(451) -> 다음 거래소 시도")
+        else:
+            print(f"  [fetch] {ex} 실패(비차단) -> 다음 거래소 시도")
+    else:
+        print(f"  [fetch] 모든 거래소 실패 — 기존 CSV로 진행")
+        return
+
+    for s in SYMBOLS[1:]:   # 나머지 종목은 확정된 거래소로
+        success, _ = _fetch_one(s, active_ex)
+        if success:
             ok += 1
         else:
-            print(f"  [fetch] {s} 실패: {r.stderr.strip()[:80]}")
+            print(f"  [fetch] {s} 실패({active_ex})")
             err += 1
-    print(f"  [fetch] 완료 {ok}종목 / 실패 {err}종목")
+    print(f"  [fetch] 완료 {ok}종목 / 실패 {err}종목 (거래소={active_ex})")
 
 
 def run_once(do_fetch=True):

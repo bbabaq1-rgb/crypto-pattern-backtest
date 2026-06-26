@@ -12,17 +12,23 @@ CSV = lambda s, tf: f"data/{s.lower()}_{tf}.csv"
 
 
 def _auto_fetch(sym, tf):
-    """CSV가 없을 때 fetch_data.py로 자동 다운로드."""
+    """CSV가 없을 때 fetch_data.py로 자동 다운로드. 451 차단 시 거래소 폴백."""
     import sys, os, subprocess
     os.makedirs("data", exist_ok=True)
     print(f"  [auto-fetch] {sym} {tf} 데이터 없음 -> 다운로드 중...", flush=True)
-    result = subprocess.run(
-        [sys.executable, "fetch_data.py", "--exchange", "binance",
-         "--symbol", f"{sym}/USDT", "--timeframe", tf,
-         "--since", "2021-01-01", "--out", CSV(sym, tf)],
-        capture_output=False)
-    if result.returncode != 0:
-        raise RuntimeError(f"fetch_data.py 실패: {sym} {tf}")
+    for ex in ("binance", "bybit", "okx"):
+        r = subprocess.run(
+            [sys.executable, "fetch_data.py", "--exchange", ex,
+             "--symbol", f"{sym}/USDT", "--timeframe", tf,
+             "--since", "2021-01-01", "--out", CSV(sym, tf)],
+            capture_output=True, text=True)
+        if r.returncode == 0:
+            return
+        geo = "451" in r.stdout + r.stderr or "restricted location" in r.stdout + r.stderr
+        print(f"  [auto-fetch] {ex} {'지역차단(451)' if geo else '실패'} -> {'다음 거래소' if geo else '중단'}")
+        if not geo:
+            break
+    raise RuntimeError(f"fetch_data.py 실패: {sym} {tf} (모든 거래소 시도)")
 
 
 def load_ohlcv(sym, tf="1d"):
