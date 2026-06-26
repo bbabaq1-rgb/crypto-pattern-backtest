@@ -9,15 +9,15 @@ exchange.py - 거래소 연결 모듈.
   - USDT 무기한 선물(swap)만 — 롱/숏 모두 가능
   - 레버리지 2x 고정 (코드 강제 — 외부에서 변경 불가)
   - 격리 마진(isolated) 고정 (교차 마진 절대 불가)
-  - 포지션당 최대 $100 고정 (OKX_LIVE_SIZE_USD)
+  - 포지션 사이징: 첫 주문 $20 고정, 이후 계좌잔고 × 20% (최소 $10)
+  - 동시 최대 5포지션
   - 시장가 진입 직후 손절(-8%) 동시 제출
   - 손절 주문 실패 시 진입 즉시 시장가 청산 (진입 취소)
 """
 import os
 
-OKX_LIVE_SIZE_USD = 100.0       # 실거래 포지션당 최대 $100 (불변)
-OKX_LEVERAGE      = 2            # 레버리지 2x 고정 (절대 변경 금지)
-OKX_MARGIN_MODE   = "isolated"  # 격리 마진 고정 (교차 절대 불가)
+OKX_LEVERAGE    = 2            # 레버리지 2x 고정 (절대 변경 금지)
+OKX_MARGIN_MODE = "isolated"  # 격리 마진 고정 (교차 절대 불가)
 
 
 # ---------------------------------------------------------------------------
@@ -87,18 +87,27 @@ def connect_live():
         return None
 
 
-def place_swap_entry(live_conn, symbol, direction, stop_px,
-                     size_usd=OKX_LIVE_SIZE_USD):
+def get_balance(live_conn):
+    """OKX 선물 계좌 USDT 가용 잔고 실시간 조회. 실패 시 0.0 반환."""
+    try:
+        bal = live_conn["exchange"].fetch_balance()
+        return float(bal.get("USDT", {}).get("free", 0.0))
+    except Exception as e:
+        print(f"[OKX] 잔고 조회 실패: {str(e)[:60]}")
+        return 0.0
+
+
+def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
     """
     OKX USDT 무기한 선물 시장가 진입 + 손절 주문 동시 제출.
 
     direction: 'long' 또는 'short' 모두 가능 (선물이므로 숏 가능).
-    레버리지 2x, 격리 마진 강제 적용.
+    레버리지 2x, 격리 마진 매 호출마다 강제 설정.
     손절 실패   -> 진입 즉시 시장가 청산 후 (None, reason) 반환.
     성공        -> (result_dict, "ok") 반환.
 
     result_dict 키: entry_order_id, sl_order_id, entry_price, qty,
-                    stop_price, direction, leverage
+                    stop_price, direction, leverage, size_usd
     """
     if direction not in ("long", "short"):
         return None, f"invalid_direction:{direction}"
@@ -108,7 +117,7 @@ def place_swap_entry(live_conn, symbol, direction, stop_px,
     side       = "buy"  if direction == "long"  else "sell"
     close_side = "sell" if direction == "long" else "buy"
 
-    # ---- 레버리지·마진 모드 강제 설정 ----
+    # ---- 레버리지·마진 모드 매 호출마다 강제 설정 ----
     # 이미 동일 설정이면 거래소가 에러를 내기도 하므로 예외 무시
     try:
         ex.set_margin_mode(OKX_MARGIN_MODE, ccxt_sym)
@@ -127,7 +136,7 @@ def place_swap_entry(live_conn, symbol, direction, stop_px,
         if price <= 0:
             return None, "ticker_invalid"
 
-        # 마진 $100 × 레버리지 2 = 노셔널 $200 → 계약 수량
+        # 마진 × 레버리지 = 노셔널 → 계약 수량
         notional = size_usd * OKX_LEVERAGE
         raw_qty  = notional / price
         qty      = float(ex.amount_to_precision(ccxt_sym, raw_qty))
@@ -153,10 +162,9 @@ def place_swap_entry(live_conn, symbol, direction, stop_px,
     except Exception as e:
         return None, f"entry_failed: {str(e)[:60]}"
 
-    # ---- 2단계: 손절 주문 ----
+    # ---- 2단계: 손절 주문 (-8% 고정) ----
     sl_price = float(ex.price_to_precision(ccxt_sym, stop_px))
     try:
-        # OKX 선물 조건부(algo) 손절 주문
         sl_order = ex.create_order(
             ccxt_sym, "conditional", close_side, filled_qty, None,
             params={
@@ -189,6 +197,7 @@ def place_swap_entry(live_conn, symbol, direction, stop_px,
         "stop_price":     sl_price,
         "direction":      direction,
         "leverage":       OKX_LEVERAGE,
+        "size_usd":       size_usd,
     }, "ok"
 
 
@@ -199,4 +208,5 @@ if __name__ == "__main__":
     if is_live():
         lc = connect_live()
         if lc:
-            print(f"[live] OKX 연결 OK | USDT free={lc['usdt_free']:.2f}")
+            bal = get_balance(lc)
+            print(f"[live] OKX 연결 OK | USDT free={bal:.2f}")

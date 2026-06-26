@@ -19,15 +19,21 @@ import detlib
 import regime_switch as rs
 import exchange as ex_mod
 
-CAPITAL = 2000.0
-POS_PCT = 0.10
-POS_USD = CAPITAL * POS_PCT
+CAPITAL = 200.0    # 시뮬레이션 가상자본 $200
+POS_PCT = 0.20
+POS_USD = CAPITAL * POS_PCT   # $40 (시뮬레이션 포지션당 고정)
 STOP = 0.08
 MAX_HOLD_D = 30
 MAX_HOLD_A = 20
 # TF별 방식D 최대보유(향후 하위TF 통과 대비 준비값). 현재 검증 통과 TF는 1d뿐.
 MAX_HOLD_BY_TF = {"1d": 30, "4h": 20, "1h": 48, "15m": 120}
 FEE = detlib.FEE
+
+# 실거래 포지션 사이징 규칙
+MAX_LIVE_POS   = 5     # 동시 최대 실거래 포지션
+LIVE_MIN_USD   = 10.0  # 최소 주문 금액 (이하 스킵)
+LIVE_FIRST_USD = 20.0  # 첫 주문 고정 금액
+LIVE_BAL_PCT   = 0.20  # 두 번째부터 가용잔고 × 20%
 
 POS_FILE = "paper_positions.json"
 TRD_FILE = "paper_trades.json"
@@ -187,8 +193,13 @@ def run(stamp=None):
     live_conn = ex_mod.connect_live() if ex_mod.is_live() else None
     if live_conn:
         print(f"[live] OKX 선물 실거래 모드 | USDT free={live_conn['usdt_free']:.2f}")
+
+    # 실거래 포지션 현황 — 사이징·max 체크용
+    live_open_count   = sum(1 for p in still_open if p.get("live_mode"))
+    live_filled_count = live_open_count + sum(1 for t in trades if t.get("live_mode"))
+
     sig = _load("signals_today.json", {"signals": []})
-    openkeys = {(p["symbol"], p["pattern"], p["direction"], p["entry_date"]) for p in still_open}
+    openkeys  = {(p["symbol"], p["pattern"], p["direction"], p["entry_date"]) for p in still_open}
     closedkeys = {(t["symbol"], t["pattern"], t["direction"], t["entry_date"]) for t in trades}
     new = 0
     live_orders = 0
@@ -202,25 +213,52 @@ def run(stamp=None):
         key = (s["symbol"], s["pattern"], s["direction"], s["date"])
         if key in openkeys or key in closedkeys:
             continue
-        entry = rows[ei]["c"]
+
+        entry   = rows[ei]["c"]
         stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
-        live_info = {}
+
+        live_info    = {}
+        size_for_pos = POS_USD   # 시뮬레이션 기본값
+
         if live_conn:
+            # 동시 최대 포지션 체크
+            if live_open_count >= MAX_LIVE_POS:
+                print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']} 스킵")
+                continue
+
+            # 포지션 사이징 (첫 주문 $20 고정 / 이후 잔고 20%)
+            if live_filled_count == 0:
+                live_size_usd = LIVE_FIRST_USD
+            else:
+                usdt_free     = ex_mod.get_balance(live_conn)
+                live_size_usd = round(usdt_free * LIVE_BAL_PCT, 2)
+
+            # 최소 주문 금액 체크
+            if live_size_usd < LIVE_MIN_USD:
+                print(f"  [live] 최소주문금액 미만(${live_size_usd:.1f}) — {s['symbol']} 스킵")
+                continue
+
             result, reason = ex_mod.place_swap_entry(
-                live_conn, s["symbol"], s["direction"], stop_px
+                live_conn, s["symbol"], s["direction"], stop_px,
+                size_usd=live_size_usd,
             )
             if result is None:
                 print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
+                # 주문 실패 시 size_for_pos = POS_USD (페이퍼 기록만 유지)
             else:
-                live_info = {"live_order": result, "live_mode": True}
-                live_orders += 1
+                live_info    = {"live_order": result, "live_mode": True}
+                size_for_pos = live_size_usd
+                live_open_count   += 1
+                live_filled_count += 1
+                live_orders       += 1
                 print(f"  [live] {s['symbol']} {s['direction']} 진입 OK | "
-                      f"entry={result['entry_price']:.4f} sl={result['stop_price']:.4f}")
+                      f"size=${live_size_usd:.0f} entry={result['entry_price']:.4f} "
+                      f"sl={result['stop_price']:.4f}")
+
         p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
                  regime=s.get("regime"), entry_date=s["date"], entry_idx=ei,
                  entry_price=round(entry, 4), stop=round(stop_px, 4),
-                 size_usd=ex_mod.OKX_LIVE_SIZE_USD if live_conn else POS_USD,
-                 d_closed=False, a_closed=False, **live_info)
+                 size_usd=size_for_pos, d_closed=False, a_closed=False, **live_info)
         still_open.append(p); new_positions.append(p); new += 1
 
     # JSON은 항상 저장(로컬 폴백/원천)
