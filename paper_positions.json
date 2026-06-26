@@ -1,18 +1,5 @@
 [
   {
-    "symbol": "BNB",
-    "direction": "short",
-    "pattern": "fvg",
-    "regime": "bear",
-    "entry_date": "2026-05-31",
-    "entry_idx": 1976,
-    "entry_price": 710.55,
-    "stop": 767.394,
-    "size_usd": 200.0,
-    "d_closed": false,
-    "a_closed": true
-  },
-  {
     "symbol": "XRP",
     "direction": "short",
     "pattern": "fvg",
@@ -37,5 +24,31 @@
     "size_usd": 200.0,
     "d_closed": false,
     "a_closed": true
-  }
+  },
+  {
+    "symbol": "BTC",
+    "direction": "short",
+    "pattern": "fvg",
+    "regime": "bear",
+    "entry_date": "2026-06-24",
+    "entry_idx": 2000,
+    "entry_price": 61010.0,
+    "stop": 65890.8,
+    "size_usd": 200.0,
+    "d_closed": false,
+    "a_closed": false
+  },
+  {
+    "symbol": "ADA",
+    "direction": "short",
+    "pattern": "fvg",
+    "regime": "bear",
+    "entry_date": "2026-06-24",
+    "entry_idx": 2000,
+    "entry_price": 0.1477,
+    "stop": 0.1595,
+    "size_usd": 200.0,
+    "d_closed": false,
+    "a_closed": false
+  },
 ]
