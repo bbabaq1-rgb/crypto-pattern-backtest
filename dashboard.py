@@ -72,19 +72,11 @@ def load_trades():
             r = cli.table("trades").select("*").order("entry_date", desc=True).limit(200).execute()
             if r.data:
                 df = pd.DataFrame(r.data)
-                # Supabase: return_pct is already %, local JSON: ret is decimal
                 if "return_pct" not in df.columns and "ret" in df.columns:
                     df["return_pct"] = (df["ret"] * 100).round(4)
                 return df
         except Exception:
             pass
-    if os.path.exists("paper_trades.json"):
-        data = json.load(open("paper_trades.json", encoding="utf-8"))
-        if data:
-            df = pd.DataFrame(data)
-            if "return_pct" not in df.columns and "ret" in df.columns:
-                df["return_pct"] = (df["ret"] * 100).round(4)
-            return df
     return pd.DataFrame()
 
 
@@ -103,15 +95,6 @@ def load_positions():
                 return df
         except Exception:
             pass
-    if os.path.exists("paper_positions.json"):
-        data = json.load(open("paper_positions.json", encoding="utf-8"))
-        if data:
-            df = pd.DataFrame(data)
-            if "live_mode" not in df.columns:
-                df["live_mode"] = False
-            if "stop_loss" not in df.columns and "stop" in df.columns:
-                df["stop_loss"] = df["stop"]
-            return df
     return pd.DataFrame()
 
 
@@ -129,27 +112,17 @@ def load_daily_summary():
 
 
 def load_signals():
-    """signals_today.json 우선 → Supabase signals 테이블 폴백"""
+    """Supabase signals 테이블에서 오늘 신호 조회"""
     today = date.today().isoformat()
-    generated_at = None
-    if os.path.exists("signals_today.json"):
-        try:
-            raw = json.load(open("signals_today.json", encoding="utf-8"))
-            generated_at = raw.get("generated_at")
-            sigs = raw.get("signals", [])
-            if sigs:
-                return pd.DataFrame(sigs), generated_at
-        except Exception:
-            pass
     cli = _supabase()
     if cli:
         try:
             r = cli.table("signals").select("*").eq("date", today).execute()
             if r.data:
-                return pd.DataFrame(r.data), generated_at
+                return pd.DataFrame(r.data)
         except Exception:
             pass
-    return pd.DataFrame(), generated_at
+    return pd.DataFrame()
 
 
 def load_regime():
@@ -274,10 +247,7 @@ def section_summary():
 # ── 섹션 2: 오늘 신호 ──────────────────────────────────────────────────────────
 def section_signals():
     st.subheader("🔔 오늘 신호")
-    df, generated_at = load_signals()
-
-    if generated_at:
-        st.caption(f"생성: {generated_at}")
+    df = load_signals()
 
     if df.empty:
         st.info("오늘 신호 없음")
