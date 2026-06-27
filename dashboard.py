@@ -276,20 +276,28 @@ def section_signals():
         st.divider()
         return
 
+    # 우선순위 점수 순 정렬
+    if "priority_score" in df.columns:
+        df = df.sort_values("priority_score", ascending=False)
+
     entry_col = "entry" if "entry" in df.columns else "entry_price"
     stop_col  = "stop"  if "stop"  in df.columns else "stop_loss"
 
     rows = []
     for _, s in df.iterrows():
-        d = str(s.get("direction", ""))
+        d   = str(s.get("direction", ""))
+        pri = s.get("priority_score")
+        ps  = s.get("pattern_strength")
         rows.append({
-            "종목":   s.get("symbol", ""),
-            "패턴":   s.get("pattern", ""),
-            "방향":   DIR_LABEL.get(d, d),
-            "진입가": _fmt_price(s.get(entry_col)),
-            "손절가": _fmt_price(s.get(stop_col)),
-            "강도":   f"{s['strength_vol_ratio']:.2f}x" if s.get("strength_vol_ratio") else "—",
-            "레짐":   s.get("regime", ""),
+            "점수":     f"{float(pri):.3f}" if pri is not None and pd.notna(pri) else "—",
+            "종목":     s.get("symbol", ""),
+            "패턴":     s.get("pattern", ""),
+            "방향":     DIR_LABEL.get(d, d),
+            "진입가":   _fmt_price(s.get(entry_col)),
+            "손절가":   _fmt_price(s.get(stop_col)),
+            "거래량배수": f"{s['strength_vol_ratio']:.2f}x" if s.get("strength_vol_ratio") else "—",
+            "패턴강도": f"{float(ps):.3f}" if ps is not None and pd.notna(ps) else "—",
+            "레짐":     s.get("regime", ""),
         })
 
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

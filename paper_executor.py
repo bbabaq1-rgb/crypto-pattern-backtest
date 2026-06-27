@@ -255,6 +255,8 @@ def run(stamp=None):
                       f"size=${live_size_usd:.0f} entry={result['entry_price']:.4f} "
                       f"sl={result['stop_price']:.4f}")
 
+        pri_str = f" [pri={s['priority_score']:.3f}]" if s.get("priority_score") is not None else ""
+        print(f"  [paper] 신규: {s['symbol']} {s['pattern']} {s['direction']}{pri_str}")
         p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
                  regime=s.get("regime"), entry_date=s["date"], entry_idx=ei,
                  entry_price=round(entry, 4), stop=round(stop_px, 4),

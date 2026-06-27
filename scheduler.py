@@ -46,6 +46,59 @@ DETMOD = {("engulfing", "long"): "detector_engulfing",
 
 EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 폴백
 
+TIER_RANK = {"BTC": 0, "ETH": 1, "SOL": 2}   # 동점 시 시총 기준 (낮을수록 우선)
+
+
+def _pattern_strength(pat, rows, idx):
+    """패턴별 강도 점수. 미지원 패턴은 1.0 반환."""
+    try:
+        r = rows[idx]
+        if pat in ("engulfing", "engulfing_short"):
+            body = abs(r["c"] - r["o"])
+            if idx >= 1:
+                prev_body = abs(rows[idx-1]["c"] - rows[idx-1]["o"]) or 1e-9
+                return round(body / prev_body, 4)
+        elif pat in ("fvg", "fvg_short"):
+            if idx >= 2:
+                gap = max(
+                    rows[idx]["l"] - rows[idx-2]["h"],   # 불리시 갭
+                    rows[idx-2]["l"] - rows[idx]["h"],   # 베어리시 갭
+                    0)
+                return round(gap / (r["c"] or 1e-9), 6)
+        elif pat in ("inverted_hammer", "hammer"):
+            body = abs(r["c"] - r["o"]) or 1e-9
+            upper_wick = r["h"] - max(r["c"], r["o"])
+            return round(max(upper_wick, 0) / body, 4)
+        elif pat in ("marubozu", "marubozu_short"):
+            body = abs(r["c"] - r["o"])
+            rng  = (r["h"] - r["l"]) or 1e-9
+            return round(body / rng, 4)
+    except Exception:
+        pass
+    return 1.0
+
+
+def _normalize(values):
+    mn, mx = min(values), max(values)
+    if mx == mn:
+        return [1.0] * len(values)
+    return [(v - mn) / (mx - mn) for v in values]
+
+
+def _rank_signals(signals):
+    """패턴강도 0.5 + 거래량배수 0.5 합산 후 내림차순 정렬. 동점 시 TIER_RANK 우선."""
+    if not signals:
+        return signals
+    strengths = [s.get("pattern_strength") or 1.0 for s in signals]
+    vols      = [float(s.get("strength_vol_ratio") or 1.0) for s in signals]
+    norm_s    = _normalize(strengths)
+    norm_v    = _normalize(vols)
+    for i, s in enumerate(signals):
+        s["pattern_strength"] = round(strengths[i], 4)
+        s["priority_score"]   = round(0.5 * norm_s[i] + 0.5 * norm_v[i], 4)
+    signals.sort(key=lambda s: (-s["priority_score"], TIER_RANK.get(s["symbol"], 99)))
+    return signals
+
 
 def _fetch_one(sym, exchange):
     """단일 종목 fetch. 성공=True, 실패=False. 출력은 터미널에 바로 표시."""
@@ -120,11 +173,12 @@ def run_once(do_fetch=True):
             if last in sigset:                 # 최신봉이 신호
                 v = [r["v"] for r in rows]
                 vr = round(v[last] / (sum(v[last - 20:last]) / 20), 2) if last >= 20 else None
+                ps = _pattern_strength(pat, rows, last)
                 entry = rows[last]["c"]
                 stop_px = round(entry * (1 - STOP), 4) if d == "long" else round(entry * (1 + STOP), 4)
                 signals.append(dict(
                     pattern=pat, direction=d, symbol=sym, date=rows[last]["date"],
-                    strength_vol_ratio=vr, regime=regime,
+                    strength_vol_ratio=vr, pattern_strength=ps, regime=regime,
                     entry=round(entry, 4), stop=stop_px,
                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
     # 채택된 추가 패턴(캔들 등) — 방향 고정, 레짐 라우팅 없이 최신봉 신호 탐지
@@ -140,22 +194,50 @@ def run_once(do_fetch=True):
                 continue
             last = len(rows) - 1
             if last in set(mod.detect(rows)):
+                v_ap = [r["v"] for r in rows]
+                vr   = round(v_ap[last] / (sum(v_ap[last-20:last]) / 20), 2) if last >= 20 else None
+                ps   = _pattern_strength(ap["pattern"], rows, last)
                 entry = rows[last]["c"]
                 dd = ap["direction"]
                 stop_px = round(entry * (1 - 0.08), 4) if dd == "long" else round(entry * (1 + 0.08), 4)
                 signals.append(dict(pattern=ap["pattern"], direction=dd, symbol=sym,
-                                    date=rows[last]["date"], strength_vol_ratio=None,
-                                    regime=regime, entry=round(entry, 4), stop=stop_px,
+                                    date=rows[last]["date"], strength_vol_ratio=vr,
+                                    pattern_strength=ps, regime=regime,
+                                    entry=round(entry, 4), stop=stop_px,
                                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
+
+    # 우선순위 정렬 (패턴강도 0.5 + 거래량배수 0.5)
+    signals = _rank_signals(signals)
 
     out = dict(generated_at=stamp, regime=regime, regime_date=latest,
                routing=route, n_signals=len(signals), signals=signals,
                note="페이퍼테스트용 신호 기록 - 실주문 없음")
     json.dump(out, open("signals_today.json", "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
-    print(f"[5] signals_today.json 저장: 신호 {len(signals)}건")
+    print(f"[5] signals_today.json 저장: 신호 {len(signals)}건 (우선순위 정렬 완료)")
     for s in signals:
-        print(f"    {s['symbol']} {s['pattern']} {s['direction']} @ {s['entry']} 손절 {s['stop']}")
+        pri = s.get("priority_score", 0)
+        print(f"    [{pri:.3f}] {s['symbol']} {s['pattern']} {s['direction']} "
+              f"@ {s['entry']} 손절 {s['stop']} "
+              f"(강도={s.get('pattern_strength','-')}, 거래량배수={s.get('strength_vol_ratio','-')})")
+
+    # Supabase signals 테이블 동기화 (대시보드용)
+    try:
+        import supabase_client as sc
+        if sc.available():
+            today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            sig_rows = [{"date": today_date, "symbol": s["symbol"], "pattern": s["pattern"],
+                         "direction": s["direction"], "entry_price": s.get("entry"),
+                         "stop_loss": s.get("stop"), "strength_vol_ratio": s.get("strength_vol_ratio"),
+                         "pattern_strength": s.get("pattern_strength"),
+                         "priority_score": s.get("priority_score"),
+                         "regime": s.get("regime")} for s in signals]
+            if sig_rows:
+                sc.get_client("service").table("signals").upsert(
+                    sig_rows, on_conflict="date,symbol,pattern,direction").execute()
+                print(f"    signals Supabase UPSERT 완료 ({len(sig_rows)}건)")
+    except Exception as e:
+        print("    signals DB 동기화 실패(무시):", str(e)[:80])
 
     print("[6] 페이퍼 체결(진입+청산 모니터링)...")
     import exchange, paper_executor
