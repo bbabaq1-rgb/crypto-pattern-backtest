@@ -39,7 +39,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-REFRESH_SEC = 30
+REFRESH_SEC  = 30
+PERF_START   = "2026-06-27"   # 성과 측정 시작일 (이전 시뮬레이션 제외)
+INITIAL_CAP  = 2000.0         # scheduler.py daily_summary 기준 자본 ($)
 
 # ── 환경변수 (.env 지원) ───────────────────────────────────────────────────────
 try:
@@ -193,6 +195,19 @@ def _ret_dot(v):
         return "⬜"
 
 
+def _rebase_cum(daily_df, col):
+    """PERF_START 이전 누적값을 베이스라인으로 차감해 재기산."""
+    if daily_df.empty or col not in daily_df.columns:
+        return None
+    df      = daily_df.sort_values("date")
+    before  = df[df["date"] < PERF_START]
+    baseline = float(before.iloc[-1][col]) if not before.empty else 0.0
+    after   = df[df["date"] >= PERF_START]
+    if after.empty:
+        return None
+    return round(float(after.iloc[-1][col]) - baseline, 4)
+
+
 # ── 섹션 1: 현황 요약 ──────────────────────────────────────────────────────────
 def section_summary():
     current, _ = load_regime()
@@ -204,21 +219,24 @@ def section_summary():
     action      = current.get("action", {})
     regime_date = current.get("date", "")
 
-    # 누적 수익률 — daily_summary 우선, 없으면 trades에서 계산
-    cum_a = cum_d = None
-    if not daily_df.empty:
-        last = daily_df.sort_values("date").iloc[-1]
-        cum_a = last.get("cumulative_return_a")
-        cum_d = last.get("cumulative_return_d")
+    # 누적 수익률 — PERF_START 기준 재기산 (이전 시뮬레이션 제외)
+    cum_a = _rebase_cum(daily_df, "cumulative_return_a")
+    cum_d = _rebase_cum(daily_df, "cumulative_return_d")
+    # fallback: trades 테이블에서 직접 계산 (PERF_START 이후만)
     if (cum_a is None) and (not trades_df.empty):
-        m = "method" if "method" in trades_df.columns else "method_label"
-        if m in trades_df.columns and "pnl_usd" in trades_df.columns:
-            cap = 2000.0  # scheduler.py daily_summary 계산 기준과 동일
-            cum_a = round(trades_df[trades_df[m] == "A"]["pnl_usd"].sum() / cap * 100, 2)
-            cum_d = round(trades_df[trades_df[m] == "D"]["pnl_usd"].sum() / cap * 100, 2)
-        elif m in trades_df.columns and "return_pct" in trades_df.columns:
-            cum_a = round(trades_df[trades_df[m] == "A"]["return_pct"].sum(), 2)
-            cum_d = round(trades_df[trades_df[m] == "D"]["return_pct"].sum(), 2)
+        m   = "method" if "method" in trades_df.columns else "method_label"
+        tdf = trades_df
+        if "entry_date" in tdf.columns:
+            tdf = tdf[tdf["entry_date"].astype(str) >= PERF_START]
+        if m in tdf.columns and "pnl_usd" in tdf.columns:
+            cum_a = round(tdf[tdf[m] == "A"]["pnl_usd"].sum() / INITIAL_CAP * 100, 2)
+            cum_d = round(tdf[tdf[m] == "D"]["pnl_usd"].sum() / INITIAL_CAP * 100, 2)
+        elif m in tdf.columns and "return_pct" in tdf.columns:
+            cum_a = round(tdf[tdf[m] == "A"]["return_pct"].sum(), 2)
+            cum_d = round(tdf[tdf[m] == "D"]["return_pct"].sum(), 2)
+
+    pnl_a_usd = round(cum_a / 100 * INITIAL_CAP, 2) if cum_a is not None else None
+    pnl_d_usd = round(cum_d / 100 * INITIAL_CAP, 2) if cum_d is not None else None
 
     open_cnt   = len(pos_df) if not pos_df.empty else 0
     trade_cnt  = len(trades_df) if not trades_df.empty else 0
@@ -233,8 +251,12 @@ def section_summary():
     st.caption(dir_text)
 
     c1, c2 = st.columns(2)
-    c1.metric("방식A 누적수익", _fmt_pct(cum_a) if cum_a is not None else "—")
-    c2.metric("방식D 누적수익", _fmt_pct(cum_d) if cum_d is not None else "—")
+    c1.metric("방식A 누적수익 (since 06-27)",
+              _fmt_pct(cum_a) if cum_a is not None else "데이터 없음",
+              delta=f"${pnl_a_usd:+.2f}" if pnl_a_usd is not None else None)
+    c2.metric("방식D 누적수익 (since 06-27)",
+              _fmt_pct(cum_d) if cum_d is not None else "데이터 없음",
+              delta=f"${pnl_d_usd:+.2f}" if pnl_d_usd is not None else None)
 
     c3, c4 = st.columns(2)
     c3.metric("오픈 포지션", f"{open_cnt}개", delta=f"실거래 {live_cnt}개" if live_cnt else None)
@@ -293,26 +315,38 @@ def section_positions():
         direction = str(pos.get("direction", ""))
         entry     = float(pos.get("entry_price") or 0)
         stop      = float(pos.get("stop_loss") or pos.get("stop") or 0)
+        size_usd  = float(pos.get("size_usd") or 0)
         live      = bool(pos.get("live_mode", False))
+        leverage  = 2.0 if live else 1.0
+        notional  = size_usd * leverage
 
         cur = prices.get(sym)
-        if cur and entry:
-            ret_pct = ((cur - entry) / entry * 100) if direction == "long" \
-                      else ((entry - cur) / entry * 100)
-            ret_str = f"{_ret_dot(ret_pct)} {ret_pct:+.2f}%"
+        if cur and entry and notional:
+            if direction == "long":
+                ret_pct = (cur - entry) / entry * 100
+                pnl_usd = notional * (cur - entry) / entry
+            else:
+                ret_pct = (entry - cur) / entry * 100
+                pnl_usd = notional * (entry - cur) / entry
+            cur_val = size_usd + pnl_usd
+            ret_str = f"{_ret_dot(ret_pct)} {ret_pct:+.2f}% / ${pnl_usd:+.2f}"
         else:
+            ret_pct = pnl_usd = cur_val = None
             ret_str = "—"
 
         rows.append({
-            "":       "🔴실" if live else "🟡페",
-            "종목":   sym,
-            "방향":   DIR_LABEL.get(direction, direction),
-            "패턴":   str(pos.get("pattern", "")),
-            "진입가": _fmt_price(entry),
-            "현재가": _fmt_price(cur) if cur else "—",
-            "수익률": ret_str,
-            "손절가": _fmt_price(stop),
-            "진입일": str(pos.get("entry_date", ""))[:10],
+            "":         "🔴실" if live else "🟡페",
+            "종목":     sym,
+            "방향":     DIR_LABEL.get(direction, direction),
+            "패턴":     str(pos.get("pattern", "")),
+            "진입가":   _fmt_price(entry),
+            "진입금액": f"${size_usd:.0f}" if size_usd else "—",
+            "현재가":   _fmt_price(cur) if cur else "—",
+            "현재평가": f"${cur_val:.2f}" if cur_val is not None else "—",
+            "손익":     f"${pnl_usd:+.2f}" if pnl_usd is not None else "—",
+            "수익률":   ret_str,
+            "손절가":   _fmt_price(stop),
+            "진입일":   str(pos.get("entry_date", ""))[:10],
         })
 
     st.caption("🔴실 = 실거래  |  🟡페 = 페이퍼")
@@ -407,12 +441,14 @@ def section_daily_chart():
     df = df.sort_values("date").copy()
     df["date"] = pd.to_datetime(df["date"])
     df = df.set_index("date")
+    # PERF_START 이후만 표시, 베이스라인 차감해 0 기준으로 재기산
+    df = df[df.index >= pd.Timestamp(PERF_START)]
 
     cols = {}
-    if "cumulative_return_a" in df.columns:
-        cols["방식A(%)"] = df["cumulative_return_a"]
-    if "cumulative_return_d" in df.columns:
-        cols["방식D(%)"] = df["cumulative_return_d"]
+    for col, label in [("cumulative_return_a", "방식A(%)"), ("cumulative_return_d", "방식D(%)")]:
+        if col in df.columns and not df.empty:
+            baseline = float(df[col].iloc[0])
+            cols[label] = df[col] - baseline
 
     if not cols:
         st.info("수익률 컬럼 없음")
