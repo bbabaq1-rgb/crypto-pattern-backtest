@@ -137,6 +137,20 @@ def load_regime():
     return {}, {}
 
 
+@st.cache_data(ttl=25)
+def fetch_account_balance():
+    """(balance_usd, is_live) — OKX 선물 USDT 잔고. 키 없으면 (200.0, False)."""
+    try:
+        import exchange as ex_mod
+        if ex_mod.is_live():
+            conn = ex_mod.connect_live()
+            if conn:
+                return ex_mod.get_balance(conn), True
+    except Exception:
+        pass
+    return 200.0, False
+
+
 @st.cache_data(ttl=60)
 def fetch_prices(symbols_tuple):
     """OKX 퍼블릭 API 현재가 (인증 불필요). 실패 시 빈 dict."""
@@ -214,15 +228,60 @@ def section_summary():
     trades_df  = load_trades()
     pos_df     = load_positions()
     daily_df   = load_daily_summary()
+    balance, is_live_mode = fetch_account_balance()
 
     regime      = current.get("regime", "—")
     action      = current.get("action", {})
     regime_date = current.get("date", "")
+    now_str     = datetime.now(timezone.utc).strftime("%m/%d %H:%M UTC")
 
-    # 누적 수익률 — PERF_START 기준 재기산 (이전 시뮬레이션 제외)
+    # ── 오픈 포지션 미실현 손익 → Today's PNL ────────────────────────────────
+    today_pnl_usd = 0.0
+    if not pos_df.empty:
+        symbols = tuple(sorted(pos_df["symbol"].unique().tolist()))
+        prices  = fetch_prices(symbols)
+        for _, pos in pos_df.iterrows():
+            sym       = str(pos.get("symbol", ""))
+            direction = str(pos.get("direction", ""))
+            entry     = float(pos.get("entry_price") or 0)
+            size_usd  = float(pos.get("size_usd") or 0)
+            live      = bool(pos.get("live_mode", False))
+            leverage  = 2.0 if live else 1.0
+            notional  = size_usd * leverage
+            cur       = prices.get(sym)
+            if cur and entry and notional:
+                pnl = notional * (cur - entry) / entry if direction == "long" \
+                      else notional * (entry - cur) / entry
+                today_pnl_usd += pnl
+    today_pnl_usd = round(today_pnl_usd, 2)
+    today_pnl_pct = round(today_pnl_usd / balance * 100, 2) if balance > 0 else 0.0
+
+    # ── 총자산 크게 표시 ─────────────────────────────────────────────────────
+    pnl_color    = "#00cc66" if today_pnl_usd >= 0 else "#ff4444"
+    pnl_sign     = "+" if today_pnl_usd >= 0 else ""
+    pct_sign     = "+" if today_pnl_pct >= 0 else ""
+    mode_label   = "OKX 선물" if is_live_mode else "시뮬레이션"
+
+    st.markdown(f"""
+<div style="padding:0.5rem 0 0.1rem 0">
+  <div style="font-size:0.82rem;color:#888;margin-bottom:0.1rem">Est. Total Value &nbsp;·&nbsp; {mode_label}</div>
+  <div style="font-size:2.6rem;font-weight:700;line-height:1.15;color:#fafafa">${balance:,.2f}</div>
+  <div style="font-size:1.05rem;color:{pnl_color};margin-top:0.2rem">
+    Today's PNL (미실현): {pnl_sign}${today_pnl_usd:.2f} &nbsp;({pct_sign}{today_pnl_pct:.2f}%)
+  </div>
+</div>""", unsafe_allow_html=True)
+    st.caption(f"🕐 {now_str}  ·  {REFRESH_SEC}초 자동갱신")
+    st.divider()
+
+    # ── 레짐 + 누적수익률 (아래) ──────────────────────────────────────────────
+    r_emoji  = REGIME_EMOJI.get(regime, "❓")
+    dir_text = "  |  ".join(f"{k} → {DIR_LABEL.get(v, v)}" for k, v in action.items()) if action else "—"
+    st.markdown(f"### {r_emoji} {regime} `{regime_date}`")
+    st.caption(dir_text)
+
+    # 누적 수익률 — PERF_START 기준 재기산
     cum_a = _rebase_cum(daily_df, "cumulative_return_a")
     cum_d = _rebase_cum(daily_df, "cumulative_return_d")
-    # fallback: trades 테이블에서 직접 계산 (PERF_START 이후만)
     if (cum_a is None) and (not trades_df.empty):
         m   = "method" if "method" in trades_df.columns else "method_label"
         tdf = trades_df
@@ -238,18 +297,6 @@ def section_summary():
     pnl_a_usd = round(cum_a / 100 * INITIAL_CAP, 2) if cum_a is not None else None
     pnl_d_usd = round(cum_d / 100 * INITIAL_CAP, 2) if cum_d is not None else None
 
-    open_cnt   = len(pos_df) if not pos_df.empty else 0
-    trade_cnt  = len(trades_df) if not trades_df.empty else 0
-    now_str    = datetime.now(timezone.utc).strftime("%m/%d %H:%M UTC")
-    live_cnt   = int((pos_df["live_mode"] == True).sum()) if (not pos_df.empty and "live_mode" in pos_df.columns) else 0
-
-    # 레짐 + 방향
-    r_emoji  = REGIME_EMOJI.get(regime, "❓")
-    dir_text = "  |  ".join(f"{k} → {DIR_LABEL.get(v, v)}" for k, v in action.items()) if action else "—"
-
-    st.markdown(f"### {r_emoji} {regime} `{regime_date}`")
-    st.caption(dir_text)
-
     c1, c2 = st.columns(2)
     c1.metric("방식A 누적수익 (since 06-27)",
               _fmt_pct(cum_a) if cum_a is not None else "데이터 없음",
@@ -258,11 +305,13 @@ def section_summary():
               _fmt_pct(cum_d) if cum_d is not None else "데이터 없음",
               delta=f"${pnl_d_usd:+.2f}" if pnl_d_usd is not None else None)
 
+    open_cnt  = len(pos_df) if not pos_df.empty else 0
+    trade_cnt = len(trades_df) if not trades_df.empty else 0
+    live_cnt  = int((pos_df["live_mode"] == True).sum()) if (not pos_df.empty and "live_mode" in pos_df.columns) else 0
+
     c3, c4 = st.columns(2)
     c3.metric("오픈 포지션", f"{open_cnt}개", delta=f"실거래 {live_cnt}개" if live_cnt else None)
     c4.metric("총 체결건수", f"{trade_cnt}건")
-
-    st.caption(f"🕐 {now_str}  ·  {REFRESH_SEC}초 자동갱신")
     st.divider()
 
 
