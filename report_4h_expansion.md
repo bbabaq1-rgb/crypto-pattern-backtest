@@ -109,9 +109,54 @@ python scheduler.py oncequick
 
 - [ ] Three Soldiers 실제 신호 발생 모니터링 (bull 레짐 복귀 시)
 - [ ] Breakout+Retest: 파라미터 조정 후 재시험 (tolerance 1% 타이트하게)
-- [ ] Three Black Crows: 방향 반전 테스트 (숏 대신 롱, 역발상)
+- [x] Three Black Crows: 레짐 조건부 재검증 완료 → 최종 기각 (2026-06-29)
 - [ ] VWAP: 2σ → 1.5σ 또는 당일 봉 수 조건 완화 후 재시험
 - [ ] 데이터 누적 후 crab/shark/cypher 재시험
+
+---
+
+## 부록: Three Black Crows — 레짐 조건부 재검증 (2026-06-29)
+
+### 목적
+전체 기간 mean=-1.19%(숏 손실)로 기각되었던 Three Black Crows를
+bear + bull_altseason 레짐 구간으로 한정해 재검증.
+
+### 데이터
+- 레짐 맵: bear 606일, altseason 274일, 합산 880일
+- 4h 심볼: 71개
+- 신호 총계: bear+alt 169개, bear 전용 129개, altseason 전용 40개
+
+### 게이트 결과
+
+| 서브샘플 | n | mean | median | boot_p | OOS | 판정 |
+|---------|---|------|--------|--------|-----|------|
+| **bear+altseason 전체** | 169 | **-0.20%** | +0.18% | 0.601 | 1/2 | **FAIL** |
+| bear 전용 | 129 | +0.36% | +0.86% | 0.436 | 1/2 | FAIL (유의성없음) |
+| altseason 전용 | 40 | -2.01% | -1.28% | 0.929 | 0/2 | FAIL |
+
+- bear 전용은 mean/median 모두 양수이나 **베이스라인 대비 통계적 유의성 없음** (boot_p=0.436, p<0.05 기준 탈락)
+- altseason에서는 오히려 손실 악화 (-2.01%)
+- 게이트 동결 적용 — 기준 완화 없음
+
+### Three Soldiers vs Three Crows 대칭 비교
+
+| 항목 | Three Soldiers | Three Black Crows |
+|------|---------------|-------------------|
+| 레짐 | bull_btc/altseason | bear/altseason |
+| 방향 | long | short |
+| n | 433 | 169 |
+| mean | **+1.23%** | -0.20% |
+| median | **+1.26%** | +0.18% |
+| OOS 양구간 | **2/2** | 1/2 |
+| boot_p | <0.01 | 0.60 |
+| **판정** | **PASS** | **FAIL** |
+
+**대칭 전략 불가** — Three Black Crows는 레짐 조건부로도 통계적 엣지 없음.
+Three Soldiers는 레짐 필터 후에도 n=433, mean=+1.23%, OOS 2/2로 강건함 재확인.
+
+### 최종 결론
+Three Black Crows → **최종 기각** (레짐 조건부 포함 전체 기각)
+registry.json `rejected_4h` 유지. research_log.csv 1건 추가 (총 94건).
 
 ---
 

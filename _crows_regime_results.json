@@ -1,0 +1,59 @@
+{
+  "three_crows_4h_regime": {
+    "all": {
+      "n": 169,
+      "mean": -0.0020108817988364444,
+      "median": 0.001776735310487389,
+      "t": -0.27864550237663827,
+      "p": 0.7805663033415882,
+      "boot_p": 0.601,
+      "pass_n": true,
+      "pass_mu": false,
+      "pass_med": true,
+      "pass_bas": false
+    },
+    "bear": {
+      "n": 129,
+      "mean": 0.003585167927271522,
+      "median": 0.008649627263045636,
+      "t": 0.5055657204109554,
+      "p": 0.6135158495952489,
+      "boot_p": 0.436,
+      "pass_n": true,
+      "pass_mu": true,
+      "pass_med": true,
+      "pass_bas": false
+    },
+    "alt": {
+      "n": 40,
+      "mean": -0.020058142165534636,
+      "median": -0.012811282693578561,
+      "t": -0.9971497852932623,
+      "p": 0.32485961134081354,
+      "boot_p": 0.929,
+      "pass_n": true,
+      "pass_mu": false,
+      "pass_med": false,
+      "pass_bas": false
+    },
+    "oos_all": 1,
+    "oos_bear": 1,
+    "oos_alt": 0,
+    "passed": false
+  },
+  "three_soldiers_4h_bull": {
+    "result": {
+      "n": 433,
+      "mean": 0.012264546688599408,
+      "median": 0.012551804423748482,
+      "t": 2.8897931192836728,
+      "p": 0.004209790804586833,
+      "boot_p": NaN,
+      "pass_n": true,
+      "pass_mu": true,
+      "pass_med": true,
+      "pass_bas": true
+    },
+    "oos": 2
+  }
+}

@@ -737,7 +737,8 @@
       "direction": "short",
       "n": 573,
       "mean": -0.0119,
-      "note": "mean<0 (short 방향 손실)"
+      "note": "mean<0 전체(-1.19%). 레짐 조건부 재검증(2026-06-29): bear+alt n=169 mean=-0.20%, bear전용 mean=+0.36% 유의성없음(boot_p=0.436), altseason 더 나쁨(-2.01%). 최종 기각.",
+      "retest_date": "2026-06-29"
     },
     {
       "id": "breakout_retest_4h",
