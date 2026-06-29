@@ -531,26 +531,38 @@ def section_signals():
         st.divider()
         return
 
-    if "priority_score" in df.columns:
-        df = df.sort_values("priority_score", ascending=False)
+    # 앙상블 점수 기준 정렬 (없으면 priority_score 폴백)
+    sort_col = "ensemble_score" if "ensemble_score" in df.columns else "priority_score"
+    if sort_col in df.columns:
+        df = df.sort_values(sort_col, ascending=False)
 
     entry_col = "entry" if "entry" in df.columns else "entry_price"
     stop_col  = "stop"  if "stop"  in df.columns else "stop_loss"
 
+    GRADE_ICON = {"A": "🔥", "B": "⭐", "C": "🔵", "D": "⚪"}
+
     rows = []
     for _, s in df.iterrows():
-        d   = str(s.get("direction", ""))
-        pri = s.get("priority_score")
-        ps  = s.get("pattern_strength")
+        d     = str(s.get("direction", ""))
+        grade = str(s.get("ensemble_grade", ""))
+        score = s.get("ensemble_score") if "ensemble_score" in df.columns else s.get("priority_score")
+        icon  = GRADE_ICON.get(grade, "")
+        grade_str = f"{icon}{grade}" if grade else "—"
+        score_str = f"{float(score):.1f}" if score is not None and pd.notna(score) else "—"
+        ps    = s.get("pattern_strength")
+        # patterns_fired는 리스트일 수 있음
+        pats  = s.get("patterns_fired", s.get("pattern", ""))
+        if isinstance(pats, list):
+            pats = ", ".join(pats)
         rows.append({
-            "점수":       f"{float(pri):.3f}" if pri is not None and pd.notna(pri) else "—",
+            "등급":       grade_str,
+            "점수":       score_str,
             "종목":       s.get("symbol", ""),
-            "패턴":       s.get("pattern", ""),
+            "패턴":       pats,
             "방향":       DIR_LABEL.get(d, d),
             "진입가":     _fmt_price(s.get(entry_col)),
             "손절가":     _fmt_price(s.get(stop_col)),
             "거래량배수": f"{s['strength_vol_ratio']:.2f}x" if s.get("strength_vol_ratio") else "—",
-            "패턴강도":   f"{float(ps):.3f}" if ps is not None and pd.notna(ps) else "—",
             "레짐":       s.get("regime", ""),
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

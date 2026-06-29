@@ -68,6 +68,59 @@ def _1h_symbols():
 
 EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 폴백
 
+# ── 앙상블 스코어링 설정 ─────────────────────────────────────────────────────
+# TF별 기본 점수
+TF_BASE_PTS = {"1d": 3, "4h": 2, "1h": 1}
+
+# 패턴별 검증 p값 (research_log/registry 기준)
+PATTERN_PVAL = {
+    "engulfing":         0.0001,
+    "engulfing_short":   0.0001,
+    "fvg":               0.0001,
+    "fvg_short":         0.0001,
+    "inverted_hammer":   0.005,
+    "marubozu":          0.005,
+    "gartley":           0.001,     # 4h
+    "bat":               0.001,     # 4h
+    "butterfly":         0.001,     # 4h
+    "three_soldiers_4h": 0.0001,
+    "bat_1h":            0.034,     # boot_p
+    "butterfly_1h":      0.024,     # boot_p
+}
+
+def _pval_mult(pattern):
+    """p값 기반 검증강도 가중치."""
+    p = PATTERN_PVAL.get(pattern, 0.05)
+    if p < 0.001:
+        return 1.2
+    elif p < 0.01:
+        return 1.1
+    return 1.0
+
+def _multitf_bonus(tfs):
+    """다중 TF 동시 발화 보너스."""
+    has_1d = "1d" in tfs
+    has_4h = "4h" in tfs
+    has_1h = "1h" in tfs
+    if has_1d and has_4h and has_1h:
+        return 3
+    if has_1d and has_4h:
+        return 2
+    if has_1d and has_1h:
+        return 1
+    if has_4h and has_1h:
+        return 1
+    return 0
+
+def _ensemble_grade(score):
+    if score >= 8:
+        return "A"
+    elif score >= 5:
+        return "B"
+    elif score >= 3:
+        return "C"
+    return "D"
+
 
 def _pattern_strength(pat, rows, idx):
     """패턴별 강도 점수. 미지원 패턴은 1.0 반환."""
@@ -134,66 +187,93 @@ def _sort_universe_by_volume():
     return sorted_syms
 
 
-def _build_priority(signals):
+def _build_ensemble(signals):
     """
-    3단계 우선순위 정렬 후 각 신호에 메타 필드 추가.
+    앙상블 스코어링 — TF 가중치 + 멀티TF 보너스 + 검증강도.
 
-    1순위 — 동시 부합 패턴 수 (pattern_count, 높을수록 우선)
-             같은 종목·같은 방향에서 여러 패턴이 동시에 뜨면 합산.
-    2순위 — 패턴 강도 점수 (0.5*norm_strength + 0.5*norm_vol)
-    3순위 — 거래대금 (universe.json 의 정렬 순서, 앞일수록 우선)
+    ensemble_score = sum(TF_BASE_PTS[tf] × p_mult(pat)) + multitf_bonus
+    ensemble_grade: A(>=8) / B(5-7) / C(3-4) / D(1-2)
 
     추가 필드:
-      pattern_count   : 이 종목·방향에서 동시에 발화한 패턴 수
-      patterns_fired  : 발화 패턴 목록 ['engulfing', 'fvg', ...]
-      priority_score  : pattern_count + 강도정규화(0~1)
-      priority_rank   : 전체 신호 중 순위(1위 = 최우선)
+      pattern_count   : 동시 발화 패턴 수
+      patterns_fired  : 발화 패턴 목록
+      ensemble_score  : 최종 앙상블 점수
+      score_breakdown : {1d_pts, 4h_pts, 1h_pts, bonus}
+      ensemble_grade  : A/B/C/D
+      priority_score  : ensemble_score (하위호환)
+      priority_rank   : 전체 순위
     """
     if not signals:
         return signals
 
     from collections import defaultdict
 
-    # 1) (symbol, direction) 그룹별 동시 발화 패턴 집계
-    group_pats = defaultdict(list)
+    # (symbol, direction) 그룹별 집계
+    groups = defaultdict(list)
     for s in signals:
-        group_pats[(s["symbol"], s["direction"])].append(s["pattern"])
+        groups[(s["symbol"], s["direction"])].append(s)
 
+    group_meta = {}
+    for (sym, dirn), sigs in groups.items():
+        base_score  = 0.0
+        tfs_present = set()
+        breakdown   = {"1d_pts": 0.0, "4h_pts": 0.0, "1h_pts": 0.0, "bonus": 0}
+
+        for s in sigs:
+            tf  = s.get("tf", "1d")
+            pat = s["pattern"]
+            pts = TF_BASE_PTS.get(tf, 1) * _pval_mult(pat)
+            base_score += pts
+            tfs_present.add(tf)
+            key = f"{tf}_pts"
+            breakdown[key] = round(breakdown.get(key, 0.0) + pts, 2)
+
+        bonus = _multitf_bonus(tfs_present)
+        breakdown["bonus"] = bonus
+        final = round(base_score + bonus, 2)
+
+        group_meta[(sym, dirn)] = dict(
+            ensemble_score  = final,
+            score_breakdown = breakdown,
+            ensemble_grade  = _ensemble_grade(final),
+            pattern_count   = len(sigs),
+            patterns_fired  = sorted({s["pattern"] for s in sigs}),
+        )
+
+    # 각 신호에 그룹 메타 반영
     for s in signals:
-        key = (s["symbol"], s["direction"])
-        s["pattern_count"]  = len(group_pats[key])
-        s["patterns_fired"] = sorted(set(group_pats[key]))
+        m = group_meta[(s["symbol"], s["direction"])]
+        s.update({
+            "ensemble_score":  m["ensemble_score"],
+            "score_breakdown": m["score_breakdown"],
+            "ensemble_grade":  m["ensemble_grade"],
+            "pattern_count":   m["pattern_count"],
+            "patterns_fired":  m["patterns_fired"],
+            "priority_score":  m["ensemble_score"],   # 하위호환
+        })
 
-    # 2) 강도 점수 정규화
-    strengths = [s.get("pattern_strength") or 1.0 for s in signals]
-    vols      = [float(s.get("strength_vol_ratio") or 1.0) for s in signals]
-    norm_s    = _normalize(strengths)
-    norm_v    = _normalize(vols)
-    for i, s in enumerate(signals):
-        s["pattern_strength"] = round(strengths[i], 4)
-        s["_str_score"]       = round(0.5 * norm_s[i] + 0.5 * norm_v[i], 4)
-
-    # 3) 거래대금 순위 (universe.json 현재 순서 기준)
+    # 거래대금 순위
     uni_syms = SYMBOLS
     if os.path.exists("universe.json"):
         uni_syms = json.load(open("universe.json", encoding="utf-8")).get(
             "trading_universe", SYMBOLS)
     vol_rank = {sym: i for i, sym in enumerate(uni_syms)}
 
-    # 4) 3단계 정렬
     signals.sort(key=lambda s: (
-        -s["pattern_count"],                     # 1순위: 패턴 수 내림차순
-        -s["_str_score"],                         # 2순위: 강도 내림차순
-        vol_rank.get(s["symbol"], 9999),         # 3순위: 거래대금 오름차순
+        -s["ensemble_score"],
+        -s["pattern_count"],
+        vol_rank.get(s["symbol"], 9999),
     ))
 
-    # 5) priority_score, priority_rank 확정
     for rank, s in enumerate(signals, 1):
-        s["priority_score"] = round(s["pattern_count"] + s["_str_score"], 4)
-        s["priority_rank"]  = rank
-        del s["_str_score"]
+        s["priority_rank"] = rank
 
     return signals
+
+
+# 하위호환 alias
+def _build_priority(signals):
+    return _build_ensemble(signals)
 
 
 def _fetch_one(sym, exchange, tf="1d"):
@@ -440,24 +520,28 @@ def run_once(do_fetch=True, quick=False):
     else:
         print(f"    [하모닉] 레짐={regime} → 롱 조건 미충족, 하모닉 스킵", flush=True)
 
-    # 우선순위 정렬 (1순위: 패턴 수 / 2순위: 강도 / 3순위: 거래대금)
-    signals = _build_priority(signals)
+    # 앙상블 스코어링 (TF 가중치 + 멀티TF 보너스 + 검증강도)
+    signals = _build_ensemble(signals)
 
     out = dict(generated_at=stamp, regime=regime, regime_date=latest,
                routing=route, n_signals=len(signals), signals=signals,
                note="페이퍼테스트용 신호 기록 - 실주문 없음")
     json.dump(out, open("signals_today.json", "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
-    print(f"[5] signals_today.json 저장: 신호 {len(signals)}건 (우선순위 정렬 완료)")
+    print(f"[5] signals_today.json 저장: 신호 {len(signals)}건 (앙상블 스코어링 완료)")
+    GRADE_ICON = {"A": "🔥", "B": "⭐", "C": "🔵", "D": "⚪"}
     for s in signals:
         cnt   = s.get("pattern_count", 1)
         rank  = s.get("priority_rank", "-")
-        pri   = s.get("priority_score", 0)
+        score = s.get("ensemble_score", 0)
+        grade = s.get("ensemble_grade", "D")
         fired = s.get("patterns_fired", [s.get("pattern")])
+        icon  = GRADE_ICON.get(grade, "")
         multi = " [멀티]" if cnt > 1 else ""
-        print(f"    #{rank} [{pri:.3f}] {s['symbol']} {fired} {s['direction']}{multi} "
+        bd    = s.get("score_breakdown", {})
+        print(f"    #{rank} {icon}{grade}[{score:.1f}] {s['symbol']} {fired} {s['direction']}{multi} "
               f"@ {s['entry']} 손절 {s['stop']} "
-              f"(강도={s.get('pattern_strength','-')}, 거래량배수={s.get('strength_vol_ratio','-')})")
+              f"(1d={bd.get('1d_pts',0):.1f} 4h={bd.get('4h_pts',0):.1f} 1h={bd.get('1h_pts',0):.1f} +보너스{bd.get('bonus',0)})")
 
     # Supabase signals 테이블 동기화 (대시보드용)
     try:

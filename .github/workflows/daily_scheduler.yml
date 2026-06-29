@@ -2,12 +2,7 @@ name: Crypto Pattern Scheduler
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # UTC 00:00 (KST 09:00) — oncefull (fetch 포함)
-    - cron: '0 4 * * *'   # UTC 04:00 — oncequick
-    - cron: '0 8 * * *'   # UTC 08:00 — oncequick
-    - cron: '0 12 * * *'  # UTC 12:00 — oncequick
-    - cron: '0 16 * * *'  # UTC 16:00 — oncequick
-    - cron: '0 20 * * *'  # UTC 20:00 — oncequick
+    - cron: '0 * * * *'   # 매시 정각 (24회/일) — HOUR=0이면 oncefull, 나머지 oncequick
   workflow_dispatch:
     inputs:
       mode:

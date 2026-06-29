@@ -35,6 +35,9 @@ LIVE_MIN_USD   = 10.0  # 최소 주문 금액 (이하 스킵)
 LIVE_FIRST_USD = 20.0  # 첫 주문 고정 금액
 LIVE_BAL_PCT   = 0.20  # 두 번째부터 가용잔고 × 20%
 
+# 앙상블 Grade 기반 포지션 사이징 배수
+GRADE_SIZE_MULT = {"A": 1.5, "B": 1.0, "C": 0.7, "D": 0.5}
+
 POS_FILE = "paper_positions.json"
 TRD_FILE = "paper_trades.json"
 OPP = {("engulfing", "long"): "detector_engulfing_short",
@@ -224,11 +227,17 @@ def run(stamp=None):
         stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
 
         live_info    = {}
-        # tf_confirmed=False(4h 비확증) → 페이퍼 포지션 사이즈 절반
+        # 앙상블 Grade 기반 사이징: A×1.5 / B×1.0 / C×0.7 / D×0.5
+        grade        = s.get("ensemble_grade", "B")
+        grade_mult   = GRADE_SIZE_MULT.get(grade, 1.0)
+        size_for_pos = round(POS_USD * grade_mult, 2)
+        # tf_confirmed=False → 추가로 ×0.5
         tf_ok        = s.get("tf_confirmed", True)
-        size_for_pos = POS_USD if tf_ok else round(POS_USD * 0.5, 2)
         if not tf_ok:
-            print(f"  [4h비확증] {s['symbol']} {s['direction']} → size ${size_for_pos:.1f} (50%)")
+            size_for_pos = round(size_for_pos * 0.5, 2)
+        if grade != "B" or not tf_ok:
+            tf_tag = " [4h비확증×0.5]" if not tf_ok else ""
+            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag} → ${size_for_pos:.1f}")
 
         if live_conn:
             # 동시 최대 포지션 체크
@@ -265,15 +274,18 @@ def run(stamp=None):
                       f"size=${live_size_usd:.0f} entry={result['entry_price']:.4f} "
                       f"sl={result['stop_price']:.4f}")
 
-        rank    = s.get("priority_rank")
-        cnt     = s.get("pattern_count", 1)
-        fired   = s.get("patterns_fired", [s.get("pattern")])
-        pri     = s.get("priority_score")
+        rank      = s.get("priority_rank")
+        cnt       = s.get("pattern_count", 1)
+        fired     = s.get("patterns_fired", [s.get("pattern")])
+        score     = s.get("ensemble_score")
+        grade_out = s.get("ensemble_grade", "B")
+        GRADE_ICON = {"A": "🔥", "B": "⭐", "C": "🔵", "D": "⚪"}
         rank_str  = f"#{rank}" if rank else ""
-        pri_str   = f" [pri={pri:.3f}]" if pri is not None else ""
+        score_str = f" [{score:.1f}]" if score is not None else ""
         multi_str = " [멀티]" if cnt > 1 else ""
-        print(f"  [paper] 신규: {rank_str} {s['symbol']} {fired} {s['direction']}"
-              f"{multi_str}{pri_str}")
+        icon_str  = GRADE_ICON.get(grade_out, "")
+        print(f"  [paper] 신규: {rank_str} {icon_str}{grade_out}{score_str} "
+              f"{s['symbol']} {fired} {s['direction']}{multi_str} ${size_for_pos:.0f}")
         p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
                  regime=s.get("regime"), tf=s.get("tf", "1d"),
                  entry_date=s["date"], entry_idx=ei,
