@@ -40,7 +40,12 @@ TRD_FILE = "paper_trades.json"
 OPP = {("engulfing", "long"): "detector_engulfing_short",
        ("engulfing", "short"): "detector_engulfing",
        ("fvg", "long"): "detector_fvg_short",
-       ("fvg", "short"): "detector_fvg"}
+       ("fvg", "short"): "detector_fvg",
+       # 하모닉: 반대 패턴 없음 → None (opp_set = 빈 집합)
+       ("gartley",   "long"): None,
+       ("bat",       "long"): None,
+       ("butterfly", "long"): None,
+}
 DETMOD = {("engulfing", "long"): "detector_engulfing",
           ("engulfing", "short"): "detector_engulfing_short",
           ("fvg", "long"): "detector_fvg",
@@ -156,20 +161,21 @@ def run(stamp=None):
     trades = _load(TRD_FILE, [])
     rows_cache = {}
 
-    def rows_of(sym):
-        if sym not in rows_cache:
+    def rows_of(sym, tf="1d"):
+        key = (sym, tf)
+        if key not in rows_cache:
             try:
-                rows_cache[sym] = detlib.load_ohlcv(sym, "1d")
+                rows_cache[key] = detlib.load_ohlcv(sym, tf)
             except (FileNotFoundError, RuntimeError):
-                rows_cache[sym] = None  # OKX 미상장 등 데이터 없음
-        return rows_cache[sym]
+                rows_cache[key] = None  # OKX 미상장 등 데이터 없음
+        return rows_cache[key]
 
     t0 = len(trades)                  # 이번 실행에서 새로 체결되는 거래 추적
     new_positions = []
     # 1) 오픈 포지션 청산 모니터링
     still_open = []
     for pos in positions:
-        rows = rows_of(pos["symbol"])
+        rows = rows_of(pos["symbol"], pos.get("tf", "1d"))
         if rows is None:          # 데이터 미수집 종목(OKX 미상장 등) -> 포지션 유지
             still_open.append(pos); continue
         ei = _date_idx(rows, pos["entry_date"])
@@ -204,7 +210,7 @@ def run(stamp=None):
     new = 0
     live_orders = 0
     for s in sig.get("signals", []):
-        rows = rows_of(s["symbol"])
+        rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:
             continue
         ei = _date_idx(rows, s["date"])
@@ -258,7 +264,8 @@ def run(stamp=None):
         pri_str = f" [pri={s['priority_score']:.3f}]" if s.get("priority_score") is not None else ""
         print(f"  [paper] 신규: {s['symbol']} {s['pattern']} {s['direction']}{pri_str}")
         p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
-                 regime=s.get("regime"), entry_date=s["date"], entry_idx=ei,
+                 regime=s.get("regime"), tf=s.get("tf", "1d"),
+                 entry_date=s["date"], entry_idx=ei,
                  entry_price=round(entry, 4), stop=round(stop_px, 4),
                  size_usd=size_for_pos, d_closed=False, a_closed=False, **live_info)
         still_open.append(p); new_positions.append(p); new += 1

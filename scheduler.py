@@ -43,6 +43,21 @@ DETMOD = {("engulfing", "long"): "detector_engulfing",
           ("fvg", "long"): "detector_fvg",
           ("fvg", "short"): "detector_fvg_short"}
 
+# 하모닉 패턴 4h (PASSED: gartley/bat/butterfly)
+HARMONIC_FOCUS = [
+    ("gartley",   "detector_gartley"),
+    ("bat",       "detector_bat"),
+    ("butterfly", "detector_butterfly"),
+]
+HARMONIC_TF = "4h"
+
+
+def _harmonic_symbols():
+    """43종목 전체(data/*_1d.csv 기준). 없으면 SYMBOLS 폴백."""
+    import glob as _glob
+    syms = sorted({os.path.basename(f)[:-7].upper() for f in _glob.glob("data/*_1d.csv")})
+    return syms if syms else SYMBOLS
+
 
 EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 폴백
 
@@ -205,6 +220,31 @@ def run_once(do_fetch=True):
                                     pattern_strength=ps, regime=regime,
                                     entry=round(entry, 4), stop=stop_px,
                                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
+
+    # 하모닉 4h 신호 탐지 (gartley / bat / butterfly, long-only)
+    h_syms = _harmonic_symbols()
+    for pat, modname in HARMONIC_FOCUS:
+        try:
+            mod = importlib.import_module(modname)
+        except ImportError:
+            continue
+        for sym in h_syms:
+            try:
+                rows4h = mod.load_ohlcv(sym, HARMONIC_TF)
+            except (FileNotFoundError, RuntimeError):
+                continue
+            sigset = set(mod.detect(rows4h))
+            last = len(rows4h) - 1
+            if last not in sigset:
+                continue
+            entry = rows4h[last]["c"]
+            stop_px = round(entry * (1 - STOP), 4)
+            signals.append(dict(
+                pattern=pat, direction="long", symbol=sym, tf=HARMONIC_TF,
+                date=rows4h[last]["date"], pattern_strength=1.0,
+                strength_vol_ratio=None, regime=regime,
+                entry=round(entry, 4), stop=stop_px,
+                take_profit="레짐전환 or 최대30봉 시가청산"))
 
     # 우선순위 정렬 (패턴강도 0.5 + 거래량배수 0.5)
     signals = _rank_signals(signals)
