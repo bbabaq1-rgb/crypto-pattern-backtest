@@ -53,9 +53,9 @@ HARMONIC_TF = "4h"
 
 
 def _harmonic_symbols():
-    """43종목 전체(data/*_1d.csv 기준). 없으면 SYMBOLS 폴백."""
+    """4h 데이터가 있는 종목 전체(data/*_4h.csv 기준). 없으면 SYMBOLS 폴백."""
     import glob as _glob
-    syms = sorted({os.path.basename(f)[:-7].upper() for f in _glob.glob("data/*_1d.csv")})
+    syms = sorted({os.path.basename(f)[:-7].upper() for f in _glob.glob("data/*_4h.csv")})
     return syms if syms else SYMBOLS
 
 
@@ -115,18 +115,18 @@ def _rank_signals(signals):
     return signals
 
 
-def _fetch_one(sym, exchange):
+def _fetch_one(sym, exchange, tf="1d"):
     """단일 종목 fetch. 성공=True, 실패=False. 출력은 터미널에 바로 표시."""
-    out = f"data/{sym.lower()}_1d.csv"
+    out = f"data/{sym.lower()}_{tf}.csv"
     r = subprocess.run(
         [sys.executable, "fetch_data.py", "--exchange", exchange,
-         "--symbol", f"{sym}/USDT", "--timeframe", "1d",
+         "--symbol", f"{sym}/USDT", "--timeframe", tf,
          "--since", "2021-01-01", "--out", out])
     return r.returncode == 0
 
 
 def fetch_all():
-    """유니버스 전체 1d CSV 순차 fetch. BTC로 거래소 탐색 후 전체 적용."""
+    """유니버스 전체 1d CSV + 하모닉용 4h CSV 순차 fetch."""
     import os
     os.makedirs("data", exist_ok=True)
 
@@ -134,7 +134,7 @@ def fetch_all():
     active_ex = None
     for ex in EXCHANGES:
         print(f"  [fetch] {ex} 테스트 중 (BTC)...", flush=True)
-        if _fetch_one(SYMBOLS[0], ex):
+        if _fetch_one(SYMBOLS[0], ex, "1d"):
             active_ex = ex
             print(f"  [fetch] {ex} OK -> 전 종목 이 거래소 사용", flush=True)
             break
@@ -144,15 +144,24 @@ def fetch_all():
         print("  [fetch] 모든 거래소 실패 — 기존 CSV로 진행", flush=True)
         return
 
+    # 1d fetch (유니버스 전체)
     ok = 1   # BTC는 이미 성공
     err = 0
     for s in SYMBOLS[1:]:
-        if _fetch_one(s, active_ex):
+        if _fetch_one(s, active_ex, "1d"):
             ok += 1
         else:
             print(f"  [fetch] {s} 실패 ({active_ex})", flush=True)
             err += 1
-    print(f"  [fetch] 완료 {ok}/{len(SYMBOLS)}종목 (거래소={active_ex})", flush=True)
+    print(f"  [fetch] 1d 완료 {ok}/{len(SYMBOLS)}종목 (거래소={active_ex})", flush=True)
+
+    # 4h fetch (하모닉 유니버스 — trading_universe 기준)
+    h_syms = _harmonic_symbols()
+    ok4 = 0
+    for s in h_syms:
+        if _fetch_one(s, active_ex, "4h"):
+            ok4 += 1
+    print(f"  [fetch] 4h 완료 {ok4}/{len(h_syms)}종목 (하모닉용)", flush=True)
 
 
 def run_once(do_fetch=True):
@@ -221,30 +230,36 @@ def run_once(do_fetch=True):
                                     entry=round(entry, 4), stop=stop_px,
                                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
 
-    # 하모닉 4h 신호 탐지 (gartley / bat / butterfly, long-only)
-    h_syms = _harmonic_symbols()
-    for pat, modname in HARMONIC_FOCUS:
-        try:
-            mod = importlib.import_module(modname)
-        except ImportError:
-            continue
-        for sym in h_syms:
+    # 하모닉 4h 신호 탐지 (gartley / bat / butterfly)
+    # 레짐 라우팅: bull_btc → long, 나머지 → 숏 디텍터 없으므로 스킵
+    HARMONIC_REGIME = {"bull_btc": "long"}
+    harmonic_dir = HARMONIC_REGIME.get(regime)
+    if harmonic_dir:
+        h_syms = _harmonic_symbols()
+        for pat, modname in HARMONIC_FOCUS:
             try:
-                rows4h = mod.load_ohlcv(sym, HARMONIC_TF)
-            except (FileNotFoundError, RuntimeError):
+                mod = importlib.import_module(modname)
+            except ImportError:
                 continue
-            sigset = set(mod.detect(rows4h))
-            last = len(rows4h) - 1
-            if last not in sigset:
-                continue
-            entry = rows4h[last]["c"]
-            stop_px = round(entry * (1 - STOP), 4)
-            signals.append(dict(
-                pattern=pat, direction="long", symbol=sym, tf=HARMONIC_TF,
-                date=rows4h[last]["date"], pattern_strength=1.0,
-                strength_vol_ratio=None, regime=regime,
-                entry=round(entry, 4), stop=stop_px,
-                take_profit="레짐전환 or 최대30봉 시가청산"))
+            for sym in h_syms:
+                try:
+                    rows4h = mod.load_ohlcv(sym, HARMONIC_TF)
+                except (FileNotFoundError, RuntimeError):
+                    continue
+                sigset = set(mod.detect(rows4h))
+                last = len(rows4h) - 1
+                if last not in sigset:
+                    continue
+                entry = rows4h[last]["c"]
+                stop_px = round(entry * (1 - STOP), 4)
+                signals.append(dict(
+                    pattern=pat, direction=harmonic_dir, symbol=sym, tf=HARMONIC_TF,
+                    date=rows4h[last]["date"], pattern_strength=1.0,
+                    strength_vol_ratio=None, regime=regime,
+                    entry=round(entry, 4), stop=stop_px,
+                    take_profit="레짐전환 or 최대30봉 시가청산"))
+    else:
+        print(f"    [하모닉] 레짐={regime} → 롱 조건 미충족, 하모닉 스킵", flush=True)
 
     # 우선순위 정렬 (패턴강도 0.5 + 거래량배수 0.5)
     signals = _rank_signals(signals)

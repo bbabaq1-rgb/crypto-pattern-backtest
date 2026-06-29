@@ -9,15 +9,19 @@
 - 레짐 스위치: bull_btc→롱, bear/altseason→숏
 - 청산 로직: 방식A(±10%) / 방식D(-8% 손절+조건부 익절) 병행
 - 방식D 게이트: Calmar 기반(기대값+MDD) — engulfing/fvg/engulfing_short → D 채택, fvg_short → A 유지
-- 유니버스: 28종목 (OKX 데이터) + 하모닉은 43종목 4h
+- 유니버스: **71종목** (업비트KRW∩OKX선물 확대 완료, 2026-06-29)
+  - 기존 12종목 + 신규 59종목 (OKX 39 + Binance fallback 20)
+  - data/*_1d.csv 78개, data/*_4h.csv 97개
 - 자동화: GitHub Actions(매일 UTC 00:00) + Supabase DB
 - 페이퍼테스트: 진행 중 (A +6.59%, D +3.13%, 13건 — 표본 부족, 판단 유보)
 
 ## 다음 할 일
 - [ ] OKX 선물 실거래 활성화 — GitHub Actions secrets(OKX_KEY/SECRET/PASSPHRASE) 등록만 남음
 - [x] 하모닉 패턴 페이퍼테스트 등록 (gartley/bat/butterfly 4h, scheduler+paper_executor 지원)
+- [x] 트레이딩 유니버스 확대 (업비트KRW x OKX선물, 71종목)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
+- [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)
 
 ## 핵심 원칙
 - 게이트 동결: n≥20, 평균수익>0, 중앙값>0, 베이스라인 p<0.05, OOS 양구간 통과
@@ -33,6 +37,8 @@
 - method_d.py: 방식A vs D 비교 + Calmar 게이트 (method_d.json 출력)
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
-- universe.json: 28종목 유니버스
+- universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
+- expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
+- report_universe_expansion.md: 유니버스 확대 리포트
 - registry.json: 패턴 등록부 (passed 7종 포함)
 - research_log.csv: 86건 시험 기록
