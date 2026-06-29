@@ -14,8 +14,8 @@
 - 페이퍼테스트: 진행 중 (A +6.59%, D +3.13%, 13건 — 표본 부족, 판단 유보)
 
 ## 다음 할 일
-- [ ] OKX 선물 실거래 연결 (2x 격리, $100/포지션)
-- [ ] 하모닉 패턴 페이퍼테스트 등록 (gartley/bat/butterfly, 4h 신호)
+- [ ] OKX 선물 실거래 활성화 — GitHub Actions secrets(OKX_KEY/SECRET/PASSPHRASE) 등록만 남음
+- [x] 하모닉 패턴 페이퍼테스트 등록 (gartley/bat/butterfly 4h, scheduler+paper_executor 지원)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
 
