@@ -796,7 +796,11 @@ def chart_daily_pnl(live: bool, trades_df, chart_key="live"):
 
     # 방식A 기준 (없으면 전체)
     sub = df[df[m_col] == "A"] if m_col else df
-    closed = sub[sub["exit_date"].notna()].copy() if "exit_date" in sub.columns else sub.copy()
+    if "exit_date" not in sub.columns:
+        st.info("청산 내역 없음")
+        st.divider()
+        return
+    closed = sub[sub["exit_date"].notna()].copy()
     closed = closed[closed["exit_date"].astype(str).str.strip() != ""]
 
     if closed.empty:
