@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-24T23:43Z",
+  "generated_at": "2026-06-29T04:57Z",
   "regime": "bear",
   "regime_date": "2026-06-24",
   "routing": {
@@ -14,10 +14,25 @@
       "symbol": "BTC",
       "date": "2026-06-24",
       "strength_vol_ratio": 1.53,
+      "pattern_strength": 0.0012,
       "regime": "bear",
       "entry": 61010.0,
       "stop": 65890.8,
-      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"
+      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
+      "priority_score": 0.5
+    },
+    {
+      "pattern": "inverted_hammer",
+      "direction": "long",
+      "symbol": "MOVE",
+      "date": "2026-06-29",
+      "strength_vol_ratio": 0.05,
+      "pattern_strength": 3.0,
+      "regime": "bear",
+      "entry": 0.0112,
+      "stop": 0.0103,
+      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
+      "priority_score": 0.5
     },
     {
       "pattern": "fvg",
@@ -25,21 +40,12 @@
       "symbol": "ADA",
       "date": "2026-06-24",
       "strength_vol_ratio": 1.43,
+      "pattern_strength": 0.0149,
       "regime": "bear",
       "entry": 0.1477,
       "stop": 0.1595,
-      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"
-    },
-    {
-      "pattern": "fvg",
-      "direction": "short",
-      "symbol": "PAXG",
-      "date": "2026-06-24",
-      "strength_vol_ratio": 2.24,
-      "regime": "bear",
-      "entry": 4015.62,
-      "stop": 4336.8696,
-      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"
+      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
+      "priority_score": 0.4685
     }
   ],
   "note": "페이퍼테스트용 신호 기록 - 실주문 없음"

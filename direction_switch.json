@@ -2,7 +2,7 @@
   "routing": {
     "bull_altseason": {
       "engulfing": "short",
-      "fvg": "short"
+      "fvg": "long"
     },
     "bull_btc": {
       "engulfing": "long",
