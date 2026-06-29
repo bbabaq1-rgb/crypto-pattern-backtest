@@ -172,6 +172,24 @@ def load_regime():
     return {}, {}
 
 
+@st.cache_data(ttl=60)
+def load_onchain():
+    """signals_today.json 상위 온체인 필드 반환. 없으면 None."""
+    if os.path.exists("signals_today.json"):
+        try:
+            d = json.load(open("signals_today.json", encoding="utf-8"))
+            score  = d.get("onchain_score")
+            detail = d.get("onchain_detail", {})
+            primary = d.get("primary_regime", d.get("regime", ""))
+            final   = d.get("regime", "")
+            if score is not None:
+                return {"score": score, "detail": detail,
+                        "primary_regime": primary, "final_regime": final}
+        except Exception:
+            pass
+    return None
+
+
 def _save_regime_to_supabase(regime_map):
     """레짐 히스토리를 Supabase daily_summary에 upsert (regime 컬럼)."""
     cli = _supabase()
@@ -416,6 +434,50 @@ def _do_close_position(pos_row, cur_price):
     return True, " · ".join(msgs) if msgs else "청산 완료"
 
 
+# ── 온체인 보조 신호 공통 렌더 ────────────────────────────────────────────────
+
+def _render_onchain_section(oc: dict):
+    """온체인 보조 신호 expander 렌더. load_onchain() 반환값을 받음."""
+    det   = oc.get("detail", {})
+    score = oc.get("score", 0)
+    pri   = oc.get("primary_regime", "")
+    fin   = oc.get("final_regime", "")
+
+    ICONS      = {"bull": "🟢", "bear": "🔴", "neutral": "🟡"}
+    fund_icon  = ICONS.get(det.get("funding", "neutral"), "🟡")
+    etf_icon   = ICONS.get(det.get("etf",     "neutral"), "🟡")
+    stab_icon  = ICONS.get(det.get("stable",  "neutral"), "🟡")
+
+    fund_rate  = det.get("funding_avg_rate")
+    stable_pct = det.get("stable_7d_pct")
+    etf_sig    = det.get("etf", "neutral")
+
+    fund_label  = f"{fund_rate:+.4f}%" if fund_rate is not None else "—"
+    etf_label   = ("3일 유입" if etf_sig == "bull"
+                   else "3일 유출" if etf_sig == "bear" else "혼합")
+    stable_label = f"{stable_pct:+.2f}%" if stable_pct is not None else "—"
+
+    score_color = "#26a641" if score > 0 else "#f85149" if score < 0 else "#888"
+    score_text  = (f"{score:+d} "
+                   f"({'bull 우세' if score > 0 else 'bear 우세' if score < 0 else '중립'})")
+    changed     = pri and fin and pri != fin
+    adj_note    = f"  →  `{pri}` → `{fin}` (온체인 완화)" if changed else ""
+
+    with st.expander("📡 온체인 보조 신호", expanded=False):
+        c1, c2, c3 = st.columns(3)
+        c1.markdown(
+            f"{fund_icon} **펀딩비**: {det.get('funding', '—')}  \n`{fund_label}`")
+        c2.markdown(
+            f"{etf_icon} **ETF 유입**: {etf_sig}  \n{etf_label}")
+        c3.markdown(
+            f"{stab_icon} **스테이블코인**: {det.get('stable', '—')}  \n`{stable_label}`")
+        st.markdown(
+            f"<span style='color:{score_color};font-weight:700'>"
+            f"온체인 종합 점수: {score_text}</span>{adj_note}",
+            unsafe_allow_html=True,
+        )
+
+
 # ── 실거래 탭 섹션 ─────────────────────────────────────────────────────────────
 
 def section_live_summary(pos_df, trades_df, prices):
@@ -446,6 +508,11 @@ def section_live_summary(pos_df, trades_df, prices):
     c1, c2   = st.columns(2)
     c1.metric("실거래 포지션", f"{len(live_pos)}개")
     c2.metric("실거래 체결",   f"{len(live_trd)}건")
+
+    # 온체인 보조 신호 (실거래 탭)
+    oc = load_onchain()
+    if oc is not None:
+        _render_onchain_section(oc)
     st.divider()
 
 
@@ -503,6 +570,11 @@ def section_paper_summary(pos_df, trades_df, daily_df, prices):
     dir_text = "  |  ".join(f"{k} → {DIR_LABEL.get(v, v)}" for k, v in action.items()) if action else "—"
     st.markdown(f"### {r_emoji} {regime} `{regime_date}`")
     st.caption(dir_text)
+
+    # 온체인 보조 신호
+    oc = load_onchain()
+    if oc is not None:
+        _render_onchain_section(oc)
 
     pnl_a_usd = round(cum_a / 100 * INITIAL_CAP, 2) if cum_a is not None else None
     pnl_d_usd = round(cum_d / 100 * INITIAL_CAP, 2) if cum_d is not None else None

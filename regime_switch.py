@@ -530,26 +530,59 @@ def main():
     for pid in all_pats:
         table_all[pid] = pattern_by_regime(pid, reg_final)
 
+    # ── V3: 온체인 보조 신호 적용 ──────────────────────────────────────────────
+    onchain_data = {}
+    regime_v3    = current_regime
+    try:
+        import onchain_signals as oc
+        print("\n[온체인] 보조 신호 수집 중...")
+        onchain_data = oc.fetch(use_cache=True)
+        regime_v3    = oc.adjust_regime(current_regime, onchain_data)
+
+        oc_score = onchain_data.get("score", 0)
+        fund_sig = onchain_data.get("funding", {}).get("signal", "—")
+        etf_sig  = onchain_data.get("etf",     {}).get("signal", "—")
+        stab_sig = onchain_data.get("stable",  {}).get("signal", "—")
+        print(f"\n[온체인] 보조 신호 결과:")
+        print(f"  펀딩비       : {fund_sig}")
+        print(f"  ETF 순유입   : {etf_sig}")
+        print(f"  스테이블코인 : {stab_sig}")
+        print(f"  종합 점수    : {oc_score:+d}")
+        if regime_v3 != current_regime:
+            print(f"  레짐 조정    : {current_regime} → {regime_v3} (온체인 완화)")
+        else:
+            print(f"  레짐 변화 없음: {current_regime} 유지")
+    except Exception as e:
+        print(f"\n[온체인] 수집 실패(무시): {str(e)[:80]}")
+
     json.dump(
         {
-            "version": "v2",
+            "version": "v3",
             "regime_days": dict(cnt_final),
             "separation_score": {"v1": score_v1, "v2": score_v2, "adopted": adopted},
             "by_pattern": table_all,
             "signal_details": {
                 latest: {
-                    "price_sig": p_sig.get(latest),
+                    "price_sig":  p_sig.get(latest),
                     "ethbtc_sig": e_sig.get(latest),
-                    "dom_sig": d_sig.get(latest),
-                    "regime": current_regime,
+                    "dom_sig":    d_sig.get(latest),
+                    "primary_regime": current_regime,
+                    "final_regime":   regime_v3,
                 }
+            },
+            "onchain": {
+                "score":   onchain_data.get("score", 0),
+                "funding": onchain_data.get("funding", {}),
+                "etf":     onchain_data.get("etf",     {}),
+                "stable":  onchain_data.get("stable",  {}),
+                "fetched_at": onchain_data.get("fetched_at", ""),
             },
         },
         open("regime_switch.json", "w", encoding="utf-8"),
         ensure_ascii=False,
         indent=2,
     )
-    print("\n[저장] regime_switch.json (v2)")
+    print("\n[저장] regime_switch.json (v3: primary + onchain)")
     return reg_final
 
 

@@ -357,7 +357,22 @@ def run_once(do_fetch=True, quick=False):
 
     print("[2] 레짐 판정..."); regmap = rs.build_regime_map()
     latest = max(regmap); regime = regmap[latest]
-    print(f"    현재 레짐: {regime} ({latest})")
+    primary_regime = regime
+    print(f"    현재 레짐(primary): {regime} ({latest})")
+
+    print("[2.5] 온체인 보조 신호 수집...")
+    onchain = {}
+    try:
+        import onchain_signals as oc
+        onchain = oc.fetch(use_cache=True)
+        regime  = oc.adjust_regime(primary_regime, onchain)
+        if regime != primary_regime:
+            print(f"    온체인 조정: {primary_regime} → {regime} "
+                  f"(score={onchain.get('score', 0)})")
+        else:
+            print(f"    온체인 점수: {onchain.get('score', 0):+d} (레짐 변화 없음)")
+    except Exception as e:
+        print(f"    온체인 수집 실패(무시): {str(e)[:80]}")
 
     print("[3] direction_switch 갱신..."); ds.main()
     routing = json.load(open("direction_switch.json", encoding="utf-8"))["routing"]
@@ -523,9 +538,26 @@ def run_once(do_fetch=True, quick=False):
     # 앙상블 스코어링 (TF 가중치 + 멀티TF 보너스 + 검증강도)
     signals = _build_ensemble(signals)
 
-    out = dict(generated_at=stamp, regime=regime, regime_date=latest,
-               routing=route, n_signals=len(signals), signals=signals,
-               note="페이퍼테스트용 신호 기록 - 실주문 없음")
+    onchain_detail = {
+        "funding": onchain.get("funding", {}).get("signal", "neutral"),
+        "etf":     onchain.get("etf",     {}).get("signal", "neutral"),
+        "stable":  onchain.get("stable",  {}).get("signal", "neutral"),
+        "funding_avg_rate": onchain.get("funding", {}).get("avg_rate"),
+        "etf_flows_3d":     onchain.get("etf",     {}).get("flows_3d", []),
+        "stable_7d_pct":    onchain.get("stable",  {}).get("avg_7d_pct"),
+    }
+    out = dict(
+        generated_at=stamp,
+        regime=regime,
+        primary_regime=primary_regime,
+        regime_date=latest,
+        onchain_score=onchain.get("score", 0),
+        onchain_detail=onchain_detail,
+        routing=route,
+        n_signals=len(signals),
+        signals=signals,
+        note="페이퍼테스트용 신호 기록 - 실주문 없음",
+    )
     json.dump(out, open("signals_today.json", "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
     print(f"[5] signals_today.json 저장: 신호 {len(signals)}건 (앙상블 스코어링 완료)")

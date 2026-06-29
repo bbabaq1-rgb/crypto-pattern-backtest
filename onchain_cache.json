@@ -1,0 +1,27 @@
+{
+  "fetched_at": "2026-06-29T23:23:52.539379+00:00",
+  "result": {
+    "funding": {
+      "signal": "neutral",
+      "avg_rate": 0.006939,
+      "n": 17,
+      "note": "avg_rate in % (×100)"
+    },
+    "etf": {
+      "signal": "neutral",
+      "flows_3d": [],
+      "error": "API 실패"
+    },
+    "stable": {
+      "signal": "neutral",
+      "avg_7d_pct": -0.791,
+      "by_coin": {
+        "tether": -0.08,
+        "usd-coin": -1.502
+      },
+      "note": "avg_7d_pct in %"
+    },
+    "score": 0,
+    "fetched_at": "2026-06-29T23:23:52.539379+00:00"
+  }
+}
