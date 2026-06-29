@@ -61,8 +61,6 @@ def _harmonic_symbols():
 
 EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 폴백
 
-TIER_RANK = {"BTC": 0, "ETH": 1, "SOL": 2}   # 동점 시 시총 기준 (낮을수록 우선)
-
 
 def _pattern_strength(pat, rows, idx):
     """패턴별 강도 점수. 미지원 패턴은 1.0 반환."""
@@ -100,18 +98,94 @@ def _normalize(values):
     return [(v - mn) / (mx - mn) for v in values]
 
 
-def _rank_signals(signals):
-    """패턴강도 0.5 + 거래량배수 0.5 합산 후 내림차순 정렬. 동점 시 TIER_RANK 우선."""
+def _sort_universe_by_volume():
+    """
+    30일 평균 USDT 거래대금 기준 내림차순으로 trading_universe 정렬.
+    universe.json 순서 갱신 후 정렬된 심볼 리스트 반환.
+    """
+    if not os.path.exists("universe.json"):
+        return SYMBOLS
+    uni = json.load(open("universe.json", encoding="utf-8"))
+    syms = uni.get("trading_universe", [])
+    if not syms:
+        return SYMBOLS
+    vol_usd = {}
+    for sym in syms:
+        try:
+            rows = detlib.load_ohlcv(sym, "1d")
+            if not rows:
+                vol_usd[sym] = 0; continue
+            window = rows[-30:] if len(rows) >= 30 else rows
+            vol_usd[sym] = sum(r["c"] * r["v"] for r in window) / len(window)
+        except Exception:
+            vol_usd[sym] = 0
+    sorted_syms = sorted(syms, key=lambda s: -vol_usd.get(s, 0))
+    if sorted_syms != syms:
+        uni["trading_universe"] = sorted_syms
+        json.dump(uni, open("universe.json", "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=2)
+    return sorted_syms
+
+
+def _build_priority(signals):
+    """
+    3단계 우선순위 정렬 후 각 신호에 메타 필드 추가.
+
+    1순위 — 동시 부합 패턴 수 (pattern_count, 높을수록 우선)
+             같은 종목·같은 방향에서 여러 패턴이 동시에 뜨면 합산.
+    2순위 — 패턴 강도 점수 (0.5*norm_strength + 0.5*norm_vol)
+    3순위 — 거래대금 (universe.json 의 정렬 순서, 앞일수록 우선)
+
+    추가 필드:
+      pattern_count   : 이 종목·방향에서 동시에 발화한 패턴 수
+      patterns_fired  : 발화 패턴 목록 ['engulfing', 'fvg', ...]
+      priority_score  : pattern_count + 강도정규화(0~1)
+      priority_rank   : 전체 신호 중 순위(1위 = 최우선)
+    """
     if not signals:
         return signals
+
+    from collections import defaultdict
+
+    # 1) (symbol, direction) 그룹별 동시 발화 패턴 집계
+    group_pats = defaultdict(list)
+    for s in signals:
+        group_pats[(s["symbol"], s["direction"])].append(s["pattern"])
+
+    for s in signals:
+        key = (s["symbol"], s["direction"])
+        s["pattern_count"]  = len(group_pats[key])
+        s["patterns_fired"] = sorted(set(group_pats[key]))
+
+    # 2) 강도 점수 정규화
     strengths = [s.get("pattern_strength") or 1.0 for s in signals]
     vols      = [float(s.get("strength_vol_ratio") or 1.0) for s in signals]
     norm_s    = _normalize(strengths)
     norm_v    = _normalize(vols)
     for i, s in enumerate(signals):
         s["pattern_strength"] = round(strengths[i], 4)
-        s["priority_score"]   = round(0.5 * norm_s[i] + 0.5 * norm_v[i], 4)
-    signals.sort(key=lambda s: (-s["priority_score"], TIER_RANK.get(s["symbol"], 99)))
+        s["_str_score"]       = round(0.5 * norm_s[i] + 0.5 * norm_v[i], 4)
+
+    # 3) 거래대금 순위 (universe.json 현재 순서 기준)
+    uni_syms = SYMBOLS
+    if os.path.exists("universe.json"):
+        uni_syms = json.load(open("universe.json", encoding="utf-8")).get(
+            "trading_universe", SYMBOLS)
+    vol_rank = {sym: i for i, sym in enumerate(uni_syms)}
+
+    # 4) 3단계 정렬
+    signals.sort(key=lambda s: (
+        -s["pattern_count"],                     # 1순위: 패턴 수 내림차순
+        -s["_str_score"],                         # 2순위: 강도 내림차순
+        vol_rank.get(s["symbol"], 9999),         # 3순위: 거래대금 오름차순
+    ))
+
+    # 5) priority_score, priority_rank 확정
+    for rank, s in enumerate(signals, 1):
+        s["priority_score"] = round(s["pattern_count"] + s["_str_score"], 4)
+        s["priority_rank"]  = rank
+        del s["_str_score"]
+
     return signals
 
 
@@ -165,6 +239,7 @@ def fetch_all():
 
 
 def run_once(do_fetch=True):
+    global SYMBOLS
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     if do_fetch:
         print(f"[1] fetch {len(SYMBOLS)}종목 일봉 (순차, 완료 후 진행)...")
@@ -178,6 +253,9 @@ def run_once(do_fetch=True):
     print("[3] direction_switch 갱신..."); ds.main()
     routing = json.load(open("direction_switch.json", encoding="utf-8"))["routing"]
     route = routing.get(regime, {})
+
+    # fetch 후 거래대금 기준으로 universe.json + SYMBOLS 재정렬
+    SYMBOLS = _sort_universe_by_volume() or SYMBOLS
 
     print("[4] 오늘 신호 탐지...")
     import importlib
@@ -261,8 +339,8 @@ def run_once(do_fetch=True):
     else:
         print(f"    [하모닉] 레짐={regime} → 롱 조건 미충족, 하모닉 스킵", flush=True)
 
-    # 우선순위 정렬 (패턴강도 0.5 + 거래량배수 0.5)
-    signals = _rank_signals(signals)
+    # 우선순위 정렬 (1순위: 패턴 수 / 2순위: 강도 / 3순위: 거래대금)
+    signals = _build_priority(signals)
 
     out = dict(generated_at=stamp, regime=regime, regime_date=latest,
                routing=route, n_signals=len(signals), signals=signals,
@@ -271,8 +349,12 @@ def run_once(do_fetch=True):
               ensure_ascii=False, indent=2)
     print(f"[5] signals_today.json 저장: 신호 {len(signals)}건 (우선순위 정렬 완료)")
     for s in signals:
-        pri = s.get("priority_score", 0)
-        print(f"    [{pri:.3f}] {s['symbol']} {s['pattern']} {s['direction']} "
+        cnt   = s.get("pattern_count", 1)
+        rank  = s.get("priority_rank", "-")
+        pri   = s.get("priority_score", 0)
+        fired = s.get("patterns_fired", [s.get("pattern")])
+        multi = " [멀티]" if cnt > 1 else ""
+        print(f"    #{rank} [{pri:.3f}] {s['symbol']} {fired} {s['direction']}{multi} "
               f"@ {s['entry']} 손절 {s['stop']} "
               f"(강도={s.get('pattern_strength','-')}, 거래량배수={s.get('strength_vol_ratio','-')})")
 

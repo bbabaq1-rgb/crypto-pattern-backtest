@@ -261,8 +261,15 @@ def run(stamp=None):
                       f"size=${live_size_usd:.0f} entry={result['entry_price']:.4f} "
                       f"sl={result['stop_price']:.4f}")
 
-        pri_str = f" [pri={s['priority_score']:.3f}]" if s.get("priority_score") is not None else ""
-        print(f"  [paper] 신규: {s['symbol']} {s['pattern']} {s['direction']}{pri_str}")
+        rank    = s.get("priority_rank")
+        cnt     = s.get("pattern_count", 1)
+        fired   = s.get("patterns_fired", [s.get("pattern")])
+        pri     = s.get("priority_score")
+        rank_str  = f"#{rank}" if rank else ""
+        pri_str   = f" [pri={pri:.3f}]" if pri is not None else ""
+        multi_str = " [멀티]" if cnt > 1 else ""
+        print(f"  [paper] 신규: {rank_str} {s['symbol']} {fired} {s['direction']}"
+              f"{multi_str}{pri_str}")
         p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
                  regime=s.get("regime"), tf=s.get("tf", "1d"),
                  entry_date=s["date"], entry_idx=ei,

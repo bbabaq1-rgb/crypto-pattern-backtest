@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-29T04:57Z",
+  "generated_at": "2026-06-29T05:03Z",
   "regime": "bear",
   "regime_date": "2026-06-24",
   "routing": {
@@ -19,7 +19,12 @@
       "entry": 61010.0,
       "stop": 65890.8,
       "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
-      "priority_score": 0.5
+      "pattern_count": 1,
+      "patterns_fired": [
+        "fvg"
+      ],
+      "priority_score": 1.5,
+      "priority_rank": 1
     },
     {
       "pattern": "inverted_hammer",
@@ -32,7 +37,12 @@
       "entry": 0.0112,
       "stop": 0.0103,
       "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
-      "priority_score": 0.5
+      "pattern_count": 1,
+      "patterns_fired": [
+        "inverted_hammer"
+      ],
+      "priority_score": 1.5,
+      "priority_rank": 2
     },
     {
       "pattern": "fvg",
@@ -45,7 +55,12 @@
       "entry": 0.1477,
       "stop": 0.1595,
       "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
-      "priority_score": 0.4685
+      "pattern_count": 1,
+      "patterns_fired": [
+        "fvg"
+      ],
+      "priority_score": 1.4685,
+      "priority_rank": 3
     }
   ],
   "note": "페이퍼테스트용 신호 기록 - 실주문 없음"
