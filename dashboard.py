@@ -8,6 +8,8 @@ import json
 import os
 import time
 from datetime import datetime, timezone, date
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # ── 페이지 설정 ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -168,6 +170,50 @@ def load_regime():
         except Exception:
             pass
     return {}, {}
+
+
+def _save_regime_to_supabase(regime_map):
+    """레짐 히스토리를 Supabase daily_summary에 upsert (regime 컬럼)."""
+    cli = _supabase()
+    if not cli or not regime_map:
+        return
+    try:
+        rows = [{"date": d, "regime": r} for d, r in regime_map.items()]
+        for i in range(0, len(rows), 100):
+            cli.table("daily_summary").upsert(
+                rows[i:i+100], on_conflict="date"
+            ).execute()
+    except Exception:
+        pass
+
+
+@st.cache_data(ttl=3600)
+def _load_regime_history():
+    """날짜→레짐 dict. daily_summary → regime_switch.py → direction_switch.json 순으로 시도."""
+    # 1. daily_summary에 regime 컬럼이 있으면 사용
+    df = load_daily_summary()
+    if not df.empty and "regime" in df.columns and "date" in df.columns:
+        valid = df[df["regime"].notna() & (df["regime"].astype(str) != "")]
+        if not valid.empty:
+            return dict(zip(valid["date"].astype(str), valid["regime"]))
+
+    # 2. 로컬 CSV 기반으로 regime_switch.py 실행 (Streamlit Cloud에선 CSV 없어 스킵)
+    try:
+        import regime_switch as rs
+        regime_map = rs.build_regime_map()
+        if regime_map:
+            _save_regime_to_supabase(regime_map)
+            return regime_map
+    except Exception:
+        pass
+
+    # 3. direction_switch.json 현재 레짐만
+    current, _ = load_regime()
+    r  = current.get("regime")
+    dt = current.get("date")
+    if r and dt:
+        return {dt: r}
+    return {}
 
 
 @st.cache_data(ttl=25)
@@ -630,7 +676,7 @@ def section_trades(live: bool, trades_df):
 
 
 def section_pattern_perf(live: bool, trades_df):
-    st.subheader("🏆 패턴 성과")
+    st.subheader("🏆 패턴별 성과")
     df = _filter_by_mode(trades_df, live)
 
     if df.empty or "pattern" not in df.columns:
@@ -647,34 +693,232 @@ def section_pattern_perf(live: bool, trades_df):
         "평균수익(%)": (grp.mean() * mult).round(2).values,
         "승률(%)":     grp.apply(lambda x: round((x > 0).mean() * 100, 1)).values,
     })
+    agg["표본"] = agg["건수"].apply(lambda n: "⚠ 표본부족" if n < 10 else "✓")
     st.dataframe(agg, use_container_width=True, hide_index=True)
     if len(agg) >= 1:
-        st.bar_chart(agg.set_index("패턴")[["평균수익(%)", "승률(%)"]], use_container_width=True)
+        _chart_pattern_bars(agg)
+    st.divider()
+
+
+_CHART_CFG = {"displayModeBar": False, "responsive": True}
+_CHART_H   = 235   # 모바일 대응 높이(px)
+_REGIME_COLORS = {
+    "bull_btc":      "#4a9eff",
+    "bull_altseason":"#26a641",
+    "bear":          "#f85149",
+    "sideways":      "#6e7681",
+}
+
+
+# ── 차트 1: 누적수익률 라인 차트 ────────────────────────────────────────────────
+
+def chart_cumulative_return(daily_df):
+    st.subheader("📈 누적수익률 (방식A vs D)")
+    if daily_df.empty or "date" not in daily_df.columns:
+        st.info("아직 데이터 없음 — GitHub Actions 실행 후 채워집니다")
+        st.divider()
+        return
+
+    df = daily_df.sort_values("date").copy()
+    df = df[df["date"].astype(str) >= PERF_START]
+    if df.empty:
+        st.info("아직 데이터 없음")
+        st.divider()
+        return
+
+    has_a = "cumulative_return_a" in df.columns
+    has_d = "cumulative_return_d" in df.columns
+    if not has_a and not has_d:
+        st.info("수익률 컬럼 없음")
+        st.divider()
+        return
+
+    fig = go.Figure()
+    if has_a:
+        base = float(df["cumulative_return_a"].iloc[0])
+        fig.add_trace(go.Scatter(
+            x=df["date"],
+            y=(df["cumulative_return_a"] - base).round(3),
+            name="방식A", mode="lines",
+            line=dict(color="#4a9eff", width=2),
+        ))
+    if has_d:
+        base = float(df["cumulative_return_d"].iloc[0])
+        fig.add_trace(go.Scatter(
+            x=df["date"],
+            y=(df["cumulative_return_d"] - base).round(3),
+            name="방식D", mode="lines",
+            line=dict(color="#ff8c42", width=2),
+        ))
+    fig.add_hline(y=0, line_dash="dot", line_color="gray", line_width=1)
+    fig.update_layout(
+        template="plotly_dark", height=_CHART_H,
+        margin=dict(l=0, r=0, t=8, b=8),
+        legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
+                    font=dict(size=11)),
+        yaxis=dict(title="%", ticksuffix="%"),
+        xaxis=dict(title=None),
+        hovermode="x unified",
+    )
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
+    st.divider()
+
+
+# ── 차트 2: 일별 PNL 막대 차트 ─────────────────────────────────────────────────
+
+def chart_daily_pnl(live: bool, trades_df):
+    st.subheader("📊 일별 PNL")
+    df = _filter_by_mode(trades_df, live)
+    if df.empty:
+        st.info("아직 데이터 없음")
+        st.divider()
+        return
+
+    ret_col = "return_pct" if "return_pct" in df.columns else "ret"
+    mult    = 1.0 if ret_col == "return_pct" else 100.0
+    m_col   = "method" if "method" in df.columns else (
+              "method_label" if "method_label" in df.columns else None)
+
+    # 방식A 기준 (없으면 전체)
+    sub = df[df[m_col] == "A"] if m_col else df
+    closed = sub[sub["exit_date"].notna()].copy() if "exit_date" in sub.columns else sub.copy()
+    closed = closed[closed["exit_date"].astype(str).str.strip() != ""]
+
+    if closed.empty:
+        st.info("청산 내역 없음")
+        st.divider()
+        return
+
+    closed["_dt"]  = pd.to_datetime(closed["exit_date"].astype(str).str[:10])
+    closed["_ret"] = closed[ret_col].astype(float) * mult
+    daily = closed.groupby("_dt")["_ret"].sum().reset_index().sort_values("_dt")
+
+    colors = ["#26a641" if v >= 0 else "#f85149" for v in daily["_ret"]]
+    fig = go.Figure(go.Bar(
+        x=daily["_dt"], y=daily["_ret"].round(3),
+        marker_color=colors,
+        text=daily["_ret"].round(2).astype(str) + "%",
+        textposition="outside",
+    ))
+    fig.add_hline(y=0, line_dash="dot", line_color="gray", line_width=1)
+    fig.update_layout(
+        template="plotly_dark", height=_CHART_H,
+        margin=dict(l=0, r=0, t=8, b=8),
+        yaxis=dict(title="%", ticksuffix="%"),
+        xaxis=dict(title=None),
+        showlegend=False,
+    )
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
+    st.divider()
+
+
+# ── 차트 3 헬퍼: 패턴별 가로 막대 차트 ─────────────────────────────────────────
+
+def _chart_pattern_bars(agg: pd.DataFrame):
+    """agg: columns = ['패턴', '건수', '평균수익(%)', '승률(%)']"""
+    if agg.empty:
+        return
+
+    n_pats = len(agg)
+    height = max(160, min(_CHART_H, 60 + n_pats * 30))
+
+    colors_mean = ["#26a641" if v >= 0 else "#f85149" for v in agg["평균수익(%)"]]
+    insuf = ["표본부족" if n < 10 else "" for n in agg["건수"]]
+
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=["평균수익률 (%)", "승률 (%)"],
+        horizontal_spacing=0.12,
+    )
+    fig.add_trace(go.Bar(
+        y=agg["패턴"], x=agg["평균수익(%)"],
+        orientation="h", marker_color=colors_mean,
+        text=insuf, textposition="outside",
+        hovertemplate="%{y}: %{x:.2f}%<extra></extra>",
+        showlegend=False,
+    ), row=1, col=1)
+    fig.add_trace(go.Bar(
+        y=agg["패턴"], x=agg["승률(%)"],
+        orientation="h", marker_color="#4a9eff",
+        text=insuf, textposition="outside",
+        hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
+        showlegend=False,
+    ), row=1, col=2)
+
+    fig.add_vline(x=0,  line_dash="dot", line_color="gray", line_width=1, row=1, col=1)
+    fig.add_vline(x=50, line_dash="dot", line_color="gray", line_width=1, row=1, col=2)
+
+    fig.update_layout(
+        template="plotly_dark", height=height,
+        margin=dict(l=0, r=0, t=30, b=8),
+    )
+    fig.update_xaxes(ticksuffix="%")
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
+
+
+# ── 차트 4: 레짐 히스토리 타임라인 ─────────────────────────────────────────────
+
+def chart_regime_timeline():
+    st.subheader("🌐 레짐 히스토리")
+    regime_map = _load_regime_history()
+    if not regime_map:
+        st.info("아직 데이터 없음 — 스케줄러 실행 시 자동 생성")
+        st.divider()
+        return
+
+    dates_sorted = sorted(regime_map.keys())
+    current_regime = load_regime()[0].get("regime", "")
+
+    # 연속 구간 집계
+    segments = []
+    s_start  = dates_sorted[0]
+    s_regime = regime_map[s_start]
+    for d in dates_sorted[1:]:
+        if regime_map[d] != s_regime:
+            segments.append((s_start, d, s_regime))
+            s_start  = d
+            s_regime = regime_map[d]
+    segments.append((s_start, dates_sorted[-1], s_regime))
+
+    fig = go.Figure()
+
+    # 컬러 블록
+    for start, end, regime in segments:
+        color      = _REGIME_COLORS.get(regime, "#6e7681")
+        is_current = (end == dates_sorted[-1] and regime == current_regime)
+        fig.add_shape(
+            type="rect",
+            x0=start, x1=end, y0=0, y1=1,
+            fillcolor=color,
+            opacity=1.0 if is_current else 0.65,
+            line=dict(width=2 if is_current else 0, color="white"),
+        )
+
+    # 범례용 더미 트레이스
+    for label, color in _REGIME_COLORS.items():
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None], mode="markers",
+            marker=dict(symbol="square", size=11, color=color),
+            name=label, showlegend=True,
+        ))
+
+    fig.update_layout(
+        template="plotly_dark", height=110,
+        margin=dict(l=0, r=0, t=8, b=30),
+        xaxis=dict(type="date", tickformat="%y/%m", showgrid=False),
+        yaxis=dict(visible=False, range=[0, 1]),
+        legend=dict(orientation="h", yanchor="top", y=-0.35,
+                    xanchor="left", x=0, font=dict(size=10)),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+    )
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
     st.divider()
 
 
 def section_daily_chart():
-    st.subheader("📈 누적 수익률 추이")
-    df = load_daily_summary()
-    if df.empty or "date" not in df.columns:
-        st.info("일별 집계 없음 — GitHub Actions 실행 후 채워집니다")
-        return
-
-    df = df.sort_values("date").copy()
-    df["date"] = pd.to_datetime(df["date"])
-    df = df.set_index("date")
-    df = df[df.index >= pd.Timestamp(PERF_START)]
-
-    cols = {}
-    for col, label in [("cumulative_return_a", "방식A(%)"), ("cumulative_return_d", "방식D(%)")]:
-        if col in df.columns and not df.empty:
-            baseline   = float(df[col].iloc[0])
-            cols[label] = df[col] - baseline
-
-    if not cols:
-        st.info("수익률 컬럼 없음")
-        return
-    st.line_chart(pd.DataFrame(cols), use_container_width=True)
+    """구버전 호환용 — chart_cumulative_return 으로 대체됨."""
+    pass
 
 
 # ── 메인 ─────────────────────────────────────────────────────────────────────
@@ -703,15 +947,20 @@ def main():
         section_signals()
         section_positions(live=True,  pos_df=all_pos, prices=prices, tab_key="live")
         section_trades(live=True,  trades_df=all_trades)
+        chart_cumulative_return(daily_df)
+        chart_daily_pnl(live=True,  trades_df=all_trades)
         section_pattern_perf(live=True,  trades_df=all_trades)
+        chart_regime_timeline()
 
     with tab_paper:
         section_paper_summary(all_pos, all_trades, daily_df, prices)
         section_signals()
         section_positions(live=False, pos_df=all_pos, prices=prices, tab_key="paper")
         section_trades(live=False, trades_df=all_trades)
+        chart_cumulative_return(daily_df)
+        chart_daily_pnl(live=False, trades_df=all_trades)
         section_pattern_perf(live=False, trades_df=all_trades)
-        section_daily_chart()
+        chart_regime_timeline()
 
     st.caption(f"⏱ {REFRESH_SEC}초 후 자동갱신...")
     time.sleep(REFRESH_SEC)
