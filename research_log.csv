@@ -155,3 +155,15 @@
 2026-06-29,vwap_rev_long_4h,4h,long,31005,-0.25,-0.67,na,0,REJECTED,mean<0
 2026-06-29,vwap_rev_short_4h,4h,short,28537,-0.06,0.25,na,0,REJECTED,mean<0 (방향 조정 필요)
 2026-06-29,three_crows_4h_bear_alt,4h,short,169,-0.2,0.18,p=0.7806(boot_p=0.601),1,REJECTED,"mean<0 전체, bear전용(n=129,mean=+0.36%) 유의성없음(boot_p=0.436), altseason 더 나쁨"
+2026-06-29,three_soldiers_1h,1h,long,2107,0.28,0.02,p=0.012(boot=0.270),3,REJECTED,boot_p 유의성없음
+2026-06-29,three_crows_1h,1h,short,1623,0.38,-0.04,p=0.005(boot=0.247),3,REJECTED,"median<0, boot_p 유의성없음"
+2026-06-29,engulfing_1h,1h,long,16791,-0.23,-0.33,p=0.000(boot=0.525),0,REJECTED,"mean<0, OOS 0/4"
+2026-06-29,inverted_hammer_1h,1h,long,34061,-0.08,-0.2,p=0.003(boot=0.444),0,REJECTED,"mean<0, OOS 0/4"
+2026-06-29,fvg_long_1h,1h,long,56977,0.06,-0.3,p=0.008(boot=0.372),3,REJECTED,"median<0, boot_p 유의성없음"
+2026-06-29,fvg_short_1h,1h,short,56977,-0.46,-0.1,p=0.000(boot=0.628),0,REJECTED,"mean<0, OOS 0/4"
+2026-06-29,gartley_1h,1h,long,290,0.91,0.3,p=0.000(boot=0.092),4,REJECTED,boot_p=0.092>0.05 경계탈락
+2026-06-29,bat_1h,1h,long,108,1.46,0.99,p=0.001(boot=0.034),4,PASSED,"OOS 4/4 완전통과, 레짐무관"
+2026-06-29,butterfly_1h,1h,long,161,1.59,1.17,p=0.000(boot=0.024),4,PASSED,"OOS 4/4 완전통과, 레짐무관"
+2026-06-29,vwap_rev_long_1h,1h,long,41793,-0.09,-0.2,p=0.000(boot=0.453),1,REJECTED,"mean<0, OOS 1/4"
+2026-06-29,vwap_rev_short_1h,1h,short,38984,-0.19,-0.1,p=0.000(boot=0.485),1,REJECTED,"mean<0, OOS 1/4"
+2026-06-29,breakout_retest_1h,1h,long,51316,-0.05,-0.34,p=0.013(boot=0.434),3,REJECTED,"median<0, boot_p 유의성없음"

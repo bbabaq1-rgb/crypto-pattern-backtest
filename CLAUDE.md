@@ -9,6 +9,10 @@
 - **신규 4h 패턴**: three_soldiers_4h PASSED (n=908, mean=+1.04%, OOS 3/4, p<0.0001)
   - bull_btc/bull_altseason → 롱 전용, bear/sideways 스킵
   - 나머지 6종 기각 (three_crows/breakout_retest/equal_highs_lows/vwap_rev)
+- **신규 1h 패턴**: bat_1h PASSED (n=108, mean=+1.46%, OOS 4/4, boot_p=0.034)
+- **신규 1h 패턴**: butterfly_1h PASSED (n=161, mean=+1.59%, OOS 4/4, boot_p=0.024)
+  - 레짐 무관 전 구간 양수 (bear Q4도 양수), 스케줄러 all regimes 탐지
+  - 나머지 10종 기각 (gartley_1h boot_p=0.092 경계 탈락 포함)
 - 레짐 스위치: bull_btc→롱, bear/altseason→숏
 - 청산 로직: 방식A(±10%) / 방식D(-8% 손절+조건부 익절) 병행
 - 방식D 게이트: Calmar 기반 — engulfing/fvg/engulfing_short → D 채택, fvg_short → A 유지
@@ -24,8 +28,10 @@
 - [x] 4h 스케줄러 (oncefull/oncequick, 4시간마다, GitHub Actions 6회/일)
 - [x] 멀티 TF 확증 필터 (1d 신호 → 4h 3봉 확증, 비확증 size 50%)
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
+- [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
+- [ ] gartley_1h 재시험 (데이터 누적 후, 현재 boot_p=0.092)
 - [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)
 
 ## 핵심 원칙
@@ -45,9 +51,10 @@
 - universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
-- registry.json: 패턴 등록부 (passed 8종: +three_soldiers_4h)
-- research_log.csv: 93건 시험 기록
+- registry.json: 패턴 등록부 (passed 10종: 1d×4 + 4h×4 + 1h×2)
+- research_log.csv: 106건 시험 기록
 - detector_three_soldiers_4h.py: 3연속 장대 양봉 (4h, PASSED)
-- detector_three_crows_4h.py / detector_breakout_retest_4h.py: 기각
-- detector_equal_highs/lows_4h.py / detector_vwap_rev_long/short_4h.py: 기각
-- report_4h_expansion.md: 4h 확장 리포트
+- detector_three_soldiers_1h.py / detector_three_crows_1h.py: 1h 버전 (검증용)
+- detector_vwap_rev_long/short_1h.py / detector_breakout_retest_1h.py: 1h 기각
+- report_4h_expansion.md: 4h 확장 + Three Crows 레짐 재검증 리포트
+- report_1h_expansion.md: 1h 확장 리포트 (bat/butterfly 통과)

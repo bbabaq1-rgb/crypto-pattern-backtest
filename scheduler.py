@@ -59,6 +59,13 @@ def _harmonic_symbols():
     return syms if syms else SYMBOLS
 
 
+def _1h_symbols():
+    """1h 데이터가 있는 종목 전체(data/*_1h.csv 기준). 없으면 SYMBOLS 폴백."""
+    import glob as _glob
+    syms = sorted({os.path.basename(f)[:-7].upper() for f in _glob.glob("data/*_1h.csv")})
+    return syms if syms else SYMBOLS
+
+
 EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 폴백
 
 
@@ -315,7 +322,12 @@ def run_once(do_fetch=True, quick=False):
     for ap in adopted:
         ap_tf = ap.get("tf", "1d")
         mod   = importlib.import_module(ap["module"])
-        sym_list = _harmonic_symbols() if ap_tf != "1d" else SYMBOLS
+        if ap_tf == "1d":
+            sym_list = SYMBOLS
+        elif ap_tf == "4h":
+            sym_list = _harmonic_symbols()
+        else:  # "1h"
+            sym_list = _1h_symbols()
         for sym in sym_list:
             try:
                 rows = mod.load_ohlcv(sym, ap_tf)
@@ -368,6 +380,34 @@ def run_once(do_fetch=True, quick=False):
                     take_profit="레짐전환 or 최대30봉 시가청산"))
     elif adopted_4h:
         print(f"    [4h 패턴] 레짐={regime} -> bull 아님, 4h 전용 패턴 스킵")
+
+    # 채택된 1h 전용 패턴 (bat_1h / butterfly_1h 등) — 레짐 무관 롱 (OOS 4/4 전구간 양수)
+    adopted_1h = json.load(open("universe.json", encoding="utf-8")).get(
+        "adopted_1h_patterns", []) if os.path.exists("universe.json") else []
+    if adopted_1h:
+        h1_syms = _1h_symbols()
+        for ap in adopted_1h:
+            try:
+                mod1 = importlib.import_module(ap["module"])
+            except ImportError:
+                continue
+            for sym in h1_syms:
+                try:
+                    rows1h = mod1.load_ohlcv(sym, "1h")
+                except (FileNotFoundError, RuntimeError):
+                    continue
+                last1 = len(rows1h) - 1
+                if last1 not in set(mod1.detect(rows1h)):
+                    continue
+                entry1 = rows1h[last1]["c"]
+                stop1  = round(entry1 * (1 - STOP), 4)
+                signals.append(dict(
+                    pattern=ap["pattern"], direction=ap["direction"], symbol=sym, tf="1h",
+                    date=rows1h[last1]["date"], pattern_strength=1.0,
+                    strength_vol_ratio=None, regime=regime,
+                    entry=round(entry1, 4), stop=stop1,
+                    tf_confirmed=True,
+                    take_profit="레짐전환 or 최대20봉 시가청산"))
 
     # 하모닉 4h 신호 탐지 (gartley / bat / butterfly)
     # 레짐 라우팅: bull_btc → long, 나머지 → 숏 디텍터 없으므로 스킵

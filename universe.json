@@ -405,5 +405,31 @@
       "median": 0.0097,
       "oos_positive": 3
     }
+  ],
+  "adopted_1h_patterns": [
+    {
+      "pattern": "bat_1h",
+      "module": "detector_bat",
+      "direction": "long",
+      "tf": "1h",
+      "passed_date": "2026-06-29",
+      "n": 108,
+      "mean": 0.0146,
+      "median": 0.0099,
+      "oos_positive": 4,
+      "regime_routing": "all"
+    },
+    {
+      "pattern": "butterfly_1h",
+      "module": "detector_butterfly",
+      "direction": "long",
+      "tf": "1h",
+      "passed_date": "2026-06-29",
+      "n": 161,
+      "mean": 0.0159,
+      "median": 0.0117,
+      "oos_positive": 4,
+      "regime_routing": "all"
+    }
   ]
 }

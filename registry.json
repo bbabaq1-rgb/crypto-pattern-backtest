@@ -727,6 +727,40 @@
       "passed_date": "2026-06-29",
       "regime_routing": "bull_btc/bull_altseason -> long; bear/sideways -> skip",
       "note": "4h 전용 모멘텀. Q4(2025-26 bear) 음수, 레짐 필터 필수."
+    },
+    {
+      "id": "bat_1h",
+      "name": "Bullish Bat (1h)",
+      "category": "harmonic_1h",
+      "status": "passed",
+      "detector_file": "detector_bat.py",
+      "passed_tf": "1h",
+      "n": 108,
+      "mean": 0.0146,
+      "median": 0.0099,
+      "oos_positive": 4,
+      "oos_quarters": 4,
+      "baseline_p": 0.034,
+      "passed_date": "2026-06-29",
+      "regime_routing": "all regimes -> long (OOS Q4도 +2.33%로 레짐 무관 강건)",
+      "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요."
+    },
+    {
+      "id": "butterfly_1h",
+      "name": "Bullish Butterfly (1h)",
+      "category": "harmonic_1h",
+      "status": "passed",
+      "detector_file": "detector_butterfly.py",
+      "passed_tf": "1h",
+      "n": 161,
+      "mean": 0.0159,
+      "median": 0.0117,
+      "oos_positive": 4,
+      "oos_quarters": 4,
+      "baseline_p": 0.024,
+      "passed_date": "2026-06-29",
+      "regime_routing": "all regimes -> long (OOS 4/4 전구간 양수)",
+      "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상."
     }
   ],
   "rejected_4h": [
@@ -784,6 +818,88 @@
       "n": 28537,
       "mean": -0.0006,
       "note": "mean<0"
+    }
+  ],
+  "rejected_1h": [
+    {
+      "id": "three_soldiers_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 2107,
+      "mean": 0.28,
+      "note": "boot_p=0.270 유의성없음"
+    },
+    {
+      "id": "three_crows_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 1623,
+      "mean": 0.38,
+      "note": "median<0, boot_p=0.247"
+    },
+    {
+      "id": "engulfing_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 16791,
+      "mean": -0.23,
+      "note": "mean<0, OOS 0/4"
+    },
+    {
+      "id": "inverted_hammer_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 34061,
+      "mean": -0.08,
+      "note": "mean<0, OOS 0/4"
+    },
+    {
+      "id": "fvg_long_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 56977,
+      "mean": 0.06,
+      "note": "median<0, boot_p=0.372"
+    },
+    {
+      "id": "fvg_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 56977,
+      "mean": -0.46,
+      "note": "mean<0, OOS 0/4"
+    },
+    {
+      "id": "gartley_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 290,
+      "mean": 0.91,
+      "note": "boot_p=0.092 유의성 경계"
+    },
+    {
+      "id": "vwap_rev_long_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 41793,
+      "mean": -0.09,
+      "note": "mean<0, OOS 1/4"
+    },
+    {
+      "id": "vwap_rev_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 38984,
+      "mean": -0.19,
+      "note": "mean<0, OOS 1/4"
+    },
+    {
+      "id": "breakout_retest_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 51316,
+      "mean": -0.05,
+      "note": "median<0, boot_p=0.434"
     }
   ]
 }
