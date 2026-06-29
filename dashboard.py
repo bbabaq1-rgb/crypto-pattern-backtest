@@ -523,7 +523,7 @@ def section_paper_summary(pos_df, trades_df, daily_df, prices):
 
 # ── 공용 섹션 ─────────────────────────────────────────────────────────────────
 
-def section_signals():
+def section_signals(tab_key="live"):
     st.subheader("🔔 오늘 신호")
     df = load_signals()
     if df.empty:
@@ -549,7 +549,6 @@ def section_signals():
         icon  = GRADE_ICON.get(grade, "")
         grade_str = f"{icon}{grade}" if grade else "—"
         score_str = f"{float(score):.1f}" if score is not None and pd.notna(score) else "—"
-        ps    = s.get("pattern_strength")
         # patterns_fired는 리스트일 수 있음
         pats  = s.get("patterns_fired", s.get("pattern", ""))
         if isinstance(pats, list):
@@ -565,7 +564,8 @@ def section_signals():
             "거래량배수": f"{s['strength_vol_ratio']:.2f}x" if s.get("strength_vol_ratio") else "—",
             "레짐":       s.get("regime", ""),
         })
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
+                 key=f"signals_df_{tab_key}")
     st.divider()
 
 
@@ -647,7 +647,7 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
     st.divider()
 
 
-def section_trades(live: bool, trades_df):
+def section_trades(live: bool, trades_df, tab_key="live"):
     st.subheader("📋 최근 매매 내역")
     df = _filter_by_mode(trades_df, live)
 
@@ -683,11 +683,12 @@ def section_trades(live: bool, trades_df):
                     "사유":   reason,
                     "봉수":   int(t.get("hold_bars") or 0),
                 })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
+                         key=f"trades_df_{tab_key}_{meth}")
     st.divider()
 
 
-def section_pattern_perf(live: bool, trades_df):
+def section_pattern_perf(live: bool, trades_df, chart_key="live"):
     st.subheader("🏆 패턴별 성과")
     df = _filter_by_mode(trades_df, live)
 
@@ -706,9 +707,10 @@ def section_pattern_perf(live: bool, trades_df):
         "승률(%)":     grp.apply(lambda x: round((x > 0).mean() * 100, 1)).values,
     })
     agg["표본"] = agg["건수"].apply(lambda n: "⚠ 표본부족" if n < 10 else "✓")
-    st.dataframe(agg, use_container_width=True, hide_index=True)
+    st.dataframe(agg, use_container_width=True, hide_index=True,
+                 key=f"pattern_agg_{chart_key}")
     if len(agg) >= 1:
-        _chart_pattern_bars(agg)
+        _chart_pattern_bars(agg, chart_key=chart_key)
     st.divider()
 
 
@@ -724,7 +726,7 @@ _REGIME_COLORS = {
 
 # ── 차트 1: 누적수익률 라인 차트 ────────────────────────────────────────────────
 
-def chart_cumulative_return(daily_df):
+def chart_cumulative_return(daily_df, chart_key="live"):
     st.subheader("📈 누적수익률 (방식A vs D)")
     if daily_df.empty or "date" not in daily_df.columns:
         st.info("아직 데이터 없음 — GitHub Actions 실행 후 채워집니다")
@@ -772,13 +774,14 @@ def chart_cumulative_return(daily_df):
         xaxis=dict(title=None),
         hovermode="x unified",
     )
-    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG,
+                    key=f"chart_cum_{chart_key}")
     st.divider()
 
 
 # ── 차트 2: 일별 PNL 막대 차트 ─────────────────────────────────────────────────
 
-def chart_daily_pnl(live: bool, trades_df):
+def chart_daily_pnl(live: bool, trades_df, chart_key="live"):
     st.subheader("📊 일별 PNL")
     df = _filter_by_mode(trades_df, live)
     if df.empty:
@@ -820,13 +823,14 @@ def chart_daily_pnl(live: bool, trades_df):
         xaxis=dict(title=None),
         showlegend=False,
     )
-    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG,
+                    key=f"chart_pnl_{chart_key}")
     st.divider()
 
 
 # ── 차트 3 헬퍼: 패턴별 가로 막대 차트 ─────────────────────────────────────────
 
-def _chart_pattern_bars(agg: pd.DataFrame):
+def _chart_pattern_bars(agg: pd.DataFrame, chart_key="live"):
     """agg: columns = ['패턴', '건수', '평균수익(%)', '승률(%)']"""
     if agg.empty:
         return
@@ -865,12 +869,13 @@ def _chart_pattern_bars(agg: pd.DataFrame):
         margin=dict(l=0, r=0, t=30, b=8),
     )
     fig.update_xaxes(ticksuffix="%")
-    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG,
+                    key=f"chart_pat_{chart_key}")
 
 
 # ── 차트 4: 레짐 히스토리 타임라인 ─────────────────────────────────────────────
 
-def chart_regime_timeline():
+def chart_regime_timeline(chart_key="live"):
     st.subheader("🌐 레짐 히스토리")
     regime_map = _load_regime_history()
     if not regime_map:
@@ -924,7 +929,8 @@ def chart_regime_timeline():
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
     )
-    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG)
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG,
+                    key=f"chart_regime_{chart_key}")
     st.divider()
 
 
@@ -956,23 +962,23 @@ def main():
 
     with tab_live:
         section_live_summary(all_pos, all_trades, prices)
-        section_signals()
+        section_signals(tab_key="live")
         section_positions(live=True,  pos_df=all_pos, prices=prices, tab_key="live")
-        section_trades(live=True,  trades_df=all_trades)
-        chart_cumulative_return(daily_df)
-        chart_daily_pnl(live=True,  trades_df=all_trades)
-        section_pattern_perf(live=True,  trades_df=all_trades)
-        chart_regime_timeline()
+        section_trades(live=True,  trades_df=all_trades, tab_key="live")
+        chart_cumulative_return(daily_df, chart_key="live")
+        chart_daily_pnl(live=True,  trades_df=all_trades, chart_key="live")
+        section_pattern_perf(live=True,  trades_df=all_trades, chart_key="live")
+        chart_regime_timeline(chart_key="live")
 
     with tab_paper:
         section_paper_summary(all_pos, all_trades, daily_df, prices)
-        section_signals()
+        section_signals(tab_key="paper")
         section_positions(live=False, pos_df=all_pos, prices=prices, tab_key="paper")
-        section_trades(live=False, trades_df=all_trades)
-        chart_cumulative_return(daily_df)
-        chart_daily_pnl(live=False, trades_df=all_trades)
-        section_pattern_perf(live=False, trades_df=all_trades)
-        chart_regime_timeline()
+        section_trades(live=False, trades_df=all_trades, tab_key="paper")
+        chart_cumulative_return(daily_df, chart_key="paper")
+        chart_daily_pnl(live=False, trades_df=all_trades, chart_key="paper")
+        section_pattern_perf(live=False, trades_df=all_trades, chart_key="paper")
+        chart_regime_timeline(chart_key="paper")
 
     st.caption(f"⏱ {REFRESH_SEC}초 후 자동갱신...")
     time.sleep(REFRESH_SEC)
