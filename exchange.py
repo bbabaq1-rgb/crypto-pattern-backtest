@@ -88,13 +88,75 @@ def connect_live():
 
 
 def get_balance(live_conn):
-    """OKX 선물 계좌 USDT 가용 잔고 실시간 조회. 실패 시 0.0 반환."""
+    """
+    OKX 선물 계좌 총 자산 조회.
+
+    반환: {
+        "equity": float,   # 총 자산 (마진+미실현P&L 포함) — OKX totalEq
+        "free":   float,   # 가용 잔고 (새 주문에 쓸 수 있는 USDT)
+        "total":  float,   # 총 USDT (free + 포지션 마진, 미실현P&L 미포함)
+    }
+    실패 시 None 반환.
+    """
     try:
-        bal = live_conn["exchange"].fetch_balance()
-        return float(bal.get("USDT", {}).get("free", 0.0))
+        ex  = live_conn["exchange"]
+        bal = ex.fetch_balance()
+
+        # 1순위: OKX totalEq (미실현P&L 포함 총 자산)
+        equity = None
+        try:
+            raw = bal.get("info", {}).get("data", [])
+            if raw:
+                eq = raw[0].get("totalEq")
+                if eq is not None:
+                    equity = float(eq)
+        except Exception:
+            pass
+
+        usdt     = bal.get("USDT", {})
+        free_bal = float(usdt.get("free", 0.0))
+        total_bal = float(usdt.get("total", 0.0))
+
+        return {
+            "equity": equity if equity is not None else total_bal,
+            "free":   free_bal,
+            "total":  total_bal,
+        }
     except Exception as e:
         print(f"[OKX] 잔고 조회 실패: {str(e)[:60]}")
-        return 0.0
+        return None
+
+
+def get_okx_positions(live_conn):
+    """
+    OKX 실제 오픈 포지션 목록 조회.
+    반환: [{"symbol": str, "direction": str, "qty": float, "entry_price": float,
+             "unrealized_pnl": float}]
+    실패 시 빈 리스트 반환.
+    """
+    try:
+        ex = live_conn["exchange"]
+        positions = ex.fetch_positions()
+        result = []
+        for p in positions:
+            contracts = abs(float(p.get("contracts") or 0))
+            if contracts <= 0:
+                continue
+            sym = str(p.get("symbol", "")).split("/")[0].split(":")[0]
+            side = str(p.get("side", "")).lower()
+            direction = "long" if side == "long" else "short"
+            result.append({
+                "symbol":          sym,
+                "direction":       direction,
+                "qty":             contracts,
+                "entry_price":     float(p.get("entryPrice") or p.get("averagePrice") or 0),
+                "unrealized_pnl":  float(p.get("unrealizedPnl") or 0),
+                "notional":        float(p.get("notional") or 0),
+            })
+        return result
+    except Exception as e:
+        print(f"[OKX] 포지션 조회 실패: {str(e)[:60]}")
+        return []
 
 
 def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
@@ -225,4 +287,8 @@ if __name__ == "__main__":
         lc = connect_live()
         if lc:
             bal = get_balance(lc)
-            print(f"[live] OKX 연결 OK | USDT free={bal:.2f}")
+            if bal:
+                print(f"[live] OKX 연결 OK | equity={bal['equity']:.2f}"
+                      f" | free={bal['free']:.2f} | total={bal['total']:.2f}")
+            poss = get_okx_positions(lc)
+            print(f"[live] 오픈 포지션 {len(poss)}개: {poss}")

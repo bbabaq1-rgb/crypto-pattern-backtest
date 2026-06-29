@@ -236,20 +236,30 @@ def _load_regime_history():
 
 @st.cache_data(ttl=25)
 def fetch_account_balance():
-    """(balance | None, is_live). OKX 키 없으면 (None, False)."""
+    """
+    OKX 잔고 + 실제 포지션 조회.
+    반환: (bal_dict | None, okx_positions | [], is_live)
+      bal_dict = {"equity": float, "free": float, "total": float}
+    """
     try:
         import exchange as ex_mod
         if ex_mod.is_live():
             conn = ex_mod.connect_live()
             if conn:
-                return ex_mod.get_balance(conn), True
+                bal  = ex_mod.get_balance(conn)
+                poss = ex_mod.get_okx_positions(conn)
+                return bal, poss, True
     except Exception:
         pass
-    return None, False
+    return None, [], False
 
 
 @st.cache_data(ttl=60)
 def fetch_prices(symbols_tuple):
+    """
+    OKX 선물(USDT 무기한) 현재가 조회.
+    실패 시 스팟 가격으로 폴백.
+    """
     if not symbols_tuple:
         return {}
     try:
@@ -258,9 +268,14 @@ def fetch_prices(symbols_tuple):
         result = {}
         for sym in symbols_tuple:
             try:
-                result[sym] = float(ex.fetch_ticker(f"{sym}/USDT")["last"])
+                # 1순위: 선물(USDT 무기한) 가격
+                result[sym] = float(ex.fetch_ticker(f"{sym}/USDT:USDT")["last"])
             except Exception:
-                pass
+                try:
+                    # 폴백: 스팟
+                    result[sym] = float(ex.fetch_ticker(f"{sym}/USDT")["last"])
+                except Exception:
+                    pass
         return result
     except Exception:
         return {}
@@ -482,32 +497,68 @@ def _render_onchain_section(oc: dict):
 
 def section_live_summary(pos_df, trades_df, prices):
     now_str = datetime.now(timezone.utc).strftime("%m/%d %H:%M UTC")
-    balance, _ = fetch_account_balance()
-    unreal_pnl = _unrealized_pnl(pos_df, prices, live=True)
+    bal_dict, okx_poss, is_live_mode = fetch_account_balance()
 
-    if balance is None:
+    if bal_dict is None:
+        # OKX 미연결
         st.info("OKX 미연결 — Streamlit Secrets에 OKX_KEY / OKX_SECRET / OKX_PASSPHRASE 설정 시 실계좌 잔고 표시")
+        live_pos_db = _filter_by_mode(pos_df, live=True)
+        live_trd    = _filter_by_mode(trades_df, live=True)
+        c1, c2 = st.columns(2)
+        c1.metric("실거래 포지션", f"{len(live_pos_db)}개")
+        c2.metric("실거래 체결",   f"{len(live_trd)}건")
+        st.caption(f"🕐 {now_str}  ·  {REFRESH_SEC}초 자동갱신")
     else:
-        pnl_pct  = round(unreal_pnl / balance * 100, 2) if balance > 0 else 0.0
-        pnl_sign = "+" if unreal_pnl >= 0 else ""
+        equity = bal_dict.get("equity", 0.0)
+        free   = bal_dict.get("free",   0.0)
+
+        # OKX 실제 미실현 P&L (API 직접)
+        okx_upnl = sum(p.get("unrealized_pnl", 0) for p in okx_poss)
+        pnl_sign = "+" if okx_upnl >= 0 else ""
+        pnl_dot  = "🟢" if okx_upnl >= 0 else "🔴"
+        pnl_pct  = round(okx_upnl / equity * 100, 2) if equity > 0 else 0.0
         pct_sign = "+" if pnl_pct >= 0 else ""
-        pnl_dot  = "🟢" if unreal_pnl >= 0 else "🔴"
+
         st.markdown(f"""
 <div style="padding:0.4rem 0 0.1rem 0">
-  <div style="font-size:0.82rem;color:#888;margin-bottom:0.1rem">Est. Total Value · OKX 선물</div>
-  <div style="font-size:2.6rem;font-weight:700;line-height:1.15;color:#fafafa">${balance:,.2f}</div>
-  <div style="font-size:1.0rem;color:{'#00cc66' if unreal_pnl>=0 else '#ff4444'};margin-top:0.15rem">
-    {pnl_dot} Today PNL (미실현): {pnl_sign}${unreal_pnl:.2f} ({pct_sign}{pnl_pct:.2f}%)
+  <div style="font-size:0.82rem;color:#888;margin-bottom:0.1rem">총 자산 (equity) · OKX 선물</div>
+  <div style="font-size:2.6rem;font-weight:700;line-height:1.15;color:#fafafa">${equity:,.2f}</div>
+  <div style="font-size:1.0rem;color:{'#00cc66' if okx_upnl>=0 else '#ff4444'};margin-top:0.15rem">
+    {pnl_dot} 미실현 P&L (OKX): {pnl_sign}${okx_upnl:.2f} ({pct_sign}{pnl_pct:.2f}%)
   </div>
 </div>""", unsafe_allow_html=True)
+        st.caption(f"가용 잔고: ${free:,.2f}  ·  🕐 {now_str}  ·  {REFRESH_SEC}초 자동갱신")
 
-    st.caption(f"🕐 {now_str}  ·  {REFRESH_SEC}초 자동갱신")
+        # OKX 실제 포지션 vs Supabase DB 포지션 대조
+        live_pos_db = _filter_by_mode(pos_df, live=True)
+        live_trd    = _filter_by_mode(trades_df, live=True)
+        okx_cnt     = len(okx_poss)
+        db_cnt      = len(live_pos_db)
+        mismatch    = okx_cnt != db_cnt
 
-    live_pos = _filter_by_mode(pos_df, live=True)
-    live_trd = _filter_by_mode(trades_df, live=True)
-    c1, c2   = st.columns(2)
-    c1.metric("실거래 포지션", f"{len(live_pos)}개")
-    c2.metric("실거래 체결",   f"{len(live_trd)}건")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("OKX 실제 포지션", f"{okx_cnt}개",
+                  delta="⚠ DB 불일치" if mismatch else None,
+                  delta_color="inverse" if mismatch else "normal")
+        c2.metric("DB 추적 포지션", f"{db_cnt}개")
+        c3.metric("실거래 체결",    f"{len(live_trd)}건")
+
+        if okx_poss:
+            with st.expander(f"🔍 OKX 실제 포지션 {okx_cnt}개", expanded=mismatch):
+                okx_rows = []
+                for p in okx_poss:
+                    upnl = p.get("unrealized_pnl", 0)
+                    okx_rows.append({
+                        "종목":      p.get("symbol", ""),
+                        "방향":      "🟢 롱" if p["direction"] == "long" else "🔴 숏",
+                        "수량":      p.get("qty", 0),
+                        "진입가":    _fmt_price(p.get("entry_price")),
+                        "미실현P&L": f"{'+'if upnl>=0 else ''}{upnl:.2f}",
+                    })
+                st.dataframe(pd.DataFrame(okx_rows), hide_index=True,
+                             use_container_width=True, key="okx_pos_table")
+                if mismatch:
+                    st.warning(f"OKX {okx_cnt}개 ≠ DB {db_cnt}개 — OKX에는 있지만 DB에 없는 포지션이 있을 수 있습니다")
 
     # 온체인 보조 신호 (실거래 탭)
     oc = load_onchain()
