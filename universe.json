@@ -392,5 +392,18 @@
       "rejected_count": 7,
       "data_short_count": 0
     }
+  ],
+  "adopted_4h_patterns": [
+    {
+      "pattern": "three_soldiers_4h",
+      "module": "detector_three_soldiers_4h",
+      "direction": "long",
+      "tf": "4h",
+      "passed_date": "2026-06-29",
+      "n": 908,
+      "mean": 0.0104,
+      "median": 0.0097,
+      "oos_positive": 3
+    }
   ]
 }

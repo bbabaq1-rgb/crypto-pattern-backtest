@@ -238,13 +238,35 @@ def fetch_all():
     print(f"  [fetch] 4h 완료 {ok4}/{len(h_syms)}종목 (하모닉용)", flush=True)
 
 
-def run_once(do_fetch=True):
+def _tf_confirm(sym, direction):
+    """
+    4h 최근 3봉으로 1d 신호 방향 확증.
+    long  → 양봉 2개 이상이면 True
+    short → 음봉 2개 이상이면 True
+    데이터 없거나 로드 실패 시 True 반환(확증으로 처리).
+    """
+    try:
+        rows4h = detlib.load_ohlcv(sym, "4h")
+        if not rows4h or len(rows4h) < 3:
+            return True
+        recent = rows4h[-3:]
+        if direction == "long":
+            return sum(1 for r in recent if r["c"] > r["o"]) >= 2
+        else:
+            return sum(1 for r in recent if r["c"] < r["o"]) >= 2
+    except Exception:
+        return True
+
+
+def run_once(do_fetch=True, quick=False):
     global SYMBOLS
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     if do_fetch:
         print(f"[1] fetch {len(SYMBOLS)}종목 일봉 (순차, 완료 후 진행)...")
         fetch_all()
         print("[1] fetch 완료 -> 레짐 판정 시작")
+    elif quick:
+        print("[1] oncequick 모드 — fetch 생략, 기존 CSV로 진행")
 
     print("[2] 레짐 판정..."); regmap = rs.build_regime_map()
     latest = max(regmap); regime = regmap[latest]
@@ -254,8 +276,9 @@ def run_once(do_fetch=True):
     routing = json.load(open("direction_switch.json", encoding="utf-8"))["routing"]
     route = routing.get(regime, {})
 
-    # fetch 후 거래대금 기준으로 universe.json + SYMBOLS 재정렬
-    SYMBOLS = _sort_universe_by_volume() or SYMBOLS
+    # fetch 모드에서만 거래대금 기준 재정렬 (quick 모드는 기존 순서 유지)
+    if not quick:
+        SYMBOLS = _sort_universe_by_volume() or SYMBOLS
 
     print("[4] 오늘 신호 탐지...")
     import importlib
@@ -278,20 +301,24 @@ def run_once(do_fetch=True):
                 ps = _pattern_strength(pat, rows, last)
                 entry = rows[last]["c"]
                 stop_px = round(entry * (1 - STOP), 4) if d == "long" else round(entry * (1 + STOP), 4)
+                tf_conf = _tf_confirm(sym, d)
                 signals.append(dict(
                     pattern=pat, direction=d, symbol=sym, date=rows[last]["date"],
                     strength_vol_ratio=vr, pattern_strength=ps, regime=regime,
                     entry=round(entry, 4), stop=stop_px,
+                    tf_confirmed=tf_conf,
                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
-    # 채택된 추가 패턴(캔들 등) — 방향 고정, 레짐 라우팅 없이 최신봉 신호 탐지
+    # 채택된 추가 패턴(1d) — 방향 고정, 레짐 라우팅 없이 최신봉 신호 탐지
     adopted = []
     if os.path.exists("universe.json"):
         adopted = json.load(open("universe.json", encoding="utf-8")).get("adopted_patterns", [])
     for ap in adopted:
-        mod = importlib.import_module(ap["module"])
-        for sym in SYMBOLS:
+        ap_tf = ap.get("tf", "1d")
+        mod   = importlib.import_module(ap["module"])
+        sym_list = _harmonic_symbols() if ap_tf != "1d" else SYMBOLS
+        for sym in sym_list:
             try:
-                rows = mod.load_ohlcv(sym, "1d")
+                rows = mod.load_ohlcv(sym, ap_tf)
             except FileNotFoundError:
                 continue
             last = len(rows) - 1
@@ -302,11 +329,45 @@ def run_once(do_fetch=True):
                 entry = rows[last]["c"]
                 dd = ap["direction"]
                 stop_px = round(entry * (1 - 0.08), 4) if dd == "long" else round(entry * (1 + 0.08), 4)
+                tf_conf = _tf_confirm(sym, dd) if ap_tf == "1d" else True
                 signals.append(dict(pattern=ap["pattern"], direction=dd, symbol=sym,
                                     date=rows[last]["date"], strength_vol_ratio=vr,
                                     pattern_strength=ps, regime=regime,
                                     entry=round(entry, 4), stop=stop_px,
+                                    tf_confirmed=tf_conf, tf=ap_tf,
                                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
+
+    # 채택된 4h 전용 패턴 (three_soldiers_4h 등) — bull 레짐에서만 롱
+    ADOPTED4H_REGIME = {"bull_btc": "long", "bull_altseason": "long"}
+    adopted4h_dir = ADOPTED4H_REGIME.get(regime)
+    adopted_4h = json.load(open("universe.json", encoding="utf-8")).get(
+        "adopted_4h_patterns", []) if os.path.exists("universe.json") else []
+    if adopted4h_dir and adopted_4h:
+        h_syms = _harmonic_symbols()
+        for ap in adopted_4h:
+            try:
+                mod4 = importlib.import_module(ap["module"])
+            except ImportError:
+                continue
+            for sym in h_syms:
+                try:
+                    rows4h = mod4.load_ohlcv(sym, "4h")
+                except (FileNotFoundError, RuntimeError):
+                    continue
+                last4 = len(rows4h) - 1
+                if last4 not in set(mod4.detect(rows4h)):
+                    continue
+                entry4  = rows4h[last4]["c"]
+                stop4   = round(entry4 * (1 - STOP), 4)
+                signals.append(dict(
+                    pattern=ap["pattern"], direction=adopted4h_dir, symbol=sym, tf="4h",
+                    date=rows4h[last4]["date"], pattern_strength=1.0,
+                    strength_vol_ratio=None, regime=regime,
+                    entry=round(entry4, 4), stop=stop4,
+                    tf_confirmed=True,
+                    take_profit="레짐전환 or 최대30봉 시가청산"))
+    elif adopted_4h:
+        print(f"    [4h 패턴] 레짐={regime} -> bull 아님, 4h 전용 패턴 스킵")
 
     # 하모닉 4h 신호 탐지 (gartley / bat / butterfly)
     # 레짐 라우팅: bull_btc → long, 나머지 → 숏 디텍터 없으므로 스킵
@@ -423,5 +484,8 @@ if __name__ == "__main__":
         run_once(do_fetch=False)
     elif arg == "oncefull":
         run_once(do_fetch=True)
+    elif arg == "oncequick":
+        # 4h 마다 호출 — fetch 생략, 레짐 판정 + 신호 탐지 + 페이퍼 체결만
+        run_once(do_fetch=False, quick=True)
     else:
         daemon()

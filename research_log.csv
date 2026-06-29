@@ -147,3 +147,10 @@
 2026-06-29T01:29:57+00:00,cypher,ALL7@1d,"{""tf"": ""1d"", ""period"": ""full""}",0,0.0,0.0,0.0,보류(표본부족),74f7b62541417eb7123adee52e91863b9c9ec1cb
 2026-06-29T01:30:04+00:00,cypher,ALL7@4h,"{""tf"": ""4h"", ""period"": ""full""}",23,0.1304,-0.00623,-0.01813,기각,74f7b62541417eb7123adee52e91863b9c9ec1cb
 2026-06-29T01:30:30+00:00,cypher,ALL7@1h,"{""tf"": ""1h"", ""period"": ""full""}",119,0.042,0.00407,0.00064,기각,74f7b62541417eb7123adee52e91863b9c9ec1cb
+2026-06-29,three_soldiers_4h,4h,long,908,1.04,0.97,p<0.0001,3,PASSED,"bull 레짐 롱 전용, Q4 bear 음수"
+2026-06-29,three_crows_4h,4h,short,573,-1.19,-0.37,na,0,REJECTED,short 방향 mean<0 (-1.19%)
+2026-06-29,breakout_retest_4h,4h,long,25729,0.37,-0.23,na,0,REJECTED,median<0 (-0.23%) 게이트 탈락
+2026-06-29,equal_highs_4h,4h,short,6962,-0.26,-0.25,na,0,REJECTED,mean<0
+2026-06-29,equal_lows_4h,4h,long,6618,-0.48,-0.26,na,0,REJECTED,mean<0
+2026-06-29,vwap_rev_long_4h,4h,long,31005,-0.25,-0.67,na,0,REJECTED,mean<0
+2026-06-29,vwap_rev_short_4h,4h,short,28537,-0.06,0.25,na,0,REJECTED,mean<0 (방향 조정 필요)

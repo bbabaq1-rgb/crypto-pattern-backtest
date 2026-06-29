@@ -6,19 +6,24 @@
 ## 현재 상태 (2026-06-29)
 - 검증 완료 패턴: engulfing(validated), fvg(passed), inverted_hammer(passed), marubozu(passed)
 - 하모닉 패턴: gartley/bat/butterfly PASSED(4h), crab/shark/cypher 보류(표본부족/mean<eff)
+- **신규 4h 패턴**: three_soldiers_4h PASSED (n=908, mean=+1.04%, OOS 3/4, p<0.0001)
+  - bull_btc/bull_altseason → 롱 전용, bear/sideways 스킵
+  - 나머지 6종 기각 (three_crows/breakout_retest/equal_highs_lows/vwap_rev)
 - 레짐 스위치: bull_btc→롱, bear/altseason→숏
 - 청산 로직: 방식A(±10%) / 방식D(-8% 손절+조건부 익절) 병행
-- 방식D 게이트: Calmar 기반(기대값+MDD) — engulfing/fvg/engulfing_short → D 채택, fvg_short → A 유지
-- 유니버스: **71종목** (업비트KRW∩OKX선물 확대 완료, 2026-06-29)
-  - 기존 12종목 + 신규 59종목 (OKX 39 + Binance fallback 20)
-  - data/*_1d.csv 78개, data/*_4h.csv 97개
-- 자동화: GitHub Actions(매일 UTC 00:00) + Supabase DB
+- 방식D 게이트: Calmar 기반 — engulfing/fvg/engulfing_short → D 채택, fvg_short → A 유지
+- 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
+- **자동화**: GitHub Actions 4h마다 실행 (oncefull@UTC00:00 / oncequick@04~20시)
+- **멀티 TF 확증**: 1d 신호 → 4h 최근 3봉 확증. 비확증 시 size 50% 축소
 - 페이퍼테스트: 진행 중 (A +6.59%, D +3.13%, 13건 — 표본 부족, 판단 유보)
 
 ## 다음 할 일
 - [ ] OKX 선물 실거래 활성화 — GitHub Actions secrets(OKX_KEY/SECRET/PASSPHRASE) 등록만 남음
-- [x] 하모닉 패턴 페이퍼테스트 등록 (gartley/bat/butterfly 4h, scheduler+paper_executor 지원)
+- [x] 하모닉 패턴 페이퍼테스트 등록 (gartley/bat/butterfly 4h)
 - [x] 트레이딩 유니버스 확대 (업비트KRW x OKX선물, 71종목)
+- [x] 4h 스케줄러 (oncefull/oncequick, 4시간마다, GitHub Actions 6회/일)
+- [x] 멀티 TF 확증 필터 (1d 신호 → 4h 3봉 확증, 비확증 size 50%)
+- [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
 - [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)
@@ -40,5 +45,9 @@
 - universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
-- registry.json: 패턴 등록부 (passed 7종 포함)
-- research_log.csv: 86건 시험 기록
+- registry.json: 패턴 등록부 (passed 8종: +three_soldiers_4h)
+- research_log.csv: 93건 시험 기록
+- detector_three_soldiers_4h.py: 3연속 장대 양봉 (4h, PASSED)
+- detector_three_crows_4h.py / detector_breakout_retest_4h.py: 기각
+- detector_equal_highs/lows_4h.py / detector_vwap_rev_long/short_4h.py: 기각
+- report_4h_expansion.md: 4h 확장 리포트

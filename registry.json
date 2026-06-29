@@ -708,6 +708,81 @@
         "bc_ab": "1.272-1.414",
         "xd_xc": "0.786±0.05"
       }
+    },
+    {
+      "id": "three_soldiers_4h",
+      "name": "Three White Soldiers (4h)",
+      "category": "momentum_4h",
+      "difficulty": 2,
+      "status": "passed",
+      "detector_file": "detector_three_soldiers_4h.py",
+      "passed_tf": "4h",
+      "n": 908,
+      "mean": 0.0104,
+      "median": 0.0097,
+      "oos_positive": 3,
+      "oos_quarters": 4,
+      "baseline_p": 0.0001,
+      "baseline_excess_mean": 0.0133,
+      "passed_date": "2026-06-29",
+      "regime_routing": "bull_btc/bull_altseason -> long; bear/sideways -> skip",
+      "note": "4h 전용 모멘텀. Q4(2025-26 bear) 음수, 레짐 필터 필수."
+    }
+  ],
+  "rejected_4h": [
+    {
+      "id": "three_crows_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "short",
+      "n": 573,
+      "mean": -0.0119,
+      "note": "mean<0 (short 방향 손실)"
+    },
+    {
+      "id": "breakout_retest_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "long",
+      "n": 25729,
+      "mean": 0.0037,
+      "note": "median<0 (-0.23%), 중앙값 게이트 탈락"
+    },
+    {
+      "id": "equal_highs_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "short",
+      "n": 6962,
+      "mean": -0.0026,
+      "note": "mean<0"
+    },
+    {
+      "id": "equal_lows_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "long",
+      "n": 6618,
+      "mean": -0.0048,
+      "note": "mean<0"
+    },
+    {
+      "id": "vwap_rev_long_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "long",
+      "n": 31005,
+      "mean": -0.0025,
+      "note": "mean<0"
+    },
+    {
+      "id": "vwap_rev_short_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "short",
+      "n": 28537,
+      "mean": -0.0006,
+      "note": "mean<0"
     }
   ]
 }

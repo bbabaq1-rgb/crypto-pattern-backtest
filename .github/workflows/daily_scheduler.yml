@@ -1,9 +1,19 @@
-name: Daily Paper Scheduler
+name: Crypto Pattern Scheduler
 
 on:
   schedule:
-    - cron: '0 0 * * *'        # 매일 UTC 00:00 (한국시간 09:00)
-  workflow_dispatch: {}         # 수동 실행 허용
+    - cron: '0 0 * * *'   # UTC 00:00 (KST 09:00) — oncefull (fetch 포함)
+    - cron: '0 4 * * *'   # UTC 04:00 — oncequick
+    - cron: '0 8 * * *'   # UTC 08:00 — oncequick
+    - cron: '0 12 * * *'  # UTC 12:00 — oncequick
+    - cron: '0 16 * * *'  # UTC 16:00 — oncequick
+    - cron: '0 20 * * *'  # UTC 20:00 — oncequick
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'oncefull / oncequick'
+        required: false
+        default: 'oncefull'
 
 jobs:
   run:
@@ -23,18 +33,29 @@ jobs:
       - name: Create data directory
         run: mkdir -p data
 
-      - name: Run scheduler (fetch -> regime -> signals -> paper -> Supabase)
+      - name: Run scheduler
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          BITGET_DEMO_KEY: ${{ secrets.BITGET_DEMO_KEY }}
-          BITGET_DEMO_SECRET: ${{ secrets.BITGET_DEMO_SECRET }}
-          BITGET_DEMO_PASSPHRASE: ${{ secrets.BITGET_DEMO_PASSPHRASE }}
           OKX_KEY: ${{ secrets.OKX_KEY }}
           OKX_SECRET: ${{ secrets.OKX_SECRET }}
           OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
-        run: python scheduler.py oncefull
+        run: |
+          # workflow_dispatch 수동 실행 시 mode 입력 우선
+          MANUAL_MODE="${{ github.event.inputs.mode }}"
+          if [ -n "$MANUAL_MODE" ]; then
+            MODE="$MANUAL_MODE"
+          else
+            HOUR=$(date -u +%H | sed 's/^0//')
+            if [ "$HOUR" = "0" ] || [ -z "$HOUR" ]; then
+              MODE="oncefull"
+            else
+              MODE="oncequick"
+            fi
+          fi
+          echo "실행 모드: $MODE (UTC $(date -u +%H:%M))"
+          python scheduler.py "$MODE"
 
       - name: Upload result JSONs
         if: always()

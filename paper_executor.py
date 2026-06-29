@@ -224,7 +224,11 @@ def run(stamp=None):
         stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
 
         live_info    = {}
-        size_for_pos = POS_USD   # 시뮬레이션 기본값
+        # tf_confirmed=False(4h 비확증) → 페이퍼 포지션 사이즈 절반
+        tf_ok        = s.get("tf_confirmed", True)
+        size_for_pos = POS_USD if tf_ok else round(POS_USD * 0.5, 2)
+        if not tf_ok:
+            print(f"  [4h비확증] {s['symbol']} {s['direction']} → size ${size_for_pos:.1f} (50%)")
 
         if live_conn:
             # 동시 최대 포지션 체크
