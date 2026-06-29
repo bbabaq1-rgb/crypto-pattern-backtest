@@ -1,12 +1,46 @@
 {
-  "generated_at": "2026-06-24T05:30Z",
+  "generated_at": "2026-06-24T23:43Z",
   "regime": "bear",
   "regime_date": "2026-06-24",
   "routing": {
     "engulfing": "long",
     "fvg": "short"
   },
-  "n_signals": 0,
-  "signals": [],
+  "n_signals": 3,
+  "signals": [
+    {
+      "pattern": "fvg",
+      "direction": "short",
+      "symbol": "BTC",
+      "date": "2026-06-24",
+      "strength_vol_ratio": 1.53,
+      "regime": "bear",
+      "entry": 61010.0,
+      "stop": 65890.8,
+      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"
+    },
+    {
+      "pattern": "fvg",
+      "direction": "short",
+      "symbol": "ADA",
+      "date": "2026-06-24",
+      "strength_vol_ratio": 1.43,
+      "regime": "bear",
+      "entry": 0.1477,
+      "stop": 0.1595,
+      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"
+    },
+    {
+      "pattern": "fvg",
+      "direction": "short",
+      "symbol": "PAXG",
+      "date": "2026-06-24",
+      "strength_vol_ratio": 2.24,
+      "regime": "bear",
+      "entry": 4015.62,
+      "stop": 4336.8696,
+      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"
+    }
+  ],
   "note": "페이퍼테스트용 신호 기록 - 실주문 없음"
 }

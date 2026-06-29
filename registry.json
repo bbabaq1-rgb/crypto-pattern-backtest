@@ -529,6 +529,185 @@
         "note": "마모 없음"
       },
       "precision_note": "강등유지: 워크포워드 미통과"
+    },
+    {
+      "id": "gartley",
+      "name": "Gartley Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "passed",
+      "detector_file": "detector_gartley.py",
+      "ratios": {
+        "ab_xa": "0.618±0.05",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "1.272-1.618",
+        "ad_xa": "0.786±0.05"
+      },
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 10,
+            "mean": 0.03966,
+            "median": 0.01987
+          },
+          "down": {
+            "n": 7,
+            "mean": 0.04055,
+            "median": 0.04745
+          },
+          "side": {
+            "n": 37,
+            "mean": 0.0193,
+            "median": 0.00545
+          },
+          "na": {
+            "n": 2,
+            "mean": 0.09744,
+            "median": 0.09744
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": -0.00183,
+          "excess_mean": 0.03021,
+          "p_mean": 0.008,
+          "significant": true
+        }
+      },
+      "passed_tf": "4h",
+      "regime_dependent": false
+    },
+    {
+      "id": "bat",
+      "name": "Bat Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "passed",
+      "detector_file": "detector_bat.py",
+      "ratios": {
+        "ab_xa": "0.382-0.500",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "1.618-2.618",
+        "ad_xa": "0.886±0.05"
+      },
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 15,
+            "mean": 0.0582,
+            "median": 0.09855
+          },
+          "down": {
+            "n": 12,
+            "mean": 0.04965,
+            "median": 0.05828
+          },
+          "side": {
+            "n": 28,
+            "mean": 0.03311,
+            "median": 0.02528
+          },
+          "na": {
+            "n": 2,
+            "mean": 0.00372,
+            "median": 0.00372
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": -0.00184,
+          "excess_mean": 0.04401,
+          "p_mean": 0.0,
+          "significant": true
+        }
+      },
+      "passed_tf": "4h",
+      "regime_dependent": false
+    },
+    {
+      "id": "butterfly",
+      "name": "Butterfly Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "passed",
+      "detector_file": "detector_butterfly.py",
+      "ratios": {
+        "ab_xa": "0.786±0.05",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "1.618-2.618",
+        "ad_xa": "1.272±0.05"
+      },
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 9,
+            "mean": 0.0438,
+            "median": 0.03959
+          },
+          "down": {
+            "n": 11,
+            "mean": 0.03704,
+            "median": 0.02979
+          },
+          "side": {
+            "n": 22,
+            "mean": 0.02194,
+            "median": 0.03385
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": -0.00162,
+          "excess_mean": 0.0322,
+          "p_mean": 0.007,
+          "significant": true
+        }
+      },
+      "passed_tf": "4h",
+      "regime_dependent": false
+    },
+    {
+      "id": "crab",
+      "name": "Crab Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "holding",
+      "detector_file": "detector_crab.py",
+      "ratios": {
+        "ab_xa": "0.382-0.618",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "2.618-3.618",
+        "ad_xa": "1.618±0.05"
+      }
+    },
+    {
+      "id": "shark",
+      "name": "Shark Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "holding",
+      "detector_file": "detector_shark.py",
+      "ratios": {
+        "ab_xa": "0.382-0.618",
+        "bc_ab": "1.130-1.618",
+        "xd_xc": "0.886±0.05"
+      }
+    },
+    {
+      "id": "cypher",
+      "name": "Cypher Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "holding",
+      "detector_file": "detector_cypher.py",
+      "ratios": {
+        "ab_xa": "0.382-0.618",
+        "bc_ab": "1.272-1.414",
+        "xd_xc": "0.786±0.05"
+      }
     }
   ]
 }

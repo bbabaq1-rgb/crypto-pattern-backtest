@@ -77,6 +77,46 @@ def summ(rets, holds):
                 maxloss=min(rets), avghold=st.mean(holds))
 
 
+def _calmar(s):
+    """mean / |maxloss|. maxloss=0이면 inf(손실 없음)."""
+    if s["maxloss"] >= 0:
+        return float("inf")
+    return s["mean"] / abs(s["maxloss"])
+
+
+def gate_d(sA, sD, btA, btD):
+    """
+    방식D 채택 여부 게이트 (기대값+MDD 기반).
+
+    3개 기준:
+      1. 기대값 우위: D.mean > A.mean
+      2. MDD 우위:   D.maxloss > A.maxloss  (음수끼리; 0에 가까울수록 좋음)
+      3. Calmar 우위: calmar(D) > calmar(A)
+
+    채택 조건: D.mean > 0  AND  calmar(D) > 0  AND  우위 항목 ≥ 2/3
+    기각 조건: D.mean ≤ 0  OR  calmar(D) ≤ 0  OR  우위 항목 ≤ 1/3
+    """
+    ca, cd = _calmar(sA), _calmar(sD)
+    wins = [
+        sD["mean"] > sA["mean"],
+        sD["maxloss"] > sA["maxloss"],
+        cd > ca,
+    ]
+    n_wins = sum(wins)
+
+    detail = (f"E[R] D={sD['mean']*100:+.2f}% A={sA['mean']*100:+.2f}%  "
+              f"MDD D={sD['maxloss']*100:+.1f}% A={sA['maxloss']*100:+.1f}%  "
+              f"Calmar D={cd:.3f} A={ca:.3f}  우위 {n_wins}/3")
+
+    if sD["mean"] <= 0:
+        return "reject_d", detail + "  [기각: D 기대값 음수]"
+    if cd <= 0:
+        return "reject_d", detail + "  [기각: D Calmar 음수]"
+    if n_wins >= 2:
+        return "adopt_d", detail
+    return "keep_a", detail + "  [A 유지: 우위 부족]"
+
+
 def main():
     out = {}
     print("=" * 100)
@@ -105,14 +145,22 @@ def main():
         sA, sD = summ(retsA, holdsA), summ(retsD, holdsD)
         btA = baseline.test(poolA, sA["mean"], sA["median"], sA["n"])
         btD = baseline.test(poolD, sD["mean"], sD["median"], sD["n"])
-        out[label] = dict(A=dict(sA, excess=btA["excess_mean"], p=btA["p_mean"]),
-                          D=dict(sD, excess=btD["excess_mean"], p=btD["p_mean"]))
+        verdict, detail = gate_d(sA, sD, btA, btD)
+        out[label] = dict(
+            A=dict(sA, excess=btA["excess_mean"], p=btA["p_mean"],
+                   calmar=round(_calmar(sA), 4)),
+            D=dict(sD, excess=btD["excess_mean"], p=btD["p_mean"],
+                   calmar=round(_calmar(sD), 4)),
+            gate=dict(verdict=verdict, detail=detail),
+        )
         for tag, s, bt in (("A", sA, btA), ("D", sD, btD)):
             print(f"  {label:<16}{tag:<4}{s['n']:>5}{s['mean']*100:>+8.2f}%{s['median']*100:>+8.2f}%"
                   f"{bt['excess_mean']*100:>+9.2f}%(p{bt['p_mean']:.2f}){s['maxloss']*100:>+8.1f}%{s['avghold']:>7.1f}")
+        ICONS = {"adopt_d": "O D 채택", "keep_a": "X A 유지", "reject_d": "X D 기각"}
+        print(f"  {'':>18}[게이트] {ICONS[verdict]}  {detail}\n")
     json.dump(out, open("method_d.json", "w", encoding="utf-8"),
               ensure_ascii=False, indent=2, default=lambda x: round(x, 5))
-    print("\n[저장] method_d.json")
+    print("[저장] method_d.json")
 
 
 if __name__ == "__main__":
