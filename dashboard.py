@@ -239,19 +239,22 @@ def fetch_account_balance():
     """
     OKX 잔고 + 실제 포지션 조회.
     반환: (bal_dict | None, okx_positions | [], is_live)
-      bal_dict = {"equity": float, "free": float, "total": float}
+      is_live  = True  : OKX 키 설정됨 (연결 성공 여부와 무관)
+      is_live  = False : OKX 키 미설정
+      bal_dict = None  : 연결 오류 (키는 있으나 API 실패)
     """
+    import exchange as ex_mod
+    if not ex_mod.is_live():
+        return None, [], False  # 키 미설정
     try:
-        import exchange as ex_mod
-        if ex_mod.is_live():
-            conn = ex_mod.connect_live()
-            if conn:
-                bal  = ex_mod.get_balance(conn)
-                poss = ex_mod.get_okx_positions(conn)
-                return bal, poss, True
+        conn = ex_mod.connect_live()
+        if conn:
+            bal  = ex_mod.get_balance(conn)
+            poss = ex_mod.get_okx_positions(conn)
+            return bal, poss, True
     except Exception:
         pass
-    return None, [], False
+    return None, [], True  # 키는 있으나 연결 오류
 
 
 @st.cache_data(ttl=60)
@@ -500,8 +503,11 @@ def section_live_summary(pos_df, trades_df, prices):
     bal_dict, okx_poss, is_live_mode = fetch_account_balance()
 
     if bal_dict is None:
-        # OKX 미연결
-        st.info("OKX 미연결 — Streamlit Secrets에 OKX_KEY / OKX_SECRET / OKX_PASSPHRASE 설정 시 실계좌 잔고 표시")
+        # 키 없음 vs 연결 오류 구분
+        if is_live_mode:
+            st.warning("OKX 연결 오류 — API 일시 실패. 30초 후 자동 재시도합니다.")
+        else:
+            st.info("OKX 미연결 — Streamlit Secrets에 OKX_KEY / OKX_SECRET / OKX_PASSPHRASE 설정 시 실계좌 잔고 표시")
         live_pos_db = _filter_by_mode(pos_df, live=True)
         live_trd    = _filter_by_mode(trades_df, live=True)
         c1, c2 = st.columns(2)
