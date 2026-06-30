@@ -705,6 +705,35 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
     st.subheader("📂 오픈 포지션")
     df = _filter_by_mode(pos_df, live)
 
+    # Live 탭 & DB 비어있을 때 → OKX 실제 포지션으로 폴백
+    if df.empty and live:
+        _, okx_poss, is_live_mode, _ = fetch_account_balance()
+        if okx_poss:
+            st.caption("📡 OKX 실제 포지션 기준 표시 (DB 미등록 상태 — 다음 스케줄러 실행 후 자동 등록)")
+            for p in okx_poss:
+                sym  = p.get("symbol", "")
+                d    = p.get("direction", "")
+                ep   = float(p.get("entry_price") or 0)
+                upnl = float(p.get("unrealized_pnl") or 0)
+                cur  = prices.get(sym)
+                d_lbl = DIR_LABEL.get(d, d)
+                dot  = "🟢" if upnl >= 0 else "🔴"
+                pnl_str = f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f} USDT"
+                if cur and ep:
+                    ret_pct = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
+                    pnl_str += f" ({'+' if ret_pct>=0 else ''}{ret_pct:.2f}%)"
+
+                col_info, col_price = st.columns([3, 5])
+                col_info.write(f"**{sym}** {d_lbl}")
+                col_info.caption(f"수량: {p.get('qty', '—')}")
+                col_price.write(f"진입 {_fmt_price(ep)}  →  현재 {_fmt_price(cur) if cur else '—'}")
+                col_price.write(pnl_str)
+            st.divider()
+            return
+        st.info("오픈 포지션 없음")
+        st.divider()
+        return
+
     if df.empty:
         st.info("오픈 포지션 없음")
         st.divider()
@@ -783,7 +812,15 @@ def section_trades(live: bool, trades_df, tab_key="live"):
     df = _filter_by_mode(trades_df, live)
 
     if df.empty:
-        st.info("아직 거래 없음")
+        if live:
+            _, okx_poss, is_lv, _ = fetch_account_balance()
+            n = len(okx_poss) if okx_poss else 0
+            if n:
+                st.info(f"청산 완료 거래 없음 — 현재 {n}개 포지션 오픈 중 (미청산)")
+            else:
+                st.info("아직 거래 없음")
+        else:
+            st.info("아직 거래 없음")
         st.divider()
         return
 
