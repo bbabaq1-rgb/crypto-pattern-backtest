@@ -721,32 +721,52 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
             st.caption("📡 OKX 실제 포지션 (DB 미등록 — 다음 스케줄러 실행 후 자동 등록)")
             if "confirm_close" not in st.session_state:
                 st.session_state.confirm_close = None
+
+            # ── 그리드(표) ───────────────────────────────────────────────
+            grid_rows = []
             for p in okx_poss:
                 sym      = p.get("symbol", "")
                 d        = p.get("direction", "")
                 ep       = float(p.get("entry_price") or 0)
                 upnl     = float(p.get("unrealized_pnl") or 0)
                 qty      = p.get("qty", "—")
-                notional = float(p.get("notional") or 0)
-                margin   = abs(notional) / 2  # 레버리지 2x 고정
+                notional = abs(float(p.get("notional") or 0))
+                margin   = notional / 2  # 레버리지 2x 고정
                 cur      = prices.get(sym)
-                d_lbl    = DIR_LABEL.get(d, d)
-                dot      = "🟢" if upnl >= 0 else "🔴"
-                pnl_str  = f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f} USDT"
+                ret_pct  = None
                 if cur and ep:
                     ret_pct = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
-                    pnl_str += f" ({'+' if ret_pct>=0 else ''}{ret_pct:.2f}%)"
-                pos_key = f"okx_{sym}_{d}"
+                grid_rows.append({
+                    "종목":   sym,
+                    "방향":   DIR_LABEL.get(d, d),
+                    "수량":   qty,
+                    "투입(USDT)": f"{margin:.2f}",
+                    "명목(USDT)": f"{notional:.2f}",
+                    "진입가": _fmt_price(ep),
+                    "현재가": _fmt_price(cur) if cur else "—",
+                    "손익(USDT)": f"{'+' if upnl>=0 else ''}{upnl:.2f}",
+                    "수익률": f"{'+' if ret_pct>=0 else ''}{ret_pct:.2f}%" if ret_pct is not None else "—",
+                })
+            st.dataframe(pd.DataFrame(grid_rows), use_container_width=True, hide_index=True,
+                         key=f"okx_pos_grid_{tab_key}")
 
-                col_info, col_price, col_btn = st.columns([2.4, 3.6, 1.2])
-                col_info.write(f"**{sym}** {d_lbl}")
-                col_info.caption(f"수량: {qty}  ·  투입 ${margin:.2f} / 명목 ${abs(notional):.2f}")
-                col_price.write(f"진입 {_fmt_price(ep)}  →  현재 {_fmt_price(cur) if cur else '—'}")
-                col_price.write(pnl_str)
-
-                if col_btn.button("청산", key=f"close_{pos_key}", type="secondary"):
+            # ── 수동 청산 버튼 행 ─────────────────────────────────────────
+            st.caption("수동 청산")
+            btn_cols = st.columns(max(1, len(okx_poss)))
+            for i, p in enumerate(okx_poss):
+                sym = p.get("symbol", "")
+                d   = p.get("direction", "")
+                pos_key = f"okx_{tab_key}_{sym}_{d}_{i}"
+                if btn_cols[i].button(f"청산 {sym}", key=f"close_{pos_key}", type="secondary"):
                     st.session_state.confirm_close = pos_key
 
+            # ── 청산 확인 다이얼로그 ──────────────────────────────────────
+            for i, p in enumerate(okx_poss):
+                sym = p.get("symbol", "")
+                d   = p.get("direction", "")
+                qty = p.get("qty", 0)
+                d_lbl   = DIR_LABEL.get(d, d)
+                pos_key = f"okx_{tab_key}_{sym}_{d}_{i}"
                 if st.session_state.confirm_close == pos_key:
                     st.warning(f"⚠️ **{sym} {d_lbl}** OKX 시장가 청산하시겠습니까?")
                     cc1, cc2 = st.columns(2)
@@ -788,7 +808,7 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
 
     st.caption("청산 버튼으로 수동 청산 가능")
 
-    for _, pos in df.iterrows():
+    for i, (_, pos) in enumerate(df.iterrows()):
         sym        = str(pos.get("symbol", ""))
         direction  = str(pos.get("direction", ""))
         entry      = float(pos.get("entry_price") or 0)
@@ -798,7 +818,7 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
         notional   = size_usd * leverage
         entry_date = str(pos.get("entry_date", ""))[:10]
         pattern    = str(pos.get("pattern", ""))
-        pos_key    = f"{tab_key}_{sym}_{pattern}_{direction}_{entry_date}"
+        pos_key    = f"{tab_key}_{sym}_{pattern}_{direction}_{entry_date}_{i}"
 
         cur = prices.get(sym)
         if cur and entry and notional:
