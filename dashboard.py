@@ -540,15 +540,19 @@ def section_live_summary(pos_df, trades_df, prices):
         db_cnt      = len(live_pos_db)
         mismatch    = okx_cnt != db_cnt
 
+        # 경고: DB > OKX (DB에만 있는 포지션 → 이미 청산됐을 수 있음)
+        # 정상: OKX >= DB (runner 파일 소멸로 DB 미등록은 정상 운영 상황)
+        db_gt_okx = db_cnt > okx_cnt
+
         c1, c2, c3 = st.columns(3)
-        c1.metric("OKX 실제 포지션", f"{okx_cnt}개",
-                  delta="⚠ DB 불일치" if mismatch else None,
-                  delta_color="inverse" if mismatch else "normal")
-        c2.metric("DB 추적 포지션", f"{db_cnt}개")
+        c1.metric("OKX 실제 포지션", f"{okx_cnt}개")
+        c2.metric("DB 추적 포지션", f"{db_cnt}개",
+                  delta="⚠ DB>OKX 확인 필요" if db_gt_okx else None,
+                  delta_color="inverse" if db_gt_okx else "normal")
         c3.metric("실거래 체결",    f"{len(live_trd)}건")
 
         if okx_poss:
-            with st.expander(f"🔍 OKX 실제 포지션 {okx_cnt}개", expanded=mismatch):
+            with st.expander(f"🔍 OKX 실제 포지션 {okx_cnt}개", expanded=False):
                 okx_rows = []
                 for p in okx_poss:
                     upnl = p.get("unrealized_pnl", 0)
@@ -561,8 +565,8 @@ def section_live_summary(pos_df, trades_df, prices):
                     })
                 st.dataframe(pd.DataFrame(okx_rows), hide_index=True,
                              use_container_width=True, key="okx_pos_table")
-                if mismatch:
-                    st.warning(f"OKX {okx_cnt}개 ≠ DB {db_cnt}개 — OKX에는 있지만 DB에 없는 포지션이 있을 수 있습니다")
+        if db_gt_okx:
+            st.warning(f"DB {db_cnt}개 > OKX {okx_cnt}개 — DB에 이미 청산된 포지션이 남아있을 수 있습니다")
 
     # 온체인 보조 신호 (실거래 탭)
     oc = load_onchain()

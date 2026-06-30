@@ -148,6 +148,7 @@ def push_positions_db(new_positions):
     rows = [{"symbol": p["symbol"], "pattern": p["pattern"], "direction": p["direction"],
              "entry_date": p["entry_date"], "entry_price": p["entry_price"],
              "stop_loss": p.get("stop"), "size_usd": p.get("size_usd"),
+             "live_mode": bool(p.get("live_mode", False)),
              "status": "open", "method": "AD"} for p in new_positions]
     try:
         cli.table("positions").insert(rows).execute()
@@ -249,7 +250,8 @@ def run(stamp=None):
             if live_filled_count == 0:
                 live_size_usd = LIVE_FIRST_USD
             else:
-                usdt_free     = ex_mod.get_balance(live_conn)
+                bal_info      = ex_mod.get_balance(live_conn)
+                usdt_free     = bal_info["free"] if isinstance(bal_info, dict) else float(bal_info or 0)
                 live_size_usd = round(usdt_free * LIVE_BAL_PCT, 2)
 
             # 최소 주문 금액 체크
