@@ -722,15 +722,17 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
             if "confirm_close" not in st.session_state:
                 st.session_state.confirm_close = None
             for p in okx_poss:
-                sym   = p.get("symbol", "")
-                d     = p.get("direction", "")
-                ep    = float(p.get("entry_price") or 0)
-                upnl  = float(p.get("unrealized_pnl") or 0)
-                qty   = p.get("qty", "—")
-                cur   = prices.get(sym)
-                d_lbl = DIR_LABEL.get(d, d)
-                dot   = "🟢" if upnl >= 0 else "🔴"
-                pnl_str = f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f} USDT"
+                sym      = p.get("symbol", "")
+                d        = p.get("direction", "")
+                ep       = float(p.get("entry_price") or 0)
+                upnl     = float(p.get("unrealized_pnl") or 0)
+                qty      = p.get("qty", "—")
+                notional = float(p.get("notional") or 0)
+                margin   = abs(notional) / 2  # 레버리지 2x 고정
+                cur      = prices.get(sym)
+                d_lbl    = DIR_LABEL.get(d, d)
+                dot      = "🟢" if upnl >= 0 else "🔴"
+                pnl_str  = f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f} USDT"
                 if cur and ep:
                     ret_pct = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
                     pnl_str += f" ({'+' if ret_pct>=0 else ''}{ret_pct:.2f}%)"
@@ -738,7 +740,7 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
 
                 col_info, col_price, col_btn = st.columns([2.4, 3.6, 1.2])
                 col_info.write(f"**{sym}** {d_lbl}")
-                col_info.caption(f"수량: {qty}")
+                col_info.caption(f"수량: {qty}  ·  투입 ${margin:.2f} / 명목 ${abs(notional):.2f}")
                 col_price.write(f"진입 {_fmt_price(ep)}  →  현재 {_fmt_price(cur) if cur else '—'}")
                 col_price.write(pnl_str)
 
