@@ -585,6 +585,10 @@ def run_once(do_fetch=True, quick=False):
                          "stop_loss": s.get("stop"), "strength_vol_ratio": s.get("strength_vol_ratio"),
                          "pattern_strength": s.get("pattern_strength"),
                          "priority_score": s.get("priority_score"),
+                         "ensemble_score": s.get("ensemble_score"),
+                         "ensemble_grade": s.get("ensemble_grade"),
+                         "patterns_fired": json.dumps(s.get("patterns_fired", [s.get("pattern")])),
+                         "tf_confirmed": s.get("tf_confirmed", True),
                          "regime": s.get("regime")} for s in signals]
             if sig_rows:
                 sc.get_client("service").table("signals").upsert(

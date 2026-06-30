@@ -159,6 +159,15 @@ def load_signals():
                 return pd.DataFrame(r.data)
         except Exception:
             pass
+    # Supabase 없거나 오늘 데이터 없으면 signals_today.json 폴백
+    try:
+        if os.path.exists("signals_today.json"):
+            raw = json.load(open("signals_today.json", encoding="utf-8"))
+            sigs = raw.get("signals", [])
+            if sigs:
+                return pd.DataFrame(sigs)
+    except Exception:
+        pass
     return pd.DataFrame()
 
 
@@ -705,29 +714,62 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
     st.subheader("📂 오픈 포지션")
     df = _filter_by_mode(pos_df, live)
 
-    # Live 탭 & DB 비어있을 때 → OKX 실제 포지션으로 폴백
+    # Live 탭 & DB 비어있을 때 → OKX 실제 포지션으로 폴백 (청산 버튼 포함)
     if df.empty and live:
         _, okx_poss, is_live_mode, _ = fetch_account_balance()
         if okx_poss:
-            st.caption("📡 OKX 실제 포지션 기준 표시 (DB 미등록 상태 — 다음 스케줄러 실행 후 자동 등록)")
+            st.caption("📡 OKX 실제 포지션 (DB 미등록 — 다음 스케줄러 실행 후 자동 등록)")
+            if "confirm_close" not in st.session_state:
+                st.session_state.confirm_close = None
             for p in okx_poss:
-                sym  = p.get("symbol", "")
-                d    = p.get("direction", "")
-                ep   = float(p.get("entry_price") or 0)
-                upnl = float(p.get("unrealized_pnl") or 0)
-                cur  = prices.get(sym)
+                sym   = p.get("symbol", "")
+                d     = p.get("direction", "")
+                ep    = float(p.get("entry_price") or 0)
+                upnl  = float(p.get("unrealized_pnl") or 0)
+                qty   = p.get("qty", "—")
+                cur   = prices.get(sym)
                 d_lbl = DIR_LABEL.get(d, d)
-                dot  = "🟢" if upnl >= 0 else "🔴"
+                dot   = "🟢" if upnl >= 0 else "🔴"
                 pnl_str = f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f} USDT"
                 if cur and ep:
                     ret_pct = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
                     pnl_str += f" ({'+' if ret_pct>=0 else ''}{ret_pct:.2f}%)"
+                pos_key = f"okx_{sym}_{d}"
 
-                col_info, col_price = st.columns([3, 5])
+                col_info, col_price, col_btn = st.columns([2.4, 3.6, 1.2])
                 col_info.write(f"**{sym}** {d_lbl}")
-                col_info.caption(f"수량: {p.get('qty', '—')}")
+                col_info.caption(f"수량: {qty}")
                 col_price.write(f"진입 {_fmt_price(ep)}  →  현재 {_fmt_price(cur) if cur else '—'}")
                 col_price.write(pnl_str)
+
+                if col_btn.button("청산", key=f"close_{pos_key}", type="secondary"):
+                    st.session_state.confirm_close = pos_key
+
+                if st.session_state.confirm_close == pos_key:
+                    st.warning(f"⚠️ **{sym} {d_lbl}** OKX 시장가 청산하시겠습니까?")
+                    cc1, cc2 = st.columns(2)
+                    if cc1.button("✅ 확인 청산", key=f"confirm_{pos_key}", type="primary"):
+                        with st.spinner("OKX 청산 중..."):
+                            try:
+                                import exchange as ex_mod
+                                conn = ex_mod.connect_live()
+                                if conn:
+                                    ex  = conn["exchange"]
+                                    sym_ccxt = f"{sym}/USDT:USDT"
+                                    close_side = "sell" if d == "long" else "buy"
+                                    ex.create_market_order(
+                                        sym_ccxt, close_side, float(qty),
+                                        params={"tdMode": "isolated", "reduceOnly": True},
+                                    )
+                                    st.success(f"{sym} {d_lbl} 청산 완료")
+                                else:
+                                    st.error("OKX 연결 실패")
+                            except Exception as e:
+                                st.error(f"청산 오류: {str(e)[:80]}")
+                        st.session_state.confirm_close = None
+                        st.cache_data.clear()
+                    if cc2.button("취소", key=f"cancel_{pos_key}"):
+                        st.session_state.confirm_close = None
             st.divider()
             return
         st.info("오픈 포지션 없음")
@@ -808,40 +850,7 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
 
 
 def section_trades(live: bool, trades_df, tab_key="live"):
-    st.subheader("📋 최근 매매 내역")
-
-    # ── 진입 중 (오픈 포지션) ────────────────────────────────────────────────
-    if live:
-        _, okx_poss, is_lv, _ = fetch_account_balance()
-    else:
-        okx_poss = []
-
-    # live 탭: OKX 오픈 포지션 / paper 탭: 위 오픈 포지션 섹션 참조 안내
-    st.markdown("**🟡 진입 중 (미청산)**")
-    if live and okx_poss:
-        open_rows = []
-        for p in okx_poss:
-            upnl = float(p.get("unrealized_pnl") or 0)
-            open_rows.append({
-                "상태":   "🔵 오픈",
-                "종목":   p.get("symbol", ""),
-                "방향":   DIR_LABEL.get(p.get("direction", ""), ""),
-                "진입가": _fmt_price(p.get("entry_price")),
-                "수량":   p.get("qty", ""),
-                "미실현P&L": f"{'+'if upnl>=0 else ''}{upnl:.2f} USDT",
-                "진입일": "—",
-                "패턴":   "—",
-            })
-        st.dataframe(pd.DataFrame(open_rows), use_container_width=True, hide_index=True,
-                     key=f"trades_open_{tab_key}")
-    else:
-        # paper 탭: pos_df 기반 오픈 포지션 (trades_df와 분리, 여기선 안내만)
-        st.info("오픈 포지션 없음 (위 '오픈 포지션' 섹션 참조)")
-
-    st.markdown("---")
-
-    # ── 청산 완료 ────────────────────────────────────────────────────────────
-    st.markdown("**✅ 청산 완료**")
+    st.subheader("📋 최근 매매 내역 (청산 완료)")
     df = _filter_by_mode(trades_df, live)
 
     if df.empty:
