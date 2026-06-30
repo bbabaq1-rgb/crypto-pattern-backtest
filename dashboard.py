@@ -809,18 +809,43 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
 
 def section_trades(live: bool, trades_df, tab_key="live"):
     st.subheader("📋 최근 매매 내역")
+
+    # ── 진입 중 (오픈 포지션) ────────────────────────────────────────────────
+    if live:
+        _, okx_poss, is_lv, _ = fetch_account_balance()
+    else:
+        okx_poss = []
+
+    # live 탭: OKX 오픈 포지션 / paper 탭: 위 오픈 포지션 섹션 참조 안내
+    st.markdown("**🟡 진입 중 (미청산)**")
+    if live and okx_poss:
+        open_rows = []
+        for p in okx_poss:
+            upnl = float(p.get("unrealized_pnl") or 0)
+            open_rows.append({
+                "상태":   "🔵 오픈",
+                "종목":   p.get("symbol", ""),
+                "방향":   DIR_LABEL.get(p.get("direction", ""), ""),
+                "진입가": _fmt_price(p.get("entry_price")),
+                "수량":   p.get("qty", ""),
+                "미실현P&L": f"{'+'if upnl>=0 else ''}{upnl:.2f} USDT",
+                "진입일": "—",
+                "패턴":   "—",
+            })
+        st.dataframe(pd.DataFrame(open_rows), use_container_width=True, hide_index=True,
+                     key=f"trades_open_{tab_key}")
+    else:
+        # paper 탭: pos_df 기반 오픈 포지션 (trades_df와 분리, 여기선 안내만)
+        st.info("오픈 포지션 없음 (위 '오픈 포지션' 섹션 참조)")
+
+    st.markdown("---")
+
+    # ── 청산 완료 ────────────────────────────────────────────────────────────
+    st.markdown("**✅ 청산 완료**")
     df = _filter_by_mode(trades_df, live)
 
     if df.empty:
-        if live:
-            _, okx_poss, is_lv, _ = fetch_account_balance()
-            n = len(okx_poss) if okx_poss else 0
-            if n:
-                st.info(f"청산 완료 거래 없음 — 현재 {n}개 포지션 오픈 중 (미청산)")
-            else:
-                st.info("아직 거래 없음")
-        else:
-            st.info("아직 거래 없음")
+        st.info("청산 완료 거래 없음")
         st.divider()
         return
 
@@ -833,7 +858,7 @@ def section_trades(live: bool, trades_df, tab_key="live"):
         with tab:
             sub = (df[df[m_col] == meth] if m_col else df).head(20)
             if sub.empty:
-                st.info(f"방식{meth} 체결 없음")
+                st.info(f"방식{meth} 청산 없음")
                 continue
             rows = []
             for _, t in sub.iterrows():
