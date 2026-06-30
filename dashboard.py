@@ -722,9 +722,16 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
             if "confirm_close" not in st.session_state:
                 st.session_state.confirm_close = None
 
-            # ── 그리드(표) ───────────────────────────────────────────────
-            grid_rows = []
-            for p in okx_poss:
+            GRID = [1.0, 0.8, 0.8, 1.1, 1.1, 1.2, 1.2, 1.3, 1.0, 0.9]
+
+            # ── 헤더 행 ───────────────────────────────────────────────────
+            hcols = st.columns(GRID)
+            for c, label in zip(hcols, ["종목", "방향", "수량", "투입", "명목",
+                                        "진입가", "현재가", "손익", "수익률", ""]):
+                c.caption(f"**{label}**")
+
+            # ── 데이터 행 (각 행 오른쪽 끝 청산 버튼) ──────────────────────
+            for i, p in enumerate(okx_poss):
                 sym      = p.get("symbol", "")
                 d        = p.get("direction", "")
                 ep       = float(p.get("entry_price") or 0)
@@ -733,31 +740,25 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
                 notional = abs(float(p.get("notional") or 0))
                 margin   = notional / 2  # 레버리지 2x 고정
                 cur      = prices.get(sym)
-                ret_pct  = None
+                d_lbl    = DIR_LABEL.get(d, d)
+                dot      = "🟢" if upnl >= 0 else "🔴"
+                ret_str  = "—"
                 if cur and ep:
                     ret_pct = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
-                grid_rows.append({
-                    "종목":   sym,
-                    "방향":   DIR_LABEL.get(d, d),
-                    "수량":   qty,
-                    "투입(USDT)": f"{margin:.2f}",
-                    "명목(USDT)": f"{notional:.2f}",
-                    "진입가": _fmt_price(ep),
-                    "현재가": _fmt_price(cur) if cur else "—",
-                    "손익(USDT)": f"{'+' if upnl>=0 else ''}{upnl:.2f}",
-                    "수익률": f"{'+' if ret_pct>=0 else ''}{ret_pct:.2f}%" if ret_pct is not None else "—",
-                })
-            st.dataframe(pd.DataFrame(grid_rows), use_container_width=True, hide_index=True,
-                         key=f"okx_pos_grid_{tab_key}")
+                    ret_str = f"{'+' if ret_pct>=0 else ''}{ret_pct:.2f}%"
+                pos_key  = f"okx_{tab_key}_{sym}_{d}_{i}"
 
-            # ── 수동 청산 버튼 행 ─────────────────────────────────────────
-            st.caption("수동 청산")
-            btn_cols = st.columns(max(1, len(okx_poss)))
-            for i, p in enumerate(okx_poss):
-                sym = p.get("symbol", "")
-                d   = p.get("direction", "")
-                pos_key = f"okx_{tab_key}_{sym}_{d}_{i}"
-                if btn_cols[i].button(f"청산 {sym}", key=f"close_{pos_key}", type="secondary"):
+                rc = st.columns(GRID)
+                rc[0].write(f"**{sym}**")
+                rc[1].write(d_lbl)
+                rc[2].write(f"{qty}")
+                rc[3].write(f"{margin:.2f}")
+                rc[4].write(f"{notional:.2f}")
+                rc[5].write(_fmt_price(ep))
+                rc[6].write(_fmt_price(cur) if cur else "—")
+                rc[7].write(f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f}")
+                rc[8].write(ret_str)
+                if rc[9].button("청산", key=f"close_{pos_key}", type="secondary"):
                     st.session_state.confirm_close = pos_key
 
             # ── 청산 확인 다이얼로그 ──────────────────────────────────────
