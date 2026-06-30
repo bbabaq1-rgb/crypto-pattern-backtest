@@ -545,11 +545,11 @@ def section_live_summary(pos_df, trades_df, prices):
         db_gt_okx = db_cnt > okx_cnt
 
         c1, c2, c3 = st.columns(3)
-        c1.metric("OKX 실제 포지션", f"{okx_cnt}개")
-        c2.metric("DB 추적 포지션", f"{db_cnt}개",
+        c1.metric("진입 완료 (OKX)", f"{okx_cnt}개")
+        c2.metric("DB 추적 포지션",  f"{db_cnt}개",
                   delta="⚠ DB>OKX 확인 필요" if db_gt_okx else None,
                   delta_color="inverse" if db_gt_okx else "normal")
-        c3.metric("실거래 체결",    f"{len(live_trd)}건")
+        c3.metric("청산 완료",       f"{len(live_trd)}건")
 
         if okx_poss:
             with st.expander(f"🔍 OKX 실제 포지션 {okx_cnt}개", expanded=False):
