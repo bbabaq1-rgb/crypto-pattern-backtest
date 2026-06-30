@@ -591,9 +591,11 @@ def run_once(do_fetch=True, quick=False):
                          "tf_confirmed": s.get("tf_confirmed", True),
                          "regime": s.get("regime")} for s in signals]
             if sig_rows:
-                sc.get_client("service").table("signals").upsert(
-                    sig_rows, on_conflict="date,symbol,pattern,direction").execute()
-                print(f"    signals Supabase UPSERT 완료 ({len(sig_rows)}건)")
+                cli = sc.get_client("service")
+                # unique constraint 불필요 — 오늘 날짜 삭제 후 재삽입
+                cli.table("signals").delete().eq("date", today_date).execute()
+                cli.table("signals").insert(sig_rows).execute()
+                print(f"    signals Supabase INSERT 완료 ({len(sig_rows)}건)")
     except Exception as e:
         print("    signals DB 동기화 실패(무시):", str(e)[:80])
 

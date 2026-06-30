@@ -1,7 +1,17 @@
 {
-  "generated_at": "2026-06-29T05:03Z",
+  "generated_at": "2026-06-29T23:24Z",
   "regime": "bear",
+  "primary_regime": "bear",
   "regime_date": "2026-06-24",
+  "onchain_score": 0,
+  "onchain_detail": {
+    "funding": "neutral",
+    "etf": "neutral",
+    "stable": "neutral",
+    "funding_avg_rate": 0.006939,
+    "etf_flows_3d": [],
+    "stable_7d_pct": -0.791
+  },
   "routing": {
     "engulfing": "long",
     "fvg": "short"
@@ -14,17 +24,53 @@
       "symbol": "BTC",
       "date": "2026-06-24",
       "strength_vol_ratio": 1.53,
-      "pattern_strength": 0.0012,
+      "pattern_strength": 0.001196,
       "regime": "bear",
       "entry": 61010.0,
       "stop": 65890.8,
+      "tf_confirmed": false,
       "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
+      "ensemble_score": 3.6,
+      "score_breakdown": {
+        "1d_pts": 3.6,
+        "4h_pts": 0.0,
+        "1h_pts": 0.0,
+        "bonus": 0
+      },
+      "ensemble_grade": "C",
       "pattern_count": 1,
       "patterns_fired": [
         "fvg"
       ],
-      "priority_score": 1.5,
+      "priority_score": 3.6,
       "priority_rank": 1
+    },
+    {
+      "pattern": "fvg",
+      "direction": "short",
+      "symbol": "ADA",
+      "date": "2026-06-24",
+      "strength_vol_ratio": 1.43,
+      "pattern_strength": 0.014895,
+      "regime": "bear",
+      "entry": 0.1477,
+      "stop": 0.1595,
+      "tf_confirmed": false,
+      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
+      "ensemble_score": 3.6,
+      "score_breakdown": {
+        "1d_pts": 3.6,
+        "4h_pts": 0.0,
+        "1h_pts": 0.0,
+        "bonus": 0
+      },
+      "ensemble_grade": "C",
+      "pattern_count": 1,
+      "patterns_fired": [
+        "fvg"
+      ],
+      "priority_score": 3.6,
+      "priority_rank": 2
     },
     {
       "pattern": "inverted_hammer",
@@ -36,30 +82,22 @@
       "regime": "bear",
       "entry": 0.0112,
       "stop": 0.0103,
+      "tf_confirmed": false,
+      "tf": "1d",
       "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
+      "ensemble_score": 3.3,
+      "score_breakdown": {
+        "1d_pts": 3.3,
+        "4h_pts": 0.0,
+        "1h_pts": 0.0,
+        "bonus": 0
+      },
+      "ensemble_grade": "C",
       "pattern_count": 1,
       "patterns_fired": [
         "inverted_hammer"
       ],
-      "priority_score": 1.5,
-      "priority_rank": 2
-    },
-    {
-      "pattern": "fvg",
-      "direction": "short",
-      "symbol": "ADA",
-      "date": "2026-06-24",
-      "strength_vol_ratio": 1.43,
-      "pattern_strength": 0.0149,
-      "regime": "bear",
-      "entry": 0.1477,
-      "stop": 0.1595,
-      "take_profit": "반대패턴 신호 or 레짐전환 or 최대30봉 시가청산",
-      "pattern_count": 1,
-      "patterns_fired": [
-        "fvg"
-      ],
-      "priority_score": 1.4685,
+      "priority_score": 3.3,
       "priority_rank": 3
     }
   ],
