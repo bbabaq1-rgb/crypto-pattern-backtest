@@ -130,9 +130,15 @@ def get_balance(live_conn):
 def get_okx_positions(live_conn):
     """
     OKX 실제 오픈 포지션 목록 조회.
-    반환: [{"symbol": str, "direction": str, "qty": float, "entry_price": float,
-             "unrealized_pnl": float}]
+    반환: [{"symbol", "direction", "qty"(계약수), "coin_qty"(코인수량),
+             "entry_price", "unrealized_pnl", "notional"(명목=코인수량×가격),
+             "margin"(실제 투입증거금), "leverage"(실제 레버리지)}]
     실패 시 빈 리스트 반환.
+
+    주의:
+      - qty 는 OKX 계약수(contracts). 코인 수량은 contracts × contractSize.
+      - margin 은 OKX 가 보고한 실제 초기증거금(initialMargin/collateral).
+        assume-2x 로 나누지 않고 거래소 값을 그대로 쓴다.
     """
     try:
         ex = live_conn["exchange"]
@@ -142,16 +148,46 @@ def get_okx_positions(live_conn):
             contracts = abs(float(p.get("contracts") or 0))
             if contracts <= 0:
                 continue
-            sym = str(p.get("symbol", "")).split("/")[0].split(":")[0]
+            sym  = str(p.get("symbol", "")).split("/")[0].split(":")[0]
             side = str(p.get("side", "")).lower()
             direction = "long" if side == "long" else "short"
+
+            entry     = float(p.get("entryPrice") or p.get("averagePrice") or 0)
+            notional  = abs(float(p.get("notional") or 0))
+            leverage  = float(p.get("leverage") or 0) or None
+
+            # 계약당 코인 수량(contractSize) — notional/entry 로 역산 폴백
+            csize = p.get("contractSize")
+            try:
+                csize = float(csize) if csize else None
+            except (TypeError, ValueError):
+                csize = None
+            coin_qty = contracts * csize if csize else (
+                notional / entry if entry else contracts)
+
+            # 실제 증거금: OKX initialMargin → collateral → notional/leverage 폴백
+            info = p.get("info", {}) if isinstance(p.get("info"), dict) else {}
+            margin = None
+            for cand in (p.get("initialMargin"), p.get("collateral"),
+                         info.get("imr"), info.get("margin")):
+                try:
+                    if cand is not None and float(cand) > 0:
+                        margin = float(cand); break
+                except (TypeError, ValueError):
+                    continue
+            if margin is None and notional and leverage:
+                margin = notional / leverage
+
             result.append({
                 "symbol":          sym,
                 "direction":       direction,
                 "qty":             contracts,
-                "entry_price":     float(p.get("entryPrice") or p.get("averagePrice") or 0),
+                "coin_qty":        coin_qty,
+                "entry_price":     entry,
                 "unrealized_pnl":  float(p.get("unrealizedPnl") or 0),
-                "notional":        float(p.get("notional") or 0),
+                "notional":        notional,
+                "margin":          margin,
+                "leverage":        leverage,
             })
         return result
     except Exception as e:

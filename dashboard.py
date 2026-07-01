@@ -716,17 +716,33 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
 
     # Live 탭 & DB 비어있을 때 → OKX 실제 포지션으로 폴백 (청산 버튼 포함)
     if df.empty and live:
-        _, okx_poss, is_live_mode, _ = fetch_account_balance()
+        bal_dict, okx_poss, is_live_mode, _ = fetch_account_balance()
         if okx_poss:
             st.caption("📡 OKX 실제 포지션 (DB 미등록 — 다음 스케줄러 실행 후 자동 등록)")
             if "confirm_close" not in st.session_state:
                 st.session_state.confirm_close = None
 
-            GRID = [1.0, 0.8, 0.8, 1.1, 1.1, 1.2, 1.2, 1.3, 1.0, 0.9]
+            # ── 합계 요약 (자산 대비 맥락 — '자산 초과' 오인 방지) ──────────
+            equity     = float(bal_dict.get("equity")) if bal_dict else None
+            tot_margin = sum(float(p.get("margin") or 0) for p in okx_poss)
+            tot_notn   = sum(abs(float(p.get("notional") or 0)) for p in okx_poss)
+            s1, s2, s3 = st.columns(3)
+            s1.metric("총 투입증거금", f"${tot_margin:.2f}",
+                      help="실제 계좌에서 묶인 증거금 합계 — 자산과 비교할 값")
+            s2.metric("총 명목금액", f"${tot_notn:.2f}",
+                      help="레버리지 반영 포지션 규모(≈증거금×레버리지). 자산의 여러 배가 정상")
+            if equity is not None:
+                lev_eff = (tot_notn / equity) if equity else 0
+                s3.metric("총 자산(equity)", f"${equity:.2f}",
+                          f"명목/자산 {lev_eff:.2f}x")
+            st.caption("ℹ️ '명목금액'은 레버리지가 곱해진 값이라 자산보다 큰 게 정상입니다. "
+                       "실제 위험자본은 '투입증거금'입니다.")
+
+            GRID = [0.9, 0.7, 1.1, 1.2, 1.1, 1.1, 1.1, 1.2, 0.9, 0.8]
 
             # ── 헤더 행 ───────────────────────────────────────────────────
             hcols = st.columns(GRID)
-            for c, label in zip(hcols, ["종목", "방향", "수량", "투입", "명목",
+            for c, label in zip(hcols, ["종목", "방향", "수량(코인)", "투입증거금", "명목",
                                         "진입가", "현재가", "손익", "수익률", ""]):
                 c.caption(f"**{label}**")
 
@@ -736,9 +752,12 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
                 d        = p.get("direction", "")
                 ep       = float(p.get("entry_price") or 0)
                 upnl     = float(p.get("unrealized_pnl") or 0)
-                qty      = p.get("qty", "—")
+                coin_qty = p.get("coin_qty")
                 notional = abs(float(p.get("notional") or 0))
-                margin   = notional / 2  # 레버리지 2x 고정
+                margin   = p.get("margin")
+                lev      = p.get("leverage")
+                if margin is None:  # 폴백: 명목/레버리지 → 명목/2
+                    margin = notional / lev if lev else notional / 2
                 cur      = prices.get(sym)
                 d_lbl    = DIR_LABEL.get(d, d)
                 dot      = "🟢" if upnl >= 0 else "🔴"
@@ -746,14 +765,16 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
                 if cur and ep:
                     ret_pct = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
                     ret_str = f"{'+' if ret_pct>=0 else ''}{ret_pct:.2f}%"
+                qty_str  = f"{coin_qty:g}" if coin_qty is not None else f"{p.get('qty','—')}"
+                lev_str  = f"  ·{lev:g}x" if lev else ""
                 pos_key  = f"okx_{tab_key}_{sym}_{d}_{i}"
 
                 rc = st.columns(GRID)
                 rc[0].write(f"**{sym}**")
                 rc[1].write(d_lbl)
-                rc[2].write(f"{qty}")
-                rc[3].write(f"{margin:.2f}")
-                rc[4].write(f"{notional:.2f}")
+                rc[2].write(qty_str)
+                rc[3].write(f"${margin:.2f}{lev_str}")
+                rc[4].write(f"${notional:.2f}")
                 rc[5].write(_fmt_price(ep))
                 rc[6].write(_fmt_price(cur) if cur else "—")
                 rc[7].write(f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f}")
