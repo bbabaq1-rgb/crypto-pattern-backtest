@@ -246,13 +246,16 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
         if eff_size < 10.0:
             return None, f"balance_too_low({usdt_free:.2f} USDT free → skip)"
 
-        # 수량 계산 (레버리지 반영)
+        # 수량 계산 (레버리지 반영) — OKX swap 주문 수량은 '계약 수' 단위.
+        # contractSize≠1 종목(AXS/COMP=0.1 등)에서 코인 수로 보내면 의도의
+        # 1/10 크기로 체결되는 버그가 있었다 → 계약 수로 환산.
+        mkt       = ex.market(ccxt_sym)
+        csize     = float(mkt.get("contractSize") or 1) or 1.0
         notional  = eff_size * OKX_LEVERAGE
-        raw_qty   = notional / price
+        raw_qty   = notional / price / csize
         qty       = float(ex.amount_to_precision(ccxt_sym, raw_qty))
 
         # 최소 lot size 확인
-        mkt      = ex.market(ccxt_sym)
         min_qty  = float((mkt.get("limits") or {}).get("amount", {}).get("min") or 0)
         if min_qty > 0 and qty < min_qty:
             return None, f"qty_below_lot_min({qty:.6f} < {min_qty})"
