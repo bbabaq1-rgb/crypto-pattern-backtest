@@ -23,17 +23,101 @@ import sys
 import time
 
 
+# ── 러너/스케줄러용 수집 윈도우 (봉 단위 아님, '일' 단위) ─────────────────
+# GitHub Actions 러너는 매번 빈 파일시스템에서 시작하므로 2021년부터 전체
+# 재수집하면 실행이 100분+ 걸린다. 신호 탐지·레짐 판정에 필요한 만큼만 수집.
+#   1d: 900일  (BTC 200MA + slope 220봉 + 레짐 히스토리 여유)
+#   4h: 130일  (~780봉 — 하모닉 피벗 탐지 충분)
+#   1h: 40일   (~960봉 — OKX 1h 과거 한계 회피: since 2021 요청 시 빈 응답)
+WINDOW_DAYS = {"1d": 900, "4h": 130, "1h": 40}
+
+# 거래소 폴백 순서 — GitHub Actions IP에서 binance/bybit는 차단(빈 응답)되고
+# okx만 동작하므로 okx 우선. (로컬에서는 어느 쪽이든 동작)
+EXCHANGE_ORDER = ("okx", "bybit", "binance")
+
+_ex_cache = {}
+
+
+def _get_exchange(exchange_id):
+    """ccxt 인스턴스 캐시 — 심볼마다 재생성하지 않는다(임포트/마켓로드 비용 절감)."""
+    if exchange_id not in _ex_cache:
+        import ccxt
+        _ex_cache[exchange_id] = getattr(ccxt, exchange_id)({"enableRateLimit": True})
+    return _ex_cache[exchange_id]
+
+
+def _csv_last_ts(path):
+    """기존 CSV의 마지막 timestamp(ms). 없거나 못 읽으면 None."""
+    try:
+        with open(path, newline="") as f:
+            last = None
+            for r in csv.DictReader(f):
+                last = r
+            return int(float(last["timestamp"])) if last else None
+    except Exception:
+        return None
+
+
+def update_csv(symbol, timeframe, out_path, window_days=None, quiet=True):
+    """
+    증분 수집: 기존 CSV가 있으면 마지막 봉 이후만 받아 append,
+    없으면 WINDOW_DAYS 기준 최근 구간만 수집해 새로 쓴다.
+    okx→bybit→binance 순서 폴백. 성공 시 (신규봉수, 총봉수), 실패 시 (0, 기존봉수 또는 0).
+    in-process 호출용 — subprocess/ccxt 재임포트 비용 없음.
+    """
+    days = window_days or WINDOW_DAYS.get(timeframe, 900)
+    now_ms = int(time.time() * 1000)
+    default_since = now_ms - days * 86400 * 1000
+
+    last_ts = _csv_last_ts(out_path)
+    # 기존 rows 로드 (증분 병합용)
+    old_rows = []
+    if last_ts is not None:
+        with open(out_path, newline="") as f:
+            old_rows = [[int(float(r["timestamp"])), float(r["open"]), float(r["high"]),
+                         float(r["low"]), float(r["close"]), float(r["volume"])]
+                        for r in csv.DictReader(f)]
+
+    for ex_id in EXCHANGE_ORDER:
+        try:
+            ex = _get_exchange(ex_id)
+            tf_ms = ex.parse_timeframe(timeframe) * 1000
+            since = (last_ts + tf_ms) if last_ts is not None else default_since
+            if since >= now_ms and last_ts is not None:
+                return 0, len(old_rows)          # 이미 최신
+            new_rows, ex_used = fetch_ohlcv_all(ex_id, symbol, timeframe, since,
+                                                limit=300, max_retries=1, exchange=ex,
+                                                quiet=quiet)
+            if not new_rows and last_ts is None:
+                continue                          # 신규 수집인데 0봉 → 다음 거래소
+            merged = old_rows + [r for r in new_rows if not old_rows or r[0] > old_rows[-1][0]]
+            if not merged:
+                continue
+            save_csv(merged, ex_used, out_path, quiet=quiet)
+            return len(merged) - len(old_rows), len(merged)
+        except Exception as e:
+            if not quiet:
+                print(f"  [update_csv] {ex_id} {symbol} {timeframe} 실패: {str(e)[:60]}")
+            continue
+    return 0, len(old_rows)
+
+
 def fetch_ohlcv_all(exchange_id, symbol, timeframe, since_ms,
-                    until_ms=None, limit=1000, max_retries=3):
+                    until_ms=None, limit=1000, max_retries=3, exchange=None,
+                    quiet=False):
     """
     since_ms 부터 (until_ms 또는 현재까지) 모든 캔들을 페이지네이션으로 수집.
     거래소 한 번 호출당 캔들 수 한도(예: 바이낸스 1000개)를 since 이동으로 넘는다.
+    exchange 인스턴스를 넘기면 재사용(임포트/생성 비용 절감).
     """
     import ccxt
-    try:
-        exchange = getattr(ccxt, exchange_id)({"enableRateLimit": True})
-    except AttributeError:
-        sys.exit(f"[오류] ccxt에 '{exchange_id}' 거래소가 없습니다.")
+    if exchange is not None:
+        pass
+    else:
+        try:
+            exchange = getattr(ccxt, exchange_id)({"enableRateLimit": True})
+        except AttributeError:
+            sys.exit(f"[오류] ccxt에 '{exchange_id}' 거래소가 없습니다.")
 
     if not exchange.has.get("fetchOHLCV"):
         sys.exit(f"[오류] {exchange_id}는 OHLCV 조회를 지원하지 않습니다.")
@@ -50,7 +134,8 @@ def fetch_ohlcv_all(exchange_id, symbol, timeframe, since_ms,
                 break
             except Exception as e:                      # 네트워크/레이트리밋 재시도
                 wait = (attempt + 1) * 2
-                print(f"  재시도 {attempt+1}/{max_retries} ({e}) — {wait}s 대기")
+                if not quiet:
+                    print(f"  재시도 {attempt+1}/{max_retries} ({e}) — {wait}s 대기")
                 time.sleep(wait)
         if not batch:
             break
@@ -61,7 +146,8 @@ def fetch_ohlcv_all(exchange_id, symbol, timeframe, since_ms,
             break
         all_rows += batch
         last_ts = batch[-1][0]
-        print(f"  {exchange.iso8601(batch[0][0])} ~ {exchange.iso8601(last_ts)}  (누적 {len(all_rows)})")
+        if not quiet:
+            print(f"  {exchange.iso8601(batch[0][0])} ~ {exchange.iso8601(last_ts)}  (누적 {len(all_rows)})")
 
         since = last_ts + tf_ms
         if until_ms and since > until_ms:
@@ -81,14 +167,15 @@ def fetch_ohlcv_all(exchange_id, symbol, timeframe, since_ms,
     return dedup, exchange
 
 
-def save_csv(rows, exchange, out_path):
+def save_csv(rows, exchange, out_path, quiet=False):
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     with open(out_path, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["timestamp", "datetime", "open", "high", "low", "close", "volume"])
         for ts, o, h, l, c, v in rows:
             w.writerow([ts, exchange.iso8601(ts), o, h, l, c, v])
-    print(f"[완료] {len(rows)}개 캔들 → {out_path}")
+    if not quiet:
+        print(f"[완료] {len(rows)}개 캔들 → {out_path}")
 
 
 def main():

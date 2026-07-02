@@ -108,11 +108,12 @@ def _date_idx(rows, date):
 def _record_trade(trades, pos, method, ex, exit_date=None):
     j, exit_px, ret, reason = ex
     trades.append(dict(method=method, symbol=pos["symbol"], direction=pos["direction"],
-                       pattern=pos["pattern"], regime=pos["regime"],
+                       pattern=pos["pattern"], regime=pos.get("regime"),
                        entry_date=pos["entry_date"], entry_price=pos["entry_price"],
                        exit_date=exit_date, exit_price=round(exit_px, 4), ret=round(ret, 5),
                        pnl_usd=round(ret * POS_USD, 2), hold_bars=j - pos["entry_idx"],
-                       reason=reason, method_label=method))
+                       reason=reason, method_label=method,
+                       live_mode=bool(pos.get("live_mode", False))))
 
 
 # ---- Supabase 동기화 (베스트에포트; 실패/미설정 시 JSON 폴백) ----
@@ -132,9 +133,19 @@ def push_trades_db(new_trades):
              "entry_date": t["entry_date"], "entry_price": t["entry_price"],
              "exit_date": t.get("exit_date"), "exit_price": t["exit_price"],
              "return_pct": round(t["ret"] * 100, 4), "hold_bars": t["hold_bars"],
-             "exit_reason": t["reason"], "method": t["method"]} for t in new_trades]
+             "exit_reason": t["reason"], "method": t["method"],
+             "live_mode": bool(t.get("live_mode", False))} for t in new_trades]
     try:
-        cli.table("trades").insert(rows).execute()
+        import supabase_client as sc
+        # 재실행 중복 방어: 동일 키(method 포함) 기존 행 제거 후 삽입
+        for r in rows:
+            (cli.table("trades").delete()
+             .eq("symbol", r["symbol"]).eq("pattern", r["pattern"])
+             .eq("direction", r["direction"]).eq("entry_date", r["entry_date"])
+             .eq("method", r["method"]).execute())
+        _, dropped = sc.insert_tolerant(cli, "trades", rows)
+        if dropped:
+            print("  [DB] trades 스키마 미존재 컬럼 제외:", dropped)
         return len(rows)
     except Exception as e:
         print("  [DB] trades insert 실패(로컬 JSON 유지):", str(e)[:60])
@@ -151,11 +162,101 @@ def push_positions_db(new_positions):
              "live_mode": bool(p.get("live_mode", False)),
              "status": "open", "method": "AD"} for p in new_positions]
     try:
-        cli.table("positions").insert(rows).execute()
+        import supabase_client as sc
+        # 재실행 중복 방어: 동일 키 기존 행 제거 후 삽입 (ZIL×5 오염 재발 방지)
+        for r in rows:
+            (cli.table("positions").delete()
+             .eq("symbol", r["symbol"]).eq("pattern", r["pattern"])
+             .eq("direction", r["direction"]).eq("entry_date", r["entry_date"]).execute())
+        _, dropped = sc.insert_tolerant(cli, "positions", rows)
+        if dropped:
+            print("  [DB] positions 스키마 미존재 컬럼 제외:", dropped)
         return len(rows)
     except Exception as e:
         print("  [DB] positions insert 실패(로컬 JSON 유지):", str(e)[:60])
         return 0
+
+
+def mark_closed_db(closed_positions):
+    """완전 청산(A·D 모두)된 포지션의 DB status를 'closed'로 갱신."""
+    cli = _db()
+    if not cli or not closed_positions:
+        return 0
+    n = 0
+    for p in closed_positions:
+        try:
+            (cli.table("positions").update({"status": "closed"})
+             .eq("symbol", p["symbol"]).eq("pattern", p["pattern"])
+             .eq("direction", p["direction"]).eq("entry_date", p["entry_date"]).execute())
+            n += 1
+        except Exception as e:
+            print("  [DB] positions close 갱신 실패(무시):", str(e)[:60])
+    return n
+
+
+def _derive_tf(pattern):
+    """패턴명 접미사에서 timeframe 복원 (DB에 tf 컬럼이 없어서 사용)."""
+    if pattern.endswith("_4h"):
+        return "4h"
+    if pattern.endswith("_1h"):
+        return "1h"
+    return "1d"
+
+
+def restore_state_db(positions, trades):
+    """
+    러너(빈 파일시스템)에서 Supabase로 상태 복원.
+
+    GitHub Actions는 매 실행 파일시스템이 초기화되므로 paper_positions/trades
+    JSON이 비어 있다. 복원 없이는 openkeys/closedkeys가 비어 같은 신호로
+    매 실행 재진입(실거래 중복 매수!)하고 청산 거래가 매번 재기록된다.
+    로컬 JSON이 있으면 그것을 원천으로 쓰고 DB 복원은 건너뛴다.
+    """
+    cli = _db()
+    if not cli:
+        return positions, trades
+    try:
+        if not trades:
+            tr = cli.table("trades").select("*").limit(1000).execute().data or []
+            for t in tr:
+                ret = (t.get("return_pct") or 0) / 100.0
+                trades.append(dict(
+                    method=t.get("method"), symbol=t.get("symbol"),
+                    direction=t.get("direction"), pattern=t.get("pattern"),
+                    regime=t.get("regime"), entry_date=t.get("entry_date"),
+                    entry_price=t.get("entry_price"), exit_date=t.get("exit_date"),
+                    exit_price=t.get("exit_price"), ret=ret,
+                    pnl_usd=round(ret * POS_USD, 2), hold_bars=t.get("hold_bars"),
+                    reason=t.get("exit_reason"), method_label=t.get("method"),
+                    live_mode=bool(t.get("live_mode") or False)))
+            if tr:
+                print(f"  [restore] Supabase trades {len(tr)}건 복원")
+        if not positions:
+            pr = (cli.table("positions").select("*").eq("status", "open")
+                  .limit(500).execute().data) or []
+            closed_am = {(t["symbol"], t["pattern"], t["direction"],
+                          t["entry_date"], t["method"]) for t in trades}
+            seen = set()
+            for p in pr:
+                key = (p["symbol"], p["pattern"], p["direction"], p["entry_date"])
+                if key in seen:          # 과거 중복 오염 방어 — 첫 행만 채택
+                    continue
+                seen.add(key)
+                positions.append(dict(
+                    symbol=p["symbol"], direction=p["direction"], pattern=p["pattern"],
+                    regime=p.get("regime"), tf=_derive_tf(p["pattern"]),
+                    entry_date=p["entry_date"],
+                    entry_price=p.get("entry_price"), stop=p.get("stop_loss"),
+                    size_usd=p.get("size_usd") or POS_USD,
+                    live_mode=bool(p.get("live_mode") or False),
+                    d_closed=key + ("D",) in closed_am,
+                    a_closed=key + ("A",) in closed_am))
+            if pr:
+                print(f"  [restore] Supabase 오픈 포지션 {len(positions)}건 복원"
+                      f" (원본 {len(pr)}행, 중복 {len(pr)-len(positions)}행 무시)")
+    except Exception as e:
+        print("  [restore] DB 상태 복원 실패(무시):", str(e)[:60])
+    return positions, trades
 
 
 def run(stamp=None):
@@ -163,6 +264,9 @@ def run(stamp=None):
     regmap = rs.build_regime_map()
     positions = _load(POS_FILE, [])
     trades = _load(TRD_FILE, [])
+    # 러너 파일시스템은 매 실행 초기화 → Supabase에서 상태 복원
+    # (복원 없이는 openkeys가 비어 실거래 중복 진입 발생)
+    positions, trades = restore_state_db(positions, trades)
     rows_cache = {}
 
     def rows_of(sym, tf="1d"):
@@ -178,6 +282,7 @@ def run(stamp=None):
     new_positions = []
     # 1) 오픈 포지션 청산 모니터링
     still_open = []
+    closed_now = []                   # 이번 실행에서 A·D 모두 청산 완료된 포지션
     for pos in positions:
         rows = rows_of(pos["symbol"], pos.get("tf", "1d"))
         if rows is None:          # 데이터 미수집 종목(OKX 미상장 등) -> 포지션 유지
@@ -198,6 +303,8 @@ def run(stamp=None):
                 _record_trade(trades, pos, "A", ex, rows[ex[0]]["date"]); pos["a_closed"] = True
         if not (pos.get("d_closed") and pos.get("a_closed")):
             still_open.append(pos)
+        else:
+            closed_now.append(pos)
 
     # 2) 신규 진입 (signals_today.json)
     live_conn = ex_mod.connect_live() if ex_mod.is_live() else None
@@ -268,12 +375,15 @@ def run(stamp=None):
                 # 주문 실패 시 size_for_pos = POS_USD (페이퍼 기록만 유지)
             else:
                 live_info    = {"live_order": result, "live_mode": True}
-                size_for_pos = live_size_usd
+                # 실체결 기준으로 기록 (신호가와 체결가 불일치 방지)
+                entry        = result["entry_price"]
+                stop_px      = result["stop_price"]
+                size_for_pos = result.get("size_usd", live_size_usd)
                 live_open_count   += 1
                 live_filled_count += 1
                 live_orders       += 1
                 print(f"  [live] {s['symbol']} {s['direction']} 진입 OK | "
-                      f"size=${live_size_usd:.0f} entry={result['entry_price']:.4f} "
+                      f"size=${size_for_pos:.2f} entry={result['entry_price']:.4f} "
                       f"sl={result['stop_price']:.4f}")
 
         rank      = s.get("priority_rank")
@@ -302,6 +412,7 @@ def run(stamp=None):
     new_trades = trades[t0:]
     dbt = push_trades_db(new_trades)
     dbp = push_positions_db(new_positions)
+    mark_closed_db(closed_now)
     dbmsg = f" | DB동기화 trades+{dbt}/positions+{dbp}" if _db() else " | DB미설정(JSON만)"
     live_msg = f" | 실거래주문 {live_orders}건" if live_conn else ""
     print(f"[paper] 신규진입 {new}건 | 오픈 {len(still_open)}건 | 누적 체결 {len(trades)}건{live_msg}{dbmsg}")

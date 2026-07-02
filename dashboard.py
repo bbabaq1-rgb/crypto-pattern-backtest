@@ -129,6 +129,11 @@ def load_positions():
                     df["live_mode"] = False
                 if "stop_loss" not in df.columns and "stop" in df.columns:
                     df["stop_loss"] = df["stop"]
+                # 과거 중복 insert 오염 방어 (동일 키 첫 행만 표시)
+                dedup_keys = [c for c in ("symbol", "pattern", "direction", "entry_date")
+                              if c in df.columns]
+                if dedup_keys:
+                    df = df.drop_duplicates(subset=dedup_keys, keep="first")
                 return df
         except Exception:
             pass
@@ -160,11 +165,13 @@ def load_signals():
         except Exception:
             pass
     # Supabase 없거나 오늘 데이터 없으면 signals_today.json 폴백
+    # (단, 파일이 오늘 생성된 경우만 — 어제 신호가 '오늘 신호'로 보이는 것 방지)
     try:
         if os.path.exists("signals_today.json"):
             raw = json.load(open("signals_today.json", encoding="utf-8"))
+            gen = str(raw.get("generated_at", ""))[:10]
             sigs = raw.get("signals", [])
-            if sigs:
+            if sigs and gen == today:
                 return pd.DataFrame(sigs)
     except Exception:
         pass
@@ -1190,10 +1197,30 @@ def section_daily_chart():
 
 
 # ── 메인 ─────────────────────────────────────────────────────────────────────
+@st.cache_resource
+def _app_version():
+    """배포 버전 확인용 — git 커밋 해시 (모바일/PC 표시 불일치 진단)."""
+    try:
+        import subprocess
+        h = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                           capture_output=True, text=True, timeout=5)
+        if h.returncode == 0 and h.stdout.strip():
+            return h.stdout.strip()
+    except Exception:
+        pass
+    try:
+        mt = os.path.getmtime(__file__)
+        return datetime.fromtimestamp(mt).strftime("%m%d-%H%M")
+    except Exception:
+        return "unknown"
+
+
 def main():
     col_h, col_btn = st.columns([5, 1])
     with col_h:
         st.title("🪙 크립토 대시보드")
+        st.caption(f"버전 {_app_version()} — 모바일과 PC에서 이 값이 다르면 "
+                   f"브라우저 새로고침(캐시 삭제) 필요")
     with col_btn:
         st.write("")
         if st.button("🔄"):

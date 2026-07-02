@@ -14,25 +14,30 @@ _fetch_failed: set = set()  # 이번 실행에서 이미 실패한 (sym, tf) 캐
 
 
 def _auto_fetch(sym, tf):
-    """CSV가 없을 때 fetch_data.py로 자동 다운로드. 실패 시 거래소 순서대로 폴백."""
-    import sys, os, subprocess
+    """CSV가 없을 때 자동 다운로드 (in-process, okx 우선, 최근 구간만).
+
+    과거 방식(subprocess + since 2021 + binance 우선)은 GitHub Actions 러너에서
+    종목당 ~30초씩 낭비돼 전체 실행이 100분을 넘겼다. fetch_data.update_csv 는
+    ccxt 인스턴스를 재사용하고 WINDOW_DAYS(1d 900일/4h 130일/1h 40일)만 받는다.
+    """
+    import os
     key = (sym, tf)
     if key in _fetch_failed:
         return  # 이미 실패 확인 -> 즉시 스킵 (같은 프로세스 내 재시도 방지)
     os.makedirs("data", exist_ok=True)
-    print(f"  [auto-fetch] {sym} {tf} 없음 -> 다운로드 시도...", flush=True)
-    for ex in ("binance", "bybit", "okx"):
-        print(f"  [auto-fetch] {ex} 시도...", flush=True)
-        r = subprocess.run(
-            [sys.executable, "fetch_data.py", "--exchange", ex,
-             "--symbol", f"{sym}/USDT", "--timeframe", tf,
-             "--since", "2021-01-01", "--out", CSV(sym, tf)])
-        if r.returncode == 0:
-            print(f"  [auto-fetch] {ex} OK", flush=True)
-            return
-    print(f"  [auto-fetch] 실패: {sym} {tf} 모든 거래소 불가 - 스킵", flush=True)
-    _fetch_failed.add(key)  # 실패 캐시 -> 이후 같은 심볼 즉시 스킵
-    # 파일이 없으면 load_ohlcv 에서 FileNotFoundError 발생 -> 호출부 except 로 처리
+    try:
+        import fetch_data
+        _, total_n = fetch_data.update_csv(f"{sym}/USDT", tf, CSV(sym, tf))
+    except Exception as e:
+        print(f"  [auto-fetch] {sym} {tf} 오류: {str(e)[:60]} - 스킵", flush=True)
+        _fetch_failed.add(key)
+        return
+    if total_n == 0:
+        print(f"  [auto-fetch] 실패: {sym} {tf} 모든 거래소 불가 - 스킵", flush=True)
+        _fetch_failed.add(key)  # 실패 캐시 -> 이후 같은 심볼 즉시 스킵
+        # 파일이 없으면 load_ohlcv 에서 FileNotFoundError -> 호출부 except 로 처리
+    else:
+        print(f"  [auto-fetch] {sym} {tf} OK ({total_n}봉)", flush=True)
 
 
 def load_ohlcv(sym, tf="1d"):

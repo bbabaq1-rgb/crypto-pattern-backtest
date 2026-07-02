@@ -2,7 +2,7 @@ name: Crypto Pattern Scheduler
 
 on:
   schedule:
-    - cron: '0 * * * *'   # 매시 정각 (24회/일) — HOUR=0이면 oncefull, 나머지 oncequick
+    - cron: '0 */4 * * *'   # 4시간마다 (6회/일, UTC 00/04/08/12/16/20) — 00시=oncefull
   workflow_dispatch:
     inputs:
       mode:
@@ -10,10 +10,15 @@ on:
         required: false
         default: 'oncefull'
 
+# 중첩 실행 차단: 진행 중이면 새 실행은 대기 (진행 중인 건 완주)
+concurrency:
+  group: scheduler-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15   # 정상 실행 ~3-5분 기준 — 초과는 확실한 이상 상황
     steps:
       - name: Checkout
         uses: actions/checkout@v4

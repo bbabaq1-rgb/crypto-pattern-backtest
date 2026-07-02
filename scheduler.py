@@ -276,53 +276,29 @@ def _build_priority(signals):
     return _build_ensemble(signals)
 
 
-def _fetch_one(sym, exchange, tf="1d"):
-    """단일 종목 fetch. 성공=True, 실패=False. 출력은 터미널에 바로 표시."""
-    out = f"data/{sym.lower()}_{tf}.csv"
-    r = subprocess.run(
-        [sys.executable, "fetch_data.py", "--exchange", exchange,
-         "--symbol", f"{sym}/USDT", "--timeframe", tf,
-         "--since", "2021-01-01", "--out", out])
-    return r.returncode == 0
-
-
 def fetch_all():
-    """유니버스 전체 1d CSV + 하모닉용 4h CSV 순차 fetch."""
+    """유니버스 전체 1d/4h/1h CSV 증분 fetch (in-process, okx 우선).
+
+    - fetch_data.update_csv: 기존 CSV 있으면 마지막 봉 이후만 append,
+      없으면 WINDOW_DAYS(1d 900일/4h 130일/1h 40일) 최근 구간만 수집.
+    - 과거 subprocess+since2021 방식은 러너에서 100분+ 걸려 폐기.
+    """
     import os
+    import fetch_data
     os.makedirs("data", exist_ok=True)
 
-    # BTC로 살아있는 거래소 탐색 (binance 451 차단 → bybit → okx)
-    active_ex = None
-    for ex in EXCHANGES:
-        print(f"  [fetch] {ex} 테스트 중 (BTC)...", flush=True)
-        if _fetch_one(SYMBOLS[0], ex, "1d"):
-            active_ex = ex
-            print(f"  [fetch] {ex} OK -> 전 종목 이 거래소 사용", flush=True)
-            break
-        print(f"  [fetch] {ex} 실패 -> 다음 거래소 시도", flush=True)
-
-    if active_ex is None:
-        print("  [fetch] 모든 거래소 실패 — 기존 CSV로 진행", flush=True)
-        return
-
-    # 1d fetch (유니버스 전체)
-    ok = 1   # BTC는 이미 성공
-    err = 0
-    for s in SYMBOLS[1:]:
-        if _fetch_one(s, active_ex, "1d"):
-            ok += 1
-        else:
-            print(f"  [fetch] {s} 실패 ({active_ex})", flush=True)
-            err += 1
-    print(f"  [fetch] 1d 완료 {ok}/{len(SYMBOLS)}종목 (거래소={active_ex})", flush=True)
-
-    # 4h fetch (하모닉 유니버스 — trading_universe 기준)
-    h_syms = _harmonic_symbols()
-    ok4 = 0
-    for s in h_syms:
-        if _fetch_one(s, active_ex, "4h"):
-            ok4 += 1
-    print(f"  [fetch] 4h 완료 {ok4}/{len(h_syms)}종목 (하모닉용)", flush=True)
+    for tf in ("1d", "4h", "1h"):
+        t0 = time.time()
+        ok = fail = new_total = 0
+        for s in SYMBOLS:
+            new_n, total_n = fetch_data.update_csv(
+                f"{s}/USDT", tf, f"data/{s.lower()}_{tf}.csv")
+            if total_n > 0:
+                ok += 1; new_total += new_n
+            else:
+                fail += 1
+        print(f"  [fetch] {tf} 완료 {ok}/{len(SYMBOLS)}종목 "
+              f"(+{new_total}봉, 실패 {fail}, {time.time()-t0:.0f}s)", flush=True)
 
 
 def _tf_confirm(sym, direction):
@@ -349,11 +325,13 @@ def run_once(do_fetch=True, quick=False):
     global SYMBOLS
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     if do_fetch:
-        print(f"[1] fetch {len(SYMBOLS)}종목 일봉 (순차, 완료 후 진행)...")
+        print(f"[1] fetch {len(SYMBOLS)}종목 1d/4h/1h (증분)...")
         fetch_all()
         print("[1] fetch 완료 -> 레짐 판정 시작")
     elif quick:
-        print("[1] oncequick 모드 — fetch 생략, 기존 CSV로 진행")
+        # 러너는 매번 빈 파일시스템 → 증분 fetch 필수 (최근 구간만이라 수 분)
+        print(f"[1] oncequick — {len(SYMBOLS)}종목 증분 fetch...")
+        fetch_all()
 
     print("[2] 레짐 판정..."); regmap = rs.build_regime_map()
     latest = max(regmap); regime = regmap[latest]
@@ -592,10 +570,17 @@ def run_once(do_fetch=True, quick=False):
                          "regime": s.get("regime")} for s in signals]
             if sig_rows:
                 cli = sc.get_client("service")
-                # unique constraint 불필요 — 오늘 날짜 삭제 후 재삽입
-                cli.table("signals").delete().eq("date", today_date).execute()
-                cli.table("signals").insert(sig_rows).execute()
-                print(f"    signals Supabase INSERT 완료 ({len(sig_rows)}건)")
+                # insert 먼저(스키마 내성) → 성공 후에만 오늘 자 이전 행 삭제.
+                # (과거 delete→insert 순서는 insert가 컬럼 오류로 실패하면
+                #  테이블이 비워지는 사고를 냈다)
+                inserted, dropped = sc.insert_tolerant(cli, "signals", sig_rows)
+                new_ids = [r["id"] for r in inserted if r.get("id")]
+                if new_ids:
+                    q = cli.table("signals").delete().eq("date", today_date)
+                    q = q.not_.in_("id", new_ids)
+                    q.execute()
+                msg = f" (스키마 미존재 컬럼 제외: {dropped})" if dropped else ""
+                print(f"    signals Supabase 동기화 완료 ({len(sig_rows)}건){msg}")
     except Exception as e:
         print("    signals DB 동기화 실패(무시):", str(e)[:80])
 

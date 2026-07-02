@@ -58,6 +58,31 @@ def get_client(role="service"):
     return cli
 
 
+def insert_tolerant(cli, table, rows):
+    """
+    스키마 내성 INSERT: 테이블에 없는 컬럼(PGRST204)을 에러 메시지에서 파싱해
+    해당 키를 제거하고 재시도한다. (예: positions.live_mode, signals.ensemble_grade
+    컬럼 미존재로 insert 전체가 실패해 데이터가 유실되던 문제의 방어막)
+
+    성공 시 (inserted_rows, dropped_columns) 반환, 실패 시 예외 전파.
+    """
+    import re
+    rows = [dict(r) for r in rows]   # 원본 보호
+    dropped = []
+    for _ in range(8):               # 최대 8개 컬럼까지 제거 시도
+        try:
+            res = cli.table(table).insert(rows).execute()
+            return (res.data or []), dropped
+        except Exception as e:
+            m = re.search(r"Could not find the '(\w+)' column", str(e))
+            if not m:
+                raise
+            col = m.group(1)
+            dropped.append(col)
+            rows = [{k: v for k, v in r.items() if k != col} for r in rows]
+    raise RuntimeError(f"insert_tolerant: {table} 컬럼 제거 한도 초과 (dropped={dropped})")
+
+
 def project_ref():
     """SUPABASE_URL(https://<ref>.supabase.co)에서 프로젝트 ref 추출."""
     url = os.environ.get("SUPABASE_URL", "")

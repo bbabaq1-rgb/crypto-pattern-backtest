@@ -165,11 +165,13 @@ def get_okx_positions(live_conn):
             coin_qty = contracts * csize if csize else (
                 notional / entry if entry else contracts)
 
-            # 실제 증거금: OKX initialMargin → collateral → notional/leverage 폴백
+            # 실제 증거금 우선순위: OKX raw margin(격리 실증거금) → imr → ccxt
+            # initialMargin → 명목/레버리지. collateral 은 미실현손익이 섞여
+            # '투입금'과 어긋나므로 쓰지 않는다.
             info = p.get("info", {}) if isinstance(p.get("info"), dict) else {}
             margin = None
-            for cand in (p.get("initialMargin"), p.get("collateral"),
-                         info.get("imr"), info.get("margin")):
+            for cand in (info.get("margin"), info.get("imr"),
+                         p.get("initialMargin")):
                 try:
                     if cand is not None and float(cand) > 0:
                         margin = float(cand); break
