@@ -83,15 +83,24 @@ DB에 온전히 남기려면 아래를 실행해야 한다 (Supabase → SQL Edi
 ```sql
 alter table positions add column if not exists live_mode boolean default false;
 alter table trades    add column if not exists live_mode boolean default false;
+alter table trades    add column if not exists pnl_usd numeric;
 alter table signals   add column if not exists ensemble_score numeric;
 alter table signals   add column if not exists ensemble_grade text;
 alter table signals   add column if not exists patterns_fired text;
 alter table signals   add column if not exists tf_confirmed boolean;
+alter table signals   add column if not exists pattern_strength numeric;
+alter table signals   add column if not exists strength_vol_ratio numeric;
+alter table signals   add column if not exists priority_score numeric;
 
 -- 컬럼 추가 후 기존 실거래 행 표기 복구
 update positions set live_mode = true
- where symbol = 'AXS' and entry_date = '2026-07-01';
+ where symbol = 'AXS'  and entry_date = '2026-07-01';
+update positions set live_mode = true
+ where symbol = 'DYDX' and entry_date = '2026-07-02';
 ```
+
+(`live_mode` 컬럼이 없는 동안 복원된 실거래 포지션이 페이퍼로 취급돼
+`MAX_LIVE_POS` 동시 포지션 제한도 실질적으로 무력화된다 — SQL 실행을 권장하는 이유)
 
 실행 전까지는 AXS가 DB상 페이퍼로 보이며(대시보드 실거래 탭은 OKX API 폴백으로 정상 표시),
 실행 후부터 완전한 실거래/페이퍼 구분이 저장된다.
@@ -102,7 +111,10 @@ update positions set live_mode = true
   binance/bybit 차단으로 종목당 ~30초 낭비, 1h는 수십 종목 전멸)
 - 수정 후: in-process 증분 fetch (okx 우선, 1d 900일 / 4h 130일 / 1h 40일 윈도우)
   - 로컬 스모크: BTC 1d 증분 3.2초, GAS 1h 신규 960봉 0.8초
-  - 러너 실측: (수동 실행 측정값 — 하단 갱신)
+  - **러너 실측 (2026-07-02 04:59 수동 oncequick): 총 6분 45초** —
+    fetch 1d 110s(67/71) + 4h 97s(70/71) + 1h 117s(70/71), **106분 → 94% 단축**
+  - 같은 실행에서 전 파이프라인 검증: restore 13건+6건(중복 0) → 신호 3건 DB 저장 →
+    기존 포지션 재진입 없음 → DYDX 신규 실거래 1건 실체결가(0.1362) 기록 → DB positions 반영
 - cron `0 */4 * * *` (6회/일, 문서와 일치) + concurrency 그룹(중첩 차단, 진행 중 완주) + timeout 15분
 
 ## 남은 리스크 / 참고

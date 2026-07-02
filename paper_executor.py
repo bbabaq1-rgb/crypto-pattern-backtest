@@ -134,6 +134,7 @@ def push_trades_db(new_trades):
              "exit_date": t.get("exit_date"), "exit_price": t["exit_price"],
              "return_pct": round(t["ret"] * 100, 4), "hold_bars": t["hold_bars"],
              "exit_reason": t["reason"], "method": t["method"],
+             "pnl_usd": t.get("pnl_usd"),
              "live_mode": bool(t.get("live_mode", False))} for t in new_trades]
     try:
         import supabase_client as sc
@@ -220,13 +221,18 @@ def restore_state_db(positions, trades):
             tr = cli.table("trades").select("*").limit(1000).execute().data or []
             for t in tr:
                 ret = (t.get("return_pct") or 0) / 100.0
+                # pnl_usd: DB 값 우선. 컬럼 없으면 과거 트레이드 기준 size $200으로
+                # 재구성 (현재 POS_USD로 재계산하면 daily_summary 누적%가 왜곡됨)
+                pnl = t.get("pnl_usd")
+                if pnl is None:
+                    pnl = round(ret * 200.0, 2)
                 trades.append(dict(
                     method=t.get("method"), symbol=t.get("symbol"),
                     direction=t.get("direction"), pattern=t.get("pattern"),
                     regime=t.get("regime"), entry_date=t.get("entry_date"),
                     entry_price=t.get("entry_price"), exit_date=t.get("exit_date"),
                     exit_price=t.get("exit_price"), ret=ret,
-                    pnl_usd=round(ret * POS_USD, 2), hold_bars=t.get("hold_bars"),
+                    pnl_usd=pnl, hold_bars=t.get("hold_bars"),
                     reason=t.get("exit_reason"), method_label=t.get("method"),
                     live_mode=bool(t.get("live_mode") or False)))
             if tr:
