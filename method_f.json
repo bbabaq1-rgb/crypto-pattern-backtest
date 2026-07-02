@@ -1,0 +1,366 @@
+{
+  "engulfing": {
+    "stats": {
+      "A": {
+        "n": 60,
+        "mean": 0.03425,
+        "median": 0.09988,
+        "maxloss": -0.17503,
+        "avghold": 10.11667,
+        "winrate": 0.61667,
+        "calmar": 0.19568
+      },
+      "D": {
+        "n": 60,
+        "mean": 0.08348,
+        "median": -0.03156,
+        "maxloss": -0.082,
+        "avghold": 12.5,
+        "winrate": 0.41667,
+        "calmar": 1.01801
+      },
+      "E": {
+        "n": 60,
+        "mean": 0.02563,
+        "median": -0.03951,
+        "maxloss": -0.26682,
+        "avghold": 18.85,
+        "winrate": 0.4,
+        "calmar": 0.09607
+      },
+      "F": {
+        "n": 60,
+        "mean": 0.02936,
+        "median": 0.038,
+        "maxloss": -0.082,
+        "avghold": 15.95,
+        "winrate": 0.53333,
+        "calmar": 0.35802
+      }
+    },
+    "gate_e_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] E=+2.56% D=+8.35%  MDD E=-26.7% D=-8.2%  Calmar E=0.096 D=1.018  우위 0/3"
+    },
+    "gate_f_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] F=+2.94% D=+8.35%  MDD F=-8.2% D=-8.2%  Calmar F=0.358 D=1.018  우위 0/3"
+    }
+  },
+  "fvg": {
+    "stats": {
+      "A": {
+        "n": 534,
+        "mean": 0.02775,
+        "median": 0.05665,
+        "maxloss": -0.25249,
+        "avghold": 8.96816,
+        "winrate": 0.55243,
+        "calmar": 0.10992
+      },
+      "D": {
+        "n": 534,
+        "mean": 0.10321,
+        "median": -0.057,
+        "maxloss": -0.082,
+        "avghold": 11.03745,
+        "winrate": 0.40262,
+        "calmar": 1.25861
+      },
+      "E": {
+        "n": 534,
+        "mean": -0.00559,
+        "median": -0.03211,
+        "maxloss": -0.23518,
+        "avghold": 10.91386,
+        "winrate": 0.34644,
+        "calmar": -0.02377
+      },
+      "F": {
+        "n": 534,
+        "mean": 0.01462,
+        "median": 0.038,
+        "maxloss": -0.082,
+        "avghold": 10.2809,
+        "winrate": 0.53745,
+        "calmar": 0.17829
+      }
+    },
+    "gate_e_vs_d": {
+      "verdict": "reject",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] E=-0.56% D=+10.32%  MDD E=-23.5% D=-8.2%  Calmar E=-0.024 D=1.259  우위 0/3"
+    },
+    "gate_f_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] F=+1.46% D=+10.32%  MDD F=-8.2% D=-8.2%  Calmar F=0.178 D=1.259  우위 0/3"
+    }
+  },
+  "engulfing_short": {
+    "stats": {
+      "A": {
+        "n": 87,
+        "mean": 0.01076,
+        "median": 0.04623,
+        "maxloss": -0.28612,
+        "avghold": 10.17241,
+        "winrate": 0.58621,
+        "calmar": 0.03762
+      },
+      "D": {
+        "n": 87,
+        "mean": 0.0059,
+        "median": -0.04749,
+        "maxloss": -0.082,
+        "avghold": 10.44828,
+        "winrate": 0.33333,
+        "calmar": 0.07194
+      },
+      "E": {
+        "n": 87,
+        "mean": -0.01616,
+        "median": -0.00472,
+        "maxloss": -0.41204,
+        "avghold": 17.12644,
+        "winrate": 0.44828,
+        "calmar": -0.03922
+      },
+      "F": {
+        "n": 87,
+        "mean": 0.00386,
+        "median": 0.038,
+        "maxloss": -0.082,
+        "avghold": 12.96552,
+        "winrate": 0.52874,
+        "calmar": 0.04708
+      }
+    },
+    "gate_e_vs_d": {
+      "verdict": "reject",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] E=-1.62% D=+0.59%  MDD E=-41.2% D=-8.2%  Calmar E=-0.039 D=0.072  우위 0/3"
+    },
+    "gate_f_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] F=+0.39% D=+0.59%  MDD F=-8.2% D=-8.2%  Calmar F=0.047 D=0.072  우위 0/3"
+    }
+  },
+  "fvg_short": {
+    "stats": {
+      "A": {
+        "n": 429,
+        "mean": -0.00678,
+        "median": -0.00265,
+        "maxloss": -0.6633,
+        "avghold": 9.76224,
+        "winrate": 0.4965,
+        "calmar": -0.01023
+      },
+      "D": {
+        "n": 429,
+        "mean": -0.00077,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 12.27506,
+        "winrate": 0.35897,
+        "calmar": -0.00942
+      },
+      "E": {
+        "n": 429,
+        "mean": -0.02016,
+        "median": -0.02977,
+        "maxloss": -0.71507,
+        "avghold": 16.19347,
+        "winrate": 0.338,
+        "calmar": -0.0282
+      },
+      "F": {
+        "n": 429,
+        "mean": 0.00035,
+        "median": 0.03372,
+        "maxloss": -0.082,
+        "avghold": 11.29138,
+        "winrate": 0.52681,
+        "calmar": 0.00423
+      }
+    },
+    "gate_e_vs_d": {
+      "verdict": "reject",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] E=-2.02% D=-0.08%  MDD E=-71.5% D=-8.2%  Calmar E=-0.028 D=-0.009  우위 0/3"
+    },
+    "gate_f_vs_d": {
+      "verdict": "adopt",
+      "wins": 2,
+      "all_wins": false,
+      "detail": "E[R] F=+0.03% D=-0.08%  MDD F=-8.2% D=-8.2%  Calmar F=0.004 D=-0.009  우위 2/3"
+    }
+  },
+  "inverted_hammer": {
+    "stats": {
+      "A": {
+        "n": 149,
+        "mean": 0.02133,
+        "median": 0.03031,
+        "maxloss": -0.17274,
+        "avghold": 9.97987,
+        "winrate": 0.5302,
+        "calmar": 0.12348
+      },
+      "D": {
+        "n": 149,
+        "mean": 0.04036,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 11.92617,
+        "winrate": 0.33557,
+        "calmar": 0.49224
+      },
+      "E": {
+        "n": 149,
+        "mean": 0.02047,
+        "median": -0.02244,
+        "maxloss": -0.26682,
+        "avghold": 16.63087,
+        "winrate": 0.39597,
+        "calmar": 0.07671
+      },
+      "F": {
+        "n": 149,
+        "mean": 0.02781,
+        "median": 0.038,
+        "maxloss": -0.082,
+        "avghold": 12.5906,
+        "winrate": 0.52349,
+        "calmar": 0.33917
+      }
+    },
+    "gate_e_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] E=+2.05% D=+4.04%  MDD E=-26.7% D=-8.2%  Calmar E=0.077 D=0.492  우위 0/3"
+    },
+    "gate_f_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] F=+2.78% D=+4.04%  MDD F=-8.2% D=-8.2%  Calmar F=0.339 D=0.492  우위 0/3"
+    }
+  },
+  "marubozu": {
+    "stats": {
+      "A": {
+        "n": 31,
+        "mean": 0.02008,
+        "median": 0.00084,
+        "maxloss": -0.18699,
+        "avghold": 9.22581,
+        "winrate": 0.51613,
+        "calmar": 0.10739
+      },
+      "D": {
+        "n": 31,
+        "mean": 0.11848,
+        "median": -0.01713,
+        "maxloss": -0.082,
+        "avghold": 11.90323,
+        "winrate": 0.41935,
+        "calmar": 1.44485
+      },
+      "E": {
+        "n": 31,
+        "mean": 0.03099,
+        "median": -0.02734,
+        "maxloss": -0.25469,
+        "avghold": 14.77419,
+        "winrate": 0.41935,
+        "calmar": 0.12168
+      },
+      "F": {
+        "n": 31,
+        "mean": 0.01413,
+        "median": 0.038,
+        "maxloss": -0.082,
+        "avghold": 10.25806,
+        "winrate": 0.51613,
+        "calmar": 0.17226
+      }
+    },
+    "gate_e_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] E=+3.10% D=+11.85%  MDD E=-25.5% D=-8.2%  Calmar E=0.122 D=1.445  우위 0/3"
+    },
+    "gate_f_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] F=+1.41% D=+11.85%  MDD F=-8.2% D=-8.2%  Calmar F=0.172 D=1.445  우위 0/3"
+    }
+  },
+  "_pooled": {
+    "stats": {
+      "A": {
+        "n": 1290,
+        "mean": 0.0145,
+        "median": 0.02106,
+        "maxloss": -0.6633,
+        "avghold": 9.48992,
+        "winrate": 0.53566,
+        "calmar": 0.02186
+      },
+      "D": {
+        "n": 1290,
+        "mean": 0.05426,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 11.60078,
+        "winrate": 0.37674,
+        "calmar": 0.66165
+      },
+      "E": {
+        "n": 1290,
+        "mean": -0.00581,
+        "median": -0.02927,
+        "maxloss": -0.71507,
+        "avghold": 14.21085,
+        "winrate": 0.36047,
+        "calmar": -0.00812
+      },
+      "F": {
+        "n": 1290,
+        "mean": 0.01134,
+        "median": 0.038,
+        "maxloss": -0.082,
+        "avghold": 11.32791,
+        "winrate": 0.53101,
+        "calmar": 0.13835
+      }
+    },
+    "gate_e_vs_d": {
+      "verdict": "reject",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] E=-0.58% D=+5.43%  MDD E=-71.5% D=-8.2%  Calmar E=-0.008 D=0.662  우위 0/3"
+    },
+    "gate_f_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] F=+1.13% D=+5.43%  MDD F=-8.2% D=-8.2%  Calmar F=0.138 D=0.662  우위 0/3"
+    }
+  }
+}

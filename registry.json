@@ -900,6 +900,38 @@
       "n": 51316,
       "mean": -0.05,
       "note": "median<0, boot_p=0.434"
+    },
+    {
+      "id": "bb_zscore_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 14699,
+      "mean": -0.16,
+      "note": "mean<=0, median<=0, boot_p=0.460, OOS 0/4<2"
+    },
+    {
+      "id": "bb_zscore_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 10217,
+      "mean": -0.05,
+      "note": "mean<=0, median<=0, boot_p=0.424"
+    },
+    {
+      "id": "rsi_extreme_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 4281,
+      "mean": -0.25,
+      "note": "mean<=0, median<=0, boot_p=0.518"
+    },
+    {
+      "id": "rsi_extreme_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 3316,
+      "mean": -0.38,
+      "note": "mean<=0, boot_p=0.602, OOS 0/4<2"
     }
   ]
 }

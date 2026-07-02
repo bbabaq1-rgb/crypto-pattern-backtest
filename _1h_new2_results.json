@@ -1,0 +1,130 @@
+[
+  {
+    "pattern": "bb_zscore_1h",
+    "direction": "long",
+    "n": 14699,
+    "mean": -0.0016381571829804957,
+    "median": -0.002,
+    "t": -4.52284745540246,
+    "p": 6.192633625889954e-06,
+    "boot_p": 0.46,
+    "ok": false,
+    "oos_pos": 0,
+    "verdict": "REJECTED",
+    "reason": "mean<=0, median<=0, boot_p=0.460, OOS 0/4<2",
+    "regime_split": {
+      "bear": {
+        "n": 4623,
+        "mean": -0.002846050602626535
+      },
+      "bull_altseason": {
+        "n": 2043,
+        "mean": -0.005830168295392394
+      },
+      "bull_btc": {
+        "n": 7056,
+        "mean": -0.000588937342842114
+      },
+      "unknown": {
+        "n": 977,
+        "mean": 0.005265706470719326
+      }
+    }
+  },
+  {
+    "pattern": "bb_zscore_short_1h",
+    "direction": "short",
+    "n": 10217,
+    "mean": -0.0005373938526146187,
+    "median": -6.94980694980734e-05,
+    "t": -1.2090559492282826,
+    "p": 0.22667458010161967,
+    "boot_p": 0.424,
+    "ok": false,
+    "oos_pos": 2,
+    "verdict": "REJECTED",
+    "reason": "mean<=0, median<=0, boot_p=0.424",
+    "regime_split": {
+      "bear": {
+        "n": 3043,
+        "mean": -0.00011643879764497977
+      },
+      "bull_altseason": {
+        "n": 1503,
+        "mean": -0.0008259109437848504
+      },
+      "bull_btc": {
+        "n": 4935,
+        "mean": -0.00011754942318756269
+      },
+      "unknown": {
+        "n": 736,
+        "mean": -0.0045037760584111875
+      }
+    }
+  },
+  {
+    "pattern": "rsi_extreme_1h",
+    "direction": "long",
+    "n": 4281,
+    "mean": -0.0025485515032293684,
+    "median": -0.0005698395042110765,
+    "t": -3.5592313258087596,
+    "p": 0.00037945440616304893,
+    "boot_p": 0.518,
+    "ok": false,
+    "oos_pos": 2,
+    "verdict": "REJECTED",
+    "reason": "mean<=0, median<=0, boot_p=0.518",
+    "regime_split": {
+      "bear": {
+        "n": 1642,
+        "mean": 0.0014908037138642112
+      },
+      "bull_altseason": {
+        "n": 549,
+        "mean": -0.004609185822761811
+      },
+      "bull_btc": {
+        "n": 2014,
+        "mean": -0.005155986599873849
+      },
+      "unknown": {
+        "n": 76,
+        "mean": -0.005837482297997305
+      }
+    }
+  },
+  {
+    "pattern": "rsi_extreme_short_1h",
+    "direction": "short",
+    "n": 3316,
+    "mean": -0.003844414991100162,
+    "median": 0.00017066186436382087,
+    "t": -4.26998298734616,
+    "p": 2.059979074364726e-05,
+    "boot_p": 0.602,
+    "ok": false,
+    "oos_pos": 0,
+    "verdict": "REJECTED",
+    "reason": "mean<=0, boot_p=0.602, OOS 0/4<2",
+    "regime_split": {
+      "bear": {
+        "n": 1083,
+        "mean": -0.0036170323907559294
+      },
+      "bull_altseason": {
+        "n": 391,
+        "mean": -0.003971870113668076
+      },
+      "bull_btc": {
+        "n": 1653,
+        "mean": -0.003176345650471839
+      },
+      "unknown": {
+        "n": 189,
+        "mean": -0.010726632045636493
+      }
+    }
+  }
+]
