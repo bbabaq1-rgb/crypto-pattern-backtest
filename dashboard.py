@@ -394,6 +394,100 @@ def _close_live_okx(sym, direction):
         return False, str(e)[:80]
 
 
+def _record_manual_close(sym, direction, entry, exit_px, *, pattern=None,
+                         entry_date=None, regime=None, pnl_usd=None,
+                         size_usd=None, live_mode=True):
+    """
+    수동 청산을 trades 테이블 + paper_trades.json 에 기록.
+    최근매매내역/일별PNL/패턴별성과가 전부 trades 를 읽으므로, 기록이 없으면
+    청산해도 아무 화면에 안 뜬다 (OKX 폴백 청산 버튼의 누락 버그 수정).
+
+    방식 A·D 두 행으로 기록 — 기존 _do_close_position 관례와 동일(양 탭 표시).
+    pattern/entry_date/regime 미지정 시 positions 테이블에서 보강, 없으면 기본값.
+    """
+    today_str = date.today().isoformat()
+    cli = _supabase()
+
+    # positions 테이블에서 패턴/진입일/레짐 보강 (OKX 폴백엔 이 정보가 없음)
+    if cli and (not pattern or not entry_date):
+        try:
+            q = (cli.table("positions").select("*")
+                 .eq("symbol", sym).eq("direction", direction)
+                 .order("entry_date", desc=True).limit(1).execute())
+            if q.data:
+                row = q.data[0]
+                pattern    = pattern    or row.get("pattern")
+                entry_date = entry_date or row.get("entry_date")
+                regime     = regime     or row.get("regime")
+                size_usd   = size_usd if size_usd is not None else row.get("size_usd")
+        except Exception:
+            pass
+    pattern    = pattern or "수동"
+    entry_date = entry_date or today_str
+    ret_val    = ((exit_px - entry) / entry if direction == "long"
+                  else (entry - exit_px) / entry) if (entry and exit_px) else 0.0
+    if pnl_usd is None and size_usd:
+        pnl_usd = round(ret_val * float(size_usd), 2)
+
+    recorded = 0
+    if cli and entry and exit_px:
+        for method in ("A", "D"):
+            try:
+                _insert_trade_tolerant(cli, {
+                    "symbol": sym, "pattern": pattern, "direction": direction,
+                    "entry_date": entry_date, "entry_price": entry,
+                    "exit_date": today_str, "exit_price": round(exit_px, 6),
+                    "return_pct": round(ret_val * 100, 4), "hold_bars": 0,
+                    "exit_reason": "수동청산", "method": method,
+                    "pnl_usd": pnl_usd, "live_mode": bool(live_mode),
+                })
+                recorded += 1
+            except Exception as e:
+                print("[manual-close] trades insert 실패:", str(e)[:60])
+
+    # 로컬 JSON에도 반영(러너/로컬 폴백)
+    if os.path.exists("paper_trades.json") and entry and exit_px:
+        try:
+            tl = json.load(open("paper_trades.json", encoding="utf-8"))
+            for method in ("A", "D"):
+                tl.append(dict(
+                    method=method, symbol=sym, direction=direction, pattern=pattern,
+                    regime=regime, entry_date=entry_date, entry_price=entry,
+                    exit_date=today_str, exit_price=round(exit_px, 6),
+                    ret=round(ret_val, 6),
+                    pnl_usd=pnl_usd if pnl_usd is not None else round(ret_val * (size_usd or 0), 2),
+                    hold_bars=0, reason="수동청산", method_label=method, live_mode=bool(live_mode)))
+            json.dump(tl, open("paper_trades.json", "w", encoding="utf-8"),
+                      ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    # 해당 오픈 포지션을 closed 로 표시
+    if cli:
+        try:
+            (cli.table("positions").update({"status": "closed"})
+             .eq("symbol", sym).eq("direction", direction).eq("status", "open").execute())
+        except Exception:
+            pass
+    return recorded
+
+
+def _insert_trade_tolerant(cli, row):
+    """스키마에 없는 컬럼(pnl_usd/live_mode 등) 자동 제외 후 재시도."""
+    import re
+    r = dict(row)
+    for _ in range(6):
+        try:
+            cli.table("trades").insert(r).execute()
+            return
+        except Exception as e:
+            m = re.search(r"Could not find the '(\w+)' column", str(e))
+            if not m:
+                raise
+            r.pop(m.group(1), None)
+    raise RuntimeError("insert_trade_tolerant: 컬럼 제거 한도 초과")
+
+
 def _do_close_position(pos_row, cur_price):
     sym        = str(pos_row.get("symbol", ""))
     direction  = str(pos_row.get("direction", ""))
@@ -808,17 +902,35 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
                                     ex  = conn["exchange"]
                                     sym_ccxt = f"{sym}/USDT:USDT"
                                     close_side = "sell" if d == "long" else "buy"
-                                    ex.create_market_order(
+                                    order = ex.create_market_order(
                                         sym_ccxt, close_side, float(qty),
                                         params={"tdMode": "isolated", "reduceOnly": True},
                                     )
-                                    st.success(f"{sym} {d_lbl} 청산 완료")
+                                    # 실체결가 캡처 → 없으면 현재가 폴백
+                                    fill = float(order.get("average") or order.get("price") or 0) \
+                                        or float(prices.get(sym) or 0)
+                                    entry_px = float(p.get("entry_price") or 0)
+                                    cq = p.get("coin_qty")
+                                    # 실현손익: 코인수량×가격차 (없으면 미실현P&L 근사)
+                                    if cq and entry_px and fill:
+                                        realized = (fill - entry_px) * cq if d == "long" \
+                                            else (entry_px - fill) * cq
+                                    else:
+                                        realized = float(p.get("unrealized_pnl") or 0)
+                                    n = _record_manual_close(
+                                        sym, d, entry_px, fill,
+                                        pnl_usd=round(realized, 2),
+                                        size_usd=p.get("margin"), live_mode=True)
+                                    st.success(f"{sym} {d_lbl} 청산 완료 "
+                                               f"(체결 {_fmt_price(fill)}, 매매내역 {n}건 기록)")
                                 else:
                                     st.error("OKX 연결 실패")
                             except Exception as e:
                                 st.error(f"청산 오류: {str(e)[:80]}")
                         st.session_state.confirm_close = None
                         st.cache_data.clear()
+                        time.sleep(1.2)
+                        st.rerun()
                     if cc2.button("취소", key=f"cancel_{pos_key}"):
                         st.session_state.confirm_close = None
             st.divider()
