@@ -129,11 +129,16 @@ def push_trades_db(new_trades):
     cli = _db()
     if not cli or not new_trades:
         return 0
+    # '실거래' 마커: DB에 live_mode 컬럼이 없어도(DDL 미적용) 대시보드가
+    # exit_reason으로 실거래/페이퍼를 구분할 수 있게 실거래 청산에 마커 부여.
+    def _reason(t):
+        r = t["reason"]
+        return f"{r} ·실거래" if t.get("live_mode") and "실거래" not in str(r) else r
     rows = [{"symbol": t["symbol"], "pattern": t["pattern"], "direction": t["direction"],
              "entry_date": t["entry_date"], "entry_price": t["entry_price"],
              "exit_date": t.get("exit_date"), "exit_price": t["exit_price"],
              "return_pct": round(t["ret"] * 100, 4), "hold_bars": t["hold_bars"],
-             "exit_reason": t["reason"], "method": t["method"],
+             "exit_reason": _reason(t), "method": t["method"],
              "pnl_usd": t.get("pnl_usd"),
              "live_mode": bool(t.get("live_mode", False))} for t in new_trades]
     try:

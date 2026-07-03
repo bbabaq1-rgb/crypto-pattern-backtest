@@ -115,16 +115,18 @@ def load_trades():
     if "entry_date" in combined.columns:
         combined = combined.sort_values("entry_date", ascending=False)
 
-    # live_mode 컬럼 복원력: DB 스키마에 컬럼이 없으면(=SQL 미적용) 실거래 탭이
-    # 전부 빈 화면이 된다. 컬럼이 아예 없을 때만 수동청산을 실거래로 추론
-    # (수동청산은 실거래 OKX 포지션에서만 발생). SQL로 컬럼 추가 시 실제 값 우선.
+    # live_mode 판정 — DB에 live_mode 컬럼이 없어도(=DDL 미적용) 동작하도록
+    # exit_reason의 '실거래' 마커를 1차 기준으로 사용(모든 실거래 청산에 부여).
+    # 컬럼이 있으면 그 값도 OR로 반영. 마커가 없던 과거 수동청산은 컬럼 부재 시에만 추론.
     had_live_col = "live_mode" in combined.columns
     if not had_live_col:
         combined["live_mode"] = False
     combined["live_mode"] = combined["live_mode"].fillna(False).astype(bool)
-    if not had_live_col and "exit_reason" in combined.columns:
-        manual = combined["exit_reason"].astype(str).str.contains("수동", na=False)
-        combined.loc[manual, "live_mode"] = True
+    if "exit_reason" in combined.columns:
+        er = combined["exit_reason"].astype(str)
+        combined.loc[er.str.contains("실거래", na=False), "live_mode"] = True
+        if not had_live_col:   # 마커 이전 수동청산 호환(컬럼도 마커도 없을 때만)
+            combined.loc[er.str.contains("수동", na=False), "live_mode"] = True
 
     return combined.drop(columns=["_src"], errors="ignore").head(200)
 
@@ -441,6 +443,8 @@ def _record_manual_close(sym, direction, entry, exit_px, *, pattern=None,
     if pnl_usd is None and size_usd:
         pnl_usd = round(ret_val * float(size_usd), 2)
 
+    # '실거래' 마커: live_mode 컬럼이 없어도 실거래 청산으로 인식되게 exit_reason에 부여
+    exit_reason = "수동청산 ·실거래" if live_mode else "수동청산"
     recorded = 0
     if cli and entry and exit_px:
         for method in ("A", "D"):
@@ -450,7 +454,7 @@ def _record_manual_close(sym, direction, entry, exit_px, *, pattern=None,
                     "entry_date": entry_date, "entry_price": entry,
                     "exit_date": today_str, "exit_price": round(exit_px, 6),
                     "return_pct": round(ret_val * 100, 4), "hold_bars": 0,
-                    "exit_reason": "수동청산", "method": method,
+                    "exit_reason": exit_reason, "method": method,
                     "pnl_usd": pnl_usd, "live_mode": bool(live_mode),
                 })
                 recorded += 1
@@ -468,7 +472,7 @@ def _record_manual_close(sym, direction, entry, exit_px, *, pattern=None,
                     exit_date=today_str, exit_price=round(exit_px, 6),
                     ret=round(ret_val, 6),
                     pnl_usd=pnl_usd if pnl_usd is not None else round(ret_val * (size_usd or 0), 2),
-                    hold_bars=0, reason="수동청산", method_label=method, live_mode=bool(live_mode)))
+                    hold_bars=0, reason=exit_reason, method_label=method, live_mode=bool(live_mode)))
             json.dump(tl, open("paper_trades.json", "w", encoding="utf-8"),
                       ensure_ascii=False, indent=2)
         except Exception:
