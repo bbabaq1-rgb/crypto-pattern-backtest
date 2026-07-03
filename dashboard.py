@@ -114,6 +114,18 @@ def load_trades():
         combined = combined.drop_duplicates(subset=dedup, keep="first")
     if "entry_date" in combined.columns:
         combined = combined.sort_values("entry_date", ascending=False)
+
+    # live_mode 컬럼 복원력: DB 스키마에 컬럼이 없으면(=SQL 미적용) 실거래 탭이
+    # 전부 빈 화면이 된다. 컬럼이 아예 없을 때만 수동청산을 실거래로 추론
+    # (수동청산은 실거래 OKX 포지션에서만 발생). SQL로 컬럼 추가 시 실제 값 우선.
+    had_live_col = "live_mode" in combined.columns
+    if not had_live_col:
+        combined["live_mode"] = False
+    combined["live_mode"] = combined["live_mode"].fillna(False).astype(bool)
+    if not had_live_col and "exit_reason" in combined.columns:
+        manual = combined["exit_reason"].astype(str).str.contains("수동", na=False)
+        combined.loc[manual, "live_mode"] = True
+
     return combined.drop(columns=["_src"], errors="ignore").head(200)
 
 
