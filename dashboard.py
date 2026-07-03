@@ -1107,44 +1107,91 @@ _REGIME_COLORS = {
 
 # ── 차트 1: 누적수익률 라인 차트 ────────────────────────────────────────────────
 
-def chart_cumulative_return(daily_df, chart_key="live"):
-    st.subheader("📈 누적수익률 (방식A vs D)")
+def _chart_cum_from_daily(daily_df, chart_key):
+    """페이퍼 정식 트랙 — daily_summary의 cumulative_return_a/d 라인."""
     if daily_df.empty or "date" not in daily_df.columns:
         st.info("아직 데이터 없음 — GitHub Actions 실행 후 채워집니다")
-        st.divider()
-        return
-
+        st.divider(); return
     df = daily_df.sort_values("date").copy()
     df = df[df["date"].astype(str) >= PERF_START]
-    if df.empty:
-        st.info("아직 데이터 없음")
-        st.divider()
-        return
-
     has_a = "cumulative_return_a" in df.columns
     has_d = "cumulative_return_d" in df.columns
-    if not has_a and not has_d:
-        st.info("수익률 컬럼 없음")
-        st.divider()
-        return
-
+    if df.empty or (not has_a and not has_d):
+        st.info("아직 데이터 없음"); st.divider(); return
     fig = go.Figure()
     if has_a:
         base = float(df["cumulative_return_a"].iloc[0])
-        fig.add_trace(go.Scatter(
-            x=df["date"],
-            y=(df["cumulative_return_a"] - base).round(3),
-            name="방식A", mode="lines",
-            line=dict(color="#4a9eff", width=2),
-        ))
+        fig.add_trace(go.Scatter(x=df["date"], y=(df["cumulative_return_a"]-base).round(3),
+                                 name="방식A", mode="lines", line=dict(color="#4a9eff", width=2)))
     if has_d:
         base = float(df["cumulative_return_d"].iloc[0])
+        fig.add_trace(go.Scatter(x=df["date"], y=(df["cumulative_return_d"]-base).round(3),
+                                 name="방식D", mode="lines", line=dict(color="#ff8c42", width=2)))
+    fig.add_hline(y=0, line_dash="dot", line_color="gray", line_width=1)
+    fig.update_layout(template="plotly_dark", height=_CHART_H, margin=dict(l=0, r=0, t=8, b=8),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
+                                  font=dict(size=11)),
+                      yaxis=dict(title="%", ticksuffix="%"), xaxis=dict(title=None),
+                      hovermode="x unified")
+    st.plotly_chart(fig, use_container_width=True, config=_CHART_CFG, key=f"chart_cum_{chart_key}")
+    st.divider()
+
+
+def chart_cumulative_return(live, trades_df, daily_df=None, chart_key="live"):
+    """
+    방식A/D 누적수익률.
+      - 실거래 탭: trades(실거래 청산)의 청산일별 return_pct 누적 — DYDX 등 즉시 반영.
+      - 페이퍼 탭: daily_summary 정식 트랙(cumulative_return_a/d) — 러너가 전체
+        paper_trades로 계산한 값(DB trades엔 exit_date 누락 청산이 있어 신뢰도 낮음).
+    """
+    st.subheader("📈 누적수익률 (방식A vs D)")
+    if not live:
+        _chart_cum_from_daily(daily_df if daily_df is not None else pd.DataFrame(), chart_key)
+        return
+
+    df = _filter_by_mode(trades_df, live)
+    if df.empty or "exit_date" not in df.columns:
+        st.info("청산 완료 거래 없음")
+        st.divider()
+        return
+
+    ret_col = "return_pct" if "return_pct" in df.columns else "ret"
+    mult    = 1.0 if ret_col == "return_pct" else 100.0
+    m_col   = "method" if "method" in df.columns else (
+              "method_label" if "method_label" in df.columns else None)
+
+    df = df.copy()
+    df = df[df["exit_date"].notna()]
+    df = df[df["exit_date"].astype(str).str.strip() != ""]
+    if df.empty:
+        st.info("청산 완료 거래 없음")
+        st.divider()
+        return
+    df["_dt"]  = pd.to_datetime(df["exit_date"].astype(str).str[:10])
+    df["_ret"] = df[ret_col].astype(float) * mult
+
+    fig = go.Figure()
+    plotted = False
+    for meth, color, label in [("A", "#4a9eff", "방식A"), ("D", "#ff8c42", "방식D")]:
+        sub = df[df[m_col] == meth] if m_col else df
+        if sub.empty:
+            continue
+        daily = sub.groupby("_dt")["_ret"].sum().sort_index()
+        cum   = daily.cumsum()
         fig.add_trace(go.Scatter(
-            x=df["date"],
-            y=(df["cumulative_return_d"] - base).round(3),
-            name="방식D", mode="lines",
-            line=dict(color="#ff8c42", width=2),
+            x=cum.index, y=cum.round(3).values,
+            name=label, mode="lines+markers",
+            line=dict(color=color, width=2),
         ))
+        plotted = True
+        if m_col is None:   # 방식 구분 없으면 1개 라인만
+            break
+
+    if not plotted:
+        st.info("청산 완료 거래 없음")
+        st.divider()
+        return
+
     fig.add_hline(y=0, line_dash="dot", line_color="gray", line_width=1)
     fig.update_layout(
         template="plotly_dark", height=_CHART_H,
@@ -1370,7 +1417,7 @@ def main():
         section_signals(tab_key="live")
         section_positions(live=True,  pos_df=all_pos, prices=prices, tab_key="live")
         section_trades(live=True,  trades_df=all_trades, tab_key="live")
-        chart_cumulative_return(daily_df, chart_key="live")
+        chart_cumulative_return(live=True, trades_df=all_trades, chart_key="live")
         chart_daily_pnl(live=True,  trades_df=all_trades, chart_key="live")
         section_pattern_perf(live=True,  trades_df=all_trades, chart_key="live")
         chart_regime_timeline(chart_key="live")
@@ -1380,7 +1427,7 @@ def main():
         section_signals(tab_key="paper")
         section_positions(live=False, pos_df=all_pos, prices=prices, tab_key="paper")
         section_trades(live=False, trades_df=all_trades, tab_key="paper")
-        chart_cumulative_return(daily_df, chart_key="paper")
+        chart_cumulative_return(live=False, trades_df=all_trades, daily_df=daily_df, chart_key="paper")
         chart_daily_pnl(live=False, trades_df=all_trades, chart_key="paper")
         section_pattern_perf(live=False, trades_df=all_trades, chart_key="paper")
         chart_regime_timeline(chart_key="paper")
