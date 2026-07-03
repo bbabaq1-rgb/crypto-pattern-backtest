@@ -34,6 +34,22 @@ def main():
             except Exception as e:
                 out["algo_orders_error"] = str(e)[:120]
 
+            # 청산 이력 — 수동 청산된 포지션 특정용 (최근 종료 포지션)
+            try:
+                ex = conn["exchange"]
+                resp = ex.privateGetAccountPositionsHistory({"limit": "30"})
+                out["closed_positions"] = [
+                    {"instId": h.get("instId"), "posSide": h.get("posSide"),
+                     "direction": h.get("direction"),
+                     "openAvgPx": h.get("openAvgPx"), "closeAvgPx": h.get("closeAvgPx"),
+                     "realizedPnl": h.get("realizedPnl") or h.get("pnl"),
+                     "closeTotalPos": h.get("closeTotalPos"),
+                     "uTime": h.get("uTime"), "cTime": h.get("cTime"),
+                     "type": h.get("type")}   # type=2: 부분/전량 청산, 3: 강제청산 등
+                    for h in resp.get("data", [])]
+            except Exception as e:
+                out["closed_positions_error"] = str(e)[:120]
+
     json.dump(out, open("okx_state.json", "w"), indent=2, default=str)
     print(json.dumps(out, indent=2, default=str))
 
