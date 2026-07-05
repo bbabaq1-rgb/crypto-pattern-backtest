@@ -162,11 +162,14 @@ def push_positions_db(new_positions):
     cli = _db()
     if not cli or not new_positions:
         return 0
+    # method에 LIVE 인코딩: positions 테이블에 live_mode 컬럼이 없어도(DDL 미적용)
+    # 러너 복원·대시보드가 실거래 여부를 알 수 있게 한다.
     rows = [{"symbol": p["symbol"], "pattern": p["pattern"], "direction": p["direction"],
              "entry_date": p["entry_date"], "entry_price": p["entry_price"],
              "stop_loss": p.get("stop"), "size_usd": p.get("size_usd"),
              "live_mode": bool(p.get("live_mode", False)),
-             "status": "open", "method": "AD"} for p in new_positions]
+             "status": "open",
+             "method": "AD-LIVE" if p.get("live_mode") else "AD"} for p in new_positions]
     try:
         import supabase_client as sc
         # 재실행 중복 방어: 동일 키 기존 행 제거 후 삽입 (ZIL×5 오염 재발 방지)
@@ -253,13 +256,16 @@ def restore_state_db(positions, trades):
                 if key in seen:          # 과거 중복 오염 방어 — 첫 행만 채택
                     continue
                 seen.add(key)
+                # live 판정: live_mode 컬럼(있으면) OR method의 LIVE 인코딩
+                is_live = bool(p.get("live_mode")) or \
+                    str(p.get("method", "")).upper().endswith("LIVE")
                 positions.append(dict(
                     symbol=p["symbol"], direction=p["direction"], pattern=p["pattern"],
                     regime=p.get("regime"), tf=_derive_tf(p["pattern"]),
                     entry_date=p["entry_date"],
                     entry_price=p.get("entry_price"), stop=p.get("stop_loss"),
                     size_usd=p.get("size_usd") or POS_USD,
-                    live_mode=bool(p.get("live_mode") or False),
+                    live_mode=is_live,
                     d_closed=key + ("D",) in closed_am,
                     a_closed=key + ("A",) in closed_am))
             if pr:
@@ -291,7 +297,15 @@ def run(stamp=None):
 
     t0 = len(trades)                  # 이번 실행에서 새로 체결되는 거래 추적
     new_positions = []
+
+    # 실거래 연결 — 청산 모니터링(방식D 실주문)에서도 쓰므로 루프 앞에서 생성
+    live_conn = ex_mod.connect_live() if ex_mod.is_live() else None
+    if live_conn:
+        print(f"[live] OKX 선물 실거래 모드 | USDT free={live_conn['usdt_free']:.2f}")
+
     # 1) 오픈 포지션 청산 모니터링
+    #    방식D 청산 조건 충족 + live_mode 포지션 → 실제 OKX reduceOnly 청산 주문.
+    #    (과거엔 페이퍼 기록만 하고 실주문이 없어 실거래 익절이 영영 실행 안 되던 버그)
     still_open = []
     closed_now = []                   # 이번 실행에서 A·D 모두 청산 완료된 포지션
     for pos in positions:
@@ -307,7 +321,30 @@ def run(stamp=None):
         if not pos.get("d_closed"):
             ex = eval_D(rows, ei, pos["direction"], opp_set, regmap)
             if ex:
-                _record_trade(trades, pos, "D", ex, rows[ex[0]]["date"]); pos["d_closed"] = True
+                do_record = True
+                if pos.get("live_mode"):
+                    if live_conn is None:
+                        do_record = False    # 연결 없으면 유지 → 다음 실행 재시도
+                        print(f"  [live] {pos['symbol']} D청산 조건 충족했으나 OKX 미연결 — 유지")
+                    else:
+                        sl_id = (pos.get("live_order") or {}).get("sl_order_id")
+                        fill, why = ex_mod.close_swap_position(
+                            live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id)
+                        if why == "ok":
+                            if fill:         # 실체결가로 D 기록 교체
+                                base = pos["entry_price"]
+                                r = ((fill - base) / base if pos["direction"] == "long"
+                                     else (base - fill) / base)
+                                ex = (ex[0], fill, r - FEE, ex[3])
+                            print(f"  [live] {pos['symbol']} {pos['direction']} D청산 실행 "
+                                  f"({ex[3]}) fill={fill}")
+                        elif why == "no_position":
+                            print(f"  [live] {pos['symbol']} 이미 닫힘(손절 체결 추정) — 기록만")
+                        else:
+                            do_record = False
+                            print(f"  [live] {pos['symbol']} D청산 주문 실패({why}) — 유지, 재시도")
+                if do_record:
+                    _record_trade(trades, pos, "D", ex, rows[ex[0]]["date"]); pos["d_closed"] = True
         if not pos.get("a_closed"):
             ex = eval_A(rows, ei, pos["direction"])
             if ex:
@@ -318,9 +355,6 @@ def run(stamp=None):
             closed_now.append(pos)
 
     # 2) 신규 진입 (signals_today.json)
-    live_conn = ex_mod.connect_live() if ex_mod.is_live() else None
-    if live_conn:
-        print(f"[live] OKX 선물 실거래 모드 | USDT free={live_conn['usdt_free']:.2f}")
 
     # 실거래 포지션 현황 — 사이징·max 체크용
     live_open_count   = sum(1 for p in still_open if p.get("live_mode"))

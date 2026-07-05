@@ -320,6 +320,41 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
     }, "ok"
 
 
+def close_swap_position(live_conn, symbol, direction, sl_algo_id=None):
+    """
+    OKX 포지션 전량 시장가 청산(reduceOnly) + 잔여 손절 algo 취소.
+
+    반환: (fill_price | None, "ok")  성공
+          (None, reason)             실패 — 호출부는 포지션 유지 후 재시도
+    """
+    try:
+        ex = live_conn["exchange"]
+        ccxt_sym = f"{symbol}/USDT:USDT"
+        qty = 0.0
+        for p in ex.fetch_positions([ccxt_sym]):
+            side = str(p.get("side", "")).lower()
+            if side == direction:
+                qty = abs(float(p.get("contracts") or 0))
+                break
+        if qty <= 0:
+            return None, "no_position"      # 이미 닫힘(손절 체결 등)
+        close_side = "sell" if direction == "long" else "buy"
+        order = ex.create_market_order(
+            ccxt_sym, close_side, qty,
+            params={"tdMode": OKX_MARGIN_MODE, "reduceOnly": True})
+        fill = float(order.get("average") or order.get("price") or 0) or None
+        # 잔여 손절 algo 취소(실패해도 무시 — 포지션 없으면 자동 무효)
+        if sl_algo_id:
+            try:
+                ex.privatePostTradeCancelAlgos([
+                    {"algoId": str(sl_algo_id), "instId": ex.market_id(ccxt_sym)}])
+            except Exception:
+                pass
+        return fill, "ok"
+    except Exception as e:
+        return None, str(e)[:80]
+
+
 if __name__ == "__main__":
     c = connect()
     print(f"[demo] mode={c['mode']} | balance={c['balance']} | {c['note']}")

@@ -141,6 +141,11 @@ def load_positions():
                 df = pd.DataFrame(r.data)
                 if "live_mode" not in df.columns:
                     df["live_mode"] = False
+                df["live_mode"] = df["live_mode"].fillna(False).astype(bool)
+                # method의 LIVE 인코딩(AD-LIVE)으로 실거래 판정 보강 — live_mode 컬럼 부재 대응
+                if "method" in df.columns:
+                    df.loc[df["method"].astype(str).str.upper().str.endswith("LIVE"),
+                           "live_mode"] = True
                 if "stop_loss" not in df.columns and "stop" in df.columns:
                     df["stop_loss"] = df["stop"]
                 # 과거 중복 insert 오염 방어 (동일 키 첫 행만 표시)
@@ -1390,7 +1395,31 @@ def _app_version():
         return "unknown"
 
 
+_MOBILE_GRID_CSS = """
+<style>
+/* 모바일 세로모드에서 st.columns가 세로로 쌓이는 것 방지 — 포지션 그리드 가로 유지.
+   Streamlit은 좁은 뷰포트에서 컬럼을 스택하는데, 청산 버튼 행이 세로로 풀어지면
+   그리드가 깨진다. nowrap + min-width:0 으로 강제 가로 배치(가로 스크롤 허용). */
+@media (max-width: 640px) {
+  div[data-testid="stHorizontalBlock"] {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    gap: 0.3rem !important;
+  }
+  div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
+  div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+    min-width: 0 !important;
+    flex: 1 1 0% !important;
+  }
+  div[data-testid="stHorizontalBlock"] p { font-size: 0.78rem; }
+  div[data-testid="stHorizontalBlock"] button p { font-size: 0.75rem; }
+}
+</style>
+"""
+
+
 def main():
+    st.markdown(_MOBILE_GRID_CSS, unsafe_allow_html=True)
     col_h, col_btn = st.columns([5, 1])
     with col_h:
         st.title("🪙 크립토 대시보드")
