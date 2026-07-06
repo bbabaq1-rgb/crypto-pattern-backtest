@@ -25,6 +25,10 @@
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
+- **패턴별 차등 유니버스** (2026-07-06 사용자 결정): fvg→전체 71종목,
+  engulfing/inverted_hammer/marubozu→메이저 7종목 한정 (scheduler.PATTERN_UNIVERSE).
+  근거: 71종목 재검증에서 알트 엣지 소멸(median 음수), fvg만 알트 +1.67% 생존.
+  하모닉 4h·1h 패턴은 기존 검증 유니버스 유지
 - **자동화**: GitHub Actions 4h마다 실행 (oncefull@UTC00:00 / oncequick@04~20시)
 - **실거래 안전장치** (2026-07-06): MAX_LIVE_POS 12(사용자 승인 5→12) ·
   킬스위치(equity HWM $287.57 대비 -20% → 신규 진입 중지, paper_executor.EQUITY_HWM) ·

@@ -43,6 +43,24 @@ DETMOD = {("engulfing", "long"): "detector_engulfing",
           ("fvg", "long"): "detector_fvg",
           ("fvg", "short"): "detector_fvg_short"}
 
+# 패턴별 탐지 유니버스 (2026-07-06 사용자 결정 — 71종목 재검증 결과 반영):
+#   메이저 vs 알트 분리 분석에서 engulfing/inverted_hammer/marubozu 엣지는 메이저에
+#   집중(알트 median 전부 음수), fvg만 알트에서도 양수 생존 → 패턴별 차등.
+#   "majors" = 검증 기준 7종목(detlib.SYMBOLS), "all" = trading_universe 전체.
+#   (근거: report.md '71종목 유니버스 1d 재검증', research_log tier_split@univ71)
+MAJORS = list(detlib.SYMBOLS)   # BTC SOL ETH BNB XRP ADA AVAX
+PATTERN_UNIVERSE = {
+    "engulfing":       "majors",
+    "fvg":             "all",
+    "inverted_hammer": "majors",
+    "marubozu":        "majors",
+}
+
+
+def _syms_for_pattern(pattern):
+    """패턴별 탐지 대상 심볼 목록. 미지정 패턴은 전체 유니버스."""
+    return MAJORS if PATTERN_UNIVERSE.get(pattern) == "majors" else SYMBOLS
+
 # 하모닉 패턴 4h (PASSED: gartley/bat/butterfly)
 HARMONIC_FOCUS = [
     ("gartley",   "detector_gartley"),
@@ -368,7 +386,8 @@ def run_once(do_fetch=True, quick=False):
         if d not in ("long", "short"):
             continue
         mod = importlib.import_module(DETMOD[(pat, d)])
-        for sym in SYMBOLS:
+        pat_syms = _syms_for_pattern(pat)   # 패턴별 차등 유니버스(fvg=전체, 나머지=메이저)
+        for sym in pat_syms:
             try:
                 rows = mod.load_ohlcv(sym, "1d")
             except FileNotFoundError:
@@ -396,7 +415,8 @@ def run_once(do_fetch=True, quick=False):
         ap_tf = ap.get("tf", "1d")
         mod   = importlib.import_module(ap["module"])
         if ap_tf == "1d":
-            sym_list = SYMBOLS
+            # 패턴별 차등 유니버스(inverted_hammer/marubozu → 메이저 한정)
+            sym_list = _syms_for_pattern(ap["pattern"])
         elif ap_tf == "4h":
             sym_list = _harmonic_symbols()
         else:  # "1h"
