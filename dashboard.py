@@ -448,11 +448,14 @@ def _record_manual_close(sym, direction, entry, exit_px, *, pattern=None,
     if pnl_usd is None and size_usd:
         pnl_usd = round(ret_val * float(size_usd), 2)
 
-    # '실거래' 마커: live_mode 컬럼이 없어도 실거래 청산으로 인식되게 exit_reason에 부여
+    # '실거래' 마커: live_mode 컬럼이 없어도 실거래 청산으로 인식되게 exit_reason에 부여.
+    # 실거래 수동청산은 '방식D 단일'로만 기록(실거래는 방식D=실제 매도, 방식A는 페이퍼
+    # 비교 전용). 페이퍼 수동청산만 A·D 둘 다 기록. → 실거래 탭 A/D 중복 표시 방지.
     exit_reason = "수동청산 ·실거래" if live_mode else "수동청산"
+    methods = ("D",) if live_mode else ("A", "D")
     recorded = 0
     if cli and entry and exit_px:
-        for method in ("A", "D"):
+        for method in methods:
             try:
                 _insert_trade_tolerant(cli, {
                     "symbol": sym, "pattern": pattern, "direction": direction,
@@ -470,7 +473,7 @@ def _record_manual_close(sym, direction, entry, exit_px, *, pattern=None,
     if os.path.exists("paper_trades.json") and entry and exit_px:
         try:
             tl = json.load(open("paper_trades.json", encoding="utf-8"))
-            for method in ("A", "D"):
+            for method in methods:
                 tl.append(dict(
                     method=method, symbol=sym, direction=direction, pattern=pattern,
                     regime=regime, entry_date=entry_date, entry_price=entry,
@@ -664,40 +667,11 @@ def section_live_summary(pos_df, trades_df, prices):
 </div>""", unsafe_allow_html=True)
         st.caption(f"가용 잔고: ${free:,.2f}  ·  🕐 {now_str}  ·  {REFRESH_SEC}초 자동갱신")
 
-        # OKX 실제 포지션 vs Supabase DB 포지션 대조
-        live_pos_db = _filter_by_mode(pos_df, live=True)
-        live_trd    = _filter_by_mode(trades_df, live=True)
-        okx_cnt     = len(okx_poss)
-        db_cnt      = len(live_pos_db)
-        mismatch    = okx_cnt != db_cnt
-
-        # 경고: DB > OKX (DB에만 있는 포지션 → 이미 청산됐을 수 있음)
-        # 정상: OKX >= DB (runner 파일 소멸로 DB 미등록은 정상 운영 상황)
-        db_gt_okx = db_cnt > okx_cnt
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("진입 완료 (OKX)", f"{okx_cnt}개")
-        c2.metric("DB 추적 포지션",  f"{db_cnt}개",
-                  delta="⚠ DB>OKX 확인 필요" if db_gt_okx else None,
-                  delta_color="inverse" if db_gt_okx else "normal")
-        c3.metric("청산 완료",       f"{len(live_trd)}건")
-
-        if okx_poss:
-            with st.expander(f"🔍 OKX 실제 포지션 {okx_cnt}개", expanded=False):
-                okx_rows = []
-                for p in okx_poss:
-                    upnl = p.get("unrealized_pnl", 0)
-                    okx_rows.append({
-                        "종목":      p.get("symbol", ""),
-                        "방향":      "🟢 롱" if p["direction"] == "long" else "🔴 숏",
-                        "수량":      p.get("qty", 0),
-                        "진입가":    _fmt_price(p.get("entry_price")),
-                        "미실현P&L": f"{'+'if upnl>=0 else ''}{upnl:.2f}",
-                    })
-                st.dataframe(pd.DataFrame(okx_rows), hide_index=True,
-                             use_container_width=True, key="okx_pos_table")
-        if db_gt_okx:
-            st.warning(f"DB {db_cnt}개 > OKX {okx_cnt}개 — DB에 이미 청산된 포지션이 남아있을 수 있습니다")
+        # 실거래 탭은 OKX 실측을 원천으로 하므로 DB 대조·경고는 표시하지 않는다.
+        live_trd = _filter_by_mode(trades_df, live=True)
+        c1, c2 = st.columns(2)
+        c1.metric("진입 완료 (OKX)", f"{len(okx_poss)}개")
+        c2.metric("청산 완료",       f"{len(live_trd)}건")
 
     # 온체인 보조 신호 (실거래 탭)
     oc = load_onchain()
@@ -853,13 +827,9 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
     s3.metric("미실현손익", f"{'+' if tot_upnl>=0 else ''}${tot_upnl:.2f}",
               delta=f"명목 ${tot_notn:.0f}" if equity else None, delta_color="off")
 
-    # 바이낸스식 그리드: 종목·레버리지 / 수량 / 진입 / 현재 / 청산가 / 증거금 / 손익(ROE) / [청산]
-    GRID = [1.15, 0.85, 1.0, 1.0, 1.0, 0.95, 1.25, 0.75]
-    hcols = st.columns(GRID)
-    for c, label in zip(hcols, ["종목 · 레버리지", "수량", "진입가", "현재가",
-                                "청산가", "증거금", "손익 (ROE)", ""]):
-        c.caption(f"**{label}**")
-
+    # 포지션 카드(반응형): 아이폰 세로에선 필드가 2~3열로 자동 reflow, 가로에선 5열.
+    # st.columns 강제 가로그리드 대신 카드라 세로모드에서도 깨지지 않는다.
+    st.markdown(_POS_CARD_CSS, unsafe_allow_html=True)
     for i, p in enumerate(okx_poss):
         sym      = p.get("symbol", "")
         d        = p.get("direction", "")
@@ -871,24 +841,35 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
         liq      = p.get("liq_price")
         roe      = p.get("roe")
         cur      = prices.get(sym)
-        dir_badge = "🟢 롱" if d == "long" else "🔴 숏"
+        dir_cls   = "long" if d == "long" else "short"
+        dir_txt   = "롱" if d == "long" else "숏"
         lev_badge = f"{lev:g}x" if lev else ""
-        dot      = "🟢" if upnl >= 0 else "🔴"
-        roe_str  = f" ({'+' if roe>=0 else ''}{roe:.1f}%)" if roe is not None else ""
-        qty_str  = f"{coin_qty:g}" if coin_qty is not None else f"{p.get('qty','—')}"
-        pos_key  = f"okx_{tab_key}_{sym}_{d}_{i}"
+        pnl_cls   = "pos" if upnl >= 0 else "neg"
+        roe_str   = f"{'+' if roe>=0 else ''}{roe:.1f}%" if roe is not None else "—"
+        upnl_str  = f"{'+' if upnl>=0 else ''}${upnl:.2f}"
+        qty_str   = f"{coin_qty:g}" if coin_qty is not None else f"{p.get('qty','—')}"
+        pos_key   = f"okx_{tab_key}_{sym}_{d}_{i}"
 
-        rc = st.columns(GRID)
-        rc[0].write(f"**{sym}**")
-        rc[0].caption(f"{dir_badge} · {lev_badge}")
-        rc[1].write(qty_str)
-        rc[2].write(_fmt_price(ep))
-        rc[3].write(_fmt_price(cur) if cur else "—")
-        rc[4].write(_fmt_price(liq) if liq else "—")
-        rc[5].write(f"${margin:.2f}")
-        rc[6].write(f"{dot} {'+' if upnl>=0 else ''}${upnl:.2f}")
-        rc[6].caption(roe_str.strip(" ()") or "—")
-        if rc[7].button("청산", key=f"close_{pos_key}", type="secondary"):
+        card = f"""
+<div class="pos-card">
+  <div class="pos-head">
+    <span class="sym">{sym}</span>
+    <span class="badge {dir_cls}">{dir_txt}</span>
+    <span class="badge lev">{lev_badge}</span>
+    <span class="pnl {pnl_cls}">{upnl_str} <small>({roe_str})</small></span>
+  </div>
+  <div class="pos-grid">
+    <div><label>수량</label><b>{qty_str}</b></div>
+    <div><label>진입가</label><b>{_fmt_price(ep)}</b></div>
+    <div><label>현재가</label><b>{_fmt_price(cur) if cur else '—'}</b></div>
+    <div><label>증거금</label><b>${margin:.2f}</b></div>
+    <div><label>청산가</label><b>{_fmt_price(liq) if liq else '—'}</b></div>
+  </div>
+</div>"""
+        st.markdown(card, unsafe_allow_html=True)
+        bc1, bc2 = st.columns([4, 1])
+        if bc2.button("청산", key=f"close_{pos_key}", type="secondary",
+                      use_container_width=True):
             st.session_state.confirm_close = pos_key
 
     # 청산 확인 다이얼로그
@@ -1030,6 +1011,28 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
     st.divider()
 
 
+def _trades_table(sub, ret_col, mult, key):
+    """청산 거래 DataFrame을 표로 렌더."""
+    rows = []
+    for _, t in sub.iterrows():
+        ret_val = float(t.get(ret_col) or 0) * mult
+        reason  = str(t.get("exit_reason") or t.get("reason", "") or "")
+        reason  = reason.replace(" ·실거래", "")   # 내부 마커는 표시 안 함
+        ex_date = str(t.get("exit_date", "") or "")[:10]
+        rows.append({
+            "":       _ret_dot(ret_val),
+            "종목":   t.get("symbol", ""),
+            "방향":   DIR_LABEL.get(str(t.get("direction", "")), ""),
+            "패턴":   t.get("pattern", ""),
+            "진입일": str(t.get("entry_date", ""))[:10],
+            "청산일": ex_date if ex_date else "—",
+            "수익률": _fmt_pct(ret_val),
+            "사유":   reason,
+            "봉수":   int(t.get("hold_bars") or 0),
+        })
+    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True, key=key)
+
+
 def section_trades(live: bool, trades_df, tab_key="live"):
     st.subheader("📋 최근 매매 내역 (청산 완료)")
     df = _filter_by_mode(trades_df, live)
@@ -1043,6 +1046,23 @@ def section_trades(live: bool, trades_df, tab_key="live"):
     ret_col = "return_pct" if "return_pct" in df.columns else "ret"
     mult    = 1.0 if ret_col == "return_pct" else 100.0
 
+    # 실거래는 '방식D'만 실제 매도(방식A ±10%는 페이퍼 비교 전용). 따라서 A/D로 나누지
+    # 않고 단일 목록으로 표시한다. 같은 청산이 A·D 중복 기록된 경우 D를 우선해 dedupe
+    # → 과거 'A탭·D탭 같은 내용' 중복 표시 문제 해소.
+    if live:
+        sub = df.copy()
+        if m_col:
+            sub["_mrank"] = (sub[m_col].astype(str) != "D").astype(int)  # D 우선(0)
+            keys = [c for c in ("symbol", "entry_date", "exit_date") if c in sub.columns]
+            sub = sub.sort_values("_mrank").drop_duplicates(subset=keys, keep="first")
+        sort_col = "exit_date" if "exit_date" in sub.columns else "entry_date"
+        sub = sub.sort_values(sort_col, ascending=False, na_position="last").head(20)
+        _trades_table(sub, ret_col, mult, f"trades_df_{tab_key}_live")
+        st.caption("실거래 매도는 방식D(-8% 손절·반대신호·레짐전환·30봉) 기준으로 실행됩니다.")
+        st.divider()
+        return
+
+    # 페이퍼 탭: 방식A vs D 비교(둘은 서로 다른 청산 전략이므로 별도 표시)
     tab_a, tab_d = st.tabs(["📗 방식A", "📘 방식D"])
     for tab, meth in [(tab_a, "A"), (tab_d, "D")]:
         with tab:
@@ -1050,24 +1070,7 @@ def section_trades(live: bool, trades_df, tab_key="live"):
             if sub.empty:
                 st.info(f"방식{meth} 청산 없음")
                 continue
-            rows = []
-            for _, t in sub.iterrows():
-                ret_val = float(t.get(ret_col) or 0) * mult
-                reason  = t.get("exit_reason") or t.get("reason", "")
-                ex_date = str(t.get("exit_date", "") or "")[:10]
-                rows.append({
-                    "":       _ret_dot(ret_val),
-                    "종목":   t.get("symbol", ""),
-                    "방향":   DIR_LABEL.get(str(t.get("direction", "")), ""),
-                    "패턴":   t.get("pattern", ""),
-                    "진입일": str(t.get("entry_date", ""))[:10],
-                    "청산일": ex_date if ex_date else "—",
-                    "수익률": _fmt_pct(ret_val),
-                    "사유":   reason,
-                    "봉수":   int(t.get("hold_bars") or 0),
-                })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
-                         key=f"trades_df_{tab_key}_{meth}")
+            _trades_table(sub, ret_col, mult, f"trades_df_{tab_key}_{meth}")
     st.divider()
 
 
@@ -1394,23 +1397,38 @@ def _app_version():
 
 _MOBILE_GRID_CSS = """
 <style>
-/* 모바일 세로모드에서 st.columns가 세로로 쌓이는 것 방지 — 포지션 그리드 가로 유지.
-   Streamlit은 좁은 뷰포트에서 컬럼을 스택하는데, 청산 버튼 행이 세로로 풀어지면
-   그리드가 깨진다. nowrap + min-width:0 으로 강제 가로 배치(가로 스크롤 허용). */
+/* 모바일 여백 축소(아이폰 14 Pro 세로 393px 기준 가로폭 확보) */
 @media (max-width: 640px) {
-  div[data-testid="stHorizontalBlock"] {
-    flex-wrap: nowrap !important;
-    overflow-x: auto;
-    gap: 0.3rem !important;
-  }
-  div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"],
-  div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
-    min-width: 0 !important;
-    flex: 1 1 0% !important;
-  }
-  div[data-testid="stHorizontalBlock"] p { font-size: 0.78rem; }
-  div[data-testid="stHorizontalBlock"] button p { font-size: 0.75rem; }
+  .block-container { padding-left: 0.6rem !important; padding-right: 0.6rem !important;
+                     padding-top: 1.2rem !important; }
+  h1 { font-size: 1.5rem !important; }
+  div[data-testid="stMetricValue"] { font-size: 1.05rem !important; }
+  div[data-testid="stMetricLabel"] p { font-size: 0.72rem !important; }
 }
+</style>
+"""
+
+# 반응형 포지션 카드 — 아이폰 세로에서 필드가 자동 reflow(2~3열), 가로에서 5열.
+_POS_CARD_CSS = """
+<style>
+.pos-card { background:#161a1e; border:1px solid #262b31; border-radius:10px;
+  padding:0.55rem 0.7rem; margin:0.35rem 0 0.15rem 0; }
+.pos-head { display:flex; align-items:center; flex-wrap:wrap; gap:0.35rem; margin-bottom:0.4rem; }
+.pos-head .sym { font-size:1.05rem; font-weight:700; color:#fafafa; }
+.pos-head .badge { font-size:0.68rem; font-weight:600; padding:0.05rem 0.4rem;
+  border-radius:4px; }
+.pos-head .badge.long { background:rgba(38,166,65,0.18); color:#26d367; }
+.pos-head .badge.short{ background:rgba(248,81,73,0.18); color:#ff6b6b; }
+.pos-head .badge.lev  { background:#2a2f36; color:#c9d1d9; }
+.pos-head .pnl { margin-left:auto; font-size:1.0rem; font-weight:700; }
+.pos-head .pnl small { font-size:0.72rem; font-weight:600; }
+.pos-head .pnl.pos { color:#26d367; }
+.pos-head .pnl.neg { color:#ff6b6b; }
+.pos-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(80px, 1fr));
+  gap:0.3rem 0.6rem; }
+.pos-grid > div { display:flex; flex-direction:column; line-height:1.25; }
+.pos-grid label { font-size:0.66rem; color:#7d8590; }
+.pos-grid b { font-size:0.86rem; color:#e6edf3; font-weight:600; }
 </style>
 """
 
