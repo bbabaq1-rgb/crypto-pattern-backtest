@@ -42,6 +42,8 @@ jobs:
           OKX_KEY: ${{ secrets.OKX_KEY }}
           OKX_SECRET: ${{ secrets.OKX_SECRET }}
           OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           # workflow_dispatch 수동 실행 시 mode 입력 우선
           MANUAL_MODE="${{ github.event.inputs.mode }}"

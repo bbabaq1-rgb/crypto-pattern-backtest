@@ -175,3 +175,10 @@
 2026-07-03,rsi_extreme_short_1h,1h,short,3316,-0.38,0.02,p=0.000(boot=0.602),0/4,REJECTED,"mean<=0, boot_p=0.602, OOS 0/4<2"
 2026-07-06,method_g_score,1d,all,1290,5.39,-8.2,calmar=0.657(D=0.662),0/3,REJECTED,"vs D pooled 0/3 — 단 inverted_hammer 2/3 우위(+8.32% vs +4.04%, Calmar 1.015 vs 0.492)"
 2026-07-06,method_h_hhfail,1d,all,1290,1.17,-1.84,calmar=0.143(D=0.662),0/3,REJECTED,"3봉 실패 조기청산이 러너 절단(평균보유 4.6봉), 전 패턴 0/3"
+2026-07-06,engulfing@univ71,1d,long,433,0.5,0.2,p=0.446(boot=0.349),2/4,REJECTED,boot_p=0.349
+2026-07-06,engulfing_short@univ71,1d,short,612,0.12,5.36,p=0.837(boot=0.502),1/4,REJECTED,"boot_p=0.502, OOS 1/4"
+2026-07-06,fvg@univ71,1d,long,4570,1.75,1.92,p=0.000(boot=0.201),3/4,REJECTED,boot_p=0.201
+2026-07-06,fvg_short@univ71,1d,short,3104,-1.25,-4.84,p=0.000(boot=0.715),1/4,REJECTED,"mean<=0, median<=0, boot_p=0.715, OOS 1/4"
+2026-07-06,inverted_hammer@univ71,1d,long,1795,0.37,-2.41,p=0.282(boot=0.372),2/4,REJECTED,"median<=0, boot_p=0.372"
+2026-07-06,marubozu@univ71,1d,long,259,0.59,-2.7,p=0.536(boot=0.332),2/4,REJECTED,"median<=0, boot_p=0.332"
+2026-07-06,tier_split@univ71,1d,all,-,-,-,-,-,NOTE,"메이저 엣지 유지(eng +4.08%/fvg +2.53%/ih +1.73%/mrb +2.02%) vs 알트 소멸(eng +0.04%/ih +0.27%/mrb +0.42%, median 전부 음수). fvg만 알트 +1.67% 생존"

@@ -226,6 +226,52 @@ def get_okx_positions(live_conn):
         return []
 
 
+def ensure_stop_orders(live_conn, stop_pct=0.08):
+    """
+    안전망: 모든 오픈 포지션에 손절(algo) 주문이 걸려 있는지 점검, 없으면 재등록.
+
+    '손절 주문 없으면 실거래 절대 안 됨' 원칙의 상시 자동 점검(과거엔 수동 감사 의존).
+    - 기존 주문은 절대 취소/수정하지 않음 — 누락된 포지션에만 추가.
+    - 손절가 = 진입가 ±stop_pct (방식D 정책과 동일, 가격 기준).
+    반환: [(symbol, stop_px), ...] 재등록 목록. 실패는 출력만(파이프라인 비차단).
+    """
+    fixed = []
+    try:
+        ex = live_conn["exchange"]
+        poss = get_okx_positions(live_conn)
+        if not poss:
+            return fixed
+        resp = ex.privateGetTradeOrdersAlgoPending({"ordType": "conditional"})
+        covered = {o.get("instId") for o in resp.get("data", [])
+                   if o.get("state") == "live" and o.get("slTriggerPx")}
+        for p in poss:
+            inst = f"{p['symbol']}-USDT-SWAP"
+            if inst in covered:
+                continue
+            entry, d = p["entry_price"], p["direction"]
+            sl_px = entry * (1 - stop_pct) if d == "long" else entry * (1 + stop_pct)
+            ccxt_sym = f"{p['symbol']}/USDT:USDT"
+            sl_px = float(ex.price_to_precision(ccxt_sym, sl_px))
+            close_side = "sell" if d == "long" else "buy"
+            try:
+                r = ex.privatePostTradeOrderAlgo({
+                    "instId": inst, "tdMode": OKX_MARGIN_MODE, "side": close_side,
+                    "ordType": "conditional", "sz": str(p["qty"]),
+                    "slTriggerPx": str(sl_px), "slOrdPx": "-1",
+                    "slTriggerPxType": "last",
+                })
+                if r.get("code") == "0":
+                    fixed.append((p["symbol"], sl_px))
+                    print(f"  [SL점검] {p['symbol']} 손절 누락 → 재등록 @ {sl_px}")
+                else:
+                    print(f"  [SL점검] {p['symbol']} 재등록 실패: {str(r)[:80]}")
+            except Exception as e:
+                print(f"  [SL점검] {p['symbol']} 재등록 오류: {str(e)[:60]}")
+    except Exception as e:
+        print(f"  [SL점검] 점검 실패(무시): {str(e)[:60]}")
+    return fixed
+
+
 def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
     """
     OKX USDT 무기한 선물 시장가 진입 + OKX algo 손절 주문 동시 제출.

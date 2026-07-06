@@ -30,10 +30,16 @@ MAX_HOLD_BY_TF = {"1d": 30, "4h": 20, "1h": 48, "15m": 120}
 FEE = detlib.FEE
 
 # 실거래 포지션 사이징 규칙
-MAX_LIVE_POS   = 5     # 동시 최대 실거래 포지션
+MAX_LIVE_POS   = 12    # 동시 최대 실거래 포지션 (2026-07-06 사용자 승인으로 5→12 상향)
 LIVE_MIN_USD   = 10.0  # 최소 주문 금액 (이하 스킵)
 LIVE_FIRST_USD = 20.0  # 첫 주문 고정 금액
 LIVE_BAL_PCT   = 0.20  # 두 번째부터 가용잔고 × 20%
+
+# 계좌 킬스위치: equity가 고점(HWM) 대비 KILL_DD 이상 하락하면 신규 실거래 진입 중지.
+# (개별 손절과 별개의 계좌 차원 브레이크. 기존 포지션 청산 모니터링은 계속 동작)
+# HWM은 수동 갱신: equity가 이 값을 넘으면 로그로 상향 제안이 출력된다.
+EQUITY_HWM = 287.57    # 2026-07-06 실측 고점
+KILL_DD    = 0.20      # -20%
 
 # 앙상블 Grade 기반 포지션 사이징 배수
 GRADE_SIZE_MULT = {"A": 1.5, "B": 1.0, "C": 0.7, "D": 0.5}
@@ -330,12 +336,35 @@ def run(stamp=None):
 
     # 실거래 연결 — 청산 모니터링(방식D 실주문)에서도 쓰므로 루프 앞에서 생성
     live_conn = ex_mod.connect_live() if ex_mod.is_live() else None
+    kill_switch = False       # True면 신규 실거래 진입 중지(청산 모니터링은 계속)
     if live_conn:
         print(f"[live] OKX 선물 실거래 모드 | USDT free={live_conn['usdt_free']:.2f}")
         # 실거래 정합성 보정: OKX에 실재하는 포지션인데 DB엔 페이퍼(live_mode=False)로
         # 남은 것들을 실거래로 승격 → 방식D 청산 모니터가 실제 OKX 주문을 내도록.
         # (과거 진입경로/복원에서 live 표기가 유실돼 실거래인데 자동청산 사각지대이던 문제)
         positions = reconcile_live_flag(positions, live_conn)
+
+        # 안전망 1: 손절(algo) 주문 상시 점검 — 누락 포지션에 재등록
+        fixed_sl = ex_mod.ensure_stop_orders(live_conn)
+        if fixed_sl:
+            import notify
+            notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
+                        "\n".join(f"  {s}: SL @ {px}" for s, px in fixed_sl))
+
+        # 안전망 2: 계좌 킬스위치 — equity가 HWM 대비 -KILL_DD 초과 하락 시 신규 중지
+        bal = ex_mod.get_balance(live_conn)
+        equity = (bal or {}).get("equity") or 0.0
+        floor = EQUITY_HWM * (1 - KILL_DD)
+        if equity and equity < floor:
+            kill_switch = True
+            msg = (f"🛑 킬스위치 발동: equity ${equity:.2f} < 한도 ${floor:.2f} "
+                   f"(HWM ${EQUITY_HWM:.2f} -{KILL_DD*100:.0f}%) — 신규 실거래 진입 중지")
+            print(f"  [kill] {msg}")
+            import notify
+            notify.send(msg)
+        elif equity > EQUITY_HWM:
+            print(f"  [kill] equity ${equity:.2f} > HWM ${EQUITY_HWM:.2f} — "
+                  f"paper_executor.EQUITY_HWM 상향 갱신 권장")
 
     # 1) 오픈 포지션 청산 모니터링
     #    방식D 청산 조건 충족 + live_mode 포지션 → 실제 OKX reduceOnly 청산 주문.
@@ -372,6 +401,11 @@ def run(stamp=None):
                                 ex = (ex[0], fill, r - FEE, ex[3])
                             print(f"  [live] {pos['symbol']} {pos['direction']} D청산 실행 "
                                   f"({ex[3]}) fill={fill}")
+                            import notify
+                            d_ko = "롱" if pos["direction"] == "long" else "숏"
+                            notify.send(f"🔵 <b>실거래 청산(방식D)</b> {pos['symbol']} {d_ko}\n"
+                                        f"사유: {ex[3]} | 수익률 {ex[2]*100:+.2f}%\n"
+                                        f"진입 {pos['entry_price']} → 청산 {fill}")
                         elif why == "no_position":
                             print(f"  [live] {pos['symbol']} 이미 닫힘(손절 체결 추정) — 기록만")
                         else:
@@ -426,7 +460,11 @@ def run(stamp=None):
             tf_tag = " [4h비확증×0.5]" if not tf_ok else ""
             print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag} → ${size_for_pos:.1f}")
 
-        if live_conn:
+        # 킬스위치 발동 시 실주문 블록 전체 스킵(페이퍼 기록은 아래에서 계속)
+        if live_conn and kill_switch:
+            print(f"  [live] 킬스위치 발동 중 — {s['symbol']} 실거래 진입 스킵(페이퍼만)")
+
+        if live_conn and not kill_switch:
             # 동시 최대 포지션 체크
             if live_open_count >= MAX_LIVE_POS:
                 print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']} 스킵")
@@ -464,6 +502,11 @@ def run(stamp=None):
                 print(f"  [live] {s['symbol']} {s['direction']} 진입 OK | "
                       f"size=${size_for_pos:.2f} entry={result['entry_price']:.4f} "
                       f"sl={result['stop_price']:.4f}")
+                import notify
+                d_ko = "롱" if s["direction"] == "long" else "숏"
+                notify.send(f"🟢 <b>실거래 진입</b> {s['symbol']} {d_ko}\n"
+                            f"패턴: {s['pattern']} | ${size_for_pos:.2f}\n"
+                            f"진입 {result['entry_price']:.4f} / 손절 {result['stop_price']:.4f}")
 
         rank      = s.get("priority_rank")
         cnt       = s.get("pattern_count", 1)
