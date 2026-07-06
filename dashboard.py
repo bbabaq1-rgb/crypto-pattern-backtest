@@ -269,19 +269,46 @@ def _load_regime_history():
     return {}
 
 
+@st.cache_resource
+def _okx_exchange():
+    """ccxt OKX 인스턴스를 세션 1회만 생성(load_markets 포함)해 재사용.
+
+    기존엔 청산·새로고침마다 connect_live()가 load_markets()(전 마켓 메타 수 초 소요)를
+    매번 호출해 매우 느렸다. cache_resource로 마켓 로드를 1회로 고정 → 이후 잔고조회·
+    주문은 즉시. 세션 내 공유(단일 사용자 대시보드라 안전).
+    """
+    import os
+    import exchange as ex_mod
+    if not ex_mod.is_live():
+        return None
+    try:
+        import ccxt
+        ex = ccxt.okx({
+            "apiKey":   os.environ["OKX_KEY"],
+            "secret":   os.environ["OKX_SECRET"],
+            "password": os.environ["OKX_PASSPHRASE"],
+            "enableRateLimit": True,
+        })
+        ex.load_markets()
+        return ex
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=25)
 def fetch_account_balance():
     """
-    OKX 잔고 + 실제 포지션 조회.
+    OKX 잔고 + 실제 포지션 조회. (캐시된 exchange 재사용 — load_markets 반복 제거)
     반환: (bal_dict | None, okx_positions | [], is_live, err_msg | None)
     """
     import exchange as ex_mod
     if not ex_mod.is_live():
         return None, [], False, None  # 키 미설정
+    ex = _okx_exchange()
+    if ex is None:
+        return None, [], True, "OKX 연결 실패(마켓 로드 실패)"
     try:
-        conn = ex_mod.connect_live()
-        if not conn:
-            return None, [], True, "connect_live() returned None (API 연결 실패)"
+        conn = {"exchange": ex}
         bal  = ex_mod.get_balance(conn)
         poss = ex_mod.get_okx_positions(conn)
         if bal is None:
@@ -391,14 +418,9 @@ def _unrealized_pnl(pos_df, prices, live):
 
 def _close_live_okx(sym, direction):
     try:
-        import ccxt
-        ex = ccxt.okx({
-            "apiKey":   os.environ.get("OKX_KEY"),
-            "secret":   os.environ.get("OKX_SECRET"),
-            "password": os.environ.get("OKX_PASSPHRASE"),
-            "enableRateLimit": True,
-        })
-        ex.load_markets()
+        ex = _okx_exchange()          # 캐시된 인스턴스(load_markets 생략)
+        if ex is None:
+            return False, "OKX 연결 실패"
         ccxt_sym = f"{sym}/USDT:USDT"
         for p in ex.fetch_positions([ccxt_sym]):
             qty = abs(float(p.get("contracts") or 0))
@@ -884,10 +906,8 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
             if cc1.button("✅ 확인 청산", key=f"confirm_{pos_key}", type="primary"):
                 with st.spinner("OKX 청산 중..."):
                     try:
-                        import exchange as ex_mod
-                        conn = ex_mod.connect_live()
-                        if conn:
-                            ex = conn["exchange"]
+                        ex = _okx_exchange()          # 캐시된 인스턴스(load_markets 생략)
+                        if ex is not None:
                             sym_ccxt = f"{sym}/USDT:USDT"
                             close_side = "sell" if d == "long" else "buy"
                             order = ex.create_market_order(
@@ -912,8 +932,10 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
                     except Exception as e:
                         st.error(f"청산 오류: {str(e)[:80]}")
                 st.session_state.confirm_close = None
-                st.cache_data.clear()
-                time.sleep(1.0)
+                # 전체 cache clear(콜드 리로드) 대신 바뀐 것만 무효화 → 빠른 갱신
+                fetch_account_balance.clear()
+                load_positions.clear()
+                load_trades.clear()
                 st.rerun()
             if cc2.button("취소", key=f"cancel_{pos_key}"):
                 st.session_state.confirm_close = None
@@ -995,12 +1017,13 @@ def section_positions(live: bool, pos_df, prices, tab_key: str):
                 with st.spinner("청산 중..."):
                     ok, msg = _do_close_position(dict(pos), cur)
                 st.session_state.confirm_close = None
-                st.cache_data.clear()
+                fetch_account_balance.clear()
+                load_positions.clear()
+                load_trades.clear()
                 if ok:
                     st.success(f"청산 완료 — {msg}")
                 else:
                     st.error(f"청산 실패 — {msg}")
-                time.sleep(1.2)
                 st.rerun()
             if cc2.button("❌ 취소", key=f"cancel_{pos_key}"):
                 st.session_state.confirm_close = None
