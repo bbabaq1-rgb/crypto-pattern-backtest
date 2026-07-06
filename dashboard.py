@@ -1271,14 +1271,20 @@ def chart_daily_pnl(live: bool, trades_df, chart_key="live"):
     m_col   = "method" if "method" in df.columns else (
               "method_label" if "method_label" in df.columns else None)
 
-    # 방식A 기준 (없으면 전체)
-    sub = df[df[m_col] == "A"] if m_col else df
-    if "exit_date" not in sub.columns:
-        st.info("청산 내역 없음")
-        st.divider()
-        return
-    closed = sub[sub["exit_date"].notna()].copy()
-    closed = closed[closed["exit_date"].astype(str).str.strip() != ""]
+    # 기준 방식: 실거래=D(실제 매도), 페이퍼=A(비교 기준). exit_date 있는 것만.
+    # 선호 방식이 비면 반대 방식으로 폴백(단일 방식이라 중복합산 없음).
+    # (과거엔 항상 방식A로 필터 → 실거래는 D뿐이라 일별PNL이 빈 화면이던 버그)
+    def _pick(m):
+        s = df[df[m_col] == m] if m_col else df
+        if "exit_date" not in s.columns:
+            return s.iloc[0:0]
+        s = s[s["exit_date"].notna()].copy()
+        return s[s["exit_date"].astype(str).str.strip() != ""]
+
+    pref, alt = ("D", "A") if live else ("A", "D")
+    closed = _pick(pref)
+    if closed.empty:
+        closed = _pick(alt)
 
     if closed.empty:
         st.info("청산 내역 없음")
