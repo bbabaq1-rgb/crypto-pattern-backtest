@@ -183,3 +183,5 @@
 2026-07-06,marubozu@univ71,1d,long,259,0.59,-2.7,p=0.536(boot=0.332),2/4,REJECTED,"median<=0, boot_p=0.332"
 2026-07-06,tier_split@univ71,1d,all,-,-,-,-,-,NOTE,"메이저 엣지 유지(eng +4.08%/fvg +2.53%/ih +1.73%/mrb +2.02%) vs 알트 소멸(eng +0.04%/ih +0.27%/mrb +0.42%, median 전부 음수). fvg만 알트 +1.67% 생존"
 2026-07-06,cohort_boundary@univ71,1d,all,-,-,-,-,-,NOTE,"거래대금 코호트 분석: engulfing top20 유지(+2.65%/med+9.94%/wr59%), fvg top30 질우위(+2.36%/med+6.53%), ih top7 밖 급감(+2.44%→+1.40%), marubozu 불안정(n37~88). 적용: engulfing=top20, fvg=top30, ih/mrb=majors"
+2026-07-07,pit_volume_rank@univ71,1d,all,-,-,-,-,-,NOTE,Point-in-time(신호시점 30일 거래대금 랭킹) 검증: engulfing PIT-top20 +2.62%/med+9.94%/wr58% vs 밖 -0.50%/med-6.08%/wr46%. fvg PIT-top30 +2.20%/med+3.67% vs 밖 +1.29%/med+0.23%. look-ahead 없이 경계 유효 확인
+2026-07-07,mcap_vs_volume@univ71,1d,all,-,-,-,-,-,NOTE,"시총 top20이 표면상 우위(engulfing +4.93%)였으나 현재시총 랭킹=생존편향 오염 + 25/71종목 시총 데이터 누락 + 시총은 PIT 랭킹 불가(유통량 히스토리 없음) → 거래대금 채택이 방법론적으로 타당, PIT 검증 통과"
