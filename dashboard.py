@@ -960,8 +960,11 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
                             order = ex.create_market_order(
                                 sym_ccxt, close_side, float(qty),
                                 params={"tdMode": "isolated", "reduceOnly": True})
+                            # 체결가: 주문응답 average → 포지션 mark price → prices 순.
+                            # (실거래부는 prices가 비어있으므로 mark_price 폴백 필수 —
+                            #  없으면 fill=0이 되어 매매내역 기록이 스킵되던 버그)
                             fill = float(order.get("average") or order.get("price") or 0) \
-                                or float(prices.get(sym) or 0)
+                                or float(p.get("mark_price") or prices.get(sym) or 0)
                             entry_px = float(p.get("entry_price") or 0)
                             cq = p.get("coin_qty")
                             if cq and entry_px and fill:
