@@ -14,3 +14,6 @@ _filter_result.json
 # 페이퍼 상태 파일 — Supabase가 원천 (러너는 restore_state_db로 복원)
 paper_positions.json
 paper_trades.json
+
+# 독립 git 저장소 (PII 비식별화 PoC)
+pii-deid/

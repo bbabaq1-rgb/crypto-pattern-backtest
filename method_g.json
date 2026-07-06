@@ -1,0 +1,261 @@
+{
+  "engulfing": {
+    "stats": {
+      "A": {
+        "n": 60,
+        "mean": 0.03425,
+        "median": 0.09988,
+        "maxloss": -0.17503,
+        "avghold": 10.11667,
+        "winrate": 0.61667,
+        "calmar": 0.19568
+      },
+      "D": {
+        "n": 60,
+        "mean": 0.08348,
+        "median": -0.03156,
+        "maxloss": -0.082,
+        "avghold": 12.5,
+        "winrate": 0.41667,
+        "calmar": 1.01801
+      },
+      "G": {
+        "n": 60,
+        "mean": 0.07972,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 27.16667,
+        "winrate": 0.3,
+        "calmar": 0.97221
+      }
+    },
+    "gate_g_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] G=+7.97% D=+8.35%  MDD G=-8.2% D=-8.2%  Calmar G=0.972 D=1.018  우위 0/3"
+    }
+  },
+  "fvg": {
+    "stats": {
+      "A": {
+        "n": 534,
+        "mean": 0.02775,
+        "median": 0.05665,
+        "maxloss": -0.25249,
+        "avghold": 8.96816,
+        "winrate": 0.55243,
+        "calmar": 0.10992
+      },
+      "D": {
+        "n": 534,
+        "mean": 0.10321,
+        "median": -0.057,
+        "maxloss": -0.082,
+        "avghold": 11.03745,
+        "winrate": 0.40262,
+        "calmar": 1.25861
+      },
+      "G": {
+        "n": 534,
+        "mean": 0.09747,
+        "median": -0.07858,
+        "maxloss": -0.082,
+        "avghold": 22.72659,
+        "winrate": 0.32584,
+        "calmar": 1.18863
+      }
+    },
+    "gate_g_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] G=+9.75% D=+10.32%  MDD G=-8.2% D=-8.2%  Calmar G=1.189 D=1.259  우위 0/3"
+    }
+  },
+  "engulfing_short": {
+    "stats": {
+      "A": {
+        "n": 87,
+        "mean": 0.01076,
+        "median": 0.04623,
+        "maxloss": -0.28612,
+        "avghold": 10.17241,
+        "winrate": 0.58621,
+        "calmar": 0.03762
+      },
+      "D": {
+        "n": 87,
+        "mean": 0.0059,
+        "median": -0.04749,
+        "maxloss": -0.082,
+        "avghold": 10.44828,
+        "winrate": 0.33333,
+        "calmar": 0.07194
+      },
+      "G": {
+        "n": 87,
+        "mean": 0.00365,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 22.54023,
+        "winrate": 0.29885,
+        "calmar": 0.04457
+      }
+    },
+    "gate_g_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] G=+0.37% D=+0.59%  MDD G=-8.2% D=-8.2%  Calmar G=0.045 D=0.072  우위 0/3"
+    }
+  },
+  "fvg_short": {
+    "stats": {
+      "A": {
+        "n": 429,
+        "mean": -0.00678,
+        "median": -0.00265,
+        "maxloss": -0.6633,
+        "avghold": 9.76224,
+        "winrate": 0.4965,
+        "calmar": -0.01023
+      },
+      "D": {
+        "n": 429,
+        "mean": -0.00077,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 12.27506,
+        "winrate": 0.35897,
+        "calmar": -0.00942
+      },
+      "G": {
+        "n": 429,
+        "mean": -0.00643,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 18.59907,
+        "winrate": 0.27506,
+        "calmar": -0.07845
+      }
+    },
+    "gate_g_vs_d": {
+      "verdict": "reject",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] G=-0.64% D=-0.08%  MDD G=-8.2% D=-8.2%  Calmar G=-0.078 D=-0.009  우위 0/3"
+    }
+  },
+  "inverted_hammer": {
+    "stats": {
+      "A": {
+        "n": 149,
+        "mean": 0.02133,
+        "median": 0.03031,
+        "maxloss": -0.17274,
+        "avghold": 9.97987,
+        "winrate": 0.5302,
+        "calmar": 0.12348
+      },
+      "D": {
+        "n": 149,
+        "mean": 0.04036,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 11.92617,
+        "winrate": 0.33557,
+        "calmar": 0.49224
+      },
+      "G": {
+        "n": 149,
+        "mean": 0.08322,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 21.62416,
+        "winrate": 0.24832,
+        "calmar": 1.01491
+      }
+    },
+    "gate_g_vs_d": {
+      "verdict": "adopt",
+      "wins": 2,
+      "all_wins": false,
+      "detail": "E[R] G=+8.32% D=+4.04%  MDD G=-8.2% D=-8.2%  Calmar G=1.015 D=0.492  우위 2/3"
+    }
+  },
+  "marubozu": {
+    "stats": {
+      "A": {
+        "n": 31,
+        "mean": 0.02008,
+        "median": 0.00084,
+        "maxloss": -0.18699,
+        "avghold": 9.22581,
+        "winrate": 0.51613,
+        "calmar": 0.10739
+      },
+      "D": {
+        "n": 31,
+        "mean": 0.11848,
+        "median": -0.01713,
+        "maxloss": -0.082,
+        "avghold": 11.90323,
+        "winrate": 0.41935,
+        "calmar": 1.44485
+      },
+      "G": {
+        "n": 31,
+        "mean": 0.08648,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 20.19355,
+        "winrate": 0.32258,
+        "calmar": 1.05463
+      }
+    },
+    "gate_g_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] G=+8.65% D=+11.85%  MDD G=-8.2% D=-8.2%  Calmar G=1.055 D=1.445  우위 0/3"
+    }
+  },
+  "_pooled": {
+    "stats": {
+      "A": {
+        "n": 1290,
+        "mean": 0.0145,
+        "median": 0.02106,
+        "maxloss": -0.6633,
+        "avghold": 9.48992,
+        "winrate": 0.53566,
+        "calmar": 0.02186
+      },
+      "D": {
+        "n": 1290,
+        "mean": 0.05426,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 11.60078,
+        "winrate": 0.37674,
+        "calmar": 0.66165
+      },
+      "G": {
+        "n": 1290,
+        "mean": 0.05385,
+        "median": -0.082,
+        "maxloss": -0.082,
+        "avghold": 21.35969,
+        "winrate": 0.2969,
+        "calmar": 0.65675
+      }
+    },
+    "gate_g_vs_d": {
+      "verdict": "keep_base",
+      "wins": 0,
+      "all_wins": false,
+      "detail": "E[R] G=+5.39% D=+5.43%  MDD G=-8.2% D=-8.2%  Calmar G=0.657 D=0.662  우위 0/3"
+    }
+  }
+}

@@ -173,3 +173,5 @@
 2026-07-03,bb_zscore_short_1h,1h,short,10217,-0.05,-0.01,p=0.227(boot=0.424),2/4,REJECTED,"mean<=0, median<=0, boot_p=0.424"
 2026-07-03,rsi_extreme_1h,1h,long,4281,-0.25,-0.06,p=0.000(boot=0.518),2/4,REJECTED,"mean<=0, median<=0, boot_p=0.518"
 2026-07-03,rsi_extreme_short_1h,1h,short,3316,-0.38,0.02,p=0.000(boot=0.602),0/4,REJECTED,"mean<=0, boot_p=0.602, OOS 0/4<2"
+2026-07-06,method_g_score,1d,all,1290,5.39,-8.2,calmar=0.657(D=0.662),0/3,REJECTED,"vs D pooled 0/3 — 단 inverted_hammer 2/3 우위(+8.32% vs +4.04%, Calmar 1.015 vs 0.492)"
+2026-07-06,method_h_hhfail,1d,all,1290,1.17,-1.84,calmar=0.143(D=0.662),0/3,REJECTED,"3봉 실패 조기청산이 러너 절단(평균보유 4.6봉), 전 패턴 0/3"
