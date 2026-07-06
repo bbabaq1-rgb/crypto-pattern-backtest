@@ -831,135 +831,132 @@ def section_signals(tab_key="live"):
     st.divider()
 
 
-def section_positions(live: bool, pos_df, prices, tab_key: str):
-    """오픈 포지션 + 청산 버튼. HTML 없이 순수 Streamlit 컴포넌트만 사용."""
-    st.subheader("📂 오픈 포지션")
-    df = _filter_by_mode(pos_df, live)
+def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
+    """실거래 오픈 포지션 — OKX API 실측을 원천으로 바이낸스식 그리드 렌더.
 
-    # Live 탭 & DB 비어있을 때 → OKX 실제 포지션으로 폴백 (청산 버튼 포함)
-    if df.empty and live:
+    DB(positions 테이블)는 러너 소멸·중복으로 실제와 어긋날 수 있으므로,
+    실거래 탭 표시는 항상 OKX 실측을 신뢰한다(요구: 오픈포지션이 실제와 일치).
+    스탑로스 설정란은 두지 않는다(진입 시 algo 손절 자동 설정 — 표시만).
+    """
+    if "confirm_close" not in st.session_state:
+        st.session_state.confirm_close = None
+
+    # 합계 요약
+    equity     = float(bal_dict.get("equity")) if bal_dict else None
+    tot_margin = sum(float(p.get("margin") or 0) for p in okx_poss)
+    tot_notn   = sum(abs(float(p.get("notional") or 0)) for p in okx_poss)
+    tot_upnl   = sum(float(p.get("unrealized_pnl") or 0) for p in okx_poss)
+    s1, s2, s3 = st.columns(3)
+    s1.metric("포지션", f"{len(okx_poss)}개")
+    s2.metric("투입증거금", f"${tot_margin:.2f}",
+              help="실제 계좌에서 묶인 증거금 합계 — 자산과 비교할 값")
+    s3.metric("미실현손익", f"{'+' if tot_upnl>=0 else ''}${tot_upnl:.2f}",
+              delta=f"명목 ${tot_notn:.0f}" if equity else None, delta_color="off")
+
+    # 바이낸스식 그리드: 종목·레버리지 / 수량 / 진입 / 현재 / 청산가 / 증거금 / 손익(ROE) / [청산]
+    GRID = [1.15, 0.85, 1.0, 1.0, 1.0, 0.95, 1.25, 0.75]
+    hcols = st.columns(GRID)
+    for c, label in zip(hcols, ["종목 · 레버리지", "수량", "진입가", "현재가",
+                                "청산가", "증거금", "손익 (ROE)", ""]):
+        c.caption(f"**{label}**")
+
+    for i, p in enumerate(okx_poss):
+        sym      = p.get("symbol", "")
+        d        = p.get("direction", "")
+        ep       = float(p.get("entry_price") or 0)
+        upnl     = float(p.get("unrealized_pnl") or 0)
+        coin_qty = p.get("coin_qty")
+        margin   = p.get("margin") or 0.0
+        lev      = p.get("leverage")
+        liq      = p.get("liq_price")
+        roe      = p.get("roe")
+        cur      = prices.get(sym)
+        dir_badge = "🟢 롱" if d == "long" else "🔴 숏"
+        lev_badge = f"{lev:g}x" if lev else ""
+        dot      = "🟢" if upnl >= 0 else "🔴"
+        roe_str  = f" ({'+' if roe>=0 else ''}{roe:.1f}%)" if roe is not None else ""
+        qty_str  = f"{coin_qty:g}" if coin_qty is not None else f"{p.get('qty','—')}"
+        pos_key  = f"okx_{tab_key}_{sym}_{d}_{i}"
+
+        rc = st.columns(GRID)
+        rc[0].write(f"**{sym}**")
+        rc[0].caption(f"{dir_badge} · {lev_badge}")
+        rc[1].write(qty_str)
+        rc[2].write(_fmt_price(ep))
+        rc[3].write(_fmt_price(cur) if cur else "—")
+        rc[4].write(_fmt_price(liq) if liq else "—")
+        rc[5].write(f"${margin:.2f}")
+        rc[6].write(f"{dot} {'+' if upnl>=0 else ''}${upnl:.2f}")
+        rc[6].caption(roe_str.strip(" ()") or "—")
+        if rc[7].button("청산", key=f"close_{pos_key}", type="secondary"):
+            st.session_state.confirm_close = pos_key
+
+    # 청산 확인 다이얼로그
+    for i, p in enumerate(okx_poss):
+        sym, d = p.get("symbol", ""), p.get("direction", "")
+        qty = p.get("qty", 0)
+        d_lbl = DIR_LABEL.get(d, d)
+        pos_key = f"okx_{tab_key}_{sym}_{d}_{i}"
+        if st.session_state.confirm_close == pos_key:
+            st.warning(f"⚠️ **{sym} {d_lbl}** OKX 시장가 전량 청산하시겠습니까?")
+            cc1, cc2 = st.columns(2)
+            if cc1.button("✅ 확인 청산", key=f"confirm_{pos_key}", type="primary"):
+                with st.spinner("OKX 청산 중..."):
+                    try:
+                        import exchange as ex_mod
+                        conn = ex_mod.connect_live()
+                        if conn:
+                            ex = conn["exchange"]
+                            sym_ccxt = f"{sym}/USDT:USDT"
+                            close_side = "sell" if d == "long" else "buy"
+                            order = ex.create_market_order(
+                                sym_ccxt, close_side, float(qty),
+                                params={"tdMode": "isolated", "reduceOnly": True})
+                            fill = float(order.get("average") or order.get("price") or 0) \
+                                or float(prices.get(sym) or 0)
+                            entry_px = float(p.get("entry_price") or 0)
+                            cq = p.get("coin_qty")
+                            if cq and entry_px and fill:
+                                realized = (fill - entry_px) * cq if d == "long" \
+                                    else (entry_px - fill) * cq
+                            else:
+                                realized = float(p.get("unrealized_pnl") or 0)
+                            n = _record_manual_close(
+                                sym, d, entry_px, fill, pnl_usd=round(realized, 2),
+                                size_usd=p.get("margin"), live_mode=True)
+                            st.success(f"{sym} {d_lbl} 청산 완료 "
+                                       f"(체결 {_fmt_price(fill)}, 매매내역 {n}건 기록)")
+                        else:
+                            st.error("OKX 연결 실패")
+                    except Exception as e:
+                        st.error(f"청산 오류: {str(e)[:80]}")
+                st.session_state.confirm_close = None
+                st.cache_data.clear()
+                time.sleep(1.0)
+                st.rerun()
+            if cc2.button("취소", key=f"cancel_{pos_key}"):
+                st.session_state.confirm_close = None
+    st.divider()
+
+
+def section_positions(live: bool, pos_df, prices, tab_key: str):
+    """오픈 포지션. 실거래 탭은 OKX 실측 우선(바이낸스식), 페이퍼는 DB 그리드."""
+    st.subheader("📂 오픈 포지션")
+
+    # 실거래 탭: OKX 실측을 원천으로 표시(DB 드리프트와 무관하게 실제와 일치)
+    if live:
         bal_dict, okx_poss, is_live_mode, _ = fetch_account_balance()
         if okx_poss:
-            st.caption("📡 OKX 실제 포지션 (DB 미등록 — 다음 스케줄러 실행 후 자동 등록)")
-            if "confirm_close" not in st.session_state:
-                st.session_state.confirm_close = None
-
-            # ── 합계 요약 (자산 대비 맥락 — '자산 초과' 오인 방지) ──────────
-            equity     = float(bal_dict.get("equity")) if bal_dict else None
-            tot_margin = sum(float(p.get("margin") or 0) for p in okx_poss)
-            tot_notn   = sum(abs(float(p.get("notional") or 0)) for p in okx_poss)
-            s1, s2, s3 = st.columns(3)
-            s1.metric("총 투입증거금", f"${tot_margin:.2f}",
-                      help="실제 계좌에서 묶인 증거금 합계 — 자산과 비교할 값")
-            s2.metric("총 명목금액", f"${tot_notn:.2f}",
-                      help="레버리지 반영 포지션 규모(≈증거금×레버리지). 자산의 여러 배가 정상")
-            if equity is not None:
-                lev_eff = (tot_notn / equity) if equity else 0
-                s3.metric("총 자산(equity)", f"${equity:.2f}",
-                          f"명목/자산 {lev_eff:.2f}x")
-            st.caption("ℹ️ '명목금액'은 레버리지가 곱해진 값이라 자산보다 큰 게 정상입니다. "
-                       "실제 위험자본은 '투입증거금'입니다.")
-
-            GRID = [0.9, 0.7, 1.1, 1.2, 1.1, 1.1, 1.1, 1.2, 0.9, 0.8]
-
-            # ── 헤더 행 ───────────────────────────────────────────────────
-            hcols = st.columns(GRID)
-            for c, label in zip(hcols, ["종목", "방향", "수량(코인)", "투입증거금", "명목",
-                                        "진입가", "현재가", "손익", "수익률", ""]):
-                c.caption(f"**{label}**")
-
-            # ── 데이터 행 (각 행 오른쪽 끝 청산 버튼) ──────────────────────
-            for i, p in enumerate(okx_poss):
-                sym      = p.get("symbol", "")
-                d        = p.get("direction", "")
-                ep       = float(p.get("entry_price") or 0)
-                upnl     = float(p.get("unrealized_pnl") or 0)
-                coin_qty = p.get("coin_qty")
-                notional = abs(float(p.get("notional") or 0))
-                margin   = p.get("margin")
-                lev      = p.get("leverage")
-                if margin is None:  # 폴백: 명목/레버리지 → 명목/2
-                    margin = notional / lev if lev else notional / 2
-                cur      = prices.get(sym)
-                d_lbl    = DIR_LABEL.get(d, d)
-                dot      = "🟢" if upnl >= 0 else "🔴"
-                ret_str  = "—"
-                if cur and ep:
-                    ret_pct = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
-                    ret_str = f"{'+' if ret_pct>=0 else ''}{ret_pct:.2f}%"
-                qty_str  = f"{coin_qty:g}" if coin_qty is not None else f"{p.get('qty','—')}"
-                lev_str  = f"  ·{lev:g}x" if lev else ""
-                pos_key  = f"okx_{tab_key}_{sym}_{d}_{i}"
-
-                rc = st.columns(GRID)
-                rc[0].write(f"**{sym}**")
-                rc[1].write(d_lbl)
-                rc[2].write(qty_str)
-                rc[3].write(f"${margin:.2f}{lev_str}")
-                rc[4].write(f"${notional:.2f}")
-                rc[5].write(_fmt_price(ep))
-                rc[6].write(_fmt_price(cur) if cur else "—")
-                rc[7].write(f"{dot} {'+' if upnl>=0 else ''}{upnl:.2f}")
-                rc[8].write(ret_str)
-                if rc[9].button("청산", key=f"close_{pos_key}", type="secondary"):
-                    st.session_state.confirm_close = pos_key
-
-            # ── 청산 확인 다이얼로그 ──────────────────────────────────────
-            for i, p in enumerate(okx_poss):
-                sym = p.get("symbol", "")
-                d   = p.get("direction", "")
-                qty = p.get("qty", 0)
-                d_lbl   = DIR_LABEL.get(d, d)
-                pos_key = f"okx_{tab_key}_{sym}_{d}_{i}"
-                if st.session_state.confirm_close == pos_key:
-                    st.warning(f"⚠️ **{sym} {d_lbl}** OKX 시장가 청산하시겠습니까?")
-                    cc1, cc2 = st.columns(2)
-                    if cc1.button("✅ 확인 청산", key=f"confirm_{pos_key}", type="primary"):
-                        with st.spinner("OKX 청산 중..."):
-                            try:
-                                import exchange as ex_mod
-                                conn = ex_mod.connect_live()
-                                if conn:
-                                    ex  = conn["exchange"]
-                                    sym_ccxt = f"{sym}/USDT:USDT"
-                                    close_side = "sell" if d == "long" else "buy"
-                                    order = ex.create_market_order(
-                                        sym_ccxt, close_side, float(qty),
-                                        params={"tdMode": "isolated", "reduceOnly": True},
-                                    )
-                                    # 실체결가 캡처 → 없으면 현재가 폴백
-                                    fill = float(order.get("average") or order.get("price") or 0) \
-                                        or float(prices.get(sym) or 0)
-                                    entry_px = float(p.get("entry_price") or 0)
-                                    cq = p.get("coin_qty")
-                                    # 실현손익: 코인수량×가격차 (없으면 미실현P&L 근사)
-                                    if cq and entry_px and fill:
-                                        realized = (fill - entry_px) * cq if d == "long" \
-                                            else (entry_px - fill) * cq
-                                    else:
-                                        realized = float(p.get("unrealized_pnl") or 0)
-                                    n = _record_manual_close(
-                                        sym, d, entry_px, fill,
-                                        pnl_usd=round(realized, 2),
-                                        size_usd=p.get("margin"), live_mode=True)
-                                    st.success(f"{sym} {d_lbl} 청산 완료 "
-                                               f"(체결 {_fmt_price(fill)}, 매매내역 {n}건 기록)")
-                                else:
-                                    st.error("OKX 연결 실패")
-                            except Exception as e:
-                                st.error(f"청산 오류: {str(e)[:80]}")
-                        st.session_state.confirm_close = None
-                        st.cache_data.clear()
-                        time.sleep(1.2)
-                        st.rerun()
-                    if cc2.button("취소", key=f"cancel_{pos_key}"):
-                        st.session_state.confirm_close = None
-            st.divider()
+            _render_okx_positions(okx_poss, bal_dict, prices, tab_key)
             return
-        st.info("오픈 포지션 없음")
+        if not is_live_mode:
+            st.info("OKX 미연결 — 실계좌 포지션을 표시하려면 OKX 키 설정 필요")
+        else:
+            st.info("오픈 포지션 없음")
         st.divider()
         return
 
+    df = _filter_by_mode(pos_df, live)
     if df.empty:
         st.info("오픈 포지션 없음")
         st.divider()
@@ -1418,40 +1415,53 @@ _MOBILE_GRID_CSS = """
 """
 
 
+@st.fragment(run_every=f"{REFRESH_SEC}s")
+def _live_dynamic():
+    """실거래 실시간부(잔고·미실현·오픈포지션)만 REFRESH_SEC마다 부분 갱신.
+
+    바이낸스처럼 '숫자만' 업데이트 — 전체 페이지 rerun(폰트 페이드/깜빡임) 없이
+    이 프래그먼트의 DOM만 교체된다. 아래 정적 섹션(매매내역·차트)은 재렌더 안 함.
+    """
+    pos_df = load_positions()
+    _, okx_poss, _, _ = fetch_account_balance()
+    syms   = tuple(sorted({p["symbol"] for p in okx_poss})) if okx_poss else ()
+    prices = fetch_prices(syms)
+    trades = load_trades()
+    section_live_summary(pos_df, trades, prices)
+    section_positions(live=True, pos_df=pos_df, prices=prices, tab_key="live")
+
+
 def main():
     st.markdown(_MOBILE_GRID_CSS, unsafe_allow_html=True)
     col_h, col_btn = st.columns([5, 1])
     with col_h:
         st.title("🪙 크립토 대시보드")
-        st.caption(f"버전 {_app_version()} — 모바일과 PC에서 이 값이 다르면 "
-                   f"브라우저 새로고침(캐시 삭제) 필요")
+        st.caption(f"버전 {_app_version()}  ·  실시간부 {REFRESH_SEC}초 부분갱신")
     with col_btn:
         st.write("")
         if st.button("🔄"):
             st.cache_data.clear()
             st.rerun()
 
-    # 공통 데이터 (탭 전환 시 재로드 방지)
+    # 공통 데이터(정적 섹션용) — 페이지 로드 1회. 실시간부는 프래그먼트가 자체 로드.
     all_pos    = load_positions()
     all_trades = load_trades()
     daily_df   = load_daily_summary()
-
     all_syms = tuple(sorted(all_pos["symbol"].unique().tolist())) if not all_pos.empty else ()
     prices   = fetch_prices(all_syms)
 
     tab_live, tab_paper = st.tabs(["📈 실거래", "📋 페이퍼"])
 
     with tab_live:
-        section_live_summary(all_pos, all_trades, prices)
-        section_signals(tab_key="live")
-        section_positions(live=True,  pos_df=all_pos, prices=prices, tab_key="live")
+        _live_dynamic()                       # ← 30초 부분갱신(잔고·포지션)
+        section_signals(tab_key="live")       # 이하 정적(스케줄러 주기로만 변동)
         section_trades(live=True,  trades_df=all_trades, tab_key="live")
         chart_cumulative_return(live=True, trades_df=all_trades, chart_key="live")
         chart_daily_pnl(live=True,  trades_df=all_trades, chart_key="live")
         section_pattern_perf(live=True,  trades_df=all_trades, chart_key="live")
         chart_regime_timeline(chart_key="live")
 
-    with tab_paper:
+    with tab_paper:                            # 페이퍼는 정적(4시간 주기 변동)
         section_paper_summary(all_pos, all_trades, daily_df, prices)
         section_signals(tab_key="paper")
         section_positions(live=False, pos_df=all_pos, prices=prices, tab_key="paper")
@@ -1460,10 +1470,6 @@ def main():
         chart_daily_pnl(live=False, trades_df=all_trades, chart_key="paper")
         section_pattern_perf(live=False, trades_df=all_trades, chart_key="paper")
         chart_regime_timeline(chart_key="paper")
-
-    st.caption(f"⏱ {REFRESH_SEC}초 후 자동갱신...")
-    time.sleep(REFRESH_SEC)
-    st.rerun()
 
 
 main()

@@ -107,13 +107,18 @@ def _date_idx(rows, date):
 
 def _record_trade(trades, pos, method, ex, exit_date=None):
     j, exit_px, ret, reason = ex
+    # 실거래 판정: 방식D만 실제 OKX 청산과 연결됨(af7b3c4 결정). 방식A(±10%)는
+    # 페이퍼 비교 전용이므로 live 포지션이라도 A청산은 '페이퍼'로 기록해야 한다.
+    # (과거엔 A청산도 live_mode를 상속 → '실거래' 마커가 붙어 매도로 오인, 포지션은
+    #  D가 홀딩 중이라 오픈으로 남아 매매내역↔오픈포지션 불일치 발생: UNI 사례)
+    is_live_trade = bool(pos.get("live_mode", False)) and method == "D"
     trades.append(dict(method=method, symbol=pos["symbol"], direction=pos["direction"],
                        pattern=pos["pattern"], regime=pos.get("regime"),
                        entry_date=pos["entry_date"], entry_price=pos["entry_price"],
                        exit_date=exit_date, exit_price=round(exit_px, 4), ret=round(ret, 5),
                        pnl_usd=round(ret * POS_USD, 2), hold_bars=j - pos["entry_idx"],
                        reason=reason, method_label=method,
-                       live_mode=bool(pos.get("live_mode", False))))
+                       live_mode=is_live_trade))
 
 
 # ---- Supabase 동기화 (베스트에포트; 실패/미설정 시 JSON 폴백) ----
@@ -276,6 +281,31 @@ def restore_state_db(positions, trades):
     return positions, trades
 
 
+def reconcile_live_flag(positions, live_conn):
+    """
+    OKX 실측을 기준으로 DB 복원 포지션의 live_mode를 보정.
+
+    OKX에 (symbol, direction)이 실재하면 해당 DB 포지션을 live_mode=True로 승격한다.
+    이렇게 해야 방식D 청산 모니터가 그 포지션을 '실거래'로 보고 조건 충족 시
+    실제 OKX reduceOnly 주문을 낸다(자동 매도 사각지대 제거). entry_date가 캔들에
+    매핑 안 되면 D-eval이 안전하게 스킵되므로 잘못된 청산 위험은 없다.
+    """
+    try:
+        okx = ex_mod.get_okx_positions(live_conn)
+    except Exception as e:
+        print("  [reconcile] OKX 포지션 조회 실패(무시):", str(e)[:60])
+        return positions
+    okx_keys = {(p["symbol"], p["direction"]) for p in okx}
+    promoted = []
+    for pos in positions:
+        if (pos["symbol"], pos["direction"]) in okx_keys and not pos.get("live_mode"):
+            pos["live_mode"] = True
+            promoted.append(pos["symbol"])
+    if promoted:
+        print(f"  [reconcile] OKX 실재 → 실거래 승격 {len(promoted)}건: {sorted(set(promoted))}")
+    return positions
+
+
 def run(stamp=None):
     stamp = stamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     regmap = rs.build_regime_map()
@@ -302,6 +332,10 @@ def run(stamp=None):
     live_conn = ex_mod.connect_live() if ex_mod.is_live() else None
     if live_conn:
         print(f"[live] OKX 선물 실거래 모드 | USDT free={live_conn['usdt_free']:.2f}")
+        # 실거래 정합성 보정: OKX에 실재하는 포지션인데 DB엔 페이퍼(live_mode=False)로
+        # 남은 것들을 실거래로 승격 → 방식D 청산 모니터가 실제 OKX 주문을 내도록.
+        # (과거 진입경로/복원에서 live 표기가 유실돼 실거래인데 자동청산 사각지대이던 문제)
+        positions = reconcile_live_flag(positions, live_conn)
 
     # 1) 오픈 포지션 청산 모니터링
     #    방식D 청산 조건 충족 + live_mode 포지션 → 실제 OKX reduceOnly 청산 주문.

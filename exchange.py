@@ -180,16 +180,35 @@ def get_okx_positions(live_conn):
             if margin is None and notional and leverage:
                 margin = notional / leverage
 
+            # 청산가(liquidation) — OKX liqPx 우선, 없으면 격리 2x 근사
+            liq = None
+            for cand in (p.get("liquidationPrice"), info.get("liqPx")):
+                try:
+                    if cand is not None and float(cand) > 0:
+                        liq = float(cand); break
+                except (TypeError, ValueError):
+                    continue
+            if liq is None and entry and leverage:
+                # 격리마진 대략적 청산가(수수료·유지증거금 무시): 롱 entry*(1-1/lev)
+                liq = entry * (1 - 1 / leverage) if direction == "long" \
+                    else entry * (1 + 1 / leverage)
+
+            # ROE(증거금 대비 수익률) = 미실현손익 / 증거금
+            upnl = float(p.get("unrealizedPnl") or 0)
+            roe  = (upnl / margin * 100) if margin else None
+
             result.append({
                 "symbol":          sym,
                 "direction":       direction,
                 "qty":             contracts,
                 "coin_qty":        coin_qty,
                 "entry_price":     entry,
-                "unrealized_pnl":  float(p.get("unrealizedPnl") or 0),
+                "unrealized_pnl":  upnl,
                 "notional":        notional,
                 "margin":          margin,
                 "leverage":        leverage,
+                "liq_price":       liq,
+                "roe":             roe,
             })
         return result
     except Exception as e:
