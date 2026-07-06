@@ -318,31 +318,51 @@ def fetch_account_balance():
         return None, [], True, str(e)[:200]
 
 
+@st.cache_resource
+def _okx_public():
+    """시세 조회용 공개(키 불필요) OKX 인스턴스 — 세션 재사용."""
+    try:
+        import ccxt
+        return ccxt.okx({"enableRateLimit": True})
+    except Exception:
+        return None
+
+
 @st.cache_data(ttl=60)
 def fetch_prices(symbols_tuple):
     """
-    OKX 선물(USDT 무기한) 현재가 조회.
-    실패 시 스팟 가격으로 폴백.
+    OKX 선물(USDT 무기한) 현재가 일괄 조회.
+    fetch_tickers 배치 1회 호출(종목별 순차 fetch_ticker의 N회 왕복 → 1회로 단축).
+    실패 시 스팟 일괄, 그래도 없으면 개별 폴백.
     """
     if not symbols_tuple:
         return {}
-    try:
-        import ccxt
-        ex = ccxt.okx({"enableRateLimit": True})
-        result = {}
-        for sym in symbols_tuple:
-            try:
-                # 1순위: 선물(USDT 무기한) 가격
-                result[sym] = float(ex.fetch_ticker(f"{sym}/USDT:USDT")["last"])
-            except Exception:
-                try:
-                    # 폴백: 스팟
-                    result[sym] = float(ex.fetch_ticker(f"{sym}/USDT")["last"])
-                except Exception:
-                    pass
-        return result
-    except Exception:
+    ex = _okx_public()
+    if ex is None:
         return {}
+    result = {}
+    swap_syms = [f"{s}/USDT:USDT" for s in symbols_tuple]
+    # 1) 선물 일괄
+    try:
+        tk = ex.fetch_tickers(swap_syms)
+        for s in symbols_tuple:
+            t = tk.get(f"{s}/USDT:USDT")
+            if t and t.get("last"):
+                result[s] = float(t["last"])
+    except Exception:
+        pass
+    # 2) 누락분 스팟 일괄
+    missing = [s for s in symbols_tuple if s not in result]
+    if missing:
+        try:
+            tk = ex.fetch_tickers([f"{s}/USDT" for s in missing])
+            for s in missing:
+                t = tk.get(f"{s}/USDT")
+                if t and t.get("last"):
+                    result[s] = float(t["last"])
+        except Exception:
+            pass
+    return result
 
 
 # ── 포맷 헬퍼 ─────────────────────────────────────────────────────────────────
@@ -862,7 +882,8 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
         lev      = p.get("leverage")
         liq      = p.get("liq_price")
         roe      = p.get("roe")
-        cur      = prices.get(sym)
+        # 현재가: 포지션 응답의 mark price 우선(시세 재조회 불필요) → prices 폴백
+        cur      = p.get("mark_price") or prices.get(sym)
         dir_cls   = "long" if d == "long" else "short"
         dir_txt   = "롱" if d == "long" else "숏"
         lev_badge = f"{lev:g}x" if lev else ""
@@ -1463,13 +1484,11 @@ def _live_dynamic():
     바이낸스처럼 '숫자만' 업데이트 — 전체 페이지 rerun(폰트 페이드/깜빡임) 없이
     이 프래그먼트의 DOM만 교체된다. 아래 정적 섹션(매매내역·차트)은 재렌더 안 함.
     """
+    # 실거래부는 시세 재조회 불필요 — 포지션 응답의 mark price를 그대로 사용.
     pos_df = load_positions()
-    _, okx_poss, _, _ = fetch_account_balance()
-    syms   = tuple(sorted({p["symbol"] for p in okx_poss})) if okx_poss else ()
-    prices = fetch_prices(syms)
     trades = load_trades()
-    section_live_summary(pos_df, trades, prices)
-    section_positions(live=True, pos_df=pos_df, prices=prices, tab_key="live")
+    section_live_summary(pos_df, trades, {})
+    section_positions(live=True, pos_df=pos_df, prices={}, tab_key="live")
 
 
 def main():
@@ -1484,17 +1503,16 @@ def main():
             st.cache_data.clear()
             st.rerun()
 
-    # 공통 데이터(정적 섹션용) — 페이지 로드 1회. 실시간부는 프래그먼트가 자체 로드.
+    # 정적 섹션용 공통 데이터(Supabase — 캐시). 시세는 실거래부엔 불필요하므로
+    # 페이퍼 탭에서만 지연 로드 → 실거래 탭 첫 표시가 시세 조회를 기다리지 않음.
     all_pos    = load_positions()
     all_trades = load_trades()
     daily_df   = load_daily_summary()
-    all_syms = tuple(sorted(all_pos["symbol"].unique().tolist())) if not all_pos.empty else ()
-    prices   = fetch_prices(all_syms)
 
     tab_live, tab_paper = st.tabs(["📈 실거래", "📋 페이퍼"])
 
     with tab_live:
-        _live_dynamic()                       # ← 30초 부분갱신(잔고·포지션)
+        _live_dynamic()                       # ← 30초 부분갱신(잔고·포지션, mark price)
         section_signals(tab_key="live")       # 이하 정적(스케줄러 주기로만 변동)
         section_trades(live=True,  trades_df=all_trades, tab_key="live")
         chart_cumulative_return(live=True, trades_df=all_trades, chart_key="live")
@@ -1503,6 +1521,10 @@ def main():
         chart_regime_timeline(chart_key="live")
 
     with tab_paper:                            # 페이퍼는 정적(4시간 주기 변동)
+        paper_syms = tuple(sorted(
+            _filter_by_mode(all_pos, live=False)["symbol"].unique().tolist())) \
+            if not all_pos.empty else ()
+        prices = fetch_prices(paper_syms)      # 페이퍼 포지션 시세만(배치)
         section_paper_summary(all_pos, all_trades, daily_df, prices)
         section_signals(tab_key="paper")
         section_positions(live=False, pos_df=all_pos, prices=prices, tab_key="paper")

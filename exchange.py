@@ -197,6 +197,15 @@ def get_okx_positions(live_conn):
             upnl = float(p.get("unrealizedPnl") or 0)
             roe  = (upnl / margin * 100) if margin else None
 
+            # 현재가(mark) — 포지션 응답에 이미 포함되어 별도 시세조회 불필요(첫 로딩 가속)
+            mark = None
+            for cand in (p.get("markPrice"), info.get("markPx"), info.get("last")):
+                try:
+                    if cand is not None and float(cand) > 0:
+                        mark = float(cand); break
+                except (TypeError, ValueError):
+                    continue
+
             result.append({
                 "symbol":          sym,
                 "direction":       direction,
@@ -209,6 +218,7 @@ def get_okx_positions(live_conn):
                 "leverage":        leverage,
                 "liq_price":       liq,
                 "roe":             roe,
+                "mark_price":      mark,
             })
         return result
     except Exception as e:
