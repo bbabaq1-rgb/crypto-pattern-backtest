@@ -673,6 +673,18 @@ def _render_onchain_section(oc: dict):
 
 # ── 실거래 탭 섹션 ─────────────────────────────────────────────────────────────
 
+def _render_regime_header():
+    """현재 레짐(불/베어 등) + 방향 라우팅 헤더. 실거래·페이퍼 공통."""
+    current, _ = load_regime()
+    regime      = current.get("regime", "—")
+    regime_date = current.get("date", "")
+    action      = current.get("action", {})
+    r_emoji = REGIME_EMOJI.get(regime, "❓")
+    dir_text = "  |  ".join(f"{k} → {DIR_LABEL.get(v, v)}" for k, v in action.items()) if action else "—"
+    st.markdown(f"### {r_emoji} {regime} `{regime_date}`")
+    st.caption(dir_text)
+
+
 def section_live_summary(pos_df, trades_df, prices):
     now_str = datetime.now(timezone.utc).strftime("%m/%d %H:%M UTC")
     bal_dict, okx_poss, is_live_mode, err_msg = fetch_account_balance()
@@ -714,6 +726,9 @@ def section_live_summary(pos_df, trades_df, prices):
         c1, c2 = st.columns(2)
         c1.metric("진입 완료 (OKX)", f"{len(okx_poss)}개")
         c2.metric("청산 완료",       f"{len(live_trd)}건")
+
+    # 현재 레짐(불/베어) — 페이퍼 탭과 동일하게 실거래 탭에도 표시
+    _render_regime_header()
 
     # 온체인 보조 신호 (실거래 탭)
     oc = load_onchain()
@@ -892,6 +907,15 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
         upnl_str  = f"{'+' if upnl>=0 else ''}${upnl:.2f}"
         qty_str   = f"{coin_qty:g}" if coin_qty is not None else f"{p.get('qty','—')}"
         pos_key   = f"okx_{tab_key}_{sym}_{d}_{i}"
+        # 가격변동(진입 대비) — 손절은 '가격 -8%' 기준이므로 ROE와 구분해 표시.
+        # 손절가 = 진입 ±8%(레버리지 무관). 손절은 가격이 여기 닿을 때만 발동.
+        if cur and ep:
+            price_ret = (cur - ep) / ep * 100 if d == "long" else (ep - cur) / ep * 100
+        else:
+            price_ret = None
+        pret_cls  = "pos" if (price_ret or 0) >= 0 else "neg"
+        pret_str  = f"{'+' if price_ret>=0 else ''}{price_ret:.2f}%" if price_ret is not None else "—"
+        stop_px   = ep * 0.92 if d == "long" else ep * 1.08
 
         card = f"""
 <div class="pos-card">
@@ -899,12 +923,14 @@ def _render_okx_positions(okx_poss, bal_dict, prices, tab_key):
     <span class="sym">{sym}</span>
     <span class="badge {dir_cls}">{dir_txt}</span>
     <span class="badge lev">{lev_badge}</span>
-    <span class="pnl {pnl_cls}">{upnl_str} <small>({roe_str})</small></span>
+    <span class="pnl {pnl_cls}">{upnl_str} <small>(ROE {roe_str})</small></span>
   </div>
   <div class="pos-grid">
     <div><label>수량</label><b>{qty_str}</b></div>
     <div><label>진입가</label><b>{_fmt_price(ep)}</b></div>
     <div><label>현재가</label><b>{_fmt_price(cur) if cur else '—'}</b></div>
+    <div><label>가격변동</label><b class="{pret_cls}">{pret_str}</b></div>
+    <div><label>손절(-8%)</label><b>{_fmt_price(stop_px)}</b></div>
     <div><label>증거금</label><b>${margin:.2f}</b></div>
     <div><label>청산가</label><b>{_fmt_price(liq) if liq else '—'}</b></div>
   </div>
@@ -1479,6 +1505,8 @@ _POS_CARD_CSS = """
 .pos-grid > div { display:flex; flex-direction:column; line-height:1.25; }
 .pos-grid label { font-size:0.66rem; color:#7d8590; }
 .pos-grid b { font-size:0.86rem; color:#e6edf3; font-weight:600; }
+.pos-grid b.pos { color:#26d367; }
+.pos-grid b.neg { color:#ff6b6b; }
 </style>
 """
 
