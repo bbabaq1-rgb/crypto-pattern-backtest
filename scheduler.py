@@ -43,23 +43,51 @@ DETMOD = {("engulfing", "long"): "detector_engulfing",
           ("fvg", "long"): "detector_fvg",
           ("fvg", "short"): "detector_fvg_short"}
 
-# 패턴별 탐지 유니버스 (2026-07-06 사용자 결정 — 71종목 재검증 결과 반영):
-#   메이저 vs 알트 분리 분석에서 engulfing/inverted_hammer/marubozu 엣지는 메이저에
-#   집중(알트 median 전부 음수), fvg만 알트에서도 양수 생존 → 패턴별 차등.
-#   "majors" = 검증 기준 7종목(detlib.SYMBOLS), "all" = trading_universe 전체.
-#   (근거: report.md '71종목 유니버스 1d 재검증', research_log tier_split@univ71)
+# 패턴별 탐지 유니버스 (2026-07-06 사용자 결정, 거래대금 코호트 분석 반영):
+#   코호트별 엣지 측정(research_log tier/cohort 행, report.md) 결과 —
+#   engulfing top20까지 유지(mean +2.65%/median +9.94%), fvg는 top30이 전체보다
+#   질 우위(+2.36%/median +6.53%), inverted_hammer·marubozu는 top7 밖 급감/불안정.
+#   "majors"=검증 7종목 / "topN"=30일 평균 거래대금 상위 N(매 실행 재계산) / "all"=전체.
 MAJORS = list(detlib.SYMBOLS)   # BTC SOL ETH BNB XRP ADA AVAX
 PATTERN_UNIVERSE = {
-    "engulfing":       "majors",
-    "fvg":             "all",
+    "engulfing":       "top20",
+    "fvg":             "top30",
     "inverted_hammer": "majors",
     "marubozu":        "majors",
 }
 
+_VOL_RANKED: list = []          # 실행당 1회 계산 캐시
+
+
+def _volume_ranked():
+    """trading_universe를 30일 평균 거래대금(close×volume) 내림차순 정렬.
+    로컬 1d CSV 기준 — 결정론적(같은 데이터 → 같은 순위)."""
+    global _VOL_RANKED
+    if _VOL_RANKED:
+        return _VOL_RANKED
+    scored = []
+    for s in SYMBOLS:
+        try:
+            rows = detlib.load_ohlcv(s, "1d")
+        except Exception:
+            continue
+        if len(rows) < 35:
+            continue
+        qv = sum(r["c"] * r["v"] for r in rows[-30:]) / 30
+        scored.append((s, qv))
+    scored.sort(key=lambda x: -x[1])
+    _VOL_RANKED = [s for s, _ in scored]
+    return _VOL_RANKED
+
 
 def _syms_for_pattern(pattern):
     """패턴별 탐지 대상 심볼 목록. 미지정 패턴은 전체 유니버스."""
-    return MAJORS if PATTERN_UNIVERSE.get(pattern) == "majors" else SYMBOLS
+    rule = PATTERN_UNIVERSE.get(pattern, "all")
+    if rule == "majors":
+        return MAJORS
+    if rule.startswith("top"):
+        return _volume_ranked()[:int(rule[3:])]
+    return SYMBOLS
 
 # 하모닉 패턴 4h (PASSED: gartley/bat/butterfly)
 HARMONIC_FOCUS = [

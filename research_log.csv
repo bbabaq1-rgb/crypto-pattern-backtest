@@ -182,3 +182,4 @@
 2026-07-06,inverted_hammer@univ71,1d,long,1795,0.37,-2.41,p=0.282(boot=0.372),2/4,REJECTED,"median<=0, boot_p=0.372"
 2026-07-06,marubozu@univ71,1d,long,259,0.59,-2.7,p=0.536(boot=0.332),2/4,REJECTED,"median<=0, boot_p=0.332"
 2026-07-06,tier_split@univ71,1d,all,-,-,-,-,-,NOTE,"메이저 엣지 유지(eng +4.08%/fvg +2.53%/ih +1.73%/mrb +2.02%) vs 알트 소멸(eng +0.04%/ih +0.27%/mrb +0.42%, median 전부 음수). fvg만 알트 +1.67% 생존"
+2026-07-06,cohort_boundary@univ71,1d,all,-,-,-,-,-,NOTE,"거래대금 코호트 분석: engulfing top20 유지(+2.65%/med+9.94%/wr59%), fvg top30 질우위(+2.36%/med+6.53%), ih top7 밖 급감(+2.44%→+1.40%), marubozu 불안정(n37~88). 적용: engulfing=top20, fvg=top30, ih/mrb=majors"
