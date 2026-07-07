@@ -305,9 +305,15 @@ def _build_ensemble(signals):
             "trading_universe", SYMBOLS)
     vol_rank = {sym: i for i, sym in enumerate(uni_syms)}
 
+    def _rs_adv(s):
+        """RS 우선순위 보조키 — 롱만 rs 반영(백테스트 근거), 숏·미계산은 중립 0."""
+        rs = s.get("rs_score")
+        return rs if (rs is not None and s["direction"] == "long") else 0.0
+
     signals.sort(key=lambda s: (
         -s["ensemble_score"],
         -s["pattern_count"],
+        -_rs_adv(s),                       # 같은 등급이면 RS 강한 롱 우선
         vol_rank.get(s["symbol"], 9999),
     ))
 
@@ -320,6 +326,60 @@ def _build_ensemble(signals):
 # 하위호환 alias
 def _build_priority(signals):
     return _build_ensemble(signals)
+
+
+# ── BTC 대비 상대강도(RS) ─────────────────────────────────────────────────────
+# 백테스트(backtest_rs.py, 2026-07-08) 채택 근거:
+#   롱: RS유리(rs>0.2) mean +7.15%/Calmar 0.872 vs 불리 +3.08%/0.376 (p=0.06)
+#       방향분해 롱 rs>0 +11.32%(Calmar 1.38) vs rs<0 +6.58%(0.80) → 롱 전용 채택.
+#   숏: 유리 -0.36% vs 불리 +0.16% — 효과 없음/역 → 숏 미적용(기록).
+RS_THR = 0.2   # 롱 신호 rs_score < 0.2 → weak_rs(사이징 절반, tf_confirmed 철학)
+
+
+def _attach_rs(signals):
+    """각 신호에 rs_score/weak_rs 부착. BTC는 기준점(None, weak 아님)."""
+    try:
+        from relative_strength import compute_rs
+        btc = detlib.load_ohlcv("BTC", "1d")
+    except Exception as e:
+        print(f"    [RS] BTC 데이터 없음 — RS 스킵({str(e)[:40]})")
+        return signals
+    cache = {}
+    for s in signals:
+        sym = s["symbol"]
+        if sym == "BTC":
+            s["rs_score"], s["weak_rs"] = None, False
+            continue
+        if sym not in cache:
+            try:
+                rows = detlib.load_ohlcv(sym, "1d")
+                cache[sym] = compute_rs(rows, btc, symbol=sym)["rs_score"]
+            except Exception:
+                cache[sym] = None
+        rs = cache[sym]
+        s["rs_score"] = rs
+        # 롱 전용 필터(백테스트 근거) — 숏은 필터 미적용
+        s["weak_rs"] = bool(rs is not None and s["direction"] == "long" and rs < RS_THR)
+    return signals
+
+
+def _avg_alt_rs(signals_cache=None):
+    """유니버스 알트 전체 평균 rs_score — 알트시즌 근접도 관측 지표."""
+    try:
+        from relative_strength import compute_rs
+        btc = detlib.load_ohlcv("BTC", "1d")
+        vals = []
+        for sym in SYMBOLS:
+            if sym == "BTC":
+                continue
+            try:
+                rows = detlib.load_ohlcv(sym, "1d")
+                vals.append(compute_rs(rows, btc, symbol=sym)["rs_score"])
+            except Exception:
+                continue
+        return round(sum(vals) / len(vals), 4) if vals else None
+    except Exception:
+        return None
 
 
 def fetch_all():
@@ -561,8 +621,13 @@ def run_once(do_fetch=True, quick=False):
     else:
         print(f"    [하모닉] 레짐={regime} → 롱 조건 미충족, 하모닉 스킵", flush=True)
 
-    # 앙상블 스코어링 (TF 가중치 + 멀티TF 보너스 + 검증강도)
+    # RS(BTC 대비 상대강도) 부착 → 앙상블 스코어링(RS 보조 정렬 포함)
+    signals = _attach_rs(signals)
     signals = _build_ensemble(signals)
+    avg_alt_rs = _avg_alt_rs()
+    if avg_alt_rs is not None:
+        print(f"    [RS] 유니버스 평균 alt RS = {avg_alt_rs:+.3f} "
+              f"({'알트 강세' if avg_alt_rs > 0 else '알트 약세'})")
 
     onchain_detail = {
         "funding": onchain.get("funding", {}).get("signal", "neutral"),
@@ -579,6 +644,7 @@ def run_once(do_fetch=True, quick=False):
         regime_date=latest,
         onchain_score=onchain.get("score", 0),
         onchain_detail=onchain_detail,
+        avg_alt_rs=avg_alt_rs,             # 알트시즌 근접도(관측 지표)
         routing=route,
         n_signals=len(signals),
         signals=signals,
@@ -615,6 +681,7 @@ def run_once(do_fetch=True, quick=False):
                          "ensemble_grade": s.get("ensemble_grade"),
                          "patterns_fired": json.dumps(s.get("patterns_fired", [s.get("pattern")])),
                          "tf_confirmed": s.get("tf_confirmed", True),
+                         "rs_score": s.get("rs_score"),
                          "regime": s.get("regime")} for s in signals]
             if sig_rows:
                 cli = sc.get_client("service")
@@ -647,10 +714,16 @@ def run_once(do_fetch=True, quick=False):
             cra = round(sum(t["pnl_usd"] for t in tr if t["method"] == "A") / 2000 * 100, 2)
             crd = round(sum(t["pnl_usd"] for t in tr if t["method"] == "D") / 2000 * 100, 2)
             day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            sc.get_client("service").table("daily_summary").upsert(
-                {"date": day, "total_open": pr["open"], "signals_count": len(signals),
-                 "cumulative_return_a": cra, "cumulative_return_d": crd},
-                on_conflict="date").execute()
+            row = {"date": day, "total_open": pr["open"], "signals_count": len(signals),
+                   "cumulative_return_a": cra, "cumulative_return_d": crd,
+                   "avg_alt_rs": avg_alt_rs}
+            try:
+                sc.get_client("service").table("daily_summary").upsert(
+                    row, on_conflict="date").execute()
+            except Exception:
+                row.pop("avg_alt_rs", None)   # 컬럼 미존재(DDL 미적용) 시 제외 재시도
+                sc.get_client("service").table("daily_summary").upsert(
+                    row, on_conflict="date").execute()
             print(f"    daily_summary UPSERT 완료 (open={pr['open']}, sig={len(signals)}, A={cra}%, D={crd}%)")
         else:
             print("    DB 미설정 - daily_summary 스킵(로컬 JSON 유지)")

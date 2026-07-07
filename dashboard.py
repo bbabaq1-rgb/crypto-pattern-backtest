@@ -673,8 +673,30 @@ def _render_onchain_section(oc: dict):
 
 # ── 실거래 탭 섹션 ─────────────────────────────────────────────────────────────
 
+def _load_avg_alt_rs():
+    """알트시즌 근접도(avg_alt_rs). signals_today.json(오늘 생성분) → daily_summary 순."""
+    try:
+        if os.path.exists("signals_today.json"):
+            raw = json.load(open("signals_today.json", encoding="utf-8"))
+            if str(raw.get("generated_at", ""))[:10] == date.today().isoformat():
+                v = raw.get("avg_alt_rs")
+                if v is not None:
+                    return float(v)
+    except Exception:
+        pass
+    try:
+        df = load_daily_summary()
+        if not df.empty and "avg_alt_rs" in df.columns:
+            v = df.sort_values("date")["avg_alt_rs"].dropna()
+            if len(v):
+                return float(v.iloc[-1])
+    except Exception:
+        pass
+    return None
+
+
 def _render_regime_header():
-    """현재 레짐(불/베어 등) + 방향 라우팅 헤더. 실거래·페이퍼 공통."""
+    """현재 레짐(불/베어 등) + 방향 라우팅 + 알트시즌 근접도 게이지."""
     current, _ = load_regime()
     regime      = current.get("regime", "—")
     regime_date = current.get("date", "")
@@ -683,6 +705,15 @@ def _render_regime_header():
     dir_text = "  |  ".join(f"{k} → {DIR_LABEL.get(v, v)}" for k, v in action.items()) if action else "—"
     st.markdown(f"### {r_emoji} {regime} `{regime_date}`")
     st.caption(dir_text)
+
+    # 알트시즌 근접도 게이지 (유니버스 평균 alt RS, -1 약세 ~ +1 강세)
+    aar = _load_avg_alt_rs()
+    if aar is not None:
+        pct = int(round((aar + 1) / 2 * 100))          # -1..+1 → 0..100
+        state = "🌊 알트 강세(로테이션)" if aar > 0.1 else \
+                "🐂 BTC 주도" if aar < -0.1 else "😐 중립"
+        st.progress(min(100, max(0, pct)) / 100,
+                    text=f"알트시즌 근접도 {aar:+.2f} — {state}")
 
 
 def section_live_summary(pos_df, trades_df, prices):
@@ -846,12 +877,20 @@ def section_signals(tab_key="live"):
         pats  = s.get("patterns_fired", s.get("pattern", ""))
         if isinstance(pats, list):
             pats = ", ".join(pats)
+        # RS(BTC 대비 상대강도) — rs_score 필드가 있으면 표시
+        rs = s.get("rs_score") if "rs_score" in df.columns else None
+        if rs is not None and pd.notna(rs):
+            from relative_strength import rs_emoji
+            rs_str = f"{rs_emoji(float(rs))} {float(rs):+.2f}"
+        else:
+            rs_str = "—"
         rows.append({
             "등급":       grade_str,
             "점수":       score_str,
             "종목":       s.get("symbol", ""),
             "패턴":       pats,
             "방향":       DIR_LABEL.get(d, d),
+            "RS":         rs_str,
             "진입가":     _fmt_price(s.get(entry_col)),
             "손절가":     _fmt_price(s.get(stop_col)),
             "거래량배수": f"{s['strength_vol_ratio']:.2f}x" if s.get("strength_vol_ratio") else "—",

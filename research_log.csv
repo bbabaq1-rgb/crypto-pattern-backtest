@@ -185,3 +185,5 @@
 2026-07-06,cohort_boundary@univ71,1d,all,-,-,-,-,-,NOTE,"거래대금 코호트 분석: engulfing top20 유지(+2.65%/med+9.94%/wr59%), fvg top30 질우위(+2.36%/med+6.53%), ih top7 밖 급감(+2.44%→+1.40%), marubozu 불안정(n37~88). 적용: engulfing=top20, fvg=top30, ih/mrb=majors"
 2026-07-07,pit_volume_rank@univ71,1d,all,-,-,-,-,-,NOTE,Point-in-time(신호시점 30일 거래대금 랭킹) 검증: engulfing PIT-top20 +2.62%/med+9.94%/wr58% vs 밖 -0.50%/med-6.08%/wr46%. fvg PIT-top30 +2.20%/med+3.67% vs 밖 +1.29%/med+0.23%. look-ahead 없이 경계 유효 확인
 2026-07-07,mcap_vs_volume@univ71,1d,all,-,-,-,-,-,NOTE,"시총 top20이 표면상 우위(engulfing +4.93%)였으나 현재시총 랭킹=생존편향 오염 + 25/71종목 시총 데이터 누락 + 시총은 PIT 랭킹 불가(유통량 히스토리 없음) → 거래대금 채택이 방법론적으로 타당, PIT 검증 통과"
+2026-07-08,rs_filter_long,1d,long,690,11.32,-8.2,Calmar 1.380 vs 0.803(불리),-,ADOPTED,"RS>0.2 롱 필터 채택: +7.15% vs +3.08% (p=0.060). weak_rs 사이징 ×0.5, 앙상블 보조정렬"
+2026-07-08,rs_filter_short,1d,short,433,-0.36,-8.2,Calmar -0.044 vs 0.020,-,REJECTED,"숏은 RS 무상관(유리군이 오히려 열세) — 필터 미적용, 관측만"

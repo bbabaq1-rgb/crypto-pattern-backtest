@@ -456,9 +456,14 @@ def run(stamp=None):
         tf_ok        = s.get("tf_confirmed", True)
         if not tf_ok:
             size_for_pos = round(size_for_pos * 0.5, 2)
-        if grade != "B" or not tf_ok:
+        # RS 필터(롱 전용, 백테스트 근거 backtest_rs.py): weak_rs → 추가 ×0.5
+        weak_rs = bool(s.get("weak_rs", False))
+        if weak_rs:
+            size_for_pos = round(size_for_pos * 0.5, 2)
+        if grade != "B" or not tf_ok or weak_rs:
             tf_tag = " [4h비확증×0.5]" if not tf_ok else ""
-            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag} → ${size_for_pos:.1f}")
+            rs_tag = " [RS약함×0.5]" if weak_rs else ""
+            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag}{rs_tag} → ${size_for_pos:.1f}")
 
         # 킬스위치 발동 시 실주문 블록 전체 스킵(페이퍼 기록은 아래에서 계속)
         if live_conn and kill_switch:
@@ -477,6 +482,8 @@ def run(stamp=None):
                 bal_info      = ex_mod.get_balance(live_conn)
                 usdt_free     = bal_info["free"] if isinstance(bal_info, dict) else float(bal_info or 0)
                 live_size_usd = round(usdt_free * LIVE_BAL_PCT, 2)
+            if weak_rs:                     # RS 약한 롱 → 실거래도 절반
+                live_size_usd = round(live_size_usd * 0.5, 2)
 
             # 최소 주문 금액 체크
             if live_size_usd < LIVE_MIN_USD:
