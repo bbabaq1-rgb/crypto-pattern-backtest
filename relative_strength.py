@@ -20,6 +20,10 @@ BETA_N   = 90
 RS_SPANS = ((7, 0.5), (14, 0.3), (30, 0.2))
 SCALE    = 0.20
 
+CAPTURE_N   = 60     # 상승/하락 포착 계산 윈도우(각 방향 표본 충분해야 함)
+CAP_MIN_DAY = 8      # 상승일·하락일 각각 최소 표본(미달 시 중립)
+CAP_SCALE   = 1.0    # cap_score 정규화 스케일(up_cap - down_cap 를 ±1로)
+
 
 def _aligned_closes(alt_rows, btc_rows, idx=None):
     """idx(알트 기준 봉 인덱스, None=최신)까지 날짜 정렬된 (alt, btc) 종가 리스트."""
@@ -85,6 +89,43 @@ def compute_rs(alt_rows, btc_rows, idx=None, symbol=None):
     return {"beta": round(beta, 4), "unstable": unstable,
             "rs": {n: round(v, 5) for n, v in rs.items()},
             "rs_score": round(score, 4)}
+
+
+def compute_capture(alt_rows, btc_rows, idx=None, symbol=None):
+    """
+    상승/하락 비대칭 포착 지표 — '비트 오를 때 알트가 얼마나 따라 오르고,
+    비트 빠질 때 얼마나 더 빠지는가'를 방향별로 분리(사용자 지적 반영).
+
+    최근 CAPTURE_N봉을 BTC 상승일/하락일로 나눠:
+      up_capture   = Σ(alt수익 | BTC>0) / Σ(BTC수익 | BTC>0)   # 랠리 참여도
+      down_capture = Σ(alt수익 | BTC<0) / Σ(BTC수익 | BTC<0)   # 하락 동조도(>1=더 빠짐)
+      cap_score    = clip((up_capture − down_capture)/CAP_SCALE, -1, +1)
+        cap_score>0 : 오를 때 잘 따라오르고 빠질 때 덜 빠짐(강한 알트)
+        cap_score<0 : 오를 땐 찔끔, 빠질 땐 왕창(약한 알트 — 사용자가 말한 그 경우)
+    반환: {"up_capture","down_capture","cap_score","unstable"}
+    BTC 자신은 up=down=1, cap_score=0 기준점.
+    """
+    if symbol == "BTC":
+        return {"up_capture": 1.0, "down_capture": 1.0, "cap_score": 0.0,
+                "unstable": False}
+    a, b = _aligned_closes(alt_rows, btc_rows, idx)
+    ra, rb = _returns(a[-(CAPTURE_N + 1):]), _returns(b[-(CAPTURE_N + 1):])
+    m = min(len(ra), len(rb))
+    ra, rb = ra[-m:], rb[-m:]
+    up_a = sum(ra[i] for i in range(m) if rb[i] > 0)
+    up_b = sum(rb[i] for i in range(m) if rb[i] > 0)
+    dn_a = sum(ra[i] for i in range(m) if rb[i] < 0)
+    dn_b = sum(rb[i] for i in range(m) if rb[i] < 0)
+    n_up = sum(1 for x in rb if x > 0)
+    n_dn = sum(1 for x in rb if x < 0)
+    if n_up < CAP_MIN_DAY or n_dn < CAP_MIN_DAY or up_b == 0 or dn_b == 0:
+        return {"up_capture": None, "down_capture": None, "cap_score": 0.0,
+                "unstable": True}
+    up_cap = up_a / up_b            # 둘 다 양수 → 알트 랠리 참여
+    dn_cap = dn_a / dn_b            # 둘 다 음수 → 비율 양수, >1이면 더 빠짐
+    cap_score = max(-1.0, min(1.0, (up_cap - dn_cap) / CAP_SCALE))
+    return {"up_capture": round(up_cap, 3), "down_capture": round(dn_cap, 3),
+            "cap_score": round(cap_score, 4), "unstable": m < CAPTURE_N}
 
 
 def rs_emoji(score):

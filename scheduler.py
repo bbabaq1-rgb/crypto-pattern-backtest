@@ -337,9 +337,14 @@ RS_THR = 0.2   # 롱 신호 rs_score < 0.2 → weak_rs(사이징 절반, tf_conf
 
 
 def _attach_rs(signals):
-    """각 신호에 rs_score/weak_rs 부착. BTC는 기준점(None, weak 아님)."""
+    """각 신호에 rs_score/weak_rs + cap_score(진단용) 부착. BTC는 기준점(None).
+
+    weak_rs: 롱 전용 사이징 필터(백테스트 채택). cap_score: 상승/하락 비대칭 —
+    엣지 검증 결과 반전패턴 눌림목 매수엔 오히려 역효과(backtest_capture.py) →
+    사이징/필터에 절대 사용 안 함, 표시(진단)만.
+    """
     try:
-        from relative_strength import compute_rs
+        from relative_strength import compute_rs, compute_capture
         btc = detlib.load_ohlcv("BTC", "1d")
     except Exception as e:
         print(f"    [RS] BTC 데이터 없음 — RS 스킵({str(e)[:40]})")
@@ -348,17 +353,18 @@ def _attach_rs(signals):
     for s in signals:
         sym = s["symbol"]
         if sym == "BTC":
-            s["rs_score"], s["weak_rs"] = None, False
+            s["rs_score"], s["weak_rs"], s["cap_score"] = None, False, None
             continue
         if sym not in cache:
             try:
                 rows = detlib.load_ohlcv(sym, "1d")
-                cache[sym] = compute_rs(rows, btc, symbol=sym)["rs_score"]
+                cache[sym] = (compute_rs(rows, btc, symbol=sym)["rs_score"],
+                              compute_capture(rows, btc, symbol=sym)["cap_score"])
             except Exception:
-                cache[sym] = None
-        rs = cache[sym]
+                cache[sym] = (None, None)
+        rs, cap = cache[sym]
         s["rs_score"] = rs
-        # 롱 전용 필터(백테스트 근거) — 숏은 필터 미적용
+        s["cap_score"] = cap        # 진단 전용(비필터)
         s["weak_rs"] = bool(rs is not None and s["direction"] == "long" and rs < RS_THR)
     return signals
 
@@ -682,6 +688,7 @@ def run_once(do_fetch=True, quick=False):
                          "patterns_fired": json.dumps(s.get("patterns_fired", [s.get("pattern")])),
                          "tf_confirmed": s.get("tf_confirmed", True),
                          "rs_score": s.get("rs_score"),
+                         "cap_score": s.get("cap_score"),
                          "regime": s.get("regime")} for s in signals]
             if sig_rows:
                 cli = sc.get_client("service")

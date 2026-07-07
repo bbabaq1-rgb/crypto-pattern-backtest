@@ -877,13 +877,16 @@ def section_signals(tab_key="live"):
         pats  = s.get("patterns_fired", s.get("pattern", ""))
         if isinstance(pats, list):
             pats = ", ".join(pats)
-        # RS(BTC 대비 상대강도) — rs_score 필드가 있으면 표시
+        # RS(BTC 대비 상대강도, 롱 필터에 사용) — rs_score 필드가 있으면 표시
         rs = s.get("rs_score") if "rs_score" in df.columns else None
         if rs is not None and pd.notna(rs):
             from relative_strength import rs_emoji
             rs_str = f"{rs_emoji(float(rs))} {float(rs):+.2f}"
         else:
             rs_str = "—"
+        # 비대칭(상승/하락 포착) — 진단 전용(필터 아님). cap<0 = 빠질 때 더 빠짐
+        cap = s.get("cap_score") if "cap_score" in df.columns else None
+        cap_str = f"{float(cap):+.2f}" if (cap is not None and pd.notna(cap)) else "—"
         rows.append({
             "등급":       grade_str,
             "점수":       score_str,
@@ -891,6 +894,7 @@ def section_signals(tab_key="live"):
             "패턴":       pats,
             "방향":       DIR_LABEL.get(d, d),
             "RS":         rs_str,
+            "비대칭":     cap_str,
             "진입가":     _fmt_price(s.get(entry_col)),
             "손절가":     _fmt_price(s.get(stop_col)),
             "거래량배수": f"{s['strength_vol_ratio']:.2f}x" if s.get("strength_vol_ratio") else "—",
@@ -898,6 +902,9 @@ def section_signals(tab_key="live"):
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
                  key=f"signals_df_{tab_key}")
+    st.caption("RS = BTC 대비 상대강도(롱 사이징 필터). 비대칭 = 상승/하락 포착차 "
+               "(cap<0=빠질 때 더 빠짐) — 진단용 표시이며, 반전패턴 눌림목 매수엔 "
+               "역효과라 매매엔 미반영(backtest_capture.py).")
     st.divider()
 
 
