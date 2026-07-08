@@ -395,6 +395,43 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
     }, "ok"
 
 
+def get_okx_closed_positions(live_conn, limit=50):
+    """
+    OKX 최근 종료 포지션 이력 — (symbol, direction) → 최신 청산 정보.
+
+    OKX algo 손절이 장중에 터지거나 사용자가 앱에서 직접 닫으면 엔진(일봉 eval_D)이
+    모를 수 있다. 이 이력으로 '엔진 몰래 청산된' 포지션을 잡아 기록/정리한다.
+    반환: {(sym,dir): {"close_px","pnl","utime","type"}}  (같은 키는 최신 1건)
+    """
+    out = {}
+    try:
+        ex = live_conn["exchange"]
+        resp = ex.privateGetAccountPositionsHistory({"limit": str(limit)})
+        for h in resp.get("data", []):
+            sym = str(h.get("instId", "")).split("-")[0]
+            pos_side = str(h.get("posSide", "")).lower()
+            direction = ("long" if pos_side == "long" else
+                         "short" if pos_side == "short" else
+                         ("long" if str(h.get("direction", "")).lower() == "long" else "short"))
+            try:
+                utime = int(h.get("uTime") or 0)
+            except (TypeError, ValueError):
+                utime = 0
+            key = (sym, direction)
+            prev = out.get(key)
+            if prev and prev["utime"] >= utime:
+                continue          # 더 최신 것만 유지
+            out[key] = {
+                "close_px": float(h.get("closeAvgPx") or 0) or None,
+                "pnl":      float(h.get("realizedPnl") or h.get("pnl") or 0),
+                "utime":    utime,
+                "type":     str(h.get("type", "")),   # 2=전량,3=강제,5=ADL 등
+            }
+    except Exception as e:
+        print(f"[OKX] 청산이력 조회 실패: {str(e)[:60]}")
+    return out
+
+
 def close_swap_position(live_conn, symbol, direction, sl_algo_id=None):
     """
     OKX 포지션 전량 시장가 청산(reduceOnly) + 잔여 손절 algo 취소.

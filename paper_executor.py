@@ -319,6 +319,58 @@ def reconcile_live_flag(positions, live_conn):
     return positions
 
 
+def reconcile_closed_positions(positions, trades, live_conn):
+    """
+    엔진 몰래 OKX에서 청산된 실거래 포지션을 잡아 기록·정리.
+
+    OKX algo 손절이 장중 터지거나(엔진 일봉 eval_D는 미감지) 앱에서 직접 닫으면,
+    엔진 포지션은 계속 open으로 남아 P&L·매매내역에 반영 안 됨(GLM 사례).
+    OKX에 '없는데' 청산이력엔 '있는' live 포지션을 방식D 거래로 소급 기록하고 제거.
+    반환: (남은 positions, 새로 기록한 심볼 리스트)
+    """
+    if not live_conn:
+        return positions, []
+    open_keys = {(p["symbol"], p["direction"])
+                 for p in ex_mod.get_okx_positions(live_conn)}
+    history = ex_mod.get_okx_closed_positions(live_conn)
+    kept, closed_syms = [], []
+    for pos in positions:
+        key = (pos["symbol"], pos["direction"])
+        if not pos.get("live_mode") or key in open_keys:
+            kept.append(pos); continue
+        hist = history.get(key)
+        if not hist or not hist.get("close_px"):
+            kept.append(pos); continue          # OKX엔 없지만 이력도 없음 → 유지(다음 점검)
+        base = pos["entry_price"]; fill = hist["close_px"]
+        ret = ((fill - base) / base if pos["direction"] == "long"
+               else (base - fill) / base)
+        reason = "손절(OKX algo)" if hist.get("type") in ("2", "3", "5") else "OKX청산"
+        pos["entry_idx"] = pos.get("entry_idx", 0)
+        _record_trade(trades, pos, "D",
+                      (pos["entry_idx"], fill, ret - FEE, reason),
+                      exit_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+        closed_syms.append(pos["symbol"])
+        # DB 포지션 status=closed
+        cli = _db()
+        if cli:
+            try:
+                (cli.table("positions").update({"status": "closed"})
+                 .eq("symbol", pos["symbol"]).eq("direction", pos["direction"])
+                 .eq("status", "open").execute())
+            except Exception:
+                pass
+        print(f"  [reconcile-close] {pos['symbol']} {pos['direction']} OKX청산 감지 "
+              f"→ 기록 (fill={fill}, {ret*100:+.2f}%, 실현 {hist['pnl']:+.2f})")
+    if closed_syms:
+        try:
+            import notify
+            notify.send("🔴 <b>OKX 청산 감지→기록</b> (엔진 외부 청산)\n" +
+                        "\n".join(f"  {s}" for s in closed_syms))
+        except Exception:
+            pass
+    return kept, closed_syms
+
+
 def run(stamp=None):
     stamp = stamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     regmap = rs.build_regime_map()
@@ -350,6 +402,10 @@ def run(stamp=None):
         # 남은 것들을 실거래로 승격 → 방식D 청산 모니터가 실제 OKX 주문을 내도록.
         # (과거 진입경로/복원에서 live 표기가 유실돼 실거래인데 자동청산 사각지대이던 문제)
         positions = reconcile_live_flag(positions, live_conn)
+
+        # 안전망 0: 엔진 몰래 OKX에서 청산된 포지션(장중 algo 손절·앱 수동청산) 감지→기록
+        # (일봉 eval_D가 못 잡는 인트라바 손절 정합성 갭 — GLM 사례)
+        positions, okx_closed = reconcile_closed_positions(positions, trades, live_conn)
 
         # 안전망 1: 손절(algo) 주문 상시 점검 — 누락 포지션에 재등록
         fixed_sl = ex_mod.ensure_stop_orders(live_conn)
