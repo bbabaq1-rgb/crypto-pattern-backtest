@@ -17,3 +17,6 @@ paper_trades.json
 
 # 독립 git 저장소 (PII 비식별화 PoC)
 pii-deid/
+
+# ML 연구 산출물(연구전용)
+_ml_*.json
