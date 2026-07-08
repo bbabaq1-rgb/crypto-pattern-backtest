@@ -189,3 +189,5 @@
 2026-07-08,rs_filter_short,1d,short,433,-0.36,-8.2,Calmar -0.044 vs 0.020,-,REJECTED,"숏은 RS 무상관(유리군이 오히려 열세) — 필터 미적용, 관측만"
 2026-07-08,capture_asymmetry,1d,long,690,7.87,-8.2,cap>0 +7.87%/Calmar0.96 vs cap<0 +11.47%/1.40; rs>0.2내부 cap>0 +9.99% vs cap<0 +18.60%,-,REJECTED,"상승/하락 비대칭 포착 — 반전패턴 눌림목매수엔 역효과(bleeder가 더 과매도→반등큼). 진단표시만, 필터 미채택"
 2026-07-08,regime_market_cap,1d,long,752,13.12,-8.2,bleed국면 승률59%/+13.1% vs complacent 26%/+3.6%; 분위 승률 59→46→38→29→26 단조; OOS 3/4,-,ADOPTED,시장 집계 cap 레짐지표 채택 — complacent(avg_cap>0) 신규 롱 ×0.6 축소만(보수적). 레짐정의 불변
+2026-07-08,regime_ext_short,1d,short,511,-0.48,-8.2,"complacent숏 -0.48% vs bleed숏 +0.69%, 분위 비단조",-,REJECTED,숏 대칭성 없음 — 비대칭은 롱 반등 전용
+2026-07-08,regime_ext_slope,1d,long,752,17.95,-8.2,2x2: bleed+falling +17.95%/wr56 vs complacent+rising +2.50%/wr27,-,NOT_APPLIED,기울기 엣지 유효하나 활용엔 공포upsize 필요(정책상 배제). 트림-only에선 무변화 → 미적용(과적합 방어)
