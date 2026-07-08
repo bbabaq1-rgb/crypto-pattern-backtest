@@ -524,19 +524,15 @@ def run(stamp=None):
         tf_ok        = s.get("tf_confirmed", True)
         if not tf_ok:
             size_for_pos = round(size_for_pos * 0.5, 2)
-        # RS 필터(롱 전용, 백테스트 근거 backtest_rs.py): weak_rs → 추가 ×0.5
-        weak_rs = bool(s.get("weak_rs", False))
-        if weak_rs:
-            size_for_pos = round(size_for_pos * 0.5, 2)
+        # (RS weak_rs 필터 폐기 2026-07-08 — 레짐 중복, backtest_rs_controlled.py)
         # 레짐 오버레이: complacent 국면 + 롱 → ×REGIME_CAP_MULT (보수적, 축소만)
         regime_cut = bool(regime_long_weak and s["direction"] == "long")
         if regime_cut:
             size_for_pos = round(size_for_pos * REGIME_CAP_MULT, 2)
-        if grade != "B" or not tf_ok or weak_rs or regime_cut:
+        if grade != "B" or not tf_ok or regime_cut:
             tf_tag = " [4h비확증×0.5]" if not tf_ok else ""
-            rs_tag = " [RS약함×0.5]" if weak_rs else ""
             rg_tag = f" [complacent×{REGIME_CAP_MULT}]" if regime_cut else ""
-            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag}{rs_tag}{rg_tag} → ${size_for_pos:.1f}")
+            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag}{rg_tag} → ${size_for_pos:.1f}")
 
         # 킬스위치 발동 시 실주문 블록 전체 스킵(페이퍼 기록은 아래에서 계속)
         if live_conn and kill_switch:
@@ -555,8 +551,6 @@ def run(stamp=None):
                 bal_info      = ex_mod.get_balance(live_conn)
                 usdt_free     = bal_info["free"] if isinstance(bal_info, dict) else float(bal_info or 0)
                 live_size_usd = round(usdt_free * LIVE_BAL_PCT, 2)
-            if weak_rs:                     # RS 약한 롱 → 실거래도 절반
-                live_size_usd = round(live_size_usd * 0.5, 2)
             if regime_cut:                  # complacent 국면 롱 → 실거래도 축소
                 live_size_usd = round(live_size_usd * REGIME_CAP_MULT, 2)
 

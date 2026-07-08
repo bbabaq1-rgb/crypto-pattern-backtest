@@ -305,16 +305,10 @@ def _build_ensemble(signals):
             "trading_universe", SYMBOLS)
     vol_rank = {sym: i for i, sym in enumerate(uni_syms)}
 
-    def _rs_adv(s):
-        """RS 우선순위 보조키 — 롱만 rs 반영(백테스트 근거), 숏·미계산은 중립 0."""
-        rs = s.get("rs_score")
-        return rs if (rs is not None and s["direction"] == "long") else 0.0
-
     signals.sort(key=lambda s: (
         -s["ensemble_score"],
         -s["pattern_count"],
-        -_rs_adv(s),                       # 같은 등급이면 RS 강한 롱 우선
-        vol_rank.get(s["symbol"], 9999),
+        vol_rank.get(s["symbol"], 9999),   # RS 정렬 폐기(2026-07-08, 레짐 중복)
     ))
 
     for rank, s in enumerate(signals, 1):
@@ -328,21 +322,17 @@ def _build_priority(signals):
     return _build_ensemble(signals)
 
 
-# ── BTC 대비 상대강도(RS) ─────────────────────────────────────────────────────
-# 백테스트(backtest_rs.py, 2026-07-08) 채택 근거:
-#   롱: RS유리(rs>0.2) mean +7.15%/Calmar 0.872 vs 불리 +3.08%/0.376 (p=0.06)
-#       방향분해 롱 rs>0 +11.32%(Calmar 1.38) vs rs<0 +6.58%(0.80) → 롱 전용 채택.
-#   숏: 유리 -0.36% vs 불리 +0.16% — 효과 없음/역 → 숏 미적용(기록).
-RS_THR = 0.2   # 롱 신호 rs_score < 0.2 → weak_rs(사이징 절반, tf_confirmed 철학)
+# ── BTC 대비 상대강도(RS) — 표시 전용 (필터 폐기) ──────────────────────────────
+# rs_score/cap_score는 계산·표시만. 사이징/필터/앙상블 정렬에 사용하지 않는다.
+#   - weak_rs(롱 rs<0.2 ×0.5): 2026-07-08 폐기. 레짐 통제 검증(backtest_rs_controlled.py)
+#     결과 rs 순진 엣지(+2.76%p)는 시장 레짐(cap)의 교란 — 통제 후 cap구간 우위 1/3,
+#     Welch p=0.38로 독립 엣지 소멸. 자유도 감소 위해 필터 제거.
+#   - cap_score: 개별 필터로는 역효과(backtest_capture.py) → 표시만.
+# 사이징에 남은 시장 신호는 레짐 오버레이(avg_cap>0 롱 ×0.6)뿐 — 이건 검증 유지.
 
 
 def _attach_rs(signals):
-    """각 신호에 rs_score/weak_rs + cap_score(진단용) 부착. BTC는 기준점(None).
-
-    weak_rs: 롱 전용 사이징 필터(백테스트 채택). cap_score: 상승/하락 비대칭 —
-    엣지 검증 결과 반전패턴 눌림목 매수엔 오히려 역효과(backtest_capture.py) →
-    사이징/필터에 절대 사용 안 함, 표시(진단)만.
-    """
+    """각 신호에 rs_score / cap_score 부착 (표시 전용). BTC는 기준점(None)."""
     try:
         from relative_strength import compute_rs, compute_capture
         btc = detlib.load_ohlcv("BTC", "1d")
@@ -353,7 +343,7 @@ def _attach_rs(signals):
     for s in signals:
         sym = s["symbol"]
         if sym == "BTC":
-            s["rs_score"], s["weak_rs"], s["cap_score"] = None, False, None
+            s["rs_score"], s["cap_score"] = None, None
             continue
         if sym not in cache:
             try:
@@ -362,10 +352,7 @@ def _attach_rs(signals):
                               compute_capture(rows, btc, symbol=sym)["cap_score"])
             except Exception:
                 cache[sym] = (None, None)
-        rs, cap = cache[sym]
-        s["rs_score"] = rs
-        s["cap_score"] = cap        # 진단 전용(비필터)
-        s["weak_rs"] = bool(rs is not None and s["direction"] == "long" and rs < RS_THR)
+        s["rs_score"], s["cap_score"] = cache[sym]
     return signals
 
 

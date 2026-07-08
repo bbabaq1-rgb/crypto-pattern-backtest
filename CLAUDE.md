@@ -37,11 +37,13 @@
   손절 algo 주문 매 실행 자동점검(ensure_stop_orders, 누락 시 재등록) ·
   텔레그램 알림(notify.py — TELEGRAM_BOT_TOKEN/CHAT_ID secrets 등록 시 활성)
 - **멀티 TF 확증**: 1d 신호 → 4h 최근 3봉 확증. 비확증 시 size 50% 축소
-- **RS 필터** (2026-07-08, 롱 전용 채택): BTC 대비 상대강도(relative_strength.py,
-  베타조정 7/14/30봉 가중). 롱 rs_score<0.2 → weak_rs 사이징 ×0.5. 백테스트:
-  롱 RS유리 +11.32%(Calmar 1.38) vs 불리 +6.58%. **숏은 무상관으로 미적용**.
-  앙상블 동점 시 롱은 RS 높은 종목 우선. avg_alt_rs(알트시즌 근접도)는 관측 모드
-  (레짐 통합은 REGMAP 재검증 필요 — 데이터 축적 후)
+- **RS 필터 폐기** (2026-07-08): 상대강도(relative_strength.py)는 rs_score 계산·표시만.
+  당초 롱 rs<0.2 ×0.5 필터를 채택했으나, 레짐 통제 검증(backtest_rs_controlled.py)에서
+  rs 순진 엣지(+2.76%p)가 시장 레짐(avg_cap)의 교란으로 판명 — 통제 후 cap구간 우위 1/3,
+  Welch p=0.38로 독립 엣지 소멸 → 필터·앙상블 정렬에서 제거(자유도 감소). rs/cap은 표시 전용.
+- **시장 비대칭(avg_cap) 레짐 사이징** (2026-07-08 채택): 유니버스 평균 cap_score.
+  complacent(avg_cap>0) → 신규 롱 ×0.6(축소만, backtest_regime_capture.py). 사이징에
+  쓰는 유일한 시장신호. 레짐정의(bull/bear) 불변 — 오버레이 계층이라 게이트 동결 유지
 - **상승/하락 비대칭(cap_score) 기각** (2026-07-08): up/down capture 비대칭 지표.
   백테스트에서 반전패턴 눌림목매수엔 역효과(bleeder가 더 과매도→반등커서 방식D
   수익↑) — cap>0 롱 +7.87% vs cap<0 +11.47%. **필터 미채택, 진단 표시만**

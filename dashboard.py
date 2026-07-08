@@ -912,9 +912,9 @@ def section_signals(tab_key="live"):
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True,
                  key=f"signals_df_{tab_key}")
-    st.caption("RS = BTC 대비 상대강도(롱 사이징 필터). 비대칭 = 상승/하락 포착차 "
-               "(cap<0=빠질 때 더 빠짐) — 진단용 표시이며, 반전패턴 눌림목 매수엔 "
-               "역효과라 매매엔 미반영(backtest_capture.py).")
+    st.caption("RS = BTC 대비 상대강도, 비대칭 = 상승/하락 포착차 — 둘 다 진단용 표시. "
+               "매매 반영 안 함(RS는 레짐 중복으로 필터 폐기, 비대칭은 눌림목 매수에 역효과). "
+               "사이징에 쓰는 시장신호는 레짐 게이지(avg_cap)뿐.")
     st.divider()
 
 
