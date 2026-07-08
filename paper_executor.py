@@ -44,6 +44,13 @@ KILL_DD    = 0.20      # -20%
 # 앙상블 Grade 기반 포지션 사이징 배수
 GRADE_SIZE_MULT = {"A": 1.5, "B": 1.0, "C": 0.7, "D": 0.5}
 
+# 레짐 사이징 오버레이 (시장 비대칭 avg_cap 기반, 롱 전용·축소만).
+# backtest_regime_capture.py: 집단 bleed 롱 승률 59%/+13% vs complacent 26%/+3.6%.
+# 보수적 채택 — complacent 국면(avg_cap>0)에서 신규 롱만 축소, 공포국면 upsize 안 함.
+# 타이밍 신호 과적합 방어 위해 임계 0.0(부호 경계, 비피팅)·완만한 0.6 배수.
+REGIME_CAP_THR  = 0.0
+REGIME_CAP_MULT = 0.6
+
 POS_FILE = "paper_positions.json"
 TRD_FILE = "paper_trades.json"
 OPP = {("engulfing", "long"): "detector_engulfing_short",
@@ -429,6 +436,11 @@ def run(stamp=None):
     live_filled_count = live_open_count + sum(1 for t in trades if t.get("live_mode"))
 
     sig = _load("signals_today.json", {"signals": []})
+    # 레짐 사이징 오버레이(보수적): 시장 avg_cap>0(알트 complacent 국면)이면 신규 롱
+    # 사이즈 축소. 백테스트(backtest_regime_capture.py) — 집단 bleed 국면 롱 승률
+    # 59% vs complacent 26%. 축소만(공포 국면 upsize 안 함), 타이밍 과적합 방어.
+    market_cap = sig.get("avg_alt_cap")
+    regime_long_weak = market_cap is not None and market_cap > REGIME_CAP_THR
     openkeys  = {(p["symbol"], p["pattern"], p["direction"], p["entry_date"]) for p in still_open}
     closedkeys = {(t["symbol"], t["pattern"], t["direction"], t["entry_date"]) for t in trades}
     new = 0
@@ -460,10 +472,15 @@ def run(stamp=None):
         weak_rs = bool(s.get("weak_rs", False))
         if weak_rs:
             size_for_pos = round(size_for_pos * 0.5, 2)
-        if grade != "B" or not tf_ok or weak_rs:
+        # 레짐 오버레이: complacent 국면 + 롱 → ×REGIME_CAP_MULT (보수적, 축소만)
+        regime_cut = bool(regime_long_weak and s["direction"] == "long")
+        if regime_cut:
+            size_for_pos = round(size_for_pos * REGIME_CAP_MULT, 2)
+        if grade != "B" or not tf_ok or weak_rs or regime_cut:
             tf_tag = " [4h비확증×0.5]" if not tf_ok else ""
             rs_tag = " [RS약함×0.5]" if weak_rs else ""
-            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag}{rs_tag} → ${size_for_pos:.1f}")
+            rg_tag = f" [complacent×{REGIME_CAP_MULT}]" if regime_cut else ""
+            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag}{rs_tag}{rg_tag} → ${size_for_pos:.1f}")
 
         # 킬스위치 발동 시 실주문 블록 전체 스킵(페이퍼 기록은 아래에서 계속)
         if live_conn and kill_switch:
@@ -484,6 +501,8 @@ def run(stamp=None):
                 live_size_usd = round(usdt_free * LIVE_BAL_PCT, 2)
             if weak_rs:                     # RS 약한 롱 → 실거래도 절반
                 live_size_usd = round(live_size_usd * 0.5, 2)
+            if regime_cut:                  # complacent 국면 롱 → 실거래도 축소
+                live_size_usd = round(live_size_usd * REGIME_CAP_MULT, 2)
 
             # 최소 주문 금액 체크
             if live_size_usd < LIVE_MIN_USD:

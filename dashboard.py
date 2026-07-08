@@ -673,21 +673,21 @@ def _render_onchain_section(oc: dict):
 
 # ── 실거래 탭 섹션 ─────────────────────────────────────────────────────────────
 
-def _load_avg_alt_rs():
-    """알트시즌 근접도(avg_alt_rs). signals_today.json(오늘 생성분) → daily_summary 순."""
+def _load_alt_metric(field):
+    """signals_today.json(오늘 생성분) → daily_summary 순으로 지표 로드."""
     try:
         if os.path.exists("signals_today.json"):
             raw = json.load(open("signals_today.json", encoding="utf-8"))
             if str(raw.get("generated_at", ""))[:10] == date.today().isoformat():
-                v = raw.get("avg_alt_rs")
+                v = raw.get(field)
                 if v is not None:
                     return float(v)
     except Exception:
         pass
     try:
         df = load_daily_summary()
-        if not df.empty and "avg_alt_rs" in df.columns:
-            v = df.sort_values("date")["avg_alt_rs"].dropna()
+        if not df.empty and field in df.columns:
+            v = df.sort_values("date")[field].dropna()
             if len(v):
                 return float(v.iloc[-1])
     except Exception:
@@ -707,13 +707,23 @@ def _render_regime_header():
     st.caption(dir_text)
 
     # 알트시즌 근접도 게이지 (유니버스 평균 alt RS, -1 약세 ~ +1 강세)
-    aar = _load_avg_alt_rs()
+    aar = _load_alt_metric("avg_alt_rs")
     if aar is not None:
         pct = int(round((aar + 1) / 2 * 100))          # -1..+1 → 0..100
         state = "🌊 알트 강세(로테이션)" if aar > 0.1 else \
                 "🐂 BTC 주도" if aar < -0.1 else "😐 중립"
         st.progress(min(100, max(0, pct)) / 100,
                     text=f"알트시즌 근접도 {aar:+.2f} — {state}")
+
+    # 시장 비대칭 국면 게이지 (avg_cap — 롱 타이밍 레짐 지표, 백테스트 채택)
+    acap = _load_alt_metric("avg_alt_cap")
+    if acap is not None:
+        pct = int(round((acap + 1) / 2 * 100))
+        # 낮을수록(집단 bleed) 반전 롱 우호 → 사이징 그대로 / 높으면 complacent → 롱 축소
+        state = "💥 집단 bleed — 반전 롱 우호(풀사이즈)" if acap < -0.2 else \
+                "😴 complacent — 신규 롱 축소(×0.6)" if acap > 0 else "😐 중립"
+        st.progress(min(100, max(0, pct)) / 100,
+                    text=f"시장 비대칭(avg_cap) {acap:+.2f} — {state}")
 
 
 def section_live_summary(pos_df, trades_df, prices):

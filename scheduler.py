@@ -369,23 +369,32 @@ def _attach_rs(signals):
     return signals
 
 
-def _avg_alt_rs(signals_cache=None):
-    """유니버스 알트 전체 평균 rs_score — 알트시즌 근접도 관측 지표."""
+def _avg_alt_metrics():
+    """유니버스 알트 평균 rs_score / cap_score.
+    avg_alt_rs = 알트시즌 근접도(관측).
+    avg_alt_cap = 시장 비대칭 국면 — 백테스트상 롱 타이밍 레짐 지표
+      (매우 음수=집단 bleed→반전 롱 최적, 양수=complacent→롱 축소). backtest_regime_capture.py
+    """
     try:
-        from relative_strength import compute_rs
+        from relative_strength import compute_rs, compute_capture
         btc = detlib.load_ohlcv("BTC", "1d")
-        vals = []
-        for sym in SYMBOLS:
-            if sym == "BTC":
-                continue
-            try:
-                rows = detlib.load_ohlcv(sym, "1d")
-                vals.append(compute_rs(rows, btc, symbol=sym)["rs_score"])
-            except Exception:
-                continue
-        return round(sum(vals) / len(vals), 4) if vals else None
     except Exception:
-        return None
+        return None, None
+    rs_vals, cap_vals = [], []
+    for sym in SYMBOLS:
+        if sym == "BTC":
+            continue
+        try:
+            rows = detlib.load_ohlcv(sym, "1d")
+            rs_vals.append(compute_rs(rows, btc, symbol=sym)["rs_score"])
+            c = compute_capture(rows, btc, symbol=sym)["cap_score"]
+            if c is not None:
+                cap_vals.append(c)
+        except Exception:
+            continue
+    avg_rs  = round(sum(rs_vals) / len(rs_vals), 4) if rs_vals else None
+    avg_cap = round(sum(cap_vals) / len(cap_vals), 4) if cap_vals else None
+    return avg_rs, avg_cap
 
 
 def fetch_all():
@@ -630,10 +639,14 @@ def run_once(do_fetch=True, quick=False):
     # RS(BTC 대비 상대강도) 부착 → 앙상블 스코어링(RS 보조 정렬 포함)
     signals = _attach_rs(signals)
     signals = _build_ensemble(signals)
-    avg_alt_rs = _avg_alt_rs()
+    avg_alt_rs, avg_alt_cap = _avg_alt_metrics()
     if avg_alt_rs is not None:
         print(f"    [RS] 유니버스 평균 alt RS = {avg_alt_rs:+.3f} "
               f"({'알트 강세' if avg_alt_rs > 0 else '알트 약세'})")
+    if avg_alt_cap is not None:
+        state = ("집단 bleed(반전 롱 우호)" if avg_alt_cap < -0.2
+                 else "complacent(롱 축소)" if avg_alt_cap > 0 else "중립")
+        print(f"    [RS] 시장 비대칭 avg_cap = {avg_alt_cap:+.3f} → {state}")
 
     onchain_detail = {
         "funding": onchain.get("funding", {}).get("signal", "neutral"),
@@ -651,6 +664,7 @@ def run_once(do_fetch=True, quick=False):
         onchain_score=onchain.get("score", 0),
         onchain_detail=onchain_detail,
         avg_alt_rs=avg_alt_rs,             # 알트시즌 근접도(관측 지표)
+        avg_alt_cap=avg_alt_cap,           # 시장 비대칭 국면(롱 타이밍 레짐 지표)
         routing=route,
         n_signals=len(signals),
         signals=signals,
@@ -723,14 +737,19 @@ def run_once(do_fetch=True, quick=False):
             day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             row = {"date": day, "total_open": pr["open"], "signals_count": len(signals),
                    "cumulative_return_a": cra, "cumulative_return_d": crd,
-                   "avg_alt_rs": avg_alt_rs}
-            try:
-                sc.get_client("service").table("daily_summary").upsert(
-                    row, on_conflict="date").execute()
-            except Exception:
-                row.pop("avg_alt_rs", None)   # 컬럼 미존재(DDL 미적용) 시 제외 재시도
-                sc.get_client("service").table("daily_summary").upsert(
-                    row, on_conflict="date").execute()
+                   "avg_alt_rs": avg_alt_rs, "avg_alt_cap": avg_alt_cap}
+            import re as _re
+            for _ in range(4):                # 없는 컬럼 자동 제외 후 재시도
+                try:
+                    sc.get_client("service").table("daily_summary").upsert(
+                        row, on_conflict="date").execute()
+                    break
+                except Exception as _e:
+                    mm = _re.search(r"'(\w+)' column", str(_e))
+                    if mm and mm.group(1) in row:
+                        row.pop(mm.group(1))
+                    else:
+                        raise
             print(f"    daily_summary UPSERT 완료 (open={pr['open']}, sig={len(signals)}, A={cra}%, D={crd}%)")
         else:
             print("    DB 미설정 - daily_summary 스킵(로컬 JSON 유지)")
