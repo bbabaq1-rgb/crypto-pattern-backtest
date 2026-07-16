@@ -15,7 +15,6 @@
     "FIL",
     "RENDER",
     "APT",
-    "SEI",
     "ZRO",
     "ARB",
     "UNI",
@@ -30,8 +29,6 @@
     "W",
     "DYDX",
     "CHZ",
-    "MOVE",
-    "BERA",
     "ZK",
     "DOT",
     "ARKM",
@@ -42,7 +39,6 @@
     "GMT",
     "IMX",
     "AXS",
-    "VANA",
     "IOTA",
     "ATOM",
     "AGLD",
@@ -88,7 +84,11 @@
     "DASH",
     "PENGU",
     "VIC",
-    "TIA"
+    "TIA",
+    "SEI",
+    "MOVE",
+    "BERA",
+    "VANA"
   ],
   "adopted_new": [
     "TRX",
@@ -431,5 +431,6 @@
       "oos_positive": 4,
       "regime_routing": "all"
     }
-  ]
+  ],
+  "data_unavailable_note": "2026-07-16: SEI/MOVE/BERA/VANA — 전 거래소 1d fetch 실패 지속 (상장폐지·거래중단 추정) → trading_universe에서 제외. 데이터 복구 시 okx_unavailable에서 되돌리면 됨."
 }
