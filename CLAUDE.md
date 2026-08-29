@@ -33,7 +33,8 @@
   하모닉 4h·1h 패턴은 기존 검증 유니버스 유지. 경계 과적합 주의 — 분기별 재점검 권장
 - **자동화**: GitHub Actions 4h마다 실행 (oncefull@UTC00:00 / oncequick@04~20시)
 - **실거래 안전장치** (2026-07-06): MAX_LIVE_POS 12(사용자 승인 5→12) ·
-  킬스위치(equity HWM $287.57 대비 -20% → 신규 진입 중지, paper_executor.EQUITY_HWM) ·
+  킬스위치(equity < $100 → 신규 진입 중지, paper_executor.EQUITY_FLOOR —
+  2026-08-29 사용자 지정 절대 하한. 기존 HWM 대비 -20%($230.06) 규칙은 폐기) ·
   손절 algo 주문 매 실행 자동점검(ensure_stop_orders, 누락 시 재등록) ·
   텔레그램 알림(notify.py — TELEGRAM_BOT_TOKEN/CHAT_ID secrets 등록 시 활성)
 - **멀티 TF 확증**: 1d 신호 → 4h 최근 3봉 확증. 비확증 시 size 50% 축소

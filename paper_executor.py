@@ -35,11 +35,12 @@ LIVE_MIN_USD   = 10.0  # 최소 주문 금액 (이하 스킵)
 LIVE_FIRST_USD = 20.0  # 첫 주문 고정 금액
 LIVE_BAL_PCT   = 0.20  # 두 번째부터 가용잔고 × 20%
 
-# 계좌 킬스위치: equity가 고점(HWM) 대비 KILL_DD 이상 하락하면 신규 실거래 진입 중지.
+# 계좌 킬스위치: equity가 하한선 밑으로 내려가면 신규 실거래 진입 중지.
 # (개별 손절과 별개의 계좌 차원 브레이크. 기존 포지션 청산 모니터링은 계속 동작)
-# HWM은 수동 갱신: equity가 이 값을 넘으면 로그로 상향 제안이 출력된다.
-EQUITY_HWM = 287.57    # 2026-07-06 실측 고점
-KILL_DD    = 0.20      # -20%
+# 2026-08-29 사용자 지정: 절대 하한 $100.
+# 이전 규칙(HWM $287.57 × -20% = $230.06)은 폐기 — 계좌 고점 기준이라 그보다 적은
+# 금액을 재입금하면 입금 즉시 킬스위치가 걸려 신규 진입이 전면 차단되는 문제가 있었다.
+EQUITY_FLOOR = 100.0
 
 # 앙상블 Grade 기반 포지션 사이징 배수
 GRADE_SIZE_MULT = {"A": 1.5, "B": 1.0, "C": 0.7, "D": 0.5}
@@ -414,20 +415,18 @@ def run(stamp=None):
             notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
                         "\n".join(f"  {s}: SL @ {px}" for s, px in fixed_sl))
 
-        # 안전망 2: 계좌 킬스위치 — equity가 HWM 대비 -KILL_DD 초과 하락 시 신규 중지
+        # 안전망 2: 계좌 킬스위치 — equity가 하한선(EQUITY_FLOOR) 미만이면 신규 중지
         bal = ex_mod.get_balance(live_conn)
         equity = (bal or {}).get("equity") or 0.0
-        floor = EQUITY_HWM * (1 - KILL_DD)
-        if equity and equity < floor:
+        if equity and equity < EQUITY_FLOOR:
             kill_switch = True
-            msg = (f"🛑 킬스위치 발동: equity ${equity:.2f} < 한도 ${floor:.2f} "
-                   f"(HWM ${EQUITY_HWM:.2f} -{KILL_DD*100:.0f}%) — 신규 실거래 진입 중지")
+            msg = (f"🛑 킬스위치 발동: equity ${equity:.2f} < 하한 ${EQUITY_FLOOR:.2f}"
+                   f" — 신규 실거래 진입 중지")
             print(f"  [kill] {msg}")
             import notify
             notify.send(msg)
-        elif equity > EQUITY_HWM:
-            print(f"  [kill] equity ${equity:.2f} > HWM ${EQUITY_HWM:.2f} — "
-                  f"paper_executor.EQUITY_HWM 상향 갱신 권장")
+        else:
+            print(f"  [kill] equity ${equity:.2f} / 하한 ${EQUITY_FLOOR:.2f} — 통과")
 
     # 1) 오픈 포지션 청산 모니터링
     #    방식D 청산 조건 충족 + live_mode 포지션 → 실제 OKX reduceOnly 청산 주문.
