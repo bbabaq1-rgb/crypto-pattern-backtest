@@ -1,0 +1,43 @@
+name: Cascade Retest (research)
+
+# 연구 전용 — S3 청산 캐스케이드 조건부 재시험 (1h 3년 + 변동성 국면).
+# 매매/DB 접근 없음(공개 시세만 수집). 결과는 로그 + 아티팩트.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_cascade.py"
+      - ".github/workflows/validate_cascade.yml"
+
+jobs:
+  retest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # 1h 1,100일 수집(종목당 ~26k봉)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Run cascade retest
+        run: python validate_cascade.py
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cascade-retest-${{ github.run_number }}
+          path: _cascade_results.json
+          if-no-files-found: ignore
