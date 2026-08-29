@@ -29,7 +29,7 @@ import time
 #   1d: 900일  (BTC 200MA + slope 220봉 + 레짐 히스토리 여유)
 #   4h: 130일  (~780봉 — 하모닉 피벗 탐지 충분)
 #   1h: 40일   (~960봉 — OKX 1h 과거 한계 회피: since 2021 요청 시 빈 응답)
-WINDOW_DAYS = {"1d": 900, "4h": 130, "1h": 40}
+WINDOW_DAYS = {"1d": 900, "4h": 130, "1h": 40, "15m": 45}
 
 # 거래소 폴백 순서 — GitHub Actions IP에서 binance/bybit는 차단(빈 응답)되고
 # okx만 동작하므로 okx 우선. (로컬에서는 어느 쪽이든 동작)

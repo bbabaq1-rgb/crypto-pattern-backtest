@@ -100,3 +100,37 @@ def make_evaluate(detect, direction="long"):
                 agg[k] += cc[k]
         return dict(agg=agg, per=per, rets=rets)
     return evaluate
+
+
+def resample_rows(rows, rule):
+    """
+    1d rows -> 주봉("1w", ISO 주) / 월봉("1M", YYYY-MM) 리샘플.
+    o=구간 첫 시가, h=최고, l=최저, c=구간 마지막 종가, v=합계, date=구간 첫 날짜.
+    멀티TF 패턴 카운팅(triple_bottom 등)용 — 상위 TF CSV를 따로 수집하지 않는다.
+    """
+    from datetime import date as _date
+
+    def key(d):
+        y, m, dd = map(int, d.split("-"))
+        if rule == "1M":
+            return f"{y:04d}-{m:02d}"
+        iy, iw, _ = _date(y, m, dd).isocalendar()
+        return f"{iy:04d}-W{iw:02d}"
+
+    out, cur, cur_key = [], None, None
+    for r in rows:
+        k = key(r["date"])
+        if k != cur_key:
+            if cur:
+                out.append(cur)
+            cur = dict(date=r["date"], o=r["o"], h=r["h"], l=r["l"],
+                       c=r["c"], v=r["v"])
+            cur_key = k
+        else:
+            cur["h"] = max(cur["h"], r["h"])
+            cur["l"] = min(cur["l"], r["l"])
+            cur["c"] = r["c"]
+            cur["v"] += r["v"]
+    if cur:
+        out.append(cur)
+    return out

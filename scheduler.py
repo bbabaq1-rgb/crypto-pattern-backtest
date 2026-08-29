@@ -132,6 +132,7 @@ PATTERN_PVAL = {
     "three_soldiers_4h": 0.0001,
     "bat_1h":            0.034,     # boot_p
     "butterfly_1h":      0.024,     # boot_p
+    "triple_bottom":     0.035,     # boot_p (4h, 2026-08-29 PASSED)
 }
 
 def _pval_mult(pattern):
