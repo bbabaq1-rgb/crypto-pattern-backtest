@@ -10,11 +10,13 @@
   - bull_btc/bull_altseason → 롱 전용, bear/sideways 스킵
   - 나머지 6종 기각 (three_crows/breakout_retest/equal_highs_lows/vwap_rev)
 - **신규 1h 패턴**: bat_1h PASSED (n=108, mean=+1.46%, OOS 4/4, boot_p=0.034)
-- **신규 4h 패턴**: triple_bottom_4h PASSED (2026-08-29, n=269, mean=+1.66%,
-  boot_p=0.035, OOS 2/4) — 사용자 지정 패턴(차트 5장) 데이터화. 레짐 무관 롱.
-  15m/1h/1d/1w 및 거울상 triple_top 전 셀 기각 (1d는 median -5.7% 복권형,
-  1w는 mean +11%인데 단일 분기 집중 — 데이터 누적 후 재시험 1순위).
-  월봉은 표본 구조적 부족(카운팅만 가능). report_triple_pattern.md
+- **신규 1w 패턴**: triple_bottom_1w PASSED (2026-08-29 2차 연장검증, n=141,
+  mean=+7.72%, median=+10.19%, boot_p=0.023, OOS 2/4) — 사용자 지정 패턴
+  (차트 5장) 데이터화. 1d 5년 리샘플, 레짐 무관 롱, detlib가 1w/1M 리샘플 지원.
+  **4h는 1차(130일 bear 단일구간) 통과였으나 2차(3년, n=1875)에서 median
+  음수/boot_p 0.32로 번복·철회** — 단일 레짐 아티팩트 교훈. 15m/1h/1d/1M 및
+  거울상 triple_top 전 셀 기각(1d는 median -4.8% 복권형, 1h는 n=2765로 확정
+  기각, 1M은 mean 음수). report_triple_pattern.md
 - **신규 1h 패턴**: butterfly_1h PASSED (n=161, mean=+1.59%, OOS 4/4, boot_p=0.024)
   - 레짐 무관 전 구간 양수 (bear Q4도 양수), 스케줄러 all regimes 탐지
   - 나머지 10종 기각 (gartley_1h boot_p=0.092 경계 탈락 포함)

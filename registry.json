@@ -766,7 +766,7 @@
    "id": "triple_bottom_4h",
    "name": "Triple Bottom Breakout (4h)",
    "category": "패턴",
-   "status": "passed",
+   "status": "rejected",
    "detector_file": "detector_triple_bottom.py",
    "passed_tf": "4h",
    "n": 269,
@@ -778,7 +778,25 @@
    "oos_quarters": 4,
    "passed_date": "2026-08-29",
    "regime_routing": "all regimes -> long (검증구간 대부분 bear, Q4 bear +5.31%)",
-   "note": "사용자 지정 패턴(차트 5장) 데이터화: 스윙저점 3개 + ATR×2.5 깊이 + 넥라인 돌파 + 거래량 1.5배. 15m/1h/1d/1w 및 거울상(triple_top) 전 셀 기각 — 4h 롱만 통과. 1w는 mean +11.1%/boot_p 0.000이나 신호 83%가 단일 분기 집중(OOS 1/4)으로 기각, 데이터 누적 후 재시험 가치. 구 triple_bottom_desc(1d 하강형)와 별개 정의."
+   "note": "1차(130일, bear 단일 레짐) PASSED였으나 2차 연장(1,100일/3년, n=1875)에서 median -0.30%/boot_p 0.320으로 기각 — 단일 레짐 아티팩트로 판명, 등록 철회(2026-08-29). 사용자 지정 패턴(차트 5장) 데이터화: 스윙저점 3개 + ATR×2.5 깊이 + 넥라인 돌파 + 거래량 1.5배. 15m/1h/1d/1w 및 거울상(triple_top) 전 셀 기각 — 4h 롱만 통과. 1w는 mean +11.1%/boot_p 0.000이나 신호 83%가 단일 분기 집중(OOS 1/4)으로 기각, 데이터 누적 후 재시험 가치. 구 triple_bottom_desc(1d 하강형)와 별개 정의."
+  },
+  {
+   "id": "triple_bottom_1w",
+   "name": "Triple Bottom Breakout (1w)",
+   "category": "패턴",
+   "status": "passed",
+   "detector_file": "detector_triple_bottom.py",
+   "passed_tf": "1w",
+   "n": 141,
+   "mean": 0.07719,
+   "median": 0.10194,
+   "t_p": 0.0028,
+   "baseline_p": 0.023,
+   "oos_positive": 2,
+   "oos_quarters": 4,
+   "passed_date": "2026-08-29",
+   "regime_routing": "all regimes -> long",
+   "note": "2차 연장 검증(1d 5년 리샘플, 주봉 ~260봉/종목)에서 통과. 1차(900일) 기각 사유였던 '단일 분기 집중'은 데이터 부족 탓으로 판명 — 표본 54→141, Q2(2022-12~) 78건 +8.5% / Q3(~2025-05) 55건 +10.1% 두 분위 양수. 신호=주봉 넥라인 돌파, 1d 리샘플로 탐지(detlib)."
   }
  ],
  "rejected_4h": [

@@ -116,7 +116,7 @@ EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 �
 
 # ── 앙상블 스코어링 설정 ─────────────────────────────────────────────────────
 # TF별 기본 점수
-TF_BASE_PTS = {"1d": 3, "4h": 2, "1h": 1}
+TF_BASE_PTS = {"1w": 3, "1d": 3, "4h": 2, "1h": 1}
 
 # 패턴별 검증 p값 (research_log/registry 기준)
 PATTERN_PVAL = {
@@ -132,7 +132,7 @@ PATTERN_PVAL = {
     "three_soldiers_4h": 0.0001,
     "bat_1h":            0.034,     # boot_p
     "butterfly_1h":      0.024,     # boot_p
-    "triple_bottom":     0.035,     # boot_p (4h, 2026-08-29 PASSED)
+    "triple_bottom":     0.023,     # boot_p (1w, 2026-08-29 2차 검증 PASSED — 4h는 3년치 재검증서 기각)
 }
 
 def _pval_mult(pattern):
@@ -510,6 +510,8 @@ def run_once(do_fetch=True, quick=False):
             sym_list = _syms_for_pattern(ap["pattern"])
         elif ap_tf == "4h":
             sym_list = _harmonic_symbols()
+        elif ap_tf == "1w":
+            sym_list = SYMBOLS          # 1d 리샘플이라 1d 보유 전 종목
         else:  # "1h"
             sym_list = _1h_symbols()
         for sym in sym_list:
