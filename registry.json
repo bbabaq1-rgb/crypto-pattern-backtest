@@ -1,937 +1,955 @@
 {
-  "patterns": [
-    {
-      "id": "engulfing",
-      "name": "Engulfing",
-      "category": "캔들",
-      "difficulty": 1,
-      "status": "validated",
-      "detector_file": "detector_engulfing.py",
-      "passed_tf": "1d",
-      "regime": {
-        "1d": {
-          "up": {
-            "n": 10,
-            "mean": 0.03058,
-            "median": 0.10138
-          },
-          "down": {
-            "n": 21,
-            "mean": 0.05704,
-            "median": 0.10226
-          },
-          "side": {
-            "n": 22,
-            "mean": -0.00065,
-            "median": -0.0035
-          },
-          "na": {
-            "n": 7,
-            "mean": 0.08079,
-            "median": 0.10453
-          }
-        }
-      },
-      "baseline": {
-        "1d": {
-          "null_mean": 0.00364,
-          "excess_mean": 0.03061,
-          "p_mean": 0.033,
-          "significant": true
-        }
-      },
-      "regime_dependent": false,
-      "precision": {
-        "slip": {
-          "mean": 0.03325,
-          "median": 0.09888,
-          "p_mean": 0.033,
-          "ok": true
-        },
-        "walkforward": {
-          "valid": 8,
-          "pos": 5,
-          "pos_frac": 0.625,
-          "ok": true
-        },
-        "newsymbols": {
-          "n": 30,
-          "mean": 0.0389,
-          "median": 0.10019,
-          "persym_pos": 3,
-          "ok": true
-        }
-      },
-      "wear": {
-        "cut": "2025-07-01",
-        "base_2025plus_mean": -0.0392,
-        "restored": false,
-        "note": "마모 복원 불가(vol2x/regime/position 전부 실패) - 페이퍼테스트 필요"
-      }
+ "patterns": [
+  {
+   "id": "engulfing",
+   "name": "Engulfing",
+   "category": "캔들",
+   "difficulty": 1,
+   "status": "validated",
+   "detector_file": "detector_engulfing.py",
+   "passed_tf": "1d",
+   "regime": {
+    "1d": {
+     "up": {
+      "n": 10,
+      "mean": 0.03058,
+      "median": 0.10138
+     },
+     "down": {
+      "n": 21,
+      "mean": 0.05704,
+      "median": 0.10226
+     },
+     "side": {
+      "n": 22,
+      "mean": -0.00065,
+      "median": -0.0035
+     },
+     "na": {
+      "n": 7,
+      "mean": 0.08079,
+      "median": 0.10453
+     }
+    }
+   },
+   "baseline": {
+    "1d": {
+     "null_mean": 0.00364,
+     "excess_mean": 0.03061,
+     "p_mean": 0.033,
+     "significant": true
+    }
+   },
+   "regime_dependent": false,
+   "precision": {
+    "slip": {
+     "mean": 0.03325,
+     "median": 0.09888,
+     "p_mean": 0.033,
+     "ok": true
     },
-    {
-      "id": "pin_bar",
-      "name": "Pin Bar",
-      "category": "캔들",
-      "difficulty": 1,
-      "status": "rejected",
-      "detector_file": "detector_pin_bar.py",
-      "reject_reason": "기대값 음수"
+    "walkforward": {
+     "valid": 8,
+     "pos": 5,
+     "pos_frac": 0.625,
+     "ok": true
     },
-    {
-      "id": "nr7",
-      "name": "NR7 (Narrow Range 7)",
-      "category": "변동성",
-      "difficulty": 1,
-      "status": "rejected",
-      "detector_file": "detector_nr7.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "bb_squeeze",
-      "name": "Bollinger Band Squeeze",
-      "category": "변동성",
-      "difficulty": 1,
-      "status": "rejected",
-      "detector_file": "detector_bb_squeeze.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "double_bottom",
-      "name": "Double Bottom",
-      "category": "패턴",
-      "difficulty": 1,
-      "status": "rejected",
-      "detector_file": "detector_double_bottom.py",
-      "regime": {
-        "1d": {
-          "up": {
-            "n": 132,
-            "mean": -0.00165,
-            "median": -0.0239
-          },
-          "down": {
-            "n": 161,
-            "mean": 0.00278,
-            "median": -0.01431
-          },
-          "side": {
-            "n": 132,
-            "mean": 0.0128,
-            "median": 0.01724
-          },
-          "na": {
-            "n": 40,
-            "mean": 0.07263,
-            "median": 0.11424
-          }
-        },
-        "1h": {
-          "up": {
-            "n": 351,
-            "mean": 0.01084,
-            "median": 0.0005
-          },
-          "down": {
-            "n": 274,
-            "mean": -0.00413,
-            "median": -0.00366
-          },
-          "side": {
-            "n": 1196,
-            "mean": 0.00512,
-            "median": 0.0023
-          },
-          "na": {
-            "n": 49,
-            "mean": 0.03376,
-            "median": 0.02319
-          }
-        }
-      },
-      "baseline": {
-        "1d": {
-          "null_mean": 0.00373,
-          "excess_mean": 0.00664,
-          "p_mean": 0.144,
-          "significant": false
-        },
-        "1h": {
-          "null_mean": -0.00105,
-          "excess_mean": 0.00664,
-          "p_mean": 0.0,
-          "significant": true
-        }
-      },
-      "reject_reason": "OOS 미통과(과최적화)"
-    },
-    {
-      "id": "liquidity_sweep",
-      "name": "Liquidity Sweep",
-      "category": "SMC",
-      "difficulty": 2,
-      "status": "rejected",
-      "detector_file": "detector_liquidity_sweep.py",
-      "regime": {
-        "4h": {
-          "up": {
-            "n": 27,
-            "mean": -0.00515,
-            "median": -0.02761
-          },
-          "down": {
-            "n": 33,
-            "mean": 0.02424,
-            "median": 0.01957
-          },
-          "side": {
-            "n": 169,
-            "mean": 0.00169,
-            "median": -0.00077
-          },
-          "na": {
-            "n": 1,
-            "mean": 0.17699,
-            "median": 0.17699
-          }
-        }
-      },
-      "baseline": {
-        "4h": {
-          "null_mean": 1e-05,
-          "excess_mean": 0.00488,
-          "p_mean": 0.159,
-          "significant": false
-        }
-      },
-      "reject_reason": "OOS 미통과(과최적화)"
-    },
-    {
-      "id": "fvg",
-      "name": "Fair Value Gap",
-      "category": "SMC",
-      "difficulty": 2,
-      "status": "passed",
-      "detector_file": "detector_fvg.py",
-      "regime": {
-        "1d": {
-          "up": {
-            "n": 166,
-            "mean": 0.02114,
-            "median": 0.06258
-          },
-          "down": {
-            "n": 164,
-            "mean": 0.02196,
-            "median": 0.071
-          },
-          "side": {
-            "n": 154,
-            "mean": 0.01266,
-            "median": 0.01003
-          },
-          "na": {
-            "n": 50,
-            "mean": 0.11839,
-            "median": 0.12953
-          }
-        }
-      },
-      "baseline": {
-        "1d": {
-          "null_mean": 0.00376,
-          "excess_mean": 0.02429,
-          "p_mean": 0.0,
-          "significant": true
-        }
-      },
-      "passed_tf": "1d",
-      "regime_dependent": false,
-      "precision": {
-        "slip": {
-          "mean": 0.02705,
-          "median": 0.05565,
-          "p_mean": 0.0,
-          "ok": true
-        },
-        "walkforward": {
-          "valid": 11,
-          "pos": 6,
-          "pos_frac": 0.545,
-          "ok": false
-        },
-        "newsymbols": {
-          "n": 357,
-          "mean": 0.01746,
-          "median": 0.06189,
-          "persym_pos": 4,
-          "ok": true
-        }
-      },
-      "wear": {
-        "cut": "2025-07-01",
-        "base_2025plus_mean": -0.02776,
-        "restored": false,
-        "note": "마모 징후(2025-07+ 음수)"
-      },
-      "precision_note": "강등: 워크포워드 미통과"
-    },
-    {
-      "id": "inverse_hs",
-      "name": "Inverse Head&Shoulders",
-      "category": "패턴",
-      "difficulty": 2,
-      "status": "rejected",
-      "detector_file": "detector_inverse_hs.py",
-      "regime": {
-        "1d": {
-          "up": {
-            "n": 47,
-            "mean": 0.02809,
-            "median": 0.04177
-          },
-          "down": {
-            "n": 68,
-            "mean": 0.00259,
-            "median": -0.01909
-          },
-          "side": {
-            "n": 47,
-            "mean": 0.02333,
-            "median": 0.04912
-          },
-          "na": {
-            "n": 8,
-            "mean": 0.01213,
-            "median": 0.00178
-          }
-        }
-      },
-      "baseline": {
-        "1d": {
-          "null_mean": 0.00369,
-          "excess_mean": 0.01213,
-          "p_mean": 0.104,
-          "significant": false
-        }
-      },
-      "reject_reason": "OOS 미통과(과최적화)"
-    },
-    {
-      "id": "rsi_divergence",
-      "name": "RSI Divergence",
-      "category": "지표",
-      "difficulty": 2,
-      "status": "rejected",
-      "detector_file": "detector_rsi_divergence.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "macd_divergence",
-      "name": "MACD Divergence",
-      "category": "지표",
-      "difficulty": 2,
-      "status": "rejected",
-      "detector_file": "detector_macd_divergence.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "order_block",
-      "name": "Order Block",
-      "category": "SMC",
-      "difficulty": 3,
-      "status": "rejected",
-      "detector_file": "detector_order_block.py",
-      "regime": {
-        "1d": {
-          "up": {
-            "n": 63,
-            "mean": -0.00379,
-            "median": -0.01122
-          },
-          "down": {
-            "n": 36,
-            "mean": -0.00249,
-            "median": -0.00992
-          },
-          "side": {
-            "n": 42,
-            "mean": 0.0046,
-            "median": -0.00487
-          },
-          "na": {
-            "n": 23,
-            "mean": 0.0879,
-            "median": 0.12621
-          }
-        }
-      },
-      "baseline": {
-        "1d": {
-          "null_mean": 0.0037,
-          "excess_mean": 0.0078,
-          "p_mean": 0.204,
-          "significant": false
-        }
-      },
-      "reject_reason": "OOS 미통과(과최적화)"
-    },
-    {
-      "id": "bos_choch",
-      "name": "BOS / CHoCH",
-      "category": "SMC",
-      "difficulty": 3,
-      "status": "rejected",
-      "detector_file": "detector_bos_choch.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "spring_wyckoff",
-      "name": "Wyckoff Spring",
-      "category": "패턴",
-      "difficulty": 3,
-      "status": "rejected",
-      "detector_file": "detector_spring_wyckoff.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "triple_bottom_desc",
-      "name": "Triple Bottom (descending)",
-      "category": "패턴",
-      "difficulty": 2,
-      "status": "rejected",
-      "detector_file": "triple_bottom_volume.py"
-    },
-    {
-      "id": "engulfing_short",
-      "name": "Engulfing (short)",
-      "category": "캔들",
-      "difficulty": 1,
-      "status": "rejected",
-      "detector_file": "detector_engulfing_short.py",
-      "regime": {
-        "1d": {
-          "up": {
-            "n": 29,
-            "mean": 0.00087,
-            "median": 0.04623
-          },
-          "down": {
-            "n": 22,
-            "mean": -0.0213,
-            "median": -0.07864
-          },
-          "side": {
-            "n": 27,
-            "mean": 0.05761,
-            "median": 0.10548
-          },
-          "na": {
-            "n": 9,
-            "mean": -0.01953,
-            "median": -0.11811
-          }
-        }
-      },
-      "baseline": {
-        "1d": {
-          "null_mean": -0.00796,
-          "excess_mean": 0.01872,
-          "p_mean": 0.094,
-          "significant": false
-        }
-      },
-      "reject_reason": "OOS 미통과(과최적화)"
-    },
-    {
-      "id": "fvg_short",
-      "name": "Fair Value Gap (short)",
-      "category": "SMC",
-      "difficulty": 2,
-      "status": "rejected",
-      "detector_file": "detector_fvg_short.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "inverse_hs_short",
-      "name": "H&S Top (short)",
-      "category": "패턴",
-      "difficulty": 2,
-      "status": "rejected",
-      "detector_file": "detector_inverse_hs_short.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "order_block_short",
-      "name": "Order Block (short)",
-      "category": "SMC",
-      "difficulty": 3,
-      "status": "rejected",
-      "detector_file": "detector_order_block_short.py",
-      "reject_reason": "기대값 음수"
-    },
-    {
-      "id": "inverted_hammer",
-      "name": "Inverted Hammer",
-      "category": "캔들",
-      "difficulty": 1,
-      "detector_file": "detector_inverted_hammer.py",
-      "status": "passed",
-      "passed_tf": "1d",
-      "precision": {
-        "slip": {
-          "mean": 0.01682,
-          "median": 0.01166,
-          "p_mean": 0.001,
-          "ok": true
-        },
-        "walkforward": {
-          "valid": 11,
-          "pos": 6,
-          "pos_frac": 0.545,
-          "ok": false
-        }
-      },
-      "wear": {
-        "cut": "2025-07-01",
-        "base_2025plus_mean": 0.02932,
-        "restored": false,
-        "note": "마모 없음"
-      },
-      "precision_note": "강등유지: 워크포워드 미통과"
-    },
-    {
-      "id": "marubozu",
-      "name": "Marubozu",
-      "category": "캔들",
-      "difficulty": 1,
-      "detector_file": "detector_marubozu.py",
-      "status": "passed",
-      "passed_tf": "1d",
-      "precision": {
-        "slip": {
-          "mean": 0.03098,
-          "median": 0.01724,
-          "p_mean": 0.028,
-          "ok": true
-        },
-        "walkforward": {
-          "valid": 9,
-          "pos": 5,
-          "pos_frac": 0.556,
-          "ok": false
-        }
-      },
-      "wear": {
-        "cut": "2025-07-01",
-        "base_2025plus_mean": 0.05855,
-        "restored": false,
-        "note": "마모 없음"
-      },
-      "precision_note": "강등유지: 워크포워드 미통과"
-    },
-    {
-      "id": "gartley",
-      "name": "Gartley Harmonic (Bullish)",
-      "category": "하모닉",
-      "difficulty": 3,
-      "status": "passed",
-      "detector_file": "detector_gartley.py",
-      "ratios": {
-        "ab_xa": "0.618±0.05",
-        "bc_ab": "0.382-0.886",
-        "cd_bc": "1.272-1.618",
-        "ad_xa": "0.786±0.05"
-      },
-      "regime": {
-        "4h": {
-          "up": {
-            "n": 10,
-            "mean": 0.03966,
-            "median": 0.01987
-          },
-          "down": {
-            "n": 7,
-            "mean": 0.04055,
-            "median": 0.04745
-          },
-          "side": {
-            "n": 37,
-            "mean": 0.0193,
-            "median": 0.00545
-          },
-          "na": {
-            "n": 2,
-            "mean": 0.09744,
-            "median": 0.09744
-          }
-        }
-      },
-      "baseline": {
-        "4h": {
-          "null_mean": -0.00183,
-          "excess_mean": 0.03021,
-          "p_mean": 0.008,
-          "significant": true
-        }
-      },
-      "passed_tf": "4h",
-      "regime_dependent": false
-    },
-    {
-      "id": "bat",
-      "name": "Bat Harmonic (Bullish)",
-      "category": "하모닉",
-      "difficulty": 3,
-      "status": "passed",
-      "detector_file": "detector_bat.py",
-      "ratios": {
-        "ab_xa": "0.382-0.500",
-        "bc_ab": "0.382-0.886",
-        "cd_bc": "1.618-2.618",
-        "ad_xa": "0.886±0.05"
-      },
-      "regime": {
-        "4h": {
-          "up": {
-            "n": 15,
-            "mean": 0.0582,
-            "median": 0.09855
-          },
-          "down": {
-            "n": 12,
-            "mean": 0.04965,
-            "median": 0.05828
-          },
-          "side": {
-            "n": 28,
-            "mean": 0.03311,
-            "median": 0.02528
-          },
-          "na": {
-            "n": 2,
-            "mean": 0.00372,
-            "median": 0.00372
-          }
-        }
-      },
-      "baseline": {
-        "4h": {
-          "null_mean": -0.00184,
-          "excess_mean": 0.04401,
-          "p_mean": 0.0,
-          "significant": true
-        }
-      },
-      "passed_tf": "4h",
-      "regime_dependent": false
-    },
-    {
-      "id": "butterfly",
-      "name": "Butterfly Harmonic (Bullish)",
-      "category": "하모닉",
-      "difficulty": 3,
-      "status": "passed",
-      "detector_file": "detector_butterfly.py",
-      "ratios": {
-        "ab_xa": "0.786±0.05",
-        "bc_ab": "0.382-0.886",
-        "cd_bc": "1.618-2.618",
-        "ad_xa": "1.272±0.05"
-      },
-      "regime": {
-        "4h": {
-          "up": {
-            "n": 9,
-            "mean": 0.0438,
-            "median": 0.03959
-          },
-          "down": {
-            "n": 11,
-            "mean": 0.03704,
-            "median": 0.02979
-          },
-          "side": {
-            "n": 22,
-            "mean": 0.02194,
-            "median": 0.03385
-          }
-        }
-      },
-      "baseline": {
-        "4h": {
-          "null_mean": -0.00162,
-          "excess_mean": 0.0322,
-          "p_mean": 0.007,
-          "significant": true
-        }
-      },
-      "passed_tf": "4h",
-      "regime_dependent": false
-    },
-    {
-      "id": "crab",
-      "name": "Crab Harmonic (Bullish)",
-      "category": "하모닉",
-      "difficulty": 3,
-      "status": "holding",
-      "detector_file": "detector_crab.py",
-      "ratios": {
-        "ab_xa": "0.382-0.618",
-        "bc_ab": "0.382-0.886",
-        "cd_bc": "2.618-3.618",
-        "ad_xa": "1.618±0.05"
-      }
-    },
-    {
-      "id": "shark",
-      "name": "Shark Harmonic (Bullish)",
-      "category": "하모닉",
-      "difficulty": 3,
-      "status": "holding",
-      "detector_file": "detector_shark.py",
-      "ratios": {
-        "ab_xa": "0.382-0.618",
-        "bc_ab": "1.130-1.618",
-        "xd_xc": "0.886±0.05"
-      }
-    },
-    {
-      "id": "cypher",
-      "name": "Cypher Harmonic (Bullish)",
-      "category": "하모닉",
-      "difficulty": 3,
-      "status": "holding",
-      "detector_file": "detector_cypher.py",
-      "ratios": {
-        "ab_xa": "0.382-0.618",
-        "bc_ab": "1.272-1.414",
-        "xd_xc": "0.786±0.05"
-      }
-    },
-    {
-      "id": "three_soldiers_4h",
-      "name": "Three White Soldiers (4h)",
-      "category": "momentum_4h",
-      "difficulty": 2,
-      "status": "passed",
-      "detector_file": "detector_three_soldiers_4h.py",
-      "passed_tf": "4h",
-      "n": 908,
-      "mean": 0.0104,
-      "median": 0.0097,
-      "oos_positive": 3,
-      "oos_quarters": 4,
-      "baseline_p": 0.0001,
-      "baseline_excess_mean": 0.0133,
-      "passed_date": "2026-06-29",
-      "regime_routing": "bull_btc/bull_altseason -> long; bear/sideways -> skip",
-      "note": "4h 전용 모멘텀. Q4(2025-26 bear) 음수, 레짐 필터 필수."
-    },
-    {
-      "id": "bat_1h",
-      "name": "Bullish Bat (1h)",
-      "category": "harmonic_1h",
-      "status": "passed",
-      "detector_file": "detector_bat.py",
-      "passed_tf": "1h",
-      "n": 108,
-      "mean": 0.0146,
-      "median": 0.0099,
-      "oos_positive": 4,
-      "oos_quarters": 4,
-      "baseline_p": 0.034,
-      "passed_date": "2026-06-29",
-      "regime_routing": "all regimes -> long (OOS Q4도 +2.33%로 레짐 무관 강건)",
-      "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요."
-    },
-    {
-      "id": "butterfly_1h",
-      "name": "Bullish Butterfly (1h)",
-      "category": "harmonic_1h",
-      "status": "passed",
-      "detector_file": "detector_butterfly.py",
-      "passed_tf": "1h",
+    "newsymbols": {
+     "n": 30,
+     "mean": 0.0389,
+     "median": 0.10019,
+     "persym_pos": 3,
+     "ok": true
+    }
+   },
+   "wear": {
+    "cut": "2025-07-01",
+    "base_2025plus_mean": -0.0392,
+    "restored": false,
+    "note": "마모 복원 불가(vol2x/regime/position 전부 실패) - 페이퍼테스트 필요"
+   }
+  },
+  {
+   "id": "pin_bar",
+   "name": "Pin Bar",
+   "category": "캔들",
+   "difficulty": 1,
+   "status": "rejected",
+   "detector_file": "detector_pin_bar.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "nr7",
+   "name": "NR7 (Narrow Range 7)",
+   "category": "변동성",
+   "difficulty": 1,
+   "status": "rejected",
+   "detector_file": "detector_nr7.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "bb_squeeze",
+   "name": "Bollinger Band Squeeze",
+   "category": "변동성",
+   "difficulty": 1,
+   "status": "rejected",
+   "detector_file": "detector_bb_squeeze.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "double_bottom",
+   "name": "Double Bottom",
+   "category": "패턴",
+   "difficulty": 1,
+   "status": "rejected",
+   "detector_file": "detector_double_bottom.py",
+   "regime": {
+    "1d": {
+     "up": {
+      "n": 132,
+      "mean": -0.00165,
+      "median": -0.0239
+     },
+     "down": {
       "n": 161,
-      "mean": 0.0159,
-      "median": 0.0117,
-      "oos_positive": 4,
-      "oos_quarters": 4,
-      "baseline_p": 0.024,
-      "passed_date": "2026-06-29",
-      "regime_routing": "all regimes -> long (OOS 4/4 전구간 양수)",
-      "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상."
+      "mean": 0.00278,
+      "median": -0.01431
+     },
+     "side": {
+      "n": 132,
+      "mean": 0.0128,
+      "median": 0.01724
+     },
+     "na": {
+      "n": 40,
+      "mean": 0.07263,
+      "median": 0.11424
+     }
+    },
+    "1h": {
+     "up": {
+      "n": 351,
+      "mean": 0.01084,
+      "median": 0.0005
+     },
+     "down": {
+      "n": 274,
+      "mean": -0.00413,
+      "median": -0.00366
+     },
+     "side": {
+      "n": 1196,
+      "mean": 0.00512,
+      "median": 0.0023
+     },
+     "na": {
+      "n": 49,
+      "mean": 0.03376,
+      "median": 0.02319
+     }
     }
-  ],
-  "rejected_4h": [
-    {
-      "id": "three_crows_4h",
-      "status": "rejected",
-      "tf": "4h",
-      "direction": "short",
-      "n": 573,
-      "mean": -0.0119,
-      "note": "mean<0 전체(-1.19%). 레짐 조건부 재검증(2026-06-29): bear+alt n=169 mean=-0.20%, bear전용 mean=+0.36% 유의성없음(boot_p=0.436), altseason 더 나쁨(-2.01%). 최종 기각.",
-      "retest_date": "2026-06-29"
+   },
+   "baseline": {
+    "1d": {
+     "null_mean": 0.00373,
+     "excess_mean": 0.00664,
+     "p_mean": 0.144,
+     "significant": false
     },
-    {
-      "id": "breakout_retest_4h",
-      "status": "rejected",
-      "tf": "4h",
-      "direction": "long",
-      "n": 25729,
-      "mean": 0.0037,
-      "note": "median<0 (-0.23%), 중앙값 게이트 탈락"
-    },
-    {
-      "id": "equal_highs_4h",
-      "status": "rejected",
-      "tf": "4h",
-      "direction": "short",
-      "n": 6962,
-      "mean": -0.0026,
-      "note": "mean<0"
-    },
-    {
-      "id": "equal_lows_4h",
-      "status": "rejected",
-      "tf": "4h",
-      "direction": "long",
-      "n": 6618,
-      "mean": -0.0048,
-      "note": "mean<0"
-    },
-    {
-      "id": "vwap_rev_long_4h",
-      "status": "rejected",
-      "tf": "4h",
-      "direction": "long",
-      "n": 31005,
-      "mean": -0.0025,
-      "note": "mean<0"
-    },
-    {
-      "id": "vwap_rev_short_4h",
-      "status": "rejected",
-      "tf": "4h",
-      "direction": "short",
-      "n": 28537,
-      "mean": -0.0006,
-      "note": "mean<0"
+    "1h": {
+     "null_mean": -0.00105,
+     "excess_mean": 0.00664,
+     "p_mean": 0.0,
+     "significant": true
     }
-  ],
-  "rejected_1h": [
-    {
-      "id": "three_soldiers_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 2107,
-      "mean": 0.28,
-      "note": "boot_p=0.270 유의성없음"
-    },
-    {
-      "id": "three_crows_1h",
-      "tf": "1h",
-      "direction": "short",
-      "n": 1623,
-      "mean": 0.38,
-      "note": "median<0, boot_p=0.247"
-    },
-    {
-      "id": "engulfing_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 16791,
-      "mean": -0.23,
-      "note": "mean<0, OOS 0/4"
-    },
-    {
-      "id": "inverted_hammer_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 34061,
-      "mean": -0.08,
-      "note": "mean<0, OOS 0/4"
-    },
-    {
-      "id": "fvg_long_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 56977,
-      "mean": 0.06,
-      "note": "median<0, boot_p=0.372"
-    },
-    {
-      "id": "fvg_short_1h",
-      "tf": "1h",
-      "direction": "short",
-      "n": 56977,
-      "mean": -0.46,
-      "note": "mean<0, OOS 0/4"
-    },
-    {
-      "id": "gartley_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 290,
-      "mean": 0.91,
-      "note": "boot_p=0.092 유의성 경계"
-    },
-    {
-      "id": "vwap_rev_long_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 41793,
-      "mean": -0.09,
-      "note": "mean<0, OOS 1/4"
-    },
-    {
-      "id": "vwap_rev_short_1h",
-      "tf": "1h",
-      "direction": "short",
-      "n": 38984,
-      "mean": -0.19,
-      "note": "mean<0, OOS 1/4"
-    },
-    {
-      "id": "breakout_retest_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 51316,
-      "mean": -0.05,
-      "note": "median<0, boot_p=0.434"
-    },
-    {
-      "id": "bb_zscore_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 14699,
-      "mean": -0.16,
-      "note": "mean<=0, median<=0, boot_p=0.460, OOS 0/4<2"
-    },
-    {
-      "id": "bb_zscore_short_1h",
-      "tf": "1h",
-      "direction": "short",
-      "n": 10217,
-      "mean": -0.05,
-      "note": "mean<=0, median<=0, boot_p=0.424"
-    },
-    {
-      "id": "rsi_extreme_1h",
-      "tf": "1h",
-      "direction": "long",
-      "n": 4281,
-      "mean": -0.25,
-      "note": "mean<=0, median<=0, boot_p=0.518"
-    },
-    {
-      "id": "rsi_extreme_short_1h",
-      "tf": "1h",
-      "direction": "short",
-      "n": 3316,
-      "mean": -0.38,
-      "note": "mean<=0, boot_p=0.602, OOS 0/4<2"
+   },
+   "reject_reason": "OOS 미통과(과최적화)"
+  },
+  {
+   "id": "liquidity_sweep",
+   "name": "Liquidity Sweep",
+   "category": "SMC",
+   "difficulty": 2,
+   "status": "rejected",
+   "detector_file": "detector_liquidity_sweep.py",
+   "regime": {
+    "4h": {
+     "up": {
+      "n": 27,
+      "mean": -0.00515,
+      "median": -0.02761
+     },
+     "down": {
+      "n": 33,
+      "mean": 0.02424,
+      "median": 0.01957
+     },
+     "side": {
+      "n": 169,
+      "mean": 0.00169,
+      "median": -0.00077
+     },
+     "na": {
+      "n": 1,
+      "mean": 0.17699,
+      "median": 0.17699
+     }
     }
-  ]
+   },
+   "baseline": {
+    "4h": {
+     "null_mean": 1e-05,
+     "excess_mean": 0.00488,
+     "p_mean": 0.159,
+     "significant": false
+    }
+   },
+   "reject_reason": "OOS 미통과(과최적화)"
+  },
+  {
+   "id": "fvg",
+   "name": "Fair Value Gap",
+   "category": "SMC",
+   "difficulty": 2,
+   "status": "passed",
+   "detector_file": "detector_fvg.py",
+   "regime": {
+    "1d": {
+     "up": {
+      "n": 166,
+      "mean": 0.02114,
+      "median": 0.06258
+     },
+     "down": {
+      "n": 164,
+      "mean": 0.02196,
+      "median": 0.071
+     },
+     "side": {
+      "n": 154,
+      "mean": 0.01266,
+      "median": 0.01003
+     },
+     "na": {
+      "n": 50,
+      "mean": 0.11839,
+      "median": 0.12953
+     }
+    }
+   },
+   "baseline": {
+    "1d": {
+     "null_mean": 0.00376,
+     "excess_mean": 0.02429,
+     "p_mean": 0.0,
+     "significant": true
+    }
+   },
+   "passed_tf": "1d",
+   "regime_dependent": false,
+   "precision": {
+    "slip": {
+     "mean": 0.02705,
+     "median": 0.05565,
+     "p_mean": 0.0,
+     "ok": true
+    },
+    "walkforward": {
+     "valid": 11,
+     "pos": 6,
+     "pos_frac": 0.545,
+     "ok": false
+    },
+    "newsymbols": {
+     "n": 357,
+     "mean": 0.01746,
+     "median": 0.06189,
+     "persym_pos": 4,
+     "ok": true
+    }
+   },
+   "wear": {
+    "cut": "2025-07-01",
+    "base_2025plus_mean": -0.02776,
+    "restored": false,
+    "note": "마모 징후(2025-07+ 음수)"
+   },
+   "precision_note": "강등: 워크포워드 미통과"
+  },
+  {
+   "id": "inverse_hs",
+   "name": "Inverse Head&Shoulders",
+   "category": "패턴",
+   "difficulty": 2,
+   "status": "rejected",
+   "detector_file": "detector_inverse_hs.py",
+   "regime": {
+    "1d": {
+     "up": {
+      "n": 47,
+      "mean": 0.02809,
+      "median": 0.04177
+     },
+     "down": {
+      "n": 68,
+      "mean": 0.00259,
+      "median": -0.01909
+     },
+     "side": {
+      "n": 47,
+      "mean": 0.02333,
+      "median": 0.04912
+     },
+     "na": {
+      "n": 8,
+      "mean": 0.01213,
+      "median": 0.00178
+     }
+    }
+   },
+   "baseline": {
+    "1d": {
+     "null_mean": 0.00369,
+     "excess_mean": 0.01213,
+     "p_mean": 0.104,
+     "significant": false
+    }
+   },
+   "reject_reason": "OOS 미통과(과최적화)"
+  },
+  {
+   "id": "rsi_divergence",
+   "name": "RSI Divergence",
+   "category": "지표",
+   "difficulty": 2,
+   "status": "rejected",
+   "detector_file": "detector_rsi_divergence.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "macd_divergence",
+   "name": "MACD Divergence",
+   "category": "지표",
+   "difficulty": 2,
+   "status": "rejected",
+   "detector_file": "detector_macd_divergence.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "order_block",
+   "name": "Order Block",
+   "category": "SMC",
+   "difficulty": 3,
+   "status": "rejected",
+   "detector_file": "detector_order_block.py",
+   "regime": {
+    "1d": {
+     "up": {
+      "n": 63,
+      "mean": -0.00379,
+      "median": -0.01122
+     },
+     "down": {
+      "n": 36,
+      "mean": -0.00249,
+      "median": -0.00992
+     },
+     "side": {
+      "n": 42,
+      "mean": 0.0046,
+      "median": -0.00487
+     },
+     "na": {
+      "n": 23,
+      "mean": 0.0879,
+      "median": 0.12621
+     }
+    }
+   },
+   "baseline": {
+    "1d": {
+     "null_mean": 0.0037,
+     "excess_mean": 0.0078,
+     "p_mean": 0.204,
+     "significant": false
+    }
+   },
+   "reject_reason": "OOS 미통과(과최적화)"
+  },
+  {
+   "id": "bos_choch",
+   "name": "BOS / CHoCH",
+   "category": "SMC",
+   "difficulty": 3,
+   "status": "rejected",
+   "detector_file": "detector_bos_choch.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "spring_wyckoff",
+   "name": "Wyckoff Spring",
+   "category": "패턴",
+   "difficulty": 3,
+   "status": "rejected",
+   "detector_file": "detector_spring_wyckoff.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "triple_bottom_desc",
+   "name": "Triple Bottom (descending)",
+   "category": "패턴",
+   "difficulty": 2,
+   "status": "rejected",
+   "detector_file": "triple_bottom_volume.py"
+  },
+  {
+   "id": "engulfing_short",
+   "name": "Engulfing (short)",
+   "category": "캔들",
+   "difficulty": 1,
+   "status": "rejected",
+   "detector_file": "detector_engulfing_short.py",
+   "regime": {
+    "1d": {
+     "up": {
+      "n": 29,
+      "mean": 0.00087,
+      "median": 0.04623
+     },
+     "down": {
+      "n": 22,
+      "mean": -0.0213,
+      "median": -0.07864
+     },
+     "side": {
+      "n": 27,
+      "mean": 0.05761,
+      "median": 0.10548
+     },
+     "na": {
+      "n": 9,
+      "mean": -0.01953,
+      "median": -0.11811
+     }
+    }
+   },
+   "baseline": {
+    "1d": {
+     "null_mean": -0.00796,
+     "excess_mean": 0.01872,
+     "p_mean": 0.094,
+     "significant": false
+    }
+   },
+   "reject_reason": "OOS 미통과(과최적화)"
+  },
+  {
+   "id": "fvg_short",
+   "name": "Fair Value Gap (short)",
+   "category": "SMC",
+   "difficulty": 2,
+   "status": "rejected",
+   "detector_file": "detector_fvg_short.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "inverse_hs_short",
+   "name": "H&S Top (short)",
+   "category": "패턴",
+   "difficulty": 2,
+   "status": "rejected",
+   "detector_file": "detector_inverse_hs_short.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "order_block_short",
+   "name": "Order Block (short)",
+   "category": "SMC",
+   "difficulty": 3,
+   "status": "rejected",
+   "detector_file": "detector_order_block_short.py",
+   "reject_reason": "기대값 음수"
+  },
+  {
+   "id": "inverted_hammer",
+   "name": "Inverted Hammer",
+   "category": "캔들",
+   "difficulty": 1,
+   "detector_file": "detector_inverted_hammer.py",
+   "status": "passed",
+   "passed_tf": "1d",
+   "precision": {
+    "slip": {
+     "mean": 0.01682,
+     "median": 0.01166,
+     "p_mean": 0.001,
+     "ok": true
+    },
+    "walkforward": {
+     "valid": 11,
+     "pos": 6,
+     "pos_frac": 0.545,
+     "ok": false
+    }
+   },
+   "wear": {
+    "cut": "2025-07-01",
+    "base_2025plus_mean": 0.02932,
+    "restored": false,
+    "note": "마모 없음"
+   },
+   "precision_note": "강등유지: 워크포워드 미통과"
+  },
+  {
+   "id": "marubozu",
+   "name": "Marubozu",
+   "category": "캔들",
+   "difficulty": 1,
+   "detector_file": "detector_marubozu.py",
+   "status": "passed",
+   "passed_tf": "1d",
+   "precision": {
+    "slip": {
+     "mean": 0.03098,
+     "median": 0.01724,
+     "p_mean": 0.028,
+     "ok": true
+    },
+    "walkforward": {
+     "valid": 9,
+     "pos": 5,
+     "pos_frac": 0.556,
+     "ok": false
+    }
+   },
+   "wear": {
+    "cut": "2025-07-01",
+    "base_2025plus_mean": 0.05855,
+    "restored": false,
+    "note": "마모 없음"
+   },
+   "precision_note": "강등유지: 워크포워드 미통과"
+  },
+  {
+   "id": "gartley",
+   "name": "Gartley Harmonic (Bullish)",
+   "category": "하모닉",
+   "difficulty": 3,
+   "status": "passed",
+   "detector_file": "detector_gartley.py",
+   "ratios": {
+    "ab_xa": "0.618±0.05",
+    "bc_ab": "0.382-0.886",
+    "cd_bc": "1.272-1.618",
+    "ad_xa": "0.786±0.05"
+   },
+   "regime": {
+    "4h": {
+     "up": {
+      "n": 10,
+      "mean": 0.03966,
+      "median": 0.01987
+     },
+     "down": {
+      "n": 7,
+      "mean": 0.04055,
+      "median": 0.04745
+     },
+     "side": {
+      "n": 37,
+      "mean": 0.0193,
+      "median": 0.00545
+     },
+     "na": {
+      "n": 2,
+      "mean": 0.09744,
+      "median": 0.09744
+     }
+    }
+   },
+   "baseline": {
+    "4h": {
+     "null_mean": -0.00183,
+     "excess_mean": 0.03021,
+     "p_mean": 0.008,
+     "significant": true
+    }
+   },
+   "passed_tf": "4h",
+   "regime_dependent": false
+  },
+  {
+   "id": "bat",
+   "name": "Bat Harmonic (Bullish)",
+   "category": "하모닉",
+   "difficulty": 3,
+   "status": "passed",
+   "detector_file": "detector_bat.py",
+   "ratios": {
+    "ab_xa": "0.382-0.500",
+    "bc_ab": "0.382-0.886",
+    "cd_bc": "1.618-2.618",
+    "ad_xa": "0.886±0.05"
+   },
+   "regime": {
+    "4h": {
+     "up": {
+      "n": 15,
+      "mean": 0.0582,
+      "median": 0.09855
+     },
+     "down": {
+      "n": 12,
+      "mean": 0.04965,
+      "median": 0.05828
+     },
+     "side": {
+      "n": 28,
+      "mean": 0.03311,
+      "median": 0.02528
+     },
+     "na": {
+      "n": 2,
+      "mean": 0.00372,
+      "median": 0.00372
+     }
+    }
+   },
+   "baseline": {
+    "4h": {
+     "null_mean": -0.00184,
+     "excess_mean": 0.04401,
+     "p_mean": 0.0,
+     "significant": true
+    }
+   },
+   "passed_tf": "4h",
+   "regime_dependent": false
+  },
+  {
+   "id": "butterfly",
+   "name": "Butterfly Harmonic (Bullish)",
+   "category": "하모닉",
+   "difficulty": 3,
+   "status": "passed",
+   "detector_file": "detector_butterfly.py",
+   "ratios": {
+    "ab_xa": "0.786±0.05",
+    "bc_ab": "0.382-0.886",
+    "cd_bc": "1.618-2.618",
+    "ad_xa": "1.272±0.05"
+   },
+   "regime": {
+    "4h": {
+     "up": {
+      "n": 9,
+      "mean": 0.0438,
+      "median": 0.03959
+     },
+     "down": {
+      "n": 11,
+      "mean": 0.03704,
+      "median": 0.02979
+     },
+     "side": {
+      "n": 22,
+      "mean": 0.02194,
+      "median": 0.03385
+     }
+    }
+   },
+   "baseline": {
+    "4h": {
+     "null_mean": -0.00162,
+     "excess_mean": 0.0322,
+     "p_mean": 0.007,
+     "significant": true
+    }
+   },
+   "passed_tf": "4h",
+   "regime_dependent": false
+  },
+  {
+   "id": "crab",
+   "name": "Crab Harmonic (Bullish)",
+   "category": "하모닉",
+   "difficulty": 3,
+   "status": "holding",
+   "detector_file": "detector_crab.py",
+   "ratios": {
+    "ab_xa": "0.382-0.618",
+    "bc_ab": "0.382-0.886",
+    "cd_bc": "2.618-3.618",
+    "ad_xa": "1.618±0.05"
+   }
+  },
+  {
+   "id": "shark",
+   "name": "Shark Harmonic (Bullish)",
+   "category": "하모닉",
+   "difficulty": 3,
+   "status": "holding",
+   "detector_file": "detector_shark.py",
+   "ratios": {
+    "ab_xa": "0.382-0.618",
+    "bc_ab": "1.130-1.618",
+    "xd_xc": "0.886±0.05"
+   }
+  },
+  {
+   "id": "cypher",
+   "name": "Cypher Harmonic (Bullish)",
+   "category": "하모닉",
+   "difficulty": 3,
+   "status": "holding",
+   "detector_file": "detector_cypher.py",
+   "ratios": {
+    "ab_xa": "0.382-0.618",
+    "bc_ab": "1.272-1.414",
+    "xd_xc": "0.786±0.05"
+   }
+  },
+  {
+   "id": "three_soldiers_4h",
+   "name": "Three White Soldiers (4h)",
+   "category": "momentum_4h",
+   "difficulty": 2,
+   "status": "passed",
+   "detector_file": "detector_three_soldiers_4h.py",
+   "passed_tf": "4h",
+   "n": 908,
+   "mean": 0.0104,
+   "median": 0.0097,
+   "oos_positive": 3,
+   "oos_quarters": 4,
+   "baseline_p": 0.0001,
+   "baseline_excess_mean": 0.0133,
+   "passed_date": "2026-06-29",
+   "regime_routing": "bull_btc/bull_altseason -> long; bear/sideways -> skip",
+   "note": "4h 전용 모멘텀. Q4(2025-26 bear) 음수, 레짐 필터 필수."
+  },
+  {
+   "id": "bat_1h",
+   "name": "Bullish Bat (1h)",
+   "category": "harmonic_1h",
+   "status": "passed",
+   "detector_file": "detector_bat.py",
+   "passed_tf": "1h",
+   "n": 108,
+   "mean": 0.0146,
+   "median": 0.0099,
+   "oos_positive": 4,
+   "oos_quarters": 4,
+   "baseline_p": 0.034,
+   "passed_date": "2026-06-29",
+   "regime_routing": "all regimes -> long (OOS Q4도 +2.33%로 레짐 무관 강건)",
+   "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요."
+  },
+  {
+   "id": "butterfly_1h",
+   "name": "Bullish Butterfly (1h)",
+   "category": "harmonic_1h",
+   "status": "passed",
+   "detector_file": "detector_butterfly.py",
+   "passed_tf": "1h",
+   "n": 161,
+   "mean": 0.0159,
+   "median": 0.0117,
+   "oos_positive": 4,
+   "oos_quarters": 4,
+   "baseline_p": 0.024,
+   "passed_date": "2026-06-29",
+   "regime_routing": "all regimes -> long (OOS 4/4 전구간 양수)",
+   "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상."
+  },
+  {
+   "id": "triple_bottom_4h",
+   "name": "Triple Bottom Breakout (4h)",
+   "category": "패턴",
+   "status": "passed",
+   "detector_file": "detector_triple_bottom.py",
+   "passed_tf": "4h",
+   "n": 269,
+   "mean": 0.01657,
+   "median": 0.01013,
+   "t_p": 0.0009,
+   "baseline_p": 0.035,
+   "oos_positive": 2,
+   "oos_quarters": 4,
+   "passed_date": "2026-08-29",
+   "regime_routing": "all regimes -> long (검증구간 대부분 bear, Q4 bear +5.31%)",
+   "note": "사용자 지정 패턴(차트 5장) 데이터화: 스윙저점 3개 + ATR×2.5 깊이 + 넥라인 돌파 + 거래량 1.5배. 15m/1h/1d/1w 및 거울상(triple_top) 전 셀 기각 — 4h 롱만 통과. 1w는 mean +11.1%/boot_p 0.000이나 신호 83%가 단일 분기 집중(OOS 1/4)으로 기각, 데이터 누적 후 재시험 가치. 구 triple_bottom_desc(1d 하강형)와 별개 정의."
+  }
+ ],
+ "rejected_4h": [
+  {
+   "id": "three_crows_4h",
+   "status": "rejected",
+   "tf": "4h",
+   "direction": "short",
+   "n": 573,
+   "mean": -0.0119,
+   "note": "mean<0 전체(-1.19%). 레짐 조건부 재검증(2026-06-29): bear+alt n=169 mean=-0.20%, bear전용 mean=+0.36% 유의성없음(boot_p=0.436), altseason 더 나쁨(-2.01%). 최종 기각.",
+   "retest_date": "2026-06-29"
+  },
+  {
+   "id": "breakout_retest_4h",
+   "status": "rejected",
+   "tf": "4h",
+   "direction": "long",
+   "n": 25729,
+   "mean": 0.0037,
+   "note": "median<0 (-0.23%), 중앙값 게이트 탈락"
+  },
+  {
+   "id": "equal_highs_4h",
+   "status": "rejected",
+   "tf": "4h",
+   "direction": "short",
+   "n": 6962,
+   "mean": -0.0026,
+   "note": "mean<0"
+  },
+  {
+   "id": "equal_lows_4h",
+   "status": "rejected",
+   "tf": "4h",
+   "direction": "long",
+   "n": 6618,
+   "mean": -0.0048,
+   "note": "mean<0"
+  },
+  {
+   "id": "vwap_rev_long_4h",
+   "status": "rejected",
+   "tf": "4h",
+   "direction": "long",
+   "n": 31005,
+   "mean": -0.0025,
+   "note": "mean<0"
+  },
+  {
+   "id": "vwap_rev_short_4h",
+   "status": "rejected",
+   "tf": "4h",
+   "direction": "short",
+   "n": 28537,
+   "mean": -0.0006,
+   "note": "mean<0"
+  }
+ ],
+ "rejected_1h": [
+  {
+   "id": "three_soldiers_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 2107,
+   "mean": 0.28,
+   "note": "boot_p=0.270 유의성없음"
+  },
+  {
+   "id": "three_crows_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 1623,
+   "mean": 0.38,
+   "note": "median<0, boot_p=0.247"
+  },
+  {
+   "id": "engulfing_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 16791,
+   "mean": -0.23,
+   "note": "mean<0, OOS 0/4"
+  },
+  {
+   "id": "inverted_hammer_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 34061,
+   "mean": -0.08,
+   "note": "mean<0, OOS 0/4"
+  },
+  {
+   "id": "fvg_long_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 56977,
+   "mean": 0.06,
+   "note": "median<0, boot_p=0.372"
+  },
+  {
+   "id": "fvg_short_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 56977,
+   "mean": -0.46,
+   "note": "mean<0, OOS 0/4"
+  },
+  {
+   "id": "gartley_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 290,
+   "mean": 0.91,
+   "note": "boot_p=0.092 유의성 경계"
+  },
+  {
+   "id": "vwap_rev_long_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 41793,
+   "mean": -0.09,
+   "note": "mean<0, OOS 1/4"
+  },
+  {
+   "id": "vwap_rev_short_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 38984,
+   "mean": -0.19,
+   "note": "mean<0, OOS 1/4"
+  },
+  {
+   "id": "breakout_retest_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 51316,
+   "mean": -0.05,
+   "note": "median<0, boot_p=0.434"
+  },
+  {
+   "id": "bb_zscore_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 14699,
+   "mean": -0.16,
+   "note": "mean<=0, median<=0, boot_p=0.460, OOS 0/4<2"
+  },
+  {
+   "id": "bb_zscore_short_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 10217,
+   "mean": -0.05,
+   "note": "mean<=0, median<=0, boot_p=0.424"
+  },
+  {
+   "id": "rsi_extreme_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 4281,
+   "mean": -0.25,
+   "note": "mean<=0, median<=0, boot_p=0.518"
+  },
+  {
+   "id": "rsi_extreme_short_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 3316,
+   "mean": -0.38,
+   "note": "mean<=0, boot_p=0.602, OOS 0/4<2"
+  }
+ ]
 }
