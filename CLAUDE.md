@@ -29,6 +29,14 @@
   **inverted_hammer에서 2/3 우위(+8.32% vs +4.04%, Calmar 2배)** → 데이터 누적 후
   '해당 패턴 한정 G' 재검토 가치. H(HH 3봉실패) 전 패턴 0/3(조기청산). 참고: 손절 공유
   방식은 MDD 동률이라 3축 전승 구조적 불가 (method_g/h.py, report.md)
+- **≤1h 단타 5축 전수 기각** (2026-08-29): 횡단면반전/펀딩극단/청산캐스케이드/
+  시간대/거래량쇼크 15셀 전부 REJECTED. **선행 발견: 하위 TF 기존 판정은 측정
+  오류** — 동결 라벨(±10%/20봉)이 1h에서 배리어 도달률 0%(전부 시간초과)라
+  측정값이 '랜덤−수수료'로 수렴. 무엣지 랜덤워크 mean −0.218% ≈ 실측 15m −0.234%.
+  하위TF 전용 프레임 신설(intraday_lab.py: ±1.5ATR 배리어, TF별 보유한도,
+  수수료마진 게이트). 재측정 후에도 5축 전부 베이스라인(−0.25%)과 구분 불가.
+  유일 실마리: cascade_fade_long_1h (n=85 mean +6.04% boot_p 0.000이나 Q1 집중
+  OOS 1/4 → 고변동성 국면 조건부 추정, 재시험 1순위). report_intraday.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -68,6 +76,7 @@
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
+- [ ] cascade_fade_long_1h 조건부 재시험 (1h 3년 연장 + 고변동성 국면 한정)
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
 - [ ] gartley_1h 재시험 (데이터 누적 후, 현재 boot_p=0.092)
 - [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)

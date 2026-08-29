@@ -969,5 +969,158 @@
    "mean": -0.38,
    "note": "mean<=0, boot_p=0.602, OOS 0/4<2"
   }
- ]
+ ],
+ "rejected_intraday_2026_08": [
+  {
+   "id": "cs_reversal_1h_long",
+   "tf": "1h",
+   "direction": "long",
+   "n": 52404,
+   "mean_pct": -0.279,
+   "boot_p": 0.52,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "cs_reversal_1h_short",
+   "tf": "1h",
+   "direction": "short",
+   "n": 52404,
+   "mean_pct": -0.083,
+   "boot_p": 0.426,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "cs_reversal_15m_long",
+   "tf": "15m",
+   "direction": "long",
+   "n": 34379,
+   "mean_pct": -0.198,
+   "boot_p": 0.463,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "cs_reversal_15m_short",
+   "tf": "15m",
+   "direction": "short",
+   "n": 34379,
+   "mean_pct": -0.176,
+   "boot_p": 0.438,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "funding_low_long_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 861,
+   "mean_pct": -0.449,
+   "boot_p": 0.728,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "funding_high_short_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 861,
+   "mean_pct": 0.045,
+   "boot_p": 0.266,
+   "oos_pos": 3,
+   "note": "REJECTED(수수료마진)"
+  },
+  {
+   "id": "cascade_fade_long_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 85,
+   "mean_pct": 6.043,
+   "boot_p": 0.0,
+   "oos_pos": 1,
+   "note": "REJECTED(OOS집중·재시험1순위)"
+  },
+  {
+   "id": "cascade_fade_short_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 62,
+   "mean_pct": 0.177,
+   "boot_p": 0.151,
+   "oos_pos": 2,
+   "note": "REJECTED"
+  },
+  {
+   "id": "cascade_fade_long_15m",
+   "tf": "15m",
+   "direction": "long",
+   "n": 96,
+   "mean_pct": 0.083,
+   "boot_p": 0.013,
+   "oos_pos": 2,
+   "note": "REJECTED(수수료마진)"
+  },
+  {
+   "id": "cascade_fade_short_15m",
+   "tf": "15m",
+   "direction": "short",
+   "n": 49,
+   "mean_pct": -0.28,
+   "boot_p": 0.773,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "time_of_day_best_14utc",
+   "tf": "1h",
+   "direction": "long",
+   "n": 24388,
+   "mean_pct": -0.237,
+   "boot_p": 0.471,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "vol_shock_long_1h",
+   "tf": "1h",
+   "direction": "long",
+   "n": 13275,
+   "mean_pct": -0.271,
+   "boot_p": 0.508,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "vol_shock_short_1h",
+   "tf": "1h",
+   "direction": "short",
+   "n": 14368,
+   "mean_pct": -0.174,
+   "boot_p": 0.532,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "vol_shock_long_15m",
+   "tf": "15m",
+   "direction": "long",
+   "n": 9407,
+   "mean_pct": -0.236,
+   "boot_p": 0.596,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  },
+  {
+   "id": "vol_shock_short_15m",
+   "tf": "15m",
+   "direction": "short",
+   "n": 9711,
+   "mean_pct": -0.237,
+   "boot_p": 0.646,
+   "oos_pos": 0,
+   "note": "REJECTED"
+  }
+ ],
+ "rejected_intraday_note": "2026-08-29 ≤1h 단타 5축(횡단면반전/펀딩극단/청산캐스케이드/시간대/거래량쇼크) 15셀 전수 기각. ATR 배리어 라벨 + 수수료마진 게이트(intraday_lab.py) 적용. 베이스라인(무작위 롱 진입) 자체가 -0.25%라 대부분 셀이 무작위와 구분 불가. 유일 실마리: cascade_fade_long_1h (mean +6.04%, boot_p 0.000이나 85건 중 56건이 Q1 집중 → 고변동성 국면 조건부로 추정, 데이터 연장 후 재시험 1순위). report_intraday.md"
 }
