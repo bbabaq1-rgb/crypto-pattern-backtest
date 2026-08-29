@@ -28,6 +28,10 @@ import detector_triple_top as tt
 SEED = 42
 BOOT_N = 1000
 FETCH_TFS = ["1d", "4h", "1h", "15m"]
+# 연장 검증 윈도 (2026-08-29 2차): 1차는 스케줄러 동결 윈도(1d900/4h130/1h40)를
+# 그대로 써서 4h 통과 셀이 130일(bear 단일 레짐)만 검증됨 — 레포 기존 4h 패턴
+# (three_soldiers, 2021~2026 5년)보다 약한 기준. 거래소가 주는 만큼 최대 수집.
+FETCH_WINDOWS = {"1d": 1800, "4h": 1100, "1h": 365, "15m": 45}
 ALL_TFS = ["15m", "1h", "4h", "1d", "1w", "1M"]
 PATTERNS = [("triple_bottom", tb.detect, "long"),
             ("triple_top", tt.detect, "short")]
@@ -42,13 +46,15 @@ def fetch_all(syms):
     for tf in FETCH_TFS:
         t0, ok, new = time.time(), 0, 0
         for s in syms:
-            n_new, total = fetch_data.update_csv(f"{s}/USDT", tf,
-                                                 f"data/{s.lower()}_{tf}.csv")
+            n_new, total = fetch_data.update_csv(
+                f"{s}/USDT", tf, f"data/{s.lower()}_{tf}.csv",
+                window_days=FETCH_WINDOWS.get(tf))
             if total > 0:
                 ok += 1
                 new += n_new
         print(f"[fetch] {tf}: {ok}/{len(syms)}종목 +{new}봉 "
-              f"({time.time()-t0:.0f}s)", flush=True)
+              f"({time.time()-t0:.0f}s, window={FETCH_WINDOWS.get(tf)}d)",
+              flush=True)
 
 
 def load_tf(sym, tf):

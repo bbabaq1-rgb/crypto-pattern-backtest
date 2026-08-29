@@ -19,7 +19,7 @@ on:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 50   # 연장 윈도(1d 1800d/4h 1100d/1h 365d) fetch 여유
     steps:
       - name: Checkout
         uses: actions/checkout@v4
