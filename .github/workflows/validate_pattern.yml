@@ -5,6 +5,16 @@ name: Pattern Validation (research)
 
 on:
   workflow_dispatch:
+  # 연구 브랜치 push로도 실행 — REST API(rate limit) 없이 git push만으로
+  # 검증을 발화시키는 경로. master push에는 반응하지 않음.
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_triple_pattern.py"
+      - "detector_triple_bottom.py"
+      - "detector_triple_top.py"
+      - ".github/workflows/validate_pattern.yml"
 
 jobs:
   validate:
