@@ -41,6 +41,10 @@ def _auto_fetch(sym, tf):
 
 
 def load_ohlcv(sym, tf="1d"):
+    # 1w/1M은 별도 CSV 없이 1d 리샘플 (triple_bottom_1w 등 상위 TF 패턴용).
+    # scheduler 신호탐지·paper_executor 청산평가가 같은 경로를 쓴다.
+    if tf in ("1w", "1M"):
+        return resample_rows(load_ohlcv(sym, "1d"), tf)
     path = CSV(sym, tf)
     if not __import__("os").path.exists(path):
         _auto_fetch(sym, tf)

@@ -235,7 +235,7 @@
    "module": "detector_triple_bottom",
    "pattern": "triple_bottom",
    "direction": "long",
-   "tf": "4h"
+   "tf": "1w"
   }
  ],
  "candle_results": {
