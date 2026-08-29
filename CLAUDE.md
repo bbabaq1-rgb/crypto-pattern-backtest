@@ -35,7 +35,8 @@
 - **실거래 안전장치** (2026-07-06): MAX_LIVE_POS 12(사용자 승인 5→12) ·
   킬스위치(equity < $100 → 신규 진입 중지, paper_executor.EQUITY_FLOOR —
   2026-08-29 사용자 지정 절대 하한. 기존 HWM 대비 -20%($230.06) 규칙은 폐기) ·
-  손절 algo 주문 매 실행 자동점검(ensure_stop_orders, 누락 시 재등록) ·
+  손절 algo 주문 매 실행 자동점검(ensure_stop_orders — 누락 시 재등록 +
+  포지션 없는 고아 주문 취소, 주문은 reduceOnly 청산 전용. 2026-08-29) ·
   텔레그램 알림(notify.py — TELEGRAM_BOT_TOKEN/CHAT_ID secrets 등록 시 활성)
 - **멀티 TF 확증**: 1d 신호 → 4h 최근 3봉 확증. 비확증 시 size 50% 축소
 - **RS 필터 폐기** (2026-07-08): 상대강도(relative_strength.py)는 rs_score 계산·표시만.

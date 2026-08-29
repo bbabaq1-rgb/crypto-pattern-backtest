@@ -409,11 +409,16 @@ def run(stamp=None):
         positions, okx_closed = reconcile_closed_positions(positions, trades, live_conn)
 
         # 안전망 1: 손절(algo) 주문 상시 점검 — 누락 포지션에 재등록
-        fixed_sl = ex_mod.ensure_stop_orders(live_conn)
+        fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn)
         if fixed_sl:
             import notify
             notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
                         "\n".join(f"  {s}: SL @ {px}" for s, px in fixed_sl))
+        # 안전망 1-b: 포지션 없는 고아 손절 주문 취소(트리거 시 신규 진입 방지)
+        if orphan_sl:
+            import notify
+            notify.send("🧹 <b>고아 손절 주문 취소</b>(대응 포지션 없음)\n" +
+                        "\n".join(f"  {inst}" for inst, _ in orphan_sl))
 
         # 안전망 2: 계좌 킬스위치 — equity가 하한선(EQUITY_FLOOR) 미만이면 신규 중지
         bal = ex_mod.get_balance(live_conn)

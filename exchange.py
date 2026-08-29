@@ -226,24 +226,62 @@ def get_okx_positions(live_conn):
         return []
 
 
+def place_stop_algo(ex, inst_id, close_side, qty, sl_px):
+    """
+    conditional 손절 algo 주문 등록 (진입 직후·누락 재등록 공용).
+
+    reduceOnly=True 를 붙여 '청산 전용'으로 만든다. 이게 없으면 포지션이 사라진 뒤
+    남은 주문이 트리거될 때 청산이 아니라 신규 진입이 된다
+    (2026-08-29 실계좌에서 포지션 0인데 살아있는 고아 손절 7건 발견).
+    계정 설정에 따라 reduceOnly 가 거부될 수 있어 1회만 폴백하고 경고를 남긴다
+    (폴백분은 ensure_stop_orders 의 고아 청소가 뒤에서 회수한다).
+    반환: OKX 응답 dict.
+    """
+    params = {
+        "instId":          inst_id,
+        "tdMode":          OKX_MARGIN_MODE,
+        "side":            close_side,
+        "ordType":         "conditional",
+        "sz":              str(qty),
+        "reduceOnly":      True,          # 청산 전용 — 고아 주문의 신규 진입 방지
+        "slTriggerPx":     str(sl_px),
+        "slOrdPx":         "-1",          # -1 = 시장가 체결
+        "slTriggerPxType": "last",
+    }
+    resp = ex.privatePostTradeOrderAlgo(params)
+    if str(resp.get("code")) != "0":
+        print(f"  [SL] {inst_id} reduceOnly 거부 → 폴백 재시도: {str(resp)[:80]}")
+        params.pop("reduceOnly", None)
+        resp = ex.privatePostTradeOrderAlgo(params)
+    return resp
+
+
 def ensure_stop_orders(live_conn, stop_pct=0.08):
     """
-    안전망: 모든 오픈 포지션에 손절(algo) 주문이 걸려 있는지 점검, 없으면 재등록.
+    안전망: 오픈 포지션의 손절(algo) 주문 점검·재등록 + 고아 손절 주문 취소.
 
-    '손절 주문 없으면 실거래 절대 안 됨' 원칙의 상시 자동 점검(과거엔 수동 감사 의존).
-    - 기존 주문은 절대 취소/수정하지 않음 — 누락된 포지션에만 추가.
-    - 손절가 = 진입가 ±stop_pct (방식D 정책과 동일, 가격 기준).
-    반환: [(symbol, stop_px), ...] 재등록 목록. 실패는 출력만(파이프라인 비차단).
+    1) 손절 누락 재등록 — '손절 주문 없으면 실거래 절대 안 됨' 원칙의 상시 점검.
+       기존 주문은 취소/수정하지 않고 누락된 포지션에만 추가.
+       손절가 = 진입가 ±stop_pct (방식D 정책과 동일, 가격 기준).
+    2) 고아 취소 — 대응 포지션이 없는데 살아있는 손절 주문 제거.
+       reduceOnly 없이 등록된 과거 주문은 트리거 시 신규 진입이 되므로,
+       잔고가 들어오는 순간 의도치 않은 포지션이 열린다(2026-08-29 7건 발견).
+       포지션 조회가 실패하면 전부 고아로 오판할 수 있어 취소를 통째로 스킵한다.
+    반환: (fixed, cancelled)
+      fixed     = [(symbol, stop_px), ...]  재등록 목록
+      cancelled = [(instId, algoId), ...]   취소한 고아 주문
+    실패는 출력만(파이프라인 비차단).
     """
-    fixed = []
+    fixed, cancelled = [], []
     try:
         ex = live_conn["exchange"]
         poss = get_okx_positions(live_conn)
-        if not poss:
-            return fixed
         resp = ex.privateGetTradeOrdersAlgoPending({"ordType": "conditional"})
-        covered = {o.get("instId") for o in resp.get("data", [])
-                   if o.get("state") == "live" and o.get("slTriggerPx")}
+        pending = [o for o in (resp.get("data") or [])
+                   if o.get("state") == "live" and o.get("slTriggerPx")]
+        covered = {o.get("instId") for o in pending}
+
+        # 1) 포지션에 손절 누락 → 재등록
         for p in poss:
             inst = f"{p['symbol']}-USDT-SWAP"
             if inst in covered:
@@ -254,22 +292,44 @@ def ensure_stop_orders(live_conn, stop_pct=0.08):
             sl_px = float(ex.price_to_precision(ccxt_sym, sl_px))
             close_side = "sell" if d == "long" else "buy"
             try:
-                r = ex.privatePostTradeOrderAlgo({
-                    "instId": inst, "tdMode": OKX_MARGIN_MODE, "side": close_side,
-                    "ordType": "conditional", "sz": str(p["qty"]),
-                    "slTriggerPx": str(sl_px), "slOrdPx": "-1",
-                    "slTriggerPxType": "last",
-                })
-                if r.get("code") == "0":
+                r = place_stop_algo(ex, inst, close_side, p["qty"], sl_px)
+                if str(r.get("code")) == "0":
                     fixed.append((p["symbol"], sl_px))
                     print(f"  [SL점검] {p['symbol']} 손절 누락 → 재등록 @ {sl_px}")
                 else:
                     print(f"  [SL점검] {p['symbol']} 재등록 실패: {str(r)[:80]}")
             except Exception as e:
                 print(f"  [SL점검] {p['symbol']} 재등록 오류: {str(e)[:60]}")
+
+        # 2) 포지션 없는 고아 손절 → 취소
+        #    포지션 조회 성공이 전제 — 실패 시 살아있는 손절까지 지울 수 있어 스킵.
+        if pending:
+            try:
+                live_inst = {(p.get("info") or {}).get("instId")
+                             for p in ex.fetch_positions()
+                             if abs(float(p.get("contracts") or 0)) > 0}
+            except Exception as e:
+                live_inst = None
+                print(f"  [SL점검] 포지션 조회 실패 → 고아 취소 스킵: {str(e)[:60]}")
+            if live_inst is not None:
+                for o in pending:
+                    inst, algo_id = o.get("instId"), o.get("algoId")
+                    if inst in live_inst:
+                        continue
+                    try:
+                        r = ex.privatePostTradeCancelAlgos(
+                            [{"algoId": str(algo_id), "instId": inst}])
+                        if str(r.get("code")) == "0":
+                            cancelled.append((inst, algo_id))
+                            print(f"  [SL점검] 고아 손절 취소: {inst} "
+                                  f"(algoId={algo_id}, 포지션 없음)")
+                        else:
+                            print(f"  [SL점검] {inst} 고아 취소 실패: {str(r)[:80]}")
+                    except Exception as e:
+                        print(f"  [SL점검] {inst} 고아 취소 오류: {str(e)[:60]}")
     except Exception as e:
         print(f"  [SL점검] 점검 실패(무시): {str(e)[:60]}")
-    return fixed
+    return fixed, cancelled
 
 
 def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
@@ -358,17 +418,8 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
     sl_price = float(ex.price_to_precision(ccxt_sym, stop_px))
     try:
         inst_id = ex.market_id(ccxt_sym)   # "SOL-USDT-SWAP" 형식
-        resp    = ex.privatePostTradeOrderAlgo({
-            "instId":          inst_id,
-            "tdMode":          OKX_MARGIN_MODE,
-            "side":            close_side,
-            "ordType":         "conditional",
-            "sz":              str(filled_qty),
-            "slTriggerPx":     str(sl_price),
-            "slOrdPx":         "-1",         # -1 = 시장가 체결
-            "slTriggerPxType": "last",
-        })
-        if resp.get("code") != "0":
+        resp    = place_stop_algo(ex, inst_id, close_side, filled_qty, sl_price)
+        if str(resp.get("code")) != "0":
             raise Exception(str(resp))
         sl_id = resp["data"][0]["algoId"]
     except Exception as sl_err:
