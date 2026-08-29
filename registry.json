@@ -797,6 +797,31 @@
    "passed_date": "2026-08-29",
    "regime_routing": "all regimes -> long",
    "note": "2차 연장 검증(1d 5년 리샘플, 주봉 ~260봉/종목)에서 통과. 1차(900일) 기각 사유였던 '단일 분기 집중'은 데이터 부족 탓으로 판명 — 표본 54→141, Q2(2022-12~) 78건 +8.5% / Q3(~2025-05) 55건 +10.1% 두 분위 양수. 신호=주봉 넥라인 돌파, 1d 리샘플로 탐지(detlib)."
+  },
+  {
+   "id": "cascade_fade_long_1h",
+   "name": "Liquidation Cascade Fade (1h, long)",
+   "category": "intraday",
+   "status": "passed_not_deployed",
+   "detector_file": "validate_cascade.py",
+   "passed_tf": "1h",
+   "n": 312,
+   "mean": 0.02426,
+   "median": 0.01166,
+   "t_p": 0.0,
+   "baseline_p": 0.0,
+   "oos_positive": 3,
+   "oos_quarters": 4,
+   "passed_date": "2026-08-29",
+   "label_frame": "intraday_lab: ±1.5xATR14 배리어 / 12봉(12h) 보유 / 수수료 0.2%",
+   "entry_rule": "1h봉 하락폭>=2.5xATR14 + 거래량>=20봉평균x3 + 종가가 봉범위 40%+ 회복 → 롱",
+   "robustness": {
+    "top5_share": 0.108,
+    "trimmed_mean_10pct": 0.01874,
+    "sensitivity": "2.0ATR/2.5x/0.3 → n=1278 mean +0.01% (엣지 소멸), 2.5/3.0/0.4(동결) → n=312 +2.43%, 3.0/4.0/0.5 → n=74 +5.04% (단조 — 엄격할수록 강함)"
+   },
+   "not_deployed_reason": "게이트는 통과했으나 현 실행 엔진이 검증 조건을 재현 불가: (1) 스케줄러 4h 주기 + Actions 지연 10~90분 → 1h 캐스케이드 진입 시점 이탈, (2) eval_D는 TF 무관 MAX_HOLD_D=30봉·±8% 손절, eval_A는 ±10%/20봉 — 검증한 ±1.5ATR(~0.75~1.5%)/12h와 불일치, (3) 실거래 algo 손절도 ±8% 고정. 등재 시 검증과 다른 전략이 돌아간다. adopted_patterns 미등록 — 실행 인프라 선결.",
+   "note": "1차(365일) n=85 +6.04% OOS 1/4 기각 → 2차 사전등록 재시험에서 무조건부 3년 통과. 고변동성 조건부(H2)는 신호 312건 중 245건이 이미 고변동 국면이라 조건 추가의 실익 없음 — 무조건부로 성립. 최근 분기(Q4) n=27 mean -0.26%는 주의. report_intraday.md"
   }
  ],
  "rejected_4h": [

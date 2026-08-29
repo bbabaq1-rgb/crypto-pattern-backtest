@@ -35,8 +35,13 @@
   측정값이 '랜덤−수수료'로 수렴. 무엣지 랜덤워크 mean −0.218% ≈ 실측 15m −0.234%.
   하위TF 전용 프레임 신설(intraday_lab.py: ±1.5ATR 배리어, TF별 보유한도,
   수수료마진 게이트). 재측정 후에도 5축 전부 베이스라인(−0.25%)과 구분 불가.
-  유일 실마리: cascade_fade_long_1h (n=85 mean +6.04% boot_p 0.000이나 Q1 집중
-  OOS 1/4 → 고변동성 국면 조건부 추정, 재시험 1순위). report_intraday.md
+  유일 실마리였던 cascade_fade_long_1h는 **2차 사전등록 재시험(1h 3년)에서
+  통과** — n=312, mean +2.43%, median +1.17%, boot_p 0.000, OOS 3/4,
+  절사평균 +1.87%(상위5거래 기여 10.8%). 고변동성 조건은 불필요(신호 79%가
+  이미 고변동 국면). **단 배포 불가 — registry는 passed_not_deployed**:
+  스케줄러 4h 주기·Actions 지연 10~90분으로 진입시점 이탈, eval_D/eval_A의
+  ±8~10% 손절·30/20봉 보유가 검증치(±1.5ATR/12h)와 5~10배 불일치.
+  실행 인프라(상시 서버 + 하위TF 청산 경로) 선결. report_intraday.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -76,7 +81,8 @@
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
-- [ ] cascade_fade_long_1h 조건부 재시험 (1h 3년 연장 + 고변동성 국면 한정)
+- [ ] cascade_fade_long_1h 실행 인프라 (상시 서버 + ATR 배리어 청산 경로)
+      — 패턴 검증은 완료(2026-08-29), 배포만 남음
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
 - [ ] gartley_1h 재시험 (데이터 누적 후, 현재 boot_p=0.092)
 - [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)
