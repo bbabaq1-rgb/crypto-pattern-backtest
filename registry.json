@@ -820,8 +820,19 @@
     "trimmed_mean_10pct": 0.01874,
     "sensitivity": "2.0ATR/2.5x/0.3 → n=1278 mean +0.01% (엣지 소멸), 2.5/3.0/0.4(동결) → n=312 +2.43%, 3.0/4.0/0.5 → n=74 +5.04% (단조 — 엄격할수록 강함)"
    },
-   "not_deployed_reason": "게이트는 통과했으나 현 실행 엔진이 검증 조건을 재현 불가: (1) 스케줄러 4h 주기 + Actions 지연 10~90분 → 1h 캐스케이드 진입 시점 이탈, (2) eval_D는 TF 무관 MAX_HOLD_D=30봉·±8% 손절, eval_A는 ±10%/20봉 — 검증한 ±1.5ATR(~0.75~1.5%)/12h와 불일치, (3) 실거래 algo 손절도 ±8% 고정. 등재 시 검증과 다른 전략이 돌아간다. adopted_patterns 미등록 — 실행 인프라 선결.",
-   "note": "1차(365일) n=85 +6.04% OOS 1/4 기각 → 2차 사전등록 재시험에서 무조건부 3년 통과. 고변동성 조건부(H2)는 신호 312건 중 245건이 이미 고변동 국면이라 조건 추가의 실익 없음 — 무조건부로 성립. 최근 분기(Q4) n=27 mean -0.26%는 주의. report_intraday.md"
+   "not_deployed_reason": "게이트는 통과했으나 배포 선결조건이 남음. **청산 경로는 2026-08-30 구축 완료** — exit_spec(±1.5ATR14/12봉) 기반 eval_I 청산기, 진입 시 OKX OCO 브래킷(손절+익절) 등록으로 스케줄러 지연과 무관하게 배리어 집행, ensure_stop_orders 가 포지션 기록 손절가로 재등록, 봉 식별을 date→ts 로 교정(1h 진입봉 오인식 해소). **남은 blocker: (1) 진입 경로** — 디텍터 모듈(detector_cascade_fade_1h.py) 미작성이고 scheduler 가 이 패턴을 탐지하지 않음, **(2) 실행 주기** — 스케줄러 4h 주기 + Actions 지연 10~90분이라 1h 캐스케이드 봉 마감 직후 진입 불가(상시 실행 환경 필요), **(3) 진입 지연 민감도 재검증** — 실제 진입 지연을 반영한 재측정 미실시. adopted_patterns 미등록 유지.",
+   "note": "1차(365일) n=85 +6.04% OOS 1/4 기각 → 2차 사전등록 재시험에서 무조건부 3년 통과. 고변동성 조건부(H2)는 신호 312건 중 245건이 이미 고변동 국면이라 조건 추가의 실익 없음 — 무조건부로 성립. 최근 분기(Q4) n=27 mean -0.26%는 주의. report_intraday.md",
+   "exit_spec": {
+    "type": "atr_barrier",
+    "tf": "1h",
+    "k_atr": 1.5,
+    "atr_period": 14,
+    "horizon_bars": 12,
+    "fee": 0.002,
+    "source": "intraday_lab.outcome_atr — 검증에 쓴 라벨과 동일 규칙",
+    "execution": "진입 시 OKX OCO 브래킷(손절+익절) 등록 → 스케줄러 지연과 무관하게 배리어 집행. 시간청산(12봉)만 엔진이 담당."
+   },
+   "exit_path_status": "ready (2026-08-30) — paper_executor.eval_I + exchange OCO 브래킷, test_intraday_exit.py"
   }
  ],
  "rejected_4h": [

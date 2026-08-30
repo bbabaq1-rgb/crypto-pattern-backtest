@@ -494,6 +494,7 @@ def run_once(do_fetch=True, quick=False):
                 tf_conf = _tf_confirm(sym, d)
                 signals.append(dict(
                     pattern=pat, direction=d, symbol=sym, date=rows[last]["date"],
+                    ts=rows[last].get("ts"),
                     strength_vol_ratio=vr, pattern_strength=ps, regime=regime,
                     entry=round(entry, 4), stop=stop_px,
                     tf_confirmed=tf_conf,
@@ -529,7 +530,8 @@ def run_once(do_fetch=True, quick=False):
                 stop_px = round(entry * (1 - 0.08), 4) if dd == "long" else round(entry * (1 + 0.08), 4)
                 tf_conf = _tf_confirm(sym, dd) if ap_tf == "1d" else True
                 signals.append(dict(pattern=ap["pattern"], direction=dd, symbol=sym,
-                                    date=rows[last]["date"], strength_vol_ratio=vr,
+                                    date=rows[last]["date"], ts=rows[last].get("ts"),
+                                    strength_vol_ratio=vr,
                                     pattern_strength=ps, regime=regime,
                                     entry=round(entry, 4), stop=stop_px,
                                     tf_confirmed=tf_conf, tf=ap_tf,
@@ -559,7 +561,8 @@ def run_once(do_fetch=True, quick=False):
                 stop4   = round(entry4 * (1 - STOP), 4)
                 signals.append(dict(
                     pattern=ap["pattern"], direction=adopted4h_dir, symbol=sym, tf="4h",
-                    date=rows4h[last4]["date"], pattern_strength=1.0,
+                    date=rows4h[last4]["date"], ts=rows4h[last4].get("ts"),
+                    pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
                     entry=round(entry4, 4), stop=stop4,
                     tf_confirmed=True,
@@ -589,7 +592,8 @@ def run_once(do_fetch=True, quick=False):
                 stop1  = round(entry1 * (1 - STOP), 4)
                 signals.append(dict(
                     pattern=ap["pattern"], direction=ap["direction"], symbol=sym, tf="1h",
-                    date=rows1h[last1]["date"], pattern_strength=1.0,
+                    date=rows1h[last1]["date"], ts=rows1h[last1].get("ts"),
+                    pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
                     entry=round(entry1, 4), stop=stop1,
                     tf_confirmed=True,
@@ -619,7 +623,8 @@ def run_once(do_fetch=True, quick=False):
                 stop_px = round(entry * (1 - STOP), 4)
                 signals.append(dict(
                     pattern=pat, direction=harmonic_dir, symbol=sym, tf=HARMONIC_TF,
-                    date=rows4h[last]["date"], pattern_strength=1.0,
+                    date=rows4h[last]["date"], ts=rows4h[last].get("ts"),
+                    pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
                     entry=round(entry, 4), stop=stop_px,
                     take_profit="레짐전환 or 최대30봉 시가청산"))

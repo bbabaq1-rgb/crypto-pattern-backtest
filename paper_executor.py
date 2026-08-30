@@ -16,6 +16,7 @@ import importlib
 from datetime import datetime, timezone
 
 import detlib
+import intraday_lab as ilab
 import regime_switch as rs
 import exchange as ex_mod
 
@@ -25,9 +26,36 @@ POS_USD = CAPITAL * POS_PCT   # $40 (시뮬레이션 포지션당 고정)
 STOP = 0.08
 MAX_HOLD_D = 30
 MAX_HOLD_A = 20
-# TF별 방식D 최대보유(향후 하위TF 통과 대비 준비값). 현재 검증 통과 TF는 1d뿐.
+# (구) TF별 방식D 최대보유 준비값. **의도적으로 미사용** — 이 값을 eval_D에 꽂으면
+# 이미 배포된 4h/1h 패턴(three_soldiers_4h, bat_1h, butterfly_1h)의 청산 규칙이
+# 검증 당시(동결 라벨 20봉/방식D 30봉)와 달라진다. 하위 TF 보유한도는 검증 프레임과
+# 같은 값을 쓰는 EXIT_SPECS(ATR 배리어 경로)에서만 적용한다.
 MAX_HOLD_BY_TF = {"1d": 30, "4h": 20, "1h": 48, "15m": 120}
 FEE = detlib.FEE
+
+# ── ATR 배리어 청산 경로 (하위 TF 전용) ────────────────────────────────────────
+# 기존 방식A(±10%/20봉)·방식D(±8%/30봉)는 1d 기준으로 동결된 규칙이라 1h 이하
+# 패턴에는 검증치와 5~10배 어긋난다(±1.5ATR ≈ 0.75~1.5% vs ±8%).
+# registry.json 의 exit_spec 이 있는 패턴만 ATR 배리어로 청산한다 —
+# 즉 등재된 1d/4h/1w/1h 기존 패턴의 청산 동작은 이 변경으로 바뀌지 않는다.
+EXIT_SPEC_FILE = "registry.json"
+
+
+def load_exit_specs(path=EXIT_SPEC_FILE):
+    """{pattern_id: exit_spec} — registry 에 exit_spec 이 명시된 패턴만."""
+    try:
+        reg = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return {}
+    out = {}
+    for p in reg.get("patterns", []):
+        spec = p.get("exit_spec")
+        if spec and p.get("id"):
+            out[p["id"]] = spec
+    return out
+
+
+EXIT_SPECS = load_exit_specs()
 
 # 실거래 포지션 사이징 규칙
 MAX_LIVE_POS   = 12    # 동시 최대 실거래 포지션 (2026-07-06 사용자 승인으로 5→12 상향)
@@ -112,10 +140,79 @@ def eval_A(rows, ei, direction):
     return None
 
 
+def eval_I(rows, ei, direction, stop_px, target_px, horizon):
+    """
+    ATR 배리어 청산 (하위 TF 전용) — intraday_lab.outcome_atr 과 동일 규칙.
+
+    배리어는 '진입 시점에 확정된 가격'(stop_px/target_px)을 그대로 쓴다.
+    ATR을 매 실행 재계산하지 않는 이유: 실제 OKX 에 걸려 있는 OCO 주문의 트리거가
+    그 가격이라, 재계산하면 장부와 거래소가 어긋난다.
+
+    - 봉 내 고저(h/l)로 판정, 같은 봉에서 양쪽 다 닿으면 보수적으로 손절 우선
+      (검증 프레임 outcome_atr 과 동일)
+    - horizon 봉 경과 시 종가 시간청산
+    반환: (j, exit_px, ret, reason) | None
+    """
+    if not stop_px or not target_px:
+        return None
+    base = rows[ei]["c"]
+    last = len(rows) - 1
+    end = min(ei + horizon, last)
+    for j in range(ei + 1, end + 1):
+        hi, lo = rows[j]["h"], rows[j]["l"]
+        if direction == "long":
+            if lo <= stop_px:
+                return j, stop_px, (stop_px / base - 1) - FEE, "atr_stop"
+            if hi >= target_px:
+                return j, target_px, (target_px / base - 1) - FEE, "atr_target"
+        else:
+            if hi >= stop_px:
+                return j, stop_px, (base - stop_px) / base - FEE, "atr_stop"
+            if lo <= target_px:
+                return j, target_px, (base - target_px) / base - FEE, "atr_target"
+    if last >= ei + horizon:
+        c = rows[end]["c"]
+        r = (c / base - 1) if direction == "long" else (base - c) / base
+        return end, c, r - FEE, "atr_timestop"
+    return None
+
+
+def barriers_of(pos):
+    """
+    포지션의 (손절가, 익절가). 익절가는 미기록 시 손절 거리 대칭으로 복원한다.
+
+    ±k×ATR 브래킷은 진입가 기준 양쪽 거리가 같으므로
+    target = entry + (entry - stop) (롱) 으로 정확히 되살릴 수 있다.
+    Supabase positions 테이블에 target 컬럼이 없어(복원 시 유실) 필요한 폴백.
+    """
+    stop = pos.get("stop")
+    tgt = pos.get("target")
+    entry = pos.get("entry_price")
+    if tgt is None and stop is not None and entry:
+        tgt = entry + (entry - stop)      # 롱/숏 모두 부호가 알아서 맞는다
+    return stop, tgt
+
+
 def _date_idx(rows, date):
     for i, r in enumerate(rows):
         if r["date"] == date:
             return i
+    return None
+
+
+def _bar_idx(rows, entry_ts=None, entry_date=None):
+    """
+    진입봉 인덱스. ts(ms)가 있으면 그것으로 정확히 찾고, 없으면 date 폴백.
+
+    date 폴백은 1h/15m 에서 하루 24/96 봉이 같은 date 라 그날 첫 봉을 가리킨다
+    (구 포지션·DB 복원분 호환용). 신규 포지션은 항상 entry_ts 를 기록한다.
+    """
+    if entry_ts:
+        for i, r in enumerate(rows):
+            if r.get("ts") == entry_ts:
+                return i
+    if entry_date:
+        return _date_idx(rows, entry_date)
     return None
 
 
@@ -186,6 +283,9 @@ def push_positions_db(new_positions):
     rows = [{"symbol": p["symbol"], "pattern": p["pattern"], "direction": p["direction"],
              "entry_date": p["entry_date"], "entry_price": p["entry_price"],
              "stop_loss": p.get("stop"), "size_usd": p.get("size_usd"),
+             # 하위 TF ATR 배리어용 — 컬럼 미존재 시 insert_tolerant 가 자동 제외.
+             # target 이 유실돼도 barriers_of() 가 손절 거리 대칭으로 복원한다.
+             "target": p.get("target"), "entry_ts": p.get("entry_ts"),
              "live_mode": bool(p.get("live_mode", False)),
              "status": "open",
              "method": "AD-LIVE" if p.get("live_mode") else "AD"} for p in new_positions]
@@ -282,7 +382,9 @@ def restore_state_db(positions, trades):
                     symbol=p["symbol"], direction=p["direction"], pattern=p["pattern"],
                     regime=p.get("regime"), tf=_derive_tf(p["pattern"]),
                     entry_date=p["entry_date"],
+                    entry_ts=p.get("entry_ts"),
                     entry_price=p.get("entry_price"), stop=p.get("stop_loss"),
+                    target=p.get("target"),
                     size_usd=p.get("size_usd") or POS_USD,
                     live_mode=is_live,
                     d_closed=key + ("D",) in closed_am,
@@ -409,7 +511,22 @@ def run(stamp=None):
         positions, okx_closed = reconcile_closed_positions(positions, trades, live_conn)
 
         # 안전망 1: 손절(algo) 주문 상시 점검 — 누락 포지션에 재등록
-        fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn)
+        # 재등록 시 '포지션에 기록된 손절가'를 쓰도록 전달. 없으면 종전대로 ±8%.
+        # (ATR 배리어 패턴은 손절이 0.75~1.5%라 ±8% 재등록이 검증치와 5~10배 어긋난다)
+        # target 은 ATR 배리어 패턴에만 준다 — 기존 1d/4h 패턴에 익절 주문을 붙이면
+        # 검증된 적 없는 청산 규칙이 실계좌에서 돌아간다.
+        stop_map = {}
+        for p in positions:
+            if not p.get("live_mode"):
+                continue
+            s, t = barriers_of(p)
+            if not s:
+                continue
+            stop_map[p["symbol"]] = {
+                "stop": s,
+                "target": t if p["pattern"] in EXIT_SPECS else None,
+            }
+        fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn, stop_map=stop_map)
         if fixed_sl:
             import notify
             notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
@@ -442,14 +559,23 @@ def run(stamp=None):
         rows = rows_of(pos["symbol"], pos.get("tf", "1d"))
         if rows is None:          # 데이터 미수집 종목(OKX 미상장 등) -> 포지션 유지
             still_open.append(pos); continue
-        ei = _date_idx(rows, pos["entry_date"])
+        ei = _bar_idx(rows, pos.get("entry_ts"), pos["entry_date"])
         if ei is None:
             still_open.append(pos); continue
         pos["entry_idx"] = ei
+        spec = EXIT_SPECS.get(pos["pattern"])
+        if spec:
+            # ATR 배리어 경로: 방식A/D 비교는 1d 구조물이라 의미 없음 → A는 닫힌 것으로 표시
+            pos["a_closed"] = True
         oppname = OPP.get((pos["pattern"], pos["direction"]))
         opp_set = set(importlib.import_module(oppname).detect(rows)) if oppname else set()
         if not pos.get("d_closed"):
-            ex = eval_D(rows, ei, pos["direction"], opp_set, regmap)
+            if spec:
+                stop_px, target_px = barriers_of(pos)
+                ex = eval_I(rows, ei, pos["direction"], stop_px, target_px,
+                            spec.get("horizon_bars", MAX_HOLD_A))
+            else:
+                ex = eval_D(rows, ei, pos["direction"], opp_set, regmap)
             if ex:
                 do_record = True
                 if pos.get("live_mode"):
@@ -509,15 +635,32 @@ def run(stamp=None):
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:
             continue
-        ei = _date_idx(rows, s["date"])
+        ei = _bar_idx(rows, s.get("ts"), s["date"])
         if ei is None:
             continue
+        # 중복 진입 방어 키는 date 단위 유지 — 하위 TF에서는 '심볼·패턴당 하루 1회'
+        # 라는 보수적 상한으로 작동한다(같은 날 여러 봉 신호 시 첫 건만).
         key = (s["symbol"], s["pattern"], s["direction"], s["date"])
         if key in openkeys or key in closedkeys:
             continue
 
         entry   = rows[ei]["c"]
-        stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
+        spec    = EXIT_SPECS.get(s["pattern"])
+        target_px = None
+        if spec:
+            # ATR 배리어 패턴: 손절·익절 모두 검증 프레임과 같은 ±k×ATR 로 산출.
+            # ATR을 못 구하면(데이터 부족) 청산 규칙 자체가 정의되지 않으므로 진입 안 함.
+            atr = ilab.atr_series(rows, spec.get("atr_period", 14))[ei]
+            if not atr or atr <= 0:
+                print(f"  [skip] {s['symbol']} {s['pattern']} ATR 산출 불가 — 진입 스킵")
+                continue
+            dist = spec.get("k_atr", ilab.K_ATR) * atr
+            if s["direction"] == "long":
+                stop_px, target_px = entry - dist, entry + dist
+            else:
+                stop_px, target_px = entry + dist, entry - dist
+        else:
+            stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
 
         live_info    = {}
         # 앙상블 Grade 기반 사이징: A×1.5 / B×1.0 / C×0.7 / D×0.5
@@ -565,7 +708,7 @@ def run(stamp=None):
 
             result, reason = ex_mod.place_swap_entry(
                 live_conn, s["symbol"], s["direction"], stop_px,
-                size_usd=live_size_usd,
+                size_usd=live_size_usd, target_px=target_px,
             )
             if result is None:
                 print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
@@ -575,6 +718,8 @@ def run(stamp=None):
                 # 실체결 기준으로 기록 (신호가와 체결가 불일치 방지)
                 entry        = result["entry_price"]
                 stop_px      = result["stop_price"]
+                if result.get("target_price"):
+                    target_px = result["target_price"]
                 size_for_pos = result.get("size_usd", live_size_usd)
                 live_open_count   += 1
                 live_filled_count += 1
@@ -602,9 +747,16 @@ def run(stamp=None):
               f"{s['symbol']} {fired} {s['direction']}{multi_str} ${size_for_pos:.0f}")
         p = dict(symbol=s["symbol"], direction=s["direction"], pattern=s["pattern"],
                  regime=s.get("regime"), tf=s.get("tf", "1d"),
-                 entry_date=s["date"], entry_idx=ei,
-                 entry_price=round(entry, 4), stop=round(stop_px, 4),
-                 size_usd=size_for_pos, d_closed=False, a_closed=False, **live_info)
+                 entry_date=s["date"], entry_ts=s.get("ts") or rows[ei].get("ts"),
+                 entry_idx=ei,
+                 entry_price=round(entry, 4),
+                 # ATR 배리어는 거리가 0.75~1.5%로 좁아 4자리 반올림이 저가 코인에서
+                 # 배리어를 유의미하게 왜곡한다 → spec 패턴만 8자리 보존.
+                 stop=round(stop_px, 8 if spec else 4),
+                 target=(round(target_px, 8) if target_px else None),
+                 size_usd=size_for_pos, d_closed=False,
+                 a_closed=bool(spec),      # ATR 경로는 방식A 병행 비교 없음
+                 **live_info)
         still_open.append(p); new_positions.append(p); new += 1
 
     # JSON은 항상 저장(로컬 폴백/원천)

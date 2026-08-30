@@ -226,9 +226,15 @@ def get_okx_positions(live_conn):
         return []
 
 
-def place_stop_algo(ex, inst_id, close_side, qty, sl_px):
+def place_stop_algo(ex, inst_id, close_side, qty, sl_px, tp_px=None):
     """
-    conditional 손절 algo 주문 등록 (진입 직후·누락 재등록 공용).
+    청산 algo 주문 등록 (진입 직후·누락 재등록 공용).
+
+    tp_px 가 없으면 손절만(ordType=conditional), 있으면 손절+익절 OCO 브래킷
+    (ordType=oco). OCO를 쓰는 이유: 하위 TF ATR 배리어(±1.5×ATR ≈ 0.75~1.5%)는
+    스케줄러 주기(4h)와 Actions 지연(10~90분) 안에 양방향 모두 통과해 버려서,
+    엔진이 봉을 읽고 청산하는 방식으로는 검증된 배리어를 집행할 수 없다.
+    익절도 거래소에 미리 걸어두면 스케줄러 지연과 무관하게 집행된다.
 
     reduceOnly=True 를 붙여 '청산 전용'으로 만든다. 이게 없으면 포지션이 사라진 뒤
     남은 주문이 트리거될 때 청산이 아니라 신규 진입이 된다
@@ -241,13 +247,19 @@ def place_stop_algo(ex, inst_id, close_side, qty, sl_px):
         "instId":          inst_id,
         "tdMode":          OKX_MARGIN_MODE,
         "side":            close_side,
-        "ordType":         "conditional",
+        "ordType":         "oco" if tp_px else "conditional",
         "sz":              str(qty),
         "reduceOnly":      True,          # 청산 전용 — 고아 주문의 신규 진입 방지
         "slTriggerPx":     str(sl_px),
         "slOrdPx":         "-1",          # -1 = 시장가 체결
         "slTriggerPxType": "last",
     }
+    if tp_px:
+        params.update({
+            "tpTriggerPx":     str(tp_px),
+            "tpOrdPx":         "-1",
+            "tpTriggerPxType": "last",
+        })
     resp = ex.privatePostTradeOrderAlgo(params)
     if str(resp.get("code")) != "0":
         print(f"  [SL] {inst_id} reduceOnly 거부 → 폴백 재시도: {str(resp)[:80]}")
@@ -256,13 +268,16 @@ def place_stop_algo(ex, inst_id, close_side, qty, sl_px):
     return resp
 
 
-def ensure_stop_orders(live_conn, stop_pct=0.08):
+def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None):
     """
     안전망: 오픈 포지션의 손절(algo) 주문 점검·재등록 + 고아 손절 주문 취소.
 
     1) 손절 누락 재등록 — '손절 주문 없으면 실거래 절대 안 됨' 원칙의 상시 점검.
        기존 주문은 취소/수정하지 않고 누락된 포지션에만 추가.
-       손절가 = 진입가 ±stop_pct (방식D 정책과 동일, 가격 기준).
+       손절가는 stop_map[symbol]["stop"] (엔진 포지션에 기록된 값)을 우선 사용하고,
+       없을 때만 진입가 ±stop_pct 로 되돌린다. 하위 TF ATR 배리어 패턴은 손절이
+       0.75~1.5%라 ±8% 로 재등록하면 검증된 것과 다른 전략이 돌아간다.
+       stop_map[symbol]["target"] 이 있으면 익절까지 OCO 로 함께 재등록한다.
     2) 고아 취소 — 대응 포지션이 없는데 살아있는 손절 주문 제거.
        reduceOnly 없이 등록된 과거 주문은 트리거 시 신규 진입이 되므로,
        잔고가 들어오는 순간 의도치 않은 포지션이 열린다(2026-08-29 7건 발견).
@@ -273,12 +288,27 @@ def ensure_stop_orders(live_conn, stop_pct=0.08):
     실패는 출력만(파이프라인 비차단).
     """
     fixed, cancelled = [], []
+    stop_map = stop_map or {}
     try:
         ex = live_conn["exchange"]
         poss = get_okx_positions(live_conn)
-        resp = ex.privateGetTradeOrdersAlgoPending({"ordType": "conditional"})
-        pending = [o for o in (resp.get("data") or [])
-                   if o.get("state") == "live" and o.get("slTriggerPx")]
+        # conditional 과 oco 를 모두 조회 — oco 브래킷을 빠뜨리면 이미 손절이 걸린
+        # 포지션에 중복 등록하고, 고아 청소가 살아있는 oco 를 놓친다.
+        pending, seen_algo = [], set()
+        for ord_type in ("conditional", "oco"):
+            try:
+                resp = ex.privateGetTradeOrdersAlgoPending({"ordType": ord_type})
+            except Exception as e:
+                print(f"  [SL점검] {ord_type} 조회 실패: {str(e)[:60]}")
+                continue
+            for o in (resp.get("data") or []):
+                if o.get("state") != "live" or not o.get("slTriggerPx"):
+                    continue
+                aid = o.get("algoId")
+                if aid in seen_algo:      # 두 조회에 같은 주문이 걸리면 1건으로
+                    continue              # (중복 취소 시도 방지)
+                seen_algo.add(aid)
+                pending.append(o)
         covered = {o.get("instId") for o in pending}
 
         # 1) 포지션에 손절 누락 → 재등록
@@ -287,12 +317,17 @@ def ensure_stop_orders(live_conn, stop_pct=0.08):
             if inst in covered:
                 continue
             entry, d = p["entry_price"], p["direction"]
-            sl_px = entry * (1 - stop_pct) if d == "long" else entry * (1 + stop_pct)
+            rec = stop_map.get(p["symbol"]) or {}
+            sl_raw = rec.get("stop")
+            if not sl_raw:   # 엔진 기록이 없을 때만 ±stop_pct 폴백
+                sl_raw = entry * (1 - stop_pct) if d == "long" else entry * (1 + stop_pct)
             ccxt_sym = f"{p['symbol']}/USDT:USDT"
-            sl_px = float(ex.price_to_precision(ccxt_sym, sl_px))
+            sl_px = float(ex.price_to_precision(ccxt_sym, sl_raw))
+            tp_raw = rec.get("target")
+            tp_px = float(ex.price_to_precision(ccxt_sym, tp_raw)) if tp_raw else None
             close_side = "sell" if d == "long" else "buy"
             try:
-                r = place_stop_algo(ex, inst, close_side, p["qty"], sl_px)
+                r = place_stop_algo(ex, inst, close_side, p["qty"], sl_px, tp_px=tp_px)
                 if str(r.get("code")) == "0":
                     fixed.append((p["symbol"], sl_px))
                     print(f"  [SL점검] {p['symbol']} 손절 누락 → 재등록 @ {sl_px}")
@@ -332,18 +367,21 @@ def ensure_stop_orders(live_conn, stop_pct=0.08):
     return fixed, cancelled
 
 
-def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
+def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
+                     target_px=None):
     """
     OKX USDT 무기한 선물 시장가 진입 + OKX algo 손절 주문 동시 제출.
 
     direction : 'long' 또는 'short'
     stop_px   : 손절 트리거 가격
+    target_px : 익절 트리거 가격(선택). 주면 손절+익절 OCO 브래킷으로 등록한다.
+                하위 TF ATR 배리어 패턴 전용 — 기존 1d/4h 패턴은 None(손절만).
     size_usd  : 마진 금액 (잔고 부족 시 가용잔고 90%로 자동 조정, $10 미만 스킵)
 
     성공 → (result_dict, "ok")
     실패 → (None, reason_str)
     result_dict 키: entry_order_id, sl_order_id, entry_price, qty,
-                    stop_price, direction, leverage, size_usd
+                    stop_price, target_price, direction, leverage, size_usd
     """
     if direction not in ("long", "short"):
         return None, f"invalid_direction:{direction}"
@@ -416,9 +454,11 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
     # OKX code 50015 원인: create_order의 stopLoss dict 형식이 algo endpoint와 불일치
     # → POST /api/v5/trade/order-algo 직접 호출로 교체
     sl_price = float(ex.price_to_precision(ccxt_sym, stop_px))
+    tp_price = float(ex.price_to_precision(ccxt_sym, target_px)) if target_px else None
     try:
         inst_id = ex.market_id(ccxt_sym)   # "SOL-USDT-SWAP" 형식
-        resp    = place_stop_algo(ex, inst_id, close_side, filled_qty, sl_price)
+        resp    = place_stop_algo(ex, inst_id, close_side, filled_qty, sl_price,
+                                  tp_px=tp_price)
         if str(resp.get("code")) != "0":
             raise Exception(str(resp))
         sl_id = resp["data"][0]["algoId"]
@@ -440,6 +480,7 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0):
         "entry_price":    filled_price,
         "qty":            filled_qty,
         "stop_price":     sl_price,
+        "target_price":   tp_price,
         "direction":      direction,
         "leverage":       OKX_LEVERAGE,
         "size_usd":       eff_size,

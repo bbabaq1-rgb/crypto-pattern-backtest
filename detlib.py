@@ -53,7 +53,9 @@ def load_ohlcv(sym, tf="1d"):
         for r in csv.DictReader(f):
             ts = int(float(r["timestamp"]))
             d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
-            rows.append(dict(date=d, o=float(r["open"]), h=float(r["high"]),
+            # ts(ms) 병기 — date만으로는 하위 TF에서 봉을 특정할 수 없다(1h는 하루 24행이
+            # 같은 date). paper_executor 가 진입봉을 ts로 정확히 찾는 데 쓴다.
+            rows.append(dict(ts=ts, date=d, o=float(r["open"]), h=float(r["high"]),
                              l=float(r["low"]), c=float(r["close"]),
                              v=float(r["volume"])))
     return rows
@@ -127,8 +129,8 @@ def resample_rows(rows, rule):
         if k != cur_key:
             if cur:
                 out.append(cur)
-            cur = dict(date=r["date"], o=r["o"], h=r["h"], l=r["l"],
-                       c=r["c"], v=r["v"])
+            cur = dict(ts=r.get("ts"), date=r["date"], o=r["o"], h=r["h"],
+                       l=r["l"], c=r["c"], v=r["v"])
             cur_key = k
         else:
             cur["h"] = max(cur["h"], r["h"])
