@@ -1,0 +1,44 @@
+name: Intraday Study (research)
+
+# 연구 전용 — ≤1h 단타 후보 5종 일괄 검증 (S1~S5).
+# 매매/DB 접근 없음(공개 시세·펀딩만 수집). 결과는 로그 + 아티팩트.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_intraday.py"
+      - "intraday_lab.py"
+      - ".github/workflows/validate_intraday.yml"
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90   # 1h 365일 + 15m 60일 + 펀딩 이력 수집 포함
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Run intraday studies
+        run: python validate_intraday.py
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intraday-results-${{ github.run_number }}
+          path: _intraday_results.json
+          if-no-files-found: ignore

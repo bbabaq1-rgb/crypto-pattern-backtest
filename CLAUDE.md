@@ -29,6 +29,36 @@
   **inverted_hammer에서 2/3 우위(+8.32% vs +4.04%, Calmar 2배)** → 데이터 누적 후
   '해당 패턴 한정 G' 재검토 가치. H(HH 3봉실패) 전 패턴 0/3(조기청산). 참고: 손절 공유
   방식은 MDD 동률이라 3축 전승 구조적 불가 (method_g/h.py, report.md)
+- **≤1h 단타 5축 전수 기각** (2026-08-29): 횡단면반전/펀딩극단/청산캐스케이드/
+  시간대/거래량쇼크 15셀 전부 REJECTED. **선행 발견: 하위 TF 기존 판정은 측정
+  오류** — 동결 라벨(±10%/20봉)이 1h에서 배리어 도달률 0%(전부 시간초과)라
+  측정값이 '랜덤−수수료'로 수렴. 무엣지 랜덤워크 mean −0.218% ≈ 실측 15m −0.234%.
+  하위TF 전용 프레임 신설(intraday_lab.py: ±1.5ATR 배리어, TF별 보유한도,
+  수수료마진 게이트). 재측정 후에도 5축 전부 베이스라인(−0.25%)과 구분 불가.
+  유일 실마리였던 cascade_fade_long_1h는 **2차 사전등록 재시험(1h 3년)에서
+  통과** — n=312, mean +2.43%, median +1.17%, boot_p 0.000, OOS 3/4,
+  절사평균 +1.87%(상위5거래 기여 10.8%). 고변동성 조건은 불필요(신호 79%가
+  이미 고변동 국면). **단 배포 불가 — registry는 passed_not_deployed**:
+  스케줄러 4h 주기·Actions 지연 10~90분으로 진입시점 이탈, eval_D/eval_A의
+  ±8~10% 손절·30/20봉 보유가 검증치(±1.5ATR/12h)와 5~10배 불일치.
+  실행 인프라(상시 서버 + 하위TF 청산 경로) 선결. report_intraday.md
+- **하위 TF 청산 경로 구축** (2026-08-30): registry `exit_spec` 이 있는 패턴만
+  ATR 배리어로 청산하는 별도 경로 신설 — 기존 1d/4h/1w/1h 등재 패턴의 청산
+  동작은 불변(exit_spec 없음 → eval_D/eval_A 그대로).
+  · `paper_executor.eval_I` — 진입 시 확정된 ±1.5×ATR14 배리어 + 12봉 시간청산.
+    검증 프레임 `intraday_lab.outcome_atr` 과 수익률 완전 일치(테스트로 고정).
+  · **거래소측 OCO 브래킷** — 진입 시 손절+익절을 OKX algo(ordType=oco)로 동시
+    등록. ±1.5ATR(≈0.75~1.5%)는 스케줄러 4h 주기 안에 양방향 다 지나가므로
+    엔진이 봉을 읽어 청산하는 방식으로는 집행 불가 → 거래소에 미리 걸어둔다.
+    엔진이 담당하는 건 시간청산(12봉)뿐.
+  · `ensure_stop_orders(stop_map=)` — 재등록 시 **포지션에 기록된 손절가** 사용
+    (종전 ±8% 고정은 ATR 패턴에서 검증치와 5~10배 어긋남). oco 주문도 pending
+    조회에 포함(중복 등록·고아 오인 방지), algoId 중복 제거.
+  · **봉 식별 date→ts 교정** — `load_ohlcv` 에 ts 병기, 신호·포지션에 ts 기록.
+    1h는 하루 24행이 같은 date 라 기존 `_date_idx` 가 그날 **첫 봉**을 진입봉으로
+    잡던 문제(배포된 bat_1h/butterfly_1h에도 해당) 해소. 구 포지션은 date 폴백.
+  · `MAX_HOLD_BY_TF` 는 **의도적으로 계속 미사용** — eval_D에 꽂으면 배포된
+    4h/1h 패턴의 청산 규칙이 검증 당시와 달라진다. test_intraday_exit.py (42+7건)
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -68,6 +98,12 @@
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
+- [x] cascade_fade_long_1h **청산 경로** (ATR 배리어 + 거래소 OCO 브래킷, 2026-08-30)
+- [ ] cascade_fade_long_1h 진입 경로 — detector_cascade_fade_1h.py 작성 +
+      scheduler 탐지 등록 (현재 검증 로직이 validate_cascade.py 안에만 있음)
+- [ ] cascade_fade_long_1h 상시 실행 환경 — 1h 봉 마감 직후 수 분 내 진입
+      (현재 Actions 4h 주기 + 지연 10~90분)
+- [ ] cascade_fade_long_1h 진입 지연 민감도 재검증 → 통과 시 adopted_patterns 등재
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
 - [ ] gartley_1h 재시험 (데이터 누적 후, 현재 boot_p=0.092)
 - [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)
@@ -84,6 +120,9 @@
 - regime_switch.py: 레짐 판정
 - orchestrator.py: 패턴 검증 루프
 - method_d.py: 방식A vs D 비교 + Calmar 게이트 (method_d.json 출력)
+- paper_executor.eval_I / exchange.place_stop_algo(tp_px=): 하위TF ATR 배리어 청산
+  + OKX OCO 브래킷. 라우팅은 registry.json 의 exit_spec 유무로만 결정
+- test_intraday_exit.py: 청산 경로 테스트 (신규 경로 + 기존 경로 무변화 e2e)
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
