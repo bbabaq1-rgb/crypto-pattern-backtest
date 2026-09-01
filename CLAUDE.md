@@ -74,6 +74,26 @@
     잡던 문제(배포된 bat_1h/butterfly_1h에도 해당) 해소. 구 포지션은 date 폴백.
   · `MAX_HOLD_BY_TF` 는 **의도적으로 계속 미사용** — eval_D에 꽂으면 배포된
     4h/1h 패턴의 청산 규칙이 검증 당시와 달라진다. test_intraday_exit.py (42+7건)
+- **캐스케이드 진입 지연 민감도** (2026-09-01): cascade_fade_long_1h 배포 선결조건 측정.
+  신호는 고정하고 진입 봉만 뒤로 밀어(배리어·보유한도 모두 진입시점 재계산) 감쇠를 측정.
+  d=0 이 1차 검증(n=312 +2.43%)을 정확히 재현 — 정합성 확인.
+  · **엣지가 시간당 약 25% 감쇠**: d0 +2.43%(PASSED) / d1 +1.88%(PASSED) /
+    d2 +1.09%(기각) / d3 +0.07% / d12 **-1.53%**(부호 역전, boot_p 1.000)
+  · **현행 4h 주기(평균 지연 2.6~3.6h)는 전 조건 기각** — mean 은 +0.59~0.78%로
+    boot_p 0.001~0.007(여전히 유의)이나 **중앙값이 음수**(-0.24~-0.37%)라 게이트 미달.
+    지연되면 소수 대박 의존 형태로 변질(1차의 '상위5거래 10.8%' 건전 분포가 무너짐).
+  · **판정 DELAY_SENSITIVE** — 엣지는 실재하나 **1시간 이내 진입이 배포 필수조건**.
+    이제 기술 문제가 아니라 투자 판단. 단 d=1 자체가 23% 감쇠값이라 여유 작음.
+    validate_cascade_delay.py / test_cascade_delay.py / report_followup_2026_09.md
+- **inverted_hammer 한정 청산(G/T10) 기각** (2026-09-01): 방식G(2026-07-06)와
+  방식T10(2026-09-01)이 IH 에서만 방식D를 이겨 반복적으로 보였으나, **사후 선택된 셀**이라
+  '특별하다'를 반증하는 3종 시험을 설계. 결과 **T10 1/3, G 0/3 → NOISE, 추격 중단**.
+  · 시간분할: T10 전반 -0.33%/후반 +0.72%, G 전반 +2.39%/후반 -1.00% (둘 다 부호 역전)
+  · 부트스트랩 CI: T10 [-2.19%,+2.34%], G [-1.99%,+4.03%] — 둘 다 0 포함
+  · 대조군: T10 은 IH 1위지만 +0.2%로 2위와 동률, G 는 triple_bottom(+18.3%)이 IH(+0.7%) 압도
+  · 짝지음으로 재면 IH 우위가 +0.20~0.68%p 에 불과. 2026-07-06 의 'G +8.32% vs D +4.04%'는
+    현 데이터·프레임에서 재현 안 됨 — '두 규칙이 같은 패턴에서 신호' 관찰 자체가 착시.
+    validate_ih_exit.py / report_followup_2026_09.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -116,9 +136,10 @@
 - [x] cascade_fade_long_1h **청산 경로** (ATR 배리어 + 거래소 OCO 브래킷, 2026-08-30)
 - [ ] cascade_fade_long_1h 진입 경로 — detector_cascade_fade_1h.py 작성 +
       scheduler 탐지 등록 (현재 검증 로직이 validate_cascade.py 안에만 있음)
-- [ ] cascade_fade_long_1h 상시 실행 환경 — 1h 봉 마감 직후 수 분 내 진입
-      (현재 Actions 4h 주기 + 지연 10~90분)
-- [ ] cascade_fade_long_1h 진입 지연 민감도 재검증 → 통과 시 adopted_patterns 등재
+- [x] cascade_fade_long_1h 진입 지연 민감도 (2026-09-01) — **1h 이내 진입 필수** 확인
+- [ ] cascade_fade_long_1h 상시 실행 환경 — **1시간 이내 진입 보장** 필요(투자 판단).
+      d=1 +1.88% 통과 / d=2 +1.09% 기각이라 여유가 작다
+- [ ] 상시 환경 확보 시 실측 지연으로 최종 확인 → 통과하면 adopted_patterns 등재
 - [ ] crab/shark/cypher 재시험 (데이터 누적 후)
 - [ ] gartley_1h 재시험 (데이터 누적 후, 현재 boot_p=0.092)
 - [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)
@@ -139,6 +160,8 @@
   + OKX OCO 브래킷. 라우팅은 registry.json 의 exit_spec 유무로만 결정
 - test_intraday_exit.py: 청산 경로 테스트 (신규 경로 + 기존 경로 무변화 e2e)
 - method_t.py: 고정 익절 arm 시험 (짝지음 비교 + 회전율 반영 자산곡선). 기각 기록용
+- validate_cascade_delay.py: 캐스케이드 진입 지연 민감도 (고정지연 + 실제 스케줄러 격자)
+- validate_ih_exit.py: 사후 선택된 셀의 반증 시험 3종 (시간분할/부트스트랩CI/대조군)
 - test_method_t.py: method_t 로직 검증 (자산곡선이 회전율 차이를 잡는지 포함)
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
