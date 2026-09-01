@@ -134,8 +134,9 @@
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [x] cascade_fade_long_1h **청산 경로** (ATR 배리어 + 거래소 OCO 브래킷, 2026-08-30)
-- [ ] cascade_fade_long_1h 진입 경로 — detector_cascade_fade_1h.py 작성 +
-      scheduler 탐지 등록 (현재 검증 로직이 validate_cascade.py 안에만 있음)
+- [x] cascade_fade_long_1h **진입 경로** (2026-09-01) — detector_cascade_fade_1h.py +
+      scheduler exit_spec 연동. 신호 집합이 검증 조건과 완전 일치(테스트 고정).
+      **활성화는 adopted_1h_patterns 에 한 줄 추가** — 단 1h 이내 진입 보장 전엔 금지
 - [x] cascade_fade_long_1h 진입 지연 민감도 (2026-09-01) — **1h 이내 진입 필수** 확인
 - [ ] cascade_fade_long_1h 상시 실행 환경 — **1시간 이내 진입 보장** 필요(투자 판단).
       d=1 +1.88% 통과 / d=2 +1.09% 기각이라 여유가 작다
@@ -162,6 +163,9 @@
 - method_t.py: 고정 익절 arm 시험 (짝지음 비교 + 회전율 반영 자산곡선). 기각 기록용
 - validate_cascade_delay.py: 캐스케이드 진입 지연 민감도 (고정지연 + 실제 스케줄러 격자)
 - validate_ih_exit.py: 사후 선택된 셀의 반증 시험 3종 (시간분할/부트스트랩CI/대조군)
+- detector_cascade_fade_1h.py: 캐스케이드 페이드 진입 디텍터 (동결 2.5ATR/3.0배/0.40).
+  **evaluate 미노출** — 동결 ±10% 라벨은 1h에서 무의미해 orchestrator 오적용 방지
+- test_cascade_detector.py: 신호 집합이 validate_cascade 조건과 일치 + 스케줄러 연동 검증
 - test_method_t.py: method_t 로직 검증 (자산곡선이 회전율 차이를 잡는지 포함)
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터

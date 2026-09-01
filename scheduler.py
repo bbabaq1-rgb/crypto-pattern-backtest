@@ -112,6 +112,28 @@ def _1h_symbols():
     return syms if syms else SYMBOLS
 
 
+_EXIT_SPECS: dict | None = None
+
+
+def _exit_specs():
+    """
+    registry.json 의 exit_spec — 하위 TF ATR 배리어 패턴의 청산 규격.
+
+    paper_executor.load_exit_specs 와 같은 원천을 읽는다. 스케줄러는 이 값으로
+    신호의 손절/익절 표시가를 맞춘다. 이게 없으면 ±8% 로 표기돼 실제 집행값
+    (±1.5xATR ≈ 0.75~1.5%)과 5~10배 어긋난 알림이 나간다.
+    """
+    global _EXIT_SPECS
+    if _EXIT_SPECS is None:
+        try:
+            reg = json.load(open("registry.json", encoding="utf-8"))
+            _EXIT_SPECS = {p["id"]: p["exit_spec"] for p in reg.get("patterns", [])
+                           if p.get("exit_spec") and p.get("id")}
+        except Exception:
+            _EXIT_SPECS = {}
+    return _EXIT_SPECS
+
+
 EXCHANGES = ["binance", "bybit", "okx"]   # 451 지역차단 시 순서대로 폴백
 
 # ── 앙상블 스코어링 설정 ─────────────────────────────────────────────────────
@@ -130,6 +152,9 @@ PATTERN_PVAL = {
     "bat":               0.001,     # 4h
     "butterfly":         0.001,     # 4h
     "three_soldiers_4h": 0.0001,
+    # 미배포(passed_not_deployed) — 1시간 이내 진입 보장 시에만 활성화.
+    # 활성화 경로: universe.json 의 adopted_1h_patterns 에 추가.
+    "cascade_fade_long_1h": 0.0001,   # 2차 재시험 boot_p 0.000
     "bat_1h":            0.034,     # boot_p
     "butterfly_1h":      0.024,     # boot_p
     "triple_bottom":     0.023,     # boot_p (1w, 2026-08-29 2차 검증 PASSED — 4h는 3년치 재검증서 기각)
@@ -589,15 +614,35 @@ def run_once(do_fetch=True, quick=False):
                 if last1 not in set(mod1.detect(rows1h)):
                     continue
                 entry1 = rows1h[last1]["c"]
-                stop1  = round(entry1 * (1 - STOP), 4)
+                # exit_spec 이 있는 패턴(하위TF ATR 배리어)은 손절·익절을 ATR 로
+                # 산출한다. paper_executor 가 진입 시 같은 식으로 다시 계산하므로
+                # 값이 일치하며, 여기서 맞춰야 알림·대시보드 표기가 실제 집행과 같다.
+                spec1 = _exit_specs().get(ap["pattern"])
+                target1 = None
+                if spec1:
+                    import intraday_lab as _ilab
+                    atr1 = _ilab.atr_series(rows1h, spec1.get("atr_period", 14))[last1]
+                    if not atr1 or atr1 <= 0:
+                        continue          # ATR 미산출 → 청산 규칙 정의 불가, 스킵
+                    dist1 = spec1.get("k_atr", 1.5) * atr1
+                    if ap["direction"] == "long":
+                        stop1, target1 = entry1 - dist1, entry1 + dist1
+                    else:
+                        stop1, target1 = entry1 + dist1, entry1 - dist1
+                    stop1, target1 = round(stop1, 8), round(target1, 8)
+                    tp_txt = (f"±{spec1.get('k_atr', 1.5)}xATR{spec1.get('atr_period', 14)} "
+                              f"거래소 OCO 브래킷 / {spec1.get('horizon_bars', 12)}봉 시간청산")
+                else:
+                    stop1 = round(entry1 * (1 - STOP), 4)
+                    tp_txt = "레짐전환 or 최대20봉 시가청산"
                 signals.append(dict(
                     pattern=ap["pattern"], direction=ap["direction"], symbol=sym, tf="1h",
                     date=rows1h[last1]["date"], ts=rows1h[last1].get("ts"),
                     pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
-                    entry=round(entry1, 4), stop=stop1,
+                    entry=round(entry1, 4), stop=stop1, target=target1,
                     tf_confirmed=True,
-                    take_profit="레짐전환 or 최대20봉 시가청산"))
+                    take_profit=tp_txt))
 
     # 하모닉 4h 신호 탐지 (gartley / bat / butterfly)
     # 레짐 라우팅: bull_btc → long, 나머지 → 숏 디텍터 없으므로 스킵
