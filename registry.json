@@ -803,7 +803,7 @@
    "name": "Liquidation Cascade Fade (1h, long)",
    "category": "intraday",
    "status": "passed_not_deployed",
-   "detector_file": "validate_cascade.py",
+   "detector_file": "detector_cascade_fade_1h.py",
    "passed_tf": "1h",
    "n": 312,
    "mean": 0.02426,
@@ -833,7 +833,14 @@
     "execution": "진입 시 OKX OCO 브래킷(손절+익절) 등록 → 스케줄러 지연과 무관하게 배리어 집행. 시간청산(12봉)만 엔진이 담당."
    },
    "exit_path_status": "ready (2026-08-30) — paper_executor.eval_I + exchange OCO 브래킷, test_intraday_exit.py",
-   "delay_sensitivity": "1h 이내 진입 필수 (d=0 +2.43% / d=1 +1.88% / d=2 +1.09% 기각)"
+   "delay_sensitivity": "1h 이내 진입 필수 (d=0 +2.43% / d=1 +1.88% / d=2 +1.09% 기각)",
+   "entry_path_status": "ready (2026-09-01) — detector_cascade_fade_1h.py + scheduler exit_spec 연동(ATR 손절 표기). 신호 집합이 validate_cascade 탐지 조건과 완전 일치함을 test_cascade_detector.py 로 고정. **활성화는 universe.json 의 adopted_1h_patterns 에 추가하는 한 줄** — 단 1시간 이내 진입이 보장되기 전에는 추가 금지(검증이 기각한 조건).",
+   "activation_checklist": [
+    "1. 1시간 이내 진입이 가능한 상시 실행 환경 확보",
+    "2. 그 환경의 실측 진입 지연 측정 (validate_cascade_delay.py 로 해당 지연 재평가)",
+    "3. 재평가가 게이트 통과 시에만 universe.json adopted_1h_patterns 에 추가",
+    "4. 추가 후 첫 실거래 전 ensure_stop_orders 로 OCO 브래킷 등록 확인"
+   ]
   }
  ],
  "rejected_4h": [
