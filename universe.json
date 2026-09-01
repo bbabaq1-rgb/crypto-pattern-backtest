@@ -436,6 +436,23 @@
    "median": 0.0117,
    "oos_positive": 4,
    "regime_routing": "all"
+  },
+  {
+   "pattern": "cascade_fade_long_1h",
+   "module": "detector_cascade_fade_1h",
+   "direction": "long",
+   "tf": "1h",
+   "passed_date": "2026-08-29",
+   "deployed_date": "2026-09-01",
+   "n": 312,
+   "mean": 0.02426,
+   "median": 0.01166,
+   "oos_positive": 3,
+   "regime_routing": "all",
+   "exit": "registry.json exit_spec — ±1.5xATR14 OKX OCO 브래킷 / 12봉 시간청산 (eval_I)",
+   "deploy_basis": "cascade_realistic_2026_09 — 매시 크론 + 실측 Actions 지연에서 mean +1.54% / median +0.31% / boot_p 0.000 / OOS 2/4 PASSED. 4h 크론은 median -0.37% 로 기각이라 매시 크론이 배포 전제조건.",
+   "requires_hourly_cron": true,
+   "detects_on_closed_bar": true
   }
  ],
  "data_unavailable_note": "2026-07-16: SEI/MOVE/BERA/VANA — 전 거래소 1d fetch 실패 지속 (상장폐지·거래중단 추정) → trading_universe에서 제외. 데이터 복구 시 okx_unavailable에서 되돌리면 됨."

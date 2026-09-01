@@ -187,17 +187,35 @@ chk("exit_spec 이 검증치와 일치 (1.5xATR14 / 12봉)",
     spec.get("k_atr") == 1.5 and spec.get("atr_period") == 14
     and spec.get("horizon_bars") == lab.HORIZON["1h"], spec)
 
-# ── 8. 미배포 상태 확인 (검증이 기각한 조건으로 돌면 안 된다) ────────────────
+# ── 8. 배포 상태 + 배포 전제조건이 실제로 갖춰졌는가 ────────────────────────
+# 2026-09-01 배포. 배포 근거는 "매시 크론"이므로, 크론이 매시가 아니면 검증이
+# 기각한 조건(4h 주기, median -0.37%)으로 실거래가 도는 것이다 — 여기서 잡는다.
 import json as _json
+import re as _re
+
 uni = _json.load(open("universe.json", encoding="utf-8"))
-adopted = [a.get("pattern") for a in uni.get("adopted_1h_patterns", [])]
-chk("cascade 는 adopted_1h_patterns 에 등록되지 않음(진입 지연 미해결)",
-    "cascade_fade_long_1h" not in adopted, adopted)
+adopted_entries = uni.get("adopted_1h_patterns", [])
+adopted = [a.get("pattern") for a in adopted_entries]
+chk("cascade 가 adopted_1h_patterns 에 등록됨(배포)",
+    "cascade_fade_long_1h" in adopted, adopted)
+
+casc_ap = next((a for a in adopted_entries
+                if a.get("pattern") == "cascade_fade_long_1h"), None)
+chk("배포 항목의 module 이 디텍터와 일치",
+    casc_ap and casc_ap.get("module") == "detector_cascade_fade_1h")
+chk("배포 항목이 롱 전용", casc_ap and casc_ap.get("direction") == "long")
+
+wf = open(".github/workflows/daily_scheduler.yml", encoding="utf-8").read()
+crons = _re.findall(r"- cron: '([^']+)'", wf)
+chk("스케줄러 크론이 매시(배포 전제조건)", crons == ["0 * * * *"], crons)
+
+chk("스케줄러 느린틱이 종전 6개 시각 그대로",
+    sch.SLOW_TICK_HOURS == (0, 4, 8, 12, 16, 20), sch.SLOW_TICK_HOURS)
 
 reg = _json.load(open("registry.json", encoding="utf-8"))
 casc = next((p for p in reg["patterns"] if p.get("id") == "cascade_fade_long_1h"), None)
-chk("registry status 가 passed_not_deployed",
-    casc and casc.get("status") == "passed_not_deployed",
+chk("registry status 가 deployed",
+    casc and casc.get("status") == "deployed",
     casc.get("status") if casc else None)
 
 print("\n실패", len(fails), "건" if fails else "— 전체 통과")

@@ -3,6 +3,7 @@ name: Follow-up Studies (research)
 # 연구 전용 — 두 건의 후속 검증.
 #   1) cascade_fade_long_1h 진입 지연 민감도 (배포 선결조건)
 #   2) inverted_hammer 한정 청산 규칙 재시험 (선택 편향 통제)
+#   3) 캐스케이드 실측 지연 분포 + 마찰 민감도 (1h 크론이면 되는가 / 서버가 필요한가)
 # 매매/DB 접근 없음(공개 시세만 수집). 결과는 로그 + 아티팩트.
 
 on:
@@ -13,7 +14,9 @@ on:
     paths:
       - "validate_cascade_delay.py"
       - "validate_ih_exit.py"
+      - "validate_cascade_realistic.py"
       - "test_cascade_delay.py"
+      - "test_cascade_realistic.py"
       - ".github/workflows/validate_followup.yml"
 
 jobs:
@@ -76,4 +79,36 @@ jobs:
         with:
           name: ih-exit-${{ github.run_number }}
           path: _ih_exit.json
+          if-no-files-found: ignore
+
+  cascade-realistic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # 1h 1,100일 x 71종목 수집
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Logic tests (no network)
+        run: python test_cascade_realistic.py
+
+      - name: Realistic delay + friction sweep
+        run: python validate_cascade_realistic.py
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cascade-realistic-${{ github.run_number }}
+          path: _cascade_realistic.json
           if-no-files-found: ignore

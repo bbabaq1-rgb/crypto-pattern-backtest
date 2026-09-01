@@ -1,0 +1,49 @@
+name: Tests
+
+# 실거래 코드(scheduler / paper_executor / exchange)를 지키는 테스트를 CI 에서 돌린다.
+#
+# 왜 필요한가: test_cron_split.py 는 "크론이 매시여야 한다"를 고정한다 —
+# cascade_fade_long_1h 의 배포 근거가 매시 크론이고, 4h 로 돌아가면 검증이 기각한
+# 조건(median -0.37%)으로 실거래가 돌기 때문이다. 그런데 이 테스트를 도는 CI 가
+# 없으면 아무것도 막지 못한다. 네트워크·시크릿 없이 도는 순수 로직 테스트만 모은다.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Run test suite
+        run: |
+          set -e
+          fail=0
+          for t in test_cron_split.py \
+                   test_cascade_detector.py \
+                   test_intraday_exit.py \
+                   test_cascade_realistic.py \
+                   test_cascade_delay.py \
+                   test_method_t.py \
+                   test_exchange_stops.py; do
+            echo "::group::$t"
+            if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
+            echo "::endgroup::"
+          done
+          exit $fail
