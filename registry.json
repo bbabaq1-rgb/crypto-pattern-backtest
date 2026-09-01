@@ -820,7 +820,7 @@
     "trimmed_mean_10pct": 0.01874,
     "sensitivity": "2.0ATR/2.5x/0.3 → n=1278 mean +0.01% (엣지 소멸), 2.5/3.0/0.4(동결) → n=312 +2.43%, 3.0/4.0/0.5 → n=74 +5.04% (단조 — 엄격할수록 강함)"
    },
-   "not_deployed_reason": "게이트는 통과했으나 배포 선결조건이 남음. **청산 경로는 2026-08-30 구축 완료** — exit_spec(±1.5ATR14/12봉) 기반 eval_I 청산기, 진입 시 OKX OCO 브래킷(손절+익절) 등록으로 스케줄러 지연과 무관하게 배리어 집행, ensure_stop_orders 가 포지션 기록 손절가로 재등록, 봉 식별을 date→ts 로 교정(1h 진입봉 오인식 해소). **남은 blocker: (1) 진입 경로** — 디텍터 모듈(detector_cascade_fade_1h.py) 미작성이고 scheduler 가 이 패턴을 탐지하지 않음, **(2) 실행 주기** — 스케줄러 4h 주기 + Actions 지연 10~90분이라 1h 캐스케이드 봉 마감 직후 진입 불가(상시 실행 환경 필요), **(3) 진입 지연 민감도 재검증** — 실제 진입 지연을 반영한 재측정 미실시. adopted_patterns 미등록 유지.",
+   "not_deployed_reason": "게이트 통과. 청산 경로는 2026-08-30 구축 완료(exit_spec 기반 eval_I + OKX OCO 브래킷 + 봉 식별 ts 교정). **2026-09-01 진입 지연 민감도 측정 결과 배포 조건이 구체화됨**: 엣지가 시간당 약 25% 감쇠해 d=0 +2.43%(PASSED) / d=1 +1.88%(PASSED) / d=2 +1.09%(REJECTED). 현행 Actions 4h 주기(평균 지연 2.6~3.6h)에서는 중앙값이 음수로 떨어져 전 조건 REJECTED. **배포 필수조건: 1시간 이내 진입이 보장되는 상시 실행 환경.** 남은 blocker: (1) 진입 경로 — detector_cascade_fade_1h.py 미작성, scheduler 미등록, (2) 상시 실행 환경 확보(투자 판단), (3) 그 환경의 실측 지연으로 최종 확인. adopted_patterns 미등록 유지. cascade_delay_2026_09 참조.",
    "note": "1차(365일) n=85 +6.04% OOS 1/4 기각 → 2차 사전등록 재시험에서 무조건부 3년 통과. 고변동성 조건부(H2)는 신호 312건 중 245건이 이미 고변동 국면이라 조건 추가의 실익 없음 — 무조건부로 성립. 최근 분기(Q4) n=27 mean -0.26%는 주의. report_intraday.md",
    "exit_spec": {
     "type": "atr_barrier",
@@ -832,7 +832,8 @@
     "source": "intraday_lab.outcome_atr — 검증에 쓴 라벨과 동일 규칙",
     "execution": "진입 시 OKX OCO 브래킷(손절+익절) 등록 → 스케줄러 지연과 무관하게 배리어 집행. 시간청산(12봉)만 엔진이 담당."
    },
-   "exit_path_status": "ready (2026-08-30) — paper_executor.eval_I + exchange OCO 브래킷, test_intraday_exit.py"
+   "exit_path_status": "ready (2026-08-30) — paper_executor.eval_I + exchange OCO 브래킷, test_intraday_exit.py",
+   "delay_sensitivity": "1h 이내 진입 필수 (d=0 +2.43% / d=1 +1.88% / d=2 +1.09% 기각)"
   }
  ],
  "rejected_4h": [
@@ -1181,5 +1182,40 @@
    "inverted_hammer 한정 T10 — Calmar 0.10→0.46(CAGR 4.3%→11.2%, MDD -41.7%→-24.4%)이나 짝지음 t=0.17 로 건당 차이는 없음. 단조성도 없어 잡음 가능성. 기존 '방식G inverted_hammer 한정 2/3 우위'와 같은 방향이라 함께 볼 것."
   ],
   "note": "익절 규칙은 E·F·G·H 에 이어 다섯 번째 기각. 다섯 번 모두 같은 결론이라는 것 자체가 정보 — 이 패턴군의 수익은 소수의 큰 승자에서 나오고, 가격 기준으로 미리 자르는 규칙은 형태를 막론하고 기대값을 깎는다. 실거래 청산 규칙 변경 없음(방식D 유지)."
+ },
+ "cascade_delay_2026_09": {
+  "study": "cascade_fade_long_1h 진입 지연 민감도 (배포 선결조건)",
+  "date": "2026-09-01",
+  "script": "validate_cascade_delay.py",
+  "report": "report_followup_2026_09.md",
+  "verdict": "DELAY_SENSITIVE — 엣지는 실재하나 1시간 내 진입에서만 게이트 통과",
+  "consistency": "d=0 이 1차 검증(n=312, +2.43%)을 정확히 재현 — 비교 정합성 확인",
+  "fixed_delay": {
+   "d0_즉시": "n=312 mean +2.43% boot_p 0.000 OOS 3/4 → PASSED (기준 100%)",
+   "d1_1h": "mean +1.88% boot_p 0.000 → PASSED (77%)",
+   "d2_2h": "mean +1.09% → REJECTED (45%)",
+   "d3_3h": "mean +0.07% boot_p 0.179 수수료마진 미달 → REJECTED (3%)",
+   "d4_4h": "mean +0.57% boot_p 0.008 → REJECTED (24%)",
+   "d6_6h": "mean +0.23% boot_p 0.086 → REJECTED (9%)",
+   "d12_12h": "mean -1.53% boot_p 1.000 OOS 0/4 → REJECTED (-63%, 부호 역전)"
+  },
+  "real_env": "Actions 4h cron + 큐지연 10/30/60/90분 → 평균 지연 2.6~3.6h. 전부 REJECTED. mean +0.59~0.78% 로 boot_p 는 0.001~0.007(여전히 유의)이나 **중앙값이 -0.24~-0.37% 로 음수**라 동결 게이트 미달 — 지연되면 소수 대박 의존 형태로 변질된다(1차의 '상위5거래 기여 10.8%' 건전 분포가 무너짐).",
+  "decay": "엣지가 시간당 약 25% 감쇠, 2시간이면 게이트 아래. 전반 감쇠 추세는 분명하나 완전 단조는 아님(+3h가 +4h보다 나쁨) — n=312 규모의 잡음 폭으로 본다.",
+  "implication": "배포 조건이 '상시 서버'에서 '1시간 이내 진입이 보장되는 상시 서버'로 구체화됐다. 다만 d=1 자체가 이미 23% 감쇠값이라 여유가 크지 않다. 이제 기술 문제가 아니라 투자 판단."
+ },
+ "rejected_ih_exit_2026_09": {
+  "study": "inverted_hammer 한정 청산 규칙(G/T10) 재시험 — 선택 편향 통제",
+  "date": "2026-09-01",
+  "script": "validate_ih_exit.py",
+  "report": "report_followup_2026_09.md",
+  "motivation": "서로 다른 두 규칙(방식G 2026-07-06, 방식T10 2026-09-01)이 IH 에서만 방식D를 이겨 우연치고는 반복적으로 보였다. 사후 선택된 셀이라 같은 데이터 재확인은 증거가 못 되므로 '특별하다'를 반증하려 시도했다.",
+  "verdict": "NOISE — T10 1/3, G 0/3. 추격 중단",
+  "n": 125,
+  "falsification": {
+   "1_시간분할": "T10 전반 -0.33%/후반 +0.72%, G 전반 +2.39%/후반 -1.00% — 둘 다 한쪽에서 부호 역전(재현 실패)",
+   "2_부트스트랩CI": "T10 [-2.19%,+2.34%] P(d<=0)=0.425, G [-1.99%,+4.03%] P=0.344 — 둘 다 0을 넉넉히 포함, 방향조차 불확실",
+   "3_대조군": "T10 IH 1/7위지만 +0.2%로 2위(-0.2%)와 사실상 동률. G 는 triple_bottom(+18.3%)이 IH(+0.7%)를 압도해 IH 는 2위 — 극단값 아님"
+  },
+  "note": "짝지음으로 재면 IH 우위가 +0.20~0.68%p 에 불과하다. 2026-07-06 기록의 'G +8.32% vs D +4.04%'는 현재 데이터·프레임에서 재현되지 않는다(데이터 창이 다르고 당시엔 짝지음 비교가 아니었다). '두 규칙이 같은 패턴에서 신호를 냈다'는 관찰 자체가 착시. 실거래 변경 없음."
  }
 }
