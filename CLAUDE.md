@@ -25,6 +25,21 @@
 - 방식D 게이트: Calmar 기반 — engulfing/fvg/engulfing_short → D 채택, fvg_short → A 유지
 - **청산 방식 E·F 기각** (2026-07-03): E(Chandelier ATR22×3) vs D 0/3 전패(MDD -71.5%),
   F(50%익절+본전+트레일) pooled 0/3 (fvg_short만 2/3) — 페이퍼 병행 등재 안 함 (method_e/f.py, report.md)
+- **고정 익절(방식T) 5수준 전부 기각** (2026-09-01): 방식D + 진입가 +k% 익절
+  (k=10/15/20/25/30%) — 패턴 7종 x arm 6개 35셀. 최대표본 fvg(n=446)에서 전 수준
+  **t=-3.4~-4.2 강한 유의 열세**(CAGR 27.0%→10.0%). 최선인 T25도 짝지음 2/7·CAGR 3/7.
+  · **방법**: 실거래 자본 분할 대신 **같은 신호에 두 규칙 동시 적용(짝지음)** — 가격 경로가
+    동일해 종목·시점 교란이 상쇄, 분할 대비 검정력 수십 배. '+k% 익절'은 가격의 결정론적
+    함수라 백테스트로 정확히 재현되므로 실거래 분할이 불필요.
+  · **자산곡선 병기**: 건당 평균은 자본 회전율(복리)을 못 본다 → 실사이징(잔고20%/12포지션/2x)
+    시간순 시뮬레이션으로 CAGR/MDD/Calmar 측정. 회전율 2배로 빨라져도 복리 이득이
+    잘라낸 큰 승자를 보상 못함.
+  · **기전**: 익절은 승률·중앙값을 올리고 평균을 낮춘다(engulfing 승률 44%→56%,
+    중앙 -5.30%→+9.80%, 평균 +4.64%→+2.16%) — 오른쪽 꼬리 절단.
+  · 재시험 후보 2건: fvg_short 한정 T25/T30(t=2.12/2.79, 다중검정 미보정),
+    inverted_hammer 한정 T10(Calmar 0.10→0.46이나 짝지음 t=0.17·비단조).
+  · **익절 규칙 다섯 번째 기각**(E·F·G·H에 이어). 실거래 청산 규칙 변경 없음(방식D 유지).
+    method_t.py / test_method_t.py / report_take_profit.md
 - **청산 방식 G·H 기각** (2026-07-06): G(복합스코어 60/80점) pooled 0/3 — 단
   **inverted_hammer에서 2/3 우위(+8.32% vs +4.04%, Calmar 2배)** → 데이터 누적 후
   '해당 패턴 한정 G' 재검토 가치. H(HH 3봉실패) 전 패턴 0/3(조기청산). 참고: 손절 공유
@@ -123,6 +138,8 @@
 - paper_executor.eval_I / exchange.place_stop_algo(tp_px=): 하위TF ATR 배리어 청산
   + OKX OCO 브래킷. 라우팅은 registry.json 의 exit_spec 유무로만 결정
 - test_intraday_exit.py: 청산 경로 테스트 (신규 경로 + 기존 경로 무변화 e2e)
+- method_t.py: 고정 익절 arm 시험 (짝지음 비교 + 회전율 반영 자산곡선). 기각 기록용
+- test_method_t.py: method_t 로직 검증 (자산곡선이 회전율 차이를 잡는지 포함)
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
