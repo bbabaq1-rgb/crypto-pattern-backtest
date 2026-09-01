@@ -37,6 +37,41 @@ def _universe():
 SYMBOLS = _universe()
 FOCUS = ["engulfing", "fvg"]
 STOP = 0.08
+
+# ── 실행 주기 분기 ──────────────────────────────────────────────────────────
+# 크론은 매시(UTC 정시) 발화하지만, **느린 TF 탐지는 종전 6개 틱에서만** 돈다.
+#
+# 왜 나누는가: scheduler 는 `rows[last]`(= 아직 형성 중인 봉)에서 탐지하고,
+# paper_executor 의 중복 진입 방어 키는 (symbol, pattern, direction, date) 로
+# 날짜 단위다. 그래서 실행 횟수를 6->24 로 늘리면 '하루 1회 진입' 상한은 유지돼도
+# **그 1회가 하루 중 더 이른 시각·덜 형성된 봉에서 잡히게 된다.** 이미 배포된
+# 1d/4h/1w/1h 패턴의 진입 신호 분포가 검증 당시와 달라진다는 뜻이다.
+#
+# 따라서 매시 도는 것은 **exit_spec 을 가진 하위TF 패턴뿐**이다. 그 패턴들은
+# 진입 지연에 민감해 시간당 진입이 배포 전제조건으로 측정됐고
+# (cascade_realistic_2026_09: 1h 크론 +1.54% PASSED / 4h -0.37% REJECTED),
+# 닫힌 봉 기준으로 탐지해 검증 프레임과 정렬한다(_closed_idx 참조).
+# bat_1h / butterfly_1h 는 exit_spec 이 없으므로 종전 6틱을 그대로 유지한다.
+SLOW_TICK_HOURS = (0, 4, 8, 12, 16, 20)
+
+
+def is_slow_tick(now=None):
+    """느린 TF(1d/4h/1w 및 exit_spec 없는 1h) 탐지를 도는 실행인가."""
+    now = now or datetime.now(timezone.utc)
+    return now.hour in SLOW_TICK_HOURS
+
+
+def _closed_idx(rows):
+    """
+    마지막 **닫힌** 봉의 인덱스. 데이터가 부족하면 None.
+
+    CSV 마지막 행은 거래소가 주는 '형성 중'인 봉이다(fetch_data 는 이를 걸러내지
+    않는다). 검증은 닫힌 봉의 종가로 신호를 판정했으므로, 검증 프레임과 같은
+    신호 집합을 내려면 형성 중인 봉을 빼고 봐야 한다.
+    """
+    return len(rows) - 2 if len(rows) >= 2 else None
+
+
 MAX_HOLD = 30
 DETMOD = {("engulfing", "long"): "detector_engulfing",
           ("engulfing", "short"): "detector_engulfing_short",
@@ -410,8 +445,11 @@ def _avg_alt_metrics():
     return avg_rs, avg_cap
 
 
-def fetch_all():
-    """유니버스 전체 1d/4h/1h CSV 증분 fetch (in-process, okx 우선).
+def fetch_all(tfs=("1d", "4h", "1h")):
+    """유니버스 전체 CSV 증분 fetch (in-process, okx 우선).
+
+    tfs: 수집할 타임프레임. 하위TF 전용 실행(느린 TF 탐지를 건너뛰는 시각)에서는
+         ("1h",) 만 넘겨 러너 시간과 거래소 호출을 3분의 1로 줄인다.
 
     - fetch_data.update_csv: 기존 CSV 있으면 마지막 봉 이후만 append,
       없으면 WINDOW_DAYS(1d 900일/4h 130일/1h 40일) 최근 구간만 수집.
@@ -421,7 +459,7 @@ def fetch_all():
     import fetch_data
     os.makedirs("data", exist_ok=True)
 
-    for tf in ("1d", "4h", "1h"):
+    for tf in tfs:
         t0 = time.time()
         ok = fail = new_total = 0
         for s in SYMBOLS:
@@ -455,17 +493,28 @@ def _tf_confirm(sym, direction):
         return True
 
 
-def run_once(do_fetch=True, quick=False):
+def run_once(do_fetch=True, quick=False, slow_tick=None):
     global SYMBOLS
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+    now_utc = datetime.now(timezone.utc)
+    stamp = now_utc.strftime("%Y-%m-%dT%H:%MZ")
+    # 느린 TF 탐지 여부. None 이면 현재 시각으로 판정(테스트에서 주입 가능).
+    if slow_tick is None:
+        slow_tick = is_slow_tick(now_utc)
+    print(f"[0] 실행 주기: {'느린TF 포함(1d/4h/1w + 1h 일반)' if slow_tick else '하위TF 전용(exit_spec 패턴만)'} "
+          f"| UTC {now_utc:%H:%M}")
+    # 느린 TF 탐지를 건너뛰는 실행은 1h 만 받으면 된다. 단 청산 평가는 보유 중인
+    # 포지션의 TF(1d/4h 포함) 봉을 읽으므로, 그 CSV 는 직전 느린 틱에서 받아둔 것을
+    # 쓴다 — 러너 파일시스템이 매번 비므로 fetch 범위를 줄이면 이전 봉이 없다.
+    # 따라서 포지션이 있을 수 있는 한 1d/4h 도 함께 받는다(안전 우선).
+    tfs = ("1d", "4h", "1h")
     if do_fetch:
-        print(f"[1] fetch {len(SYMBOLS)}종목 1d/4h/1h (증분)...")
-        fetch_all()
+        print(f"[1] fetch {len(SYMBOLS)}종목 {'/'.join(tfs)} (증분)...")
+        fetch_all(tfs)
         print("[1] fetch 완료 -> 레짐 판정 시작")
     elif quick:
         # 러너는 매번 빈 파일시스템 → 증분 fetch 필수 (최근 구간만이라 수 분)
-        print(f"[1] oncequick — {len(SYMBOLS)}종목 증분 fetch...")
-        fetch_all()
+        print(f"[1] oncequick — {len(SYMBOLS)}종목 {'/'.join(tfs)} 증분 fetch...")
+        fetch_all(tfs)
 
     print("[2] 레짐 판정..."); regmap = rs.build_regime_map()
     latest = max(regmap); regime = regmap[latest]
@@ -497,7 +546,9 @@ def run_once(do_fetch=True, quick=False):
     print("[4] 오늘 신호 탐지...")
     import importlib
     signals = []
-    for pat in FOCUS:
+    # 느린 TF 블록(1d FOCUS / adopted 1d·4h·1w / 4h 전용 / 하모닉)은 SLOW_TICK_HOURS
+    # 에서만 돈다 — 매시 돌리면 배포된 패턴의 진입 분포가 검증 당시와 달라진다.
+    for pat in (FOCUS if slow_tick else []):
         d = route.get(pat, "FLAT")
         if d not in ("long", "short"):
             continue
@@ -528,7 +579,7 @@ def run_once(do_fetch=True, quick=False):
     adopted = []
     if os.path.exists("universe.json"):
         adopted = json.load(open("universe.json", encoding="utf-8")).get("adopted_patterns", [])
-    for ap in adopted:
+    for ap in (adopted if slow_tick else []):
         ap_tf = ap.get("tf", "1d")
         mod   = importlib.import_module(ap["module"])
         if ap_tf == "1d":
@@ -567,7 +618,7 @@ def run_once(do_fetch=True, quick=False):
     adopted4h_dir = ADOPTED4H_REGIME.get(regime)
     adopted_4h = json.load(open("universe.json", encoding="utf-8")).get(
         "adopted_4h_patterns", []) if os.path.exists("universe.json") else []
-    if adopted4h_dir and adopted_4h:
+    if slow_tick and adopted4h_dir and adopted_4h:
         h_syms = _harmonic_symbols()
         for ap in adopted_4h:
             try:
@@ -592,7 +643,7 @@ def run_once(do_fetch=True, quick=False):
                     entry=round(entry4, 4), stop=stop4,
                     tf_confirmed=True,
                     take_profit="레짐전환 or 최대30봉 시가청산"))
-    elif adopted_4h:
+    elif adopted_4h and slow_tick:
         print(f"    [4h 패턴] 레짐={regime} -> bull 아님, 4h 전용 패턴 스킵")
 
     # 채택된 1h 전용 패턴 (bat_1h / butterfly_1h 등) — 레짐 무관 롱 (OOS 4/4 전구간 양수)
@@ -601,6 +652,12 @@ def run_once(do_fetch=True, quick=False):
     if adopted_1h:
         h1_syms = _1h_symbols()
         for ap in adopted_1h:
+            spec_ap = _exit_specs().get(ap["pattern"])
+            # exit_spec 패턴만 매시 돈다. 나머지(bat_1h/butterfly_1h)는 exit_spec 이
+            # 없어 진입 지연 민감도가 측정된 적이 없으므로 종전 6틱을 유지한다 —
+            # 매시로 늘리면 탐지 기회가 4배가 돼 검증 당시와 진입 분포가 달라진다.
+            if not spec_ap and not slow_tick:
+                continue
             try:
                 mod1 = importlib.import_module(ap["module"])
             except ImportError:
@@ -610,14 +667,22 @@ def run_once(do_fetch=True, quick=False):
                     rows1h = mod1.load_ohlcv(sym, "1h")
                 except (FileNotFoundError, RuntimeError):
                     continue
-                last1 = len(rows1h) - 1
+                # exit_spec 패턴은 **닫힌 봉**에서 탐지한다. CSV 마지막 행은 형성
+                # 중인 봉이라, 그걸 보면 검증(닫힌 봉 종가 기준)과 다른 신호 집합이
+                # 된다. 종전 패턴은 동작을 바꾸지 않기 위해 마지막 행 그대로 둔다.
+                if spec_ap:
+                    last1 = _closed_idx(rows1h)
+                    if last1 is None:
+                        continue
+                else:
+                    last1 = len(rows1h) - 1
                 if last1 not in set(mod1.detect(rows1h)):
                     continue
                 entry1 = rows1h[last1]["c"]
                 # exit_spec 이 있는 패턴(하위TF ATR 배리어)은 손절·익절을 ATR 로
                 # 산출한다. paper_executor 가 진입 시 같은 식으로 다시 계산하므로
                 # 값이 일치하며, 여기서 맞춰야 알림·대시보드 표기가 실제 집행과 같다.
-                spec1 = _exit_specs().get(ap["pattern"])
+                spec1 = spec_ap
                 target1 = None
                 if spec1:
                     import intraday_lab as _ilab
@@ -648,7 +713,7 @@ def run_once(do_fetch=True, quick=False):
     # 레짐 라우팅: bull_btc → long, 나머지 → 숏 디텍터 없으므로 스킵
     HARMONIC_REGIME = {"bull_btc": "long"}
     harmonic_dir = HARMONIC_REGIME.get(regime)
-    if harmonic_dir:
+    if slow_tick and harmonic_dir:
         h_syms = _harmonic_symbols()
         for pat, modname in HARMONIC_FOCUS:
             try:
@@ -673,7 +738,7 @@ def run_once(do_fetch=True, quick=False):
                     strength_vol_ratio=None, regime=regime,
                     entry=round(entry, 4), stop=stop_px,
                     take_profit="레짐전환 or 최대30봉 시가청산"))
-    else:
+    elif slow_tick:
         print(f"    [하모닉] 레짐={regime} → 롱 조건 미충족, 하모닉 스킵", flush=True)
 
     # RS(BTC 대비 상대강도) 부착 → 앙상블 스코어링(RS 보조 정렬 포함)
@@ -819,7 +884,8 @@ if __name__ == "__main__":
     elif arg == "oncefull":
         run_once(do_fetch=True)
     elif arg == "oncequick":
-        # 4h 마다 호출 — fetch 생략, 레짐 판정 + 신호 탐지 + 페이퍼 체결만
+        # 매시 호출 — 증분 fetch + 레짐 판정 + 신호 탐지 + 페이퍼 체결.
+        # 느린 TF(1d/4h/1w) 탐지는 SLOW_TICK_HOURS 에서만 돈다(run_once 내부 판정).
         run_once(do_fetch=False, quick=True)
     else:
         daemon()

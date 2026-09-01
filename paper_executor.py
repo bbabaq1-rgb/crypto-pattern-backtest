@@ -645,8 +645,10 @@ def run(stamp=None):
             continue
 
         entry   = rows[ei]["c"]
+        sig_entry = entry           # 신호봉 종가 — 실체결과 비교해 배리어 재정렬 판단
         spec    = EXIT_SPECS.get(s["pattern"])
         target_px = None
+        atr = None
         if spec:
             # ATR 배리어 패턴: 손절·익절 모두 검증 프레임과 같은 ±k×ATR 로 산출.
             # ATR을 못 구하면(데이터 부족) 청산 규칙 자체가 정의되지 않으므로 진입 안 함.
@@ -720,6 +722,23 @@ def run(stamp=None):
                 stop_px      = result["stop_price"]
                 if result.get("target_price"):
                     target_px = result["target_price"]
+                # ATR 배리어 패턴은 배리어가 **진입가 기준 ±k×ATR** 로 정의된다
+                # (intraday_lab.outcome_atr 이 base=rows[j]["c"] 로 잡는다).
+                # 그런데 위에서 넘긴 손절·익절은 신호봉 종가 기준이고 실제 체결은
+                # 수십 분 뒤 시장가라, 그대로 두면 체결가로부터의 거리가 ±1.5ATR 이
+                # 아니게 된다 = 검증과 다른 청산 규칙. 체결가 기준으로 다시 걸어준다.
+                if spec and abs(entry - sig_entry) > 1e-12:
+                    dist_r = spec.get("k_atr", ilab.K_ATR) * atr
+                    if s["direction"] == "long":
+                        stop_px, target_px = entry - dist_r, entry + dist_r
+                    else:
+                        stop_px, target_px = entry + dist_r, entry - dist_r
+                    ok_r = ex_mod.ensure_stop_orders(
+                        live_conn,
+                        stop_map={s["symbol"]: {"stop": stop_px, "target": target_px}})
+                    print(f"  [live] {s['symbol']} 배리어를 체결가 기준으로 재정렬 "
+                          f"(신호 {sig_entry:.6f} → 체결 {entry:.6f}, "
+                          f"±{dist_r:.6f}) 재등록={ok_r}")
                 size_for_pos = result.get("size_usd", live_size_usd)
                 live_open_count   += 1
                 live_filled_count += 1

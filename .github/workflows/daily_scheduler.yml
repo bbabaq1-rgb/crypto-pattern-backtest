@@ -2,7 +2,11 @@ name: Crypto Pattern Scheduler
 
 on:
   schedule:
-    - cron: '0 */4 * * *'   # 4시간마다 (6회/일, UTC 00/04/08/12/16/20) — 00시=oncefull
+    # 매시 정시 (24회/일). UTC 00시=oncefull, 나머지=oncequick.
+    # 느린 TF(1d/4h/1w + exit_spec 없는 1h) 탐지는 scheduler.SLOW_TICK_HOURS
+    # (UTC 00/04/08/12/16/20) 에서만 돈다 — 나머지 18회는 exit_spec 하위TF 패턴
+    # 진입과 청산·손절주문 점검만 수행한다. 배포된 패턴의 탐지 시각 집합은 불변.
+    - cron: '0 * * * *'
   workflow_dispatch:
     inputs:
       mode:
