@@ -333,5 +333,30 @@ check("e2e: 레거시 청산 사유·보유봉이 기존 규칙 그대로",
       {t["method"]: (t["reason"], t["hold_bars"]) for t in maru}
       == {"D": ("maxhold", 30), "A": ("timestop", 20)}, maru)
 
+
+# ── entry_ts 유실 시 ATR 경로가 청산을 만들지 않는가 (실거래 오청산 방어) ────
+# Supabase positions 에 entry_ts 컬럼이 없어 DB 복원 시 유실된다. 하위 TF 에서
+# date 폴백은 그날 첫 봉을 가리켜, 그대로 평가하면 **진입 이전 봉**으로 청산이
+# 만들어진다. 그런 포지션은 건드리지 않고 유지해야 한다.
+src_pe = open("paper_executor.py", encoding="utf-8").read()
+check("entry_ts 유실 시 엔진 청산 보류 분기 존재",
+    'if not pos.get("entry_ts") and _derive_tf(pos["pattern"]) != "1d":' in src_pe)
+check("보류 분기가 청산이 아니라 포지션 유지로 간다",
+    src_pe.split('entry_ts 유실 — ')[1].split('continue')[0].count('still_open.append(pos)') == 1)
+
+# date 폴백이 실제로 그날 첫 봉을 가리키는지 (위험의 근거를 고정)
+_r = [dict(ts=1600000000000 + i * 3600000, date="2026-01-01",
+           o=1, h=1, l=1, c=1, v=1) for i in range(24)]
+check("1h 에서 date 폴백은 그날 첫 봉(=위험)", pe._bar_idx(_r, None, "2026-01-01") == 0)
+check("entry_ts 가 있으면 정확한 봉", pe._bar_idx(_r, _r[14]["ts"], "2026-01-01") == 14)
+
+# 1d 는 하루 1봉이라 폴백이 정확 → 보류 대상이 아니다
+check("1d 패턴은 보류 대상 아님", pe._derive_tf("engulfing") == "1d")
+check("1h 패턴은 보류 대상", pe._derive_tf("cascade_fade_long_1h") == "1h")
+
+# target 유실은 대칭 복원으로 이미 방어됨 (보류 사유가 아님)
+_s, _t = pe.barriers_of(dict(entry_price=100.0, stop=98.5, target=None))
+check("target 유실은 대칭 복원(보류 불필요)", abs(_t - 101.5) < 1e-9, _t)
+
 print("\n실패", len(fails), "건" if fails else "— 전체 통과")
 sys.exit(1 if fails else 0)
