@@ -45,13 +45,44 @@ chk("느린틱이 아닌 시각은 분과 무관하게 False",
     not any(sch.is_slow_tick(datetime(2026, 9, 1, 5, m, tzinfo=timezone.utc))
             for m in (0, 17, 45, 59)))
 
-# ── 2. 워크플로 크론이 매시 ─────────────────────────────────────────────────
+# ── 2. 워크플로 분리 — 4h(--slow) + 매시(--fast) ───────────────────────────
+# 2026-09-02: 매시 정시 크론은 발화율 27%(15틱 중 4). 4h 크론은 두 달 99%.
+# 그리고 실행 시각(hour)으로 틱을 판정하면 큐 지연이 정각을 넘긴 실행(4h 시대 27%)
+# 에서 1d/4h 탐지가 조용히 빠진다. 그래서 워크플로가 모드를 플래그로 명시한다.
 wf = io.open(".github/workflows/daily_scheduler.yml", encoding="utf-8").read()
 crons = re.findall(r"- cron: '([^']+)'", wf)
-chk("스케줄러 크론이 매시 1개", crons == ["0 * * * *"], crons)
+chk("메인 스케줄러 크론이 4시간(검증된 99% 크론)", crons == ["0 */4 * * *"], crons)
+chk("메인 스케줄러는 항상 --slow 를 넘긴다", 'python scheduler.py "$MODE" --slow' in wf)
+chk("메인 스케줄러 실행 커맨드에 --fast 없음",
+    not re.search(r"python scheduler\.py[^\n]*--fast", wf))
 
 # oncefull 은 여전히 UTC 00시에만 (하루 1회 전체 재계산 유지)
-chk("oncefull 은 UTC 00시 조건 유지", 'HOUR" = "0"' in wf or "HOUR\" = \"0\"" in wf)
+chk("oncefull 은 UTC 00시 조건 유지", 'HOUR" = "0"' in wf)
+
+fw = io.open(".github/workflows/fast_scheduler.yml", encoding="utf-8").read()
+fcrons = re.findall(r"- cron: '([^']+)'", fw)
+chk("매시 워크플로 크론 1개", len(fcrons) == 1, fcrons)
+m = re.fullmatch(r"(\d+) \* \* \* \*", fcrons[0]) if fcrons else None
+chk("매시 워크플로는 시간당 1회", bool(m), fcrons)
+chk("매시 워크플로는 정시(:00)를 피한다", bool(m) and int(m.group(1)) != 0, fcrons)
+chk("오프셋이 60분 내 진입을 깨지 않음(<15분)", bool(m) and int(m.group(1)) < 15, fcrons)
+chk("매시 워크플로는 항상 --fast", "python scheduler.py oncequick --fast" in fw)
+chk("매시 워크플로 실행 커맨드에 --slow 없음",
+    not re.search(r"python scheduler\.py[^\n]*--slow", fw))
+chk("두 워크플로가 같은 concurrency 그룹(포지션 DB 직렬화)",
+    re.search(r"group: (\S+)", wf).group(1) == re.search(r"group: (\S+)", fw).group(1))
+chk("매시 워크플로도 cancel-in-progress 아님", "cancel-in-progress: false" in fw)
+for sec in ("OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE", "SUPABASE_URL", "SUPABASE_SERVICE_KEY"):
+    chk(f"매시 워크플로에 {sec} 전달", f"{sec}: ${{{{ secrets.{sec} }}}}" in fw)
+
+# CLI 플래그 파싱
+chk("--slow → True", sch._tick_flag(["--slow"]) is True)
+chk("--fast → False", sch._tick_flag(["--fast"]) is False)
+chk("플래그 없음 → None(시간 폴백)", sch._tick_flag([]) is None)
+try:
+    sch._tick_flag(["--slow", "--fast"]); chk("--slow --fast 동시는 거부", False)
+except SystemExit:
+    chk("--slow --fast 동시는 거부", True)
 
 # ── 3. 닫힌 봉 인덱스 ───────────────────────────────────────────────────────
 rows = [dict(ts=i, c=i) for i in range(10)]
@@ -100,6 +131,7 @@ chk("exit_spec 패턴은 닫힌 봉에서 탐지",
 # run_once 가 slow_tick 주입을 받는다 (테스트·수동 실행용)
 chk("run_once 가 slow_tick 인자를 받는다",
     "def run_once(do_fetch=True, quick=False, slow_tick=None):" in src)
+chk("엔트리포인트가 플래그를 run_once 에 전달", "slow_tick=tick" in src)
 
 # ── 6. 체결가 기준 배리어 재정렬 ────────────────────────────────────────────
 pe_src = io.open("paper_executor.py", encoding="utf-8").read()

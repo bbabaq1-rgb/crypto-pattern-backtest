@@ -205,9 +205,14 @@ chk("배포 항목의 module 이 디텍터와 일치",
     casc_ap and casc_ap.get("module") == "detector_cascade_fade_1h")
 chk("배포 항목이 롱 전용", casc_ap and casc_ap.get("direction") == "long")
 
-wf = open(".github/workflows/daily_scheduler.yml", encoding="utf-8").read()
-crons = _re.findall(r"- cron: '([^']+)'", wf)
-chk("스케줄러 크론이 매시(배포 전제조건)", crons == ["0 * * * *"], crons)
+# 배포 전제조건은 '매시 실행'이며, 이를 담당하는 것은 fast_scheduler.yml 이다
+# (메인 스케줄러는 검증된 4h 크론으로 복귀 — 2026-09-02 누락률 실측 후).
+fw = open(".github/workflows/fast_scheduler.yml", encoding="utf-8").read()
+fcrons = _re.findall(r"- cron: '([^']+)'", fw)
+chk("하위TF 워크플로 크론이 매시(배포 전제조건)",
+    len(fcrons) == 1 and _re.fullmatch(r"\d+ \* \* \* \*", fcrons[0]) is not None, fcrons)
+chk("하위TF 워크플로가 --fast 로 exit_spec 패턴을 돈다",
+    "python scheduler.py oncequick --fast" in fw)
 
 chk("스케줄러 느린틱이 종전 6개 시각 그대로",
     sch.SLOW_TICK_HOURS == (0, 4, 8, 12, 16, 20), sch.SLOW_TICK_HOURS)

@@ -1,0 +1,75 @@
+name: Crypto Pattern Scheduler (fast, sub-1h)
+
+on:
+  schedule:
+    # 매시. **정시(:00)를 피해 :07** — GitHub 문서상 매 정시는 스케줄 부하 피크라
+    # 지연·누락이 잦다. 실측: '0 * * * *' 발화율 27%(2026-09-01). 오프셋 7분은
+    # 검증 프레임(주문이 속한 1h 봉 종가 체결)에서 여전히 d=1 이라 결론에 영향 없다.
+    # 발화율은 배포 후 실측해 캐스케이드 배포 전제(d<=1 비율 81%)를 재확인한다.
+    #
+    # 이 워크플로는 **항상 --fast**: exit_spec 하위TF 패턴(cascade_fade_long_1h)
+    # 진입 + 전 포지션 청산 평가 + 손절주문 점검만. 1d/4h/1w 와 exit_spec 없는
+    # 1h(bat/butterfly)는 daily_scheduler.yml(4h, --slow)이 담당 — 여기서 절대 안 돈다.
+    - cron: '7 * * * *'
+  workflow_dispatch:
+
+# daily_scheduler.yml 과 **같은 그룹** — 두 워크플로가 같은 포지션 DB 를 쓰므로
+# 직렬화한다. 진행 중이면 대기(취소 안 함).
+concurrency:
+  group: scheduler-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15   # 정상 실행 ~3-5분 기준 — 초과는 확실한 이상 상황
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Run scheduler
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          OKX_KEY: ${{ secrets.OKX_KEY }}
+          OKX_SECRET: ${{ secrets.OKX_SECRET }}
+          OKX_PASSPHRASE: ${{ secrets.OKX_PASSPHRASE }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          echo "실행 모드: oncequick --fast (UTC $(date -u +%H:%M))"
+          python scheduler.py oncequick --fast
+
+      - name: Upload result JSONs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fast-scheduler-results-${{ github.run_number }}
+          path: |
+            signals_today.json
+            paper_positions.json
+            paper_trades.json
+            direction_switch.json
+          if-no-files-found: ignore
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fast-scheduler-logs-${{ github.run_number }}
+          path: |
+            *.json
+            scheduler_log.txt
+          if-no-files-found: ignore

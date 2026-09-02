@@ -567,6 +567,20 @@ def run(stamp=None):
         if spec:
             # ATR 배리어 경로: 방식A/D 비교는 1d 구조물이라 의미 없음 → A는 닫힌 것으로 표시
             pos["a_closed"] = True
+            # **진입봉을 특정하지 못하면 평가하지 않는다.**
+            # Supabase positions 에 entry_ts 컬럼이 없어 DB 복원 시 유실된다
+            # (insert_tolerant 가 자동 제외 — 실행 로그의 '스키마 미존재 컬럼 제외').
+            # 하위 TF 에서 date 폴백은 그날 **첫 봉**을 가리키므로, 그대로 두면 eval_I 가
+            # 진입보다 이른 봉들을 스캔해 진입 전 가격으로 청산을 만들고(실거래 오청산),
+            # base=rows[ei]["c"] 도 틀려 수익률까지 오염된다.
+            # 배리어는 거래소 OCO 가 이미 지키고 있으므로 엔진은 손대지 않고 유지한다.
+            # positions.entry_ts 컬럼이 생기면 이 분기는 자동으로 사라진다.
+            if not pos.get("entry_ts") and _derive_tf(pos["pattern"]) != "1d":
+                print(f"  [hold] {pos['symbol']} {pos['pattern']} entry_ts 유실 — "
+                      f"진입봉 특정 불가로 엔진 청산 보류(거래소 OCO 유효). "
+                      f"positions.entry_ts 컬럼 추가 필요")
+                still_open.append(pos)
+                continue
         oppname = OPP.get((pos["pattern"], pos["direction"]))
         opp_set = set(importlib.import_module(oppname).detect(rows)) if oppname else set()
         if not pos.get("d_closed"):

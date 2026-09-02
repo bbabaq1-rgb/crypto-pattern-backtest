@@ -845,8 +845,8 @@
    "deployed_date": "2026-09-01",
    "deploy_basis": "cascade_realistic_2026_09 — 매시 크론 + 실측 Actions 지연 분포에서 mean +1.54% / median +0.31% / boot_p 0.000 / OOS 2/4 PASSED (4h 크론은 median -0.37% REJECTED). 상시 서버 불필요.",
    "deploy_preconditions": {
-    "hourly_cron": "daily_scheduler.yml cron '0 * * * *' — 4h 주기면 검증이 기각한 조건. test_cascade_detector.py 가 크론 문자열을 고정한다.",
-    "slow_tf_gating": "scheduler.SLOW_TICK_HOURS=(0,4,8,12,16,20) — 1d/4h/1w 및 exit_spec 없는 1h(bat_1h/butterfly_1h) 탐지는 종전 6틱 유지. 매시로 늘리면 배포된 패턴의 진입 분포가 검증 당시와 달라진다.",
+    "hourly_cron": "fast_scheduler.yml cron '7 * * * *' (정시 회피). 메인 daily_scheduler.yml 은 검증된 '0 */4 * * *' 로 복귀(2026-09-02). 매시 정시 크론은 실측 발화율 27%(15틱 중 4)로 기각 — 이 상태에서는 검증 전제(d<=1 비율 81%)가 충족되지 않았다. 오프셋 크론의 발화율은 배포 후 실측해 재확인해야 한다. test_cascade_detector.py 가 크론 형태를 고정한다.",
+    "slow_tf_gating": "워크플로가 --slow/--fast 플래그로 모드를 명시(scheduler._tick_flag). 실행 시각 hour 판정은 큐 지연이 정각을 넘기면(4h 시대 364건 중 27%, 8/05·8/06·8/27 은 6틱 전부) 1d/4h 탐지를 조용히 빠뜨리는 회귀가 있어 폴백으로만 남김. 1d/4h/1w 및 exit_spec 없는 1h(bat/butterfly)는 daily_scheduler(--slow)만, exit_spec 패턴은 fast_scheduler(--fast)만 탐지.",
     "closed_bar_detection": "scheduler._closed_idx — exit_spec 패턴은 형성 중인 봉이 아니라 **닫힌 봉**에서 탐지. CSV 마지막 행은 거래소가 주는 미완성 봉이고 검증은 닫힌 봉 종가 기준이다.",
     "fill_anchored_barriers": "paper_executor — 실체결가가 신호봉 종가와 다르면 ±k×ATR 배리어를 **체결가 기준으로 재계산**하고 OCO 를 재등록한다. 검증(outcome_atr)이 배리어를 진입가 기준으로 잡기 때문."
    },
@@ -1365,5 +1365,47 @@
    "지연 분포는 과거 100건 — Actions 큐가 앞으로도 같다는 보장 없음"
   ],
   "blocker_cron_split": "크론을 '0 * * * *' 로 바꾸는 것만으로는 안 된다. scheduler.py 는 rows[last](형성 중인 봉)에서 탐지하고 중복 방어 키가 날짜 단위라, 시간당 실행은 1d/4h 배포 패턴의 탐지 기회를 6->24회로 늘려 '하루 1회 진입'이 더 이른 시각·덜 형성된 봉에서 잡히게 만든다. 이미 배포된 engulfing/fvg/inverted_hammer/marubozu/하모닉4h/bat_1h/butterfly_1h 의 진입 신호 분포가 검증 당시와 달라진다. 권장 방안(A): 크론은 매시로 바꾸되 scheduler 가 UTC 00/04/08/12/16/20 이 아니면 1d/4h 탐지 블록을 스킵 — 기존 탐지 시각 집합이 그대로임을 테스트로 고정. 청산·ensure_stop_orders 는 매시 돌아 오히려 개선."
+ },
+ "scheduler_reliability_2026_09": {
+  "date": "2026-09-02",
+  "source": "daily_scheduler.yml schedule 실행 428건 전수 (6/25~9/02)",
+  "fire_rate": {
+   "hourly_0629_0702": {
+    "expected": 67,
+    "ran": 54,
+    "fire": 0.81,
+    "delay_med_min": 31,
+    "delay_p90_min": 50
+   },
+   "4h_0702_0901": {
+    "expected": 367,
+    "ran": 364,
+    "fire": 0.99,
+    "delay_med_min": 36,
+    "delay_p90_min": 81,
+    "missed": [
+     "08-06 20:00",
+     "08-28 12:00",
+     "09-01 04:00"
+    ]
+   },
+   "hourly_0901_0902": {
+    "expected": 15,
+    "ran": 4,
+    "fire": 0.27,
+    "delay_med_min": 27,
+    "delay_p90_min": 53,
+    "ran_at": [
+     "09-01 15:24",
+     "09-01 19:16",
+     "09-01 22:27",
+     "09-02 00:52"
+    ]
+   }
+  },
+  "finding": "정시 매시 크론은 이 레포에서 반복적으로 불안정(19%/73% 누락). GitHub 문서: 매 정시는 부하 피크. 4h 정시 크론은 99%. 캐스케이드 검증(실측 지연 100건)은 발화된 실행만 표본이라 누락을 반영하지 않았다.",
+  "regression_found": "scheduler.is_slow_tick(now.hour) 는 큐 지연이 정각을 넘기면 느린틱을 놓친다 — 4h 시대 27% 실행, 3일은 6틱 전부. 머지 후 9/1 오후 1d/4h 탐지가 4회 기대 대비 1회만 돌았다.",
+  "fix": "워크플로 분리: daily_scheduler(4h, --slow) + fast_scheduler(매시 :07, --fast). 시간 판정은 폴백으로 격하.",
+  "open_question": "오프셋 매시 크론의 발화율 — 며칠 실측 후 캐스케이드 배포 전제 재판정. 불충분하면 외부 트리거 또는 배포 철회."
  }
 }

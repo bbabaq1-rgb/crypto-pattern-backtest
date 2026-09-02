@@ -52,13 +52,31 @@ STOP = 0.08
 # (cascade_realistic_2026_09: 1h 크론 +1.54% PASSED / 4h -0.37% REJECTED),
 # 닫힌 봉 기준으로 탐지해 검증 프레임과 정렬한다(_closed_idx 참조).
 # bat_1h / butterfly_1h 는 exit_spec 이 없으므로 종전 6틱을 그대로 유지한다.
+#
+# **틱 판정은 워크플로가 플래그로 명시한다(--slow / --fast).** 2026-09-02 발견:
+# 실행 시각의 hour 로 판정하면 큐 지연이 정각을 넘긴 실행(4h 시대 364건 중 27%,
+# 8/05·8/06·8/27 은 6틱 전부)이 느린틱으로 인식되지 않아 1d/4h 탐지가 조용히
+# 빠진다. 그래서 4h 크론 워크플로(daily_scheduler.yml)는 항상 --slow, 매시
+# 워크플로(fast_scheduler.yml)는 항상 --fast 를 넘긴다. 시간 기반 판정은 플래그가
+# 없을 때(로컬 수동 실행)의 폴백일 뿐이다.
 SLOW_TICK_HOURS = (0, 4, 8, 12, 16, 20)
 
 
 def is_slow_tick(now=None):
-    """느린 TF(1d/4h/1w 및 exit_spec 없는 1h) 탐지를 도는 실행인가."""
+    """(폴백) 실행 시각으로 느린 TF 탐지 여부 추정. 워크플로 플래그가 우선한다."""
     now = now or datetime.now(timezone.utc)
     return now.hour in SLOW_TICK_HOURS
+
+
+def _tick_flag(argv):
+    """argv 의 --slow / --fast → True / False. 둘 다 없으면 None(시간 기반 폴백)."""
+    if "--slow" in argv and "--fast" in argv:
+        raise SystemExit("--slow 와 --fast 는 동시에 줄 수 없다")
+    if "--slow" in argv:
+        return True
+    if "--fast" in argv:
+        return False
+    return None
 
 
 def _closed_idx(rows):
@@ -498,10 +516,12 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
     now_utc = datetime.now(timezone.utc)
     stamp = now_utc.strftime("%Y-%m-%dT%H:%MZ")
     # 느린 TF 탐지 여부. None 이면 현재 시각으로 판정(테스트에서 주입 가능).
+    src = "플래그"
     if slow_tick is None:
         slow_tick = is_slow_tick(now_utc)
+        src = "시간폴백"
     print(f"[0] 실행 주기: {'느린TF 포함(1d/4h/1w + 1h 일반)' if slow_tick else '하위TF 전용(exit_spec 패턴만)'} "
-          f"| UTC {now_utc:%H:%M}")
+          f"| 판정={src} | UTC {now_utc:%H:%M}")
     # 느린 TF 탐지를 건너뛰는 실행은 1h 만 받으면 된다. 단 청산 평가는 보유 중인
     # 포지션의 TF(1d/4h 포함) 봉을 읽으므로, 그 CSV 는 직전 느린 틱에서 받아둔 것을
     # 쓴다 — 러너 파일시스템이 매번 비므로 fetch 범위를 줄이면 이전 봉이 없다.
@@ -878,14 +898,17 @@ def daemon():
 
 
 if __name__ == "__main__":
-    arg = sys.argv[1] if len(sys.argv) > 1 else ""
+    flags = [a for a in sys.argv[1:] if a.startswith("--")]
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    arg = args[0] if args else ""
+    tick = _tick_flag(flags)          # --slow / --fast / None(시간 폴백)
     if arg == "once":
-        run_once(do_fetch=False)
+        run_once(do_fetch=False, slow_tick=tick)
     elif arg == "oncefull":
-        run_once(do_fetch=True)
+        run_once(do_fetch=True, slow_tick=tick)
     elif arg == "oncequick":
-        # 매시 호출 — 증분 fetch + 레짐 판정 + 신호 탐지 + 페이퍼 체결.
-        # 느린 TF(1d/4h/1w) 탐지는 SLOW_TICK_HOURS 에서만 돈다(run_once 내부 판정).
-        run_once(do_fetch=False, quick=True)
+        # daily_scheduler.yml(4h, --slow): 증분 fetch + 전체 탐지 + 체결/청산.
+        # fast_scheduler.yml(매시, --fast): 증분 fetch + exit_spec 패턴 탐지 + 체결/청산.
+        run_once(do_fetch=False, quick=True, slow_tick=tick)
     else:
         daemon()
