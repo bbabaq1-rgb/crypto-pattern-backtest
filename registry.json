@@ -1406,7 +1406,34 @@
   "finding": "정시 매시 크론은 이 레포에서 반복적으로 불안정(19%/73% 누락). GitHub 문서: 매 정시는 부하 피크. 4h 정시 크론은 99%. 캐스케이드 검증(실측 지연 100건)은 발화된 실행만 표본이라 누락을 반영하지 않았다.",
   "regression_found": "scheduler.is_slow_tick(now.hour) 는 큐 지연이 정각을 넘기면 느린틱을 놓친다 — 4h 시대 27% 실행, 3일은 6틱 전부. 머지 후 9/1 오후 1d/4h 탐지가 4회 기대 대비 1회만 돌았다.",
   "fix": "워크플로 분리: daily_scheduler(4h, --slow) + fast_scheduler(매시 :07, --fast). 시간 판정은 폴백으로 격하.",
-  "open_question": "오프셋 매시 크론의 발화율 — 며칠 실측 후 캐스케이드 배포 전제 재판정. 불충분하면 외부 트리거 또는 배포 철회."
+  "open_question": "(해소 2026-09-02) 오프셋 매시 크론 :07 은 4틱 0/4, 워크플로 수정 후 4h 크론 04:00 틱도 미발화 → external_trigger_2026_09 로 전환.",
+  "offset_cron_result": {
+   "fast_0207_0507": {
+    "expected": 4,
+    "ran": 0
+   },
+   "daily_0400": "미발화 (05:45 기준 105분 경과, 4h 시대 368건 중 >98분 지연은 6%) — 05:40 수동 dispatch 로 대체"
+   }
+ },
+ "external_trigger_2026_09": {
+  "date": "2026-09-02",
+  "decision": "사용자 결정 ① — GitHub schedule 대신 Supabase pg_cron 이 workflow_dispatch API 로 러너를 깨운다. 캐스케이드 배포 철회(②) 대신 선택.",
+  "file": "supabase_external_trigger.sql (Supabase SQL Editor 에서 실행, 멱등)",
+  "jobs": {
+   "gh_fast_scheduler": "3 * * * * → fast_scheduler.yml (inputs 없음)",
+   "gh_daily_oncefull": "0 0 * * * → daily_scheduler.yml mode=oncefull",
+   "gh_daily_oncequick": "0 4,8,12,16,20 * * * → daily_scheduler.yml mode=oncequick",
+   "gh_dispatch_collect": "*/10 * * * * → pg_net 응답코드를 gh_dispatch_log 에 수집"
+  },
+  "invariants": "발화 시각 집합 = SLOW_TICK_HOURS(daily) + 매시(fast) — GitHub 크론과 동일. GitHub schedule 은 폴백 유지: 겹치면 concurrency 그룹(cancel-in-progress false)에서 직렬 대기, 진입 중복은 날짜 dedup. public 레포라 Actions 분 무료.",
+  "secret": "fine-grained PAT, repo 한정, Actions: Read and write 만. Vault 'github_pat_dispatch'. 만료 1년 — 만료 시 gh_dispatch_log.status_code 401 로 드러나며 크론이 조용히 멈춘다.",
+  "measurement_note": "이후 발화율·지연 실측은 schedule 이벤트만 세면 0 으로 보인다 — workflow_dispatch 이벤트를 포함해야 한다. gh_dispatch_log.fired_at vs run.created_at 차이가 곧 큐 지연.",
+  "risks": [
+   "PAT 만료(401) — 알림 없음, 로그로만 확인",
+   "Supabase 무료 플랜 비활성 일시정지 — 러너가 매 실행 DB 를 쓰므로 활성 유지되나, 러너가 멈추면 순환 정지",
+   "GitHub 폴백이 되살아나면 시간당 2회 실행 — 무해(직렬 대기 + dedup), 분만 소모"
+  ],
+  "test": "test_external_trigger.py 31건 — 워크플로명 존재·dispatch 수신·mode 값·시각=SLOW_TICK_HOURS·토큰 리터럴 없음·anon 차단"
  },
  "live_account_notes_2026_09_02": {
   "audit": "audit_okx.yml run #13, 2026-09-02T01:09Z (읽기 전용)",
