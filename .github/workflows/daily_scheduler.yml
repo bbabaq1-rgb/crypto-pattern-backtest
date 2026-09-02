@@ -2,11 +2,14 @@ name: Crypto Pattern Scheduler
 
 on:
   schedule:
-    # 매시 정시 (24회/일). UTC 00시=oncefull, 나머지=oncequick.
-    # 느린 TF(1d/4h/1w + exit_spec 없는 1h) 탐지는 scheduler.SLOW_TICK_HOURS
-    # (UTC 00/04/08/12/16/20) 에서만 돈다 — 나머지 18회는 exit_spec 하위TF 패턴
-    # 진입과 청산·손절주문 점검만 수행한다. 배포된 패턴의 탐지 시각 집합은 불변.
-    - cron: '0 * * * *'
+    # 4시간마다 (6회/일, UTC 00/04/08/12/16/20). 00시=oncefull, 나머지=oncequick.
+    # 이 워크플로는 **항상 --slow** 로 돌아 1d/4h/1w + 1h 일반 패턴 전체를 탐지한다.
+    # 실행 시각으로 틱을 추정하지 않는다 — 큐 지연으로 정각을 넘긴 실행이 느린틱으로
+    # 인식되지 않던 회귀(2026-09-02)를 막기 위해 워크플로가 모드를 명시한다.
+    # 매시 크론('0 * * * *')은 2026-09-01 실측에서 발화율 27%(15틱 중 4)로 기각.
+    # 4h 크론은 7/02~9/01 두 달간 99%(367틱 중 364). 하위TF(exit_spec) 패턴은
+    # fast_scheduler.yml(매시, 정시 회피 :07)이 별도로 담당한다.
+    - cron: '0 */4 * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -61,8 +64,8 @@ jobs:
               MODE="oncequick"
             fi
           fi
-          echo "실행 모드: $MODE (UTC $(date -u +%H:%M))"
-          python scheduler.py "$MODE"
+          echo "실행 모드: $MODE --slow (UTC $(date -u +%H:%M))"
+          python scheduler.py "$MODE" --slow
 
       - name: Upload result JSONs
         if: always()
