@@ -207,12 +207,19 @@ chk("배포 항목이 롱 전용", casc_ap and casc_ap.get("direction") == "long
 
 # 배포 전제조건은 '매시 실행'이며, 이를 담당하는 것은 fast_scheduler.yml 이다
 # (메인 스케줄러는 검증된 4h 크론으로 복귀 — 2026-09-02 누락률 실측 후).
+# 2026-09-02: 매시 발화는 GitHub schedule 이 아니라 **외부 트리거**(Supabase
+# pg_cron → workflow_dispatch)가 담당한다. GitHub 크론은 발화율이 0~27% 로
+# 전제를 못 지켰고, 남겨두면 concurrency 그룹에서 daily 실행을 취소시킨다.
+# 따라서 '매시'의 근거는 워크플로 파일이 아니라 SQL 쪽에 있다.
 fw = open(".github/workflows/fast_scheduler.yml", encoding="utf-8").read()
-fcrons = _re.findall(r"- cron: '([^']+)'", fw)
-chk("하위TF 워크플로 크론이 매시(배포 전제조건)",
-    len(fcrons) == 1 and _re.fullmatch(r"\d+ \* \* \* \*", fcrons[0]) is not None, fcrons)
 chk("하위TF 워크플로가 --fast 로 exit_spec 패턴을 돈다",
     "python scheduler.py oncequick --fast" in fw)
+chk("하위TF 워크플로는 workflow_dispatch 로 깨워진다", "workflow_dispatch:" in fw)
+sql = open("supabase_external_trigger.sql", encoding="utf-8").read()
+fast_job = _re.search(r"cron\.schedule\('gh_fast_scheduler',\s*'([^']+)'", sql)
+chk("외부 트리거가 하위TF 워크플로를 매시 깨운다(배포 전제조건)",
+    bool(fast_job) and _re.fullmatch(r"\d+ \* \* \* \*", fast_job.group(1)) is not None,
+    fast_job.group(1) if fast_job else None)
 
 chk("스케줄러 느린틱이 종전 6개 시각 그대로",
     sch.SLOW_TICK_HOURS == (0, 4, 8, 12, 16, 20), sch.SLOW_TICK_HOURS)

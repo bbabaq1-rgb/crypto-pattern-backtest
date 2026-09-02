@@ -1433,7 +1433,16 @@
    "Supabase 무료 플랜 비활성 일시정지 — 러너가 매 실행 DB 를 쓰므로 활성 유지되나, 러너가 멈추면 순환 정지",
    "GitHub 폴백이 되살아나면 시간당 2회 실행 — 무해(직렬 대기 + dedup), 분만 소모"
   ],
-  "test": "test_external_trigger.py 31건 — 워크플로명 존재·dispatch 수신·mode 값·시각=SLOW_TICK_HOURS·토큰 리터럴 없음·anon 차단"
+  "test": "test_external_trigger.py 31건 — 워크플로명 존재·dispatch 수신·mode 값·시각=SLOW_TICK_HOURS·토큰 리터럴 없음·anon 차단",
+  "verified_2026_09_02": "fast 09:03/10:03/11:03/12:03 전부 :03:01 정시 발화(러너 지연 0초). daily 12:00:01 발화 + 로그 '실행 모드: oncequick --slow' — mode 입력 정상 전달, 느린TF 블록 수행.",
+  "fast_fallback_removed": {
+   "date": "2026-09-02",
+   "what": "fast_scheduler.yml 의 GitHub schedule('7 * * * *') 제거. 발화는 외부 트리거 전용.",
+   "why": "같은 concurrency 그룹에 새 실행이 큐에 들어오면 GitHub 이 먼저 대기 중이던 실행을 취소한다(cancel-in-progress: false 여도 pending 은 취소). 실측: 12:03 외부 트리거 실행이 12:04:30 폴백 진입으로 cancelled(폴백이 대신 돌아 손실 없음). 거울상으로 daily 가 pending 인 사이 fast 가 큐에 들면 daily 가 취소되어 느린TF 탐지를 4시간 잃는다.",
+   "kept": "daily 폴백은 유지 — 4h 간격이라 겹칠 창이 좁고 두 달 99% 발화 실적.",
+   "new_risk": "fast 는 폴백이 없다. 외부 트리거가 멈추면(PAT 401 등) 캐스케이드 진입·하위TF 청산이 daily 6틱에만 의존 → 진입 지연 전제 위반. gh_dispatch_log 401 감시가 중요.",
+   "tests": "test_cron_split(schedule 없음+dispatch 수신), test_cascade_detector(매시 근거를 SQL 쪽에서 확인), test_external_trigger(daily 만 폴백 유지)"
+  }
  },
  "live_account_notes_2026_09_02": {
   "audit": "audit_okx.yml run #13, 2026-09-02T01:09Z (읽기 전용)",

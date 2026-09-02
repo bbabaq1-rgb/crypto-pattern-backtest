@@ -1,16 +1,22 @@
 name: Crypto Pattern Scheduler (fast, sub-1h)
 
+# 발화는 **오직 외부 트리거**(Supabase pg_cron → workflow_dispatch, 매시 :03).
+# GitHub `schedule` 은 의도적으로 없다 — 2026-09-02 제거:
+#   · 신뢰성이 없다. 정시 '0 * * * *' 발화율 27%, 오프셋 '7 * * * *' 는 5틱 0/5.
+#     외부 트리거는 같은 날 4틱 모두 :03:01 정시 발화(지연 0초).
+#   · 남겨두면 오히려 해가 된다. daily_scheduler 와 concurrency 그룹을 공유하는데,
+#     GitHub 는 같은 그룹에 새 실행이 큐에 들어오면 **먼저 대기 중이던 실행을 취소**
+#     한다(cancel-in-progress: false 여도 pending 은 취소됨). 12:03 외부 트리거
+#     실행이 실제로 이렇게 취소됐다(12:04:30 폴백이 큐 진입). 거울상으로 daily 가
+#     pending 인 사이 이 워크플로가 큐에 들어오면 **daily 가 취소되어 느린TF 탐지를
+#     4시간 통째로 잃는다.** 폴백을 없애면 이 경합 자체가 사라진다.
+# PAT 만료 등으로 외부 트리거가 멈추면 gh_dispatch_log.status_code 401 로 드러나며,
+# 그때는 이 워크플로를 수동 dispatch 하거나 크론을 임시로 되살린다.
+#
+# 이 워크플로는 **항상 --fast**: exit_spec 하위TF 패턴(cascade_fade_long_1h)
+# 진입 + 전 포지션 청산 평가 + 손절주문 점검만. 1d/4h/1w 와 exit_spec 없는
+# 1h(bat/butterfly)는 daily_scheduler.yml(4h, --slow)이 담당 — 여기서 절대 안 돈다.
 on:
-  schedule:
-    # 매시. **정시(:00)를 피해 :07** — GitHub 문서상 매 정시는 스케줄 부하 피크라
-    # 지연·누락이 잦다. 실측: '0 * * * *' 발화율 27%(2026-09-01). 오프셋 7분은
-    # 검증 프레임(주문이 속한 1h 봉 종가 체결)에서 여전히 d=1 이라 결론에 영향 없다.
-    # 발화율은 배포 후 실측해 캐스케이드 배포 전제(d<=1 비율 81%)를 재확인한다.
-    #
-    # 이 워크플로는 **항상 --fast**: exit_spec 하위TF 패턴(cascade_fade_long_1h)
-    # 진입 + 전 포지션 청산 평가 + 손절주문 점검만. 1d/4h/1w 와 exit_spec 없는
-    # 1h(bat/butterfly)는 daily_scheduler.yml(4h, --slow)이 담당 — 여기서 절대 안 돈다.
-    - cron: '7 * * * *'
   workflow_dispatch:
 
 # daily_scheduler.yml 과 **같은 그룹** — 두 워크플로가 같은 포지션 DB 를 쓰므로
