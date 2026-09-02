@@ -9,6 +9,7 @@
 """
 import random
 import sys
+import zlib
 
 import detlib
 import intraday_lab as ilab
@@ -287,9 +288,13 @@ def _e2e():
     try:
         os.chdir(tmp)
         os.makedirs("data", exist_ok=True)
+        # 시드는 **프로세스 간 고정**이어야 한다. 종전엔 hash((sym, tf)) 를 썼는데
+        # 파이썬 문자열 해시는 실행마다 salt 가 달라(PYTHONHASHSEED 무작위) 합성
+        # 가격이 매번 바뀌었다 — 레거시 청산이 만기(maxhold/timestop)로 끝날지
+        # 손절로 끝날지가 실행 운에 좌우돼 CI 가 간헐 실패했다. crc32 로 고정한다.
         for sym, tf, step in (("SOL", "1h", 3600000), ("SOL", "1d", 86400000),
                               ("BTC", "1d", 86400000)):
-            rr = mkrows(300, seed=hash((sym, tf)) % 1000, step_ms=step)
+            rr = mkrows(300, seed=zlib.crc32(f"{sym}_{tf}".encode()) % 1000, step_ms=step)
             with open(f"data/{sym.lower()}_{tf}.csv", "w", newline="") as f:
                 w = _csv.writer(f)
                 w.writerow(["timestamp", "open", "high", "low", "close", "volume"])

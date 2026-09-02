@@ -16,7 +16,7 @@ exchange.py - 거래소 연결 모듈.
 """
 import os
 
-OKX_LEVERAGE    = 2            # 레버리지 2x 고정 (절대 변경 금지)
+OKX_LEVERAGE    = 2            # 기본 레버리지(legacy 사이징). risk 모드는 sizing.py 가 손절 거리로 계산한 값을 주문별로 넘긴다
 OKX_MARGIN_MODE = "isolated"  # 격리 마진 고정 (교차 절대 불가)
 
 
@@ -368,7 +368,7 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None):
 
 
 def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
-                     target_px=None):
+                     target_px=None, leverage=None):
     """
     OKX USDT 무기한 선물 시장가 진입 + OKX algo 손절 주문 동시 제출.
 
@@ -392,13 +392,18 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
     close_side = "sell" if direction == "long" else "buy"
     eff_size   = size_usd   # 실제 주문금액 (잔고 조정 후 갱신)
 
+    # 레버리지: 호출자가 주면(sizing.risk_based_size — 청산가가 손절가의 2배 밖에 있도록
+    # 계산된 값) 그것을, 없으면 종전 고정값 OKX_LEVERAGE(2x).
+    lev = int(leverage or OKX_LEVERAGE)
+    if lev < 1:
+        lev = 1
     # ---- 레버리지·마진 모드 강제 설정 ----------------------------------------
     try:
         ex.set_margin_mode(OKX_MARGIN_MODE, ccxt_sym)
     except Exception:
         pass
     try:
-        ex.set_leverage(OKX_LEVERAGE, ccxt_sym,
+        ex.set_leverage(lev, ccxt_sym,
                         params={"mgnMode": OKX_MARGIN_MODE})
     except Exception:
         pass
@@ -424,7 +429,7 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
         # 1/10 크기로 체결되는 버그가 있었다 → 계약 수로 환산.
         mkt       = ex.market(ccxt_sym)
         csize     = float(mkt.get("contractSize") or 1) or 1.0
-        notional  = eff_size * OKX_LEVERAGE
+        notional  = eff_size * lev
         raw_qty   = notional / price / csize
         qty       = float(ex.amount_to_precision(ccxt_sym, raw_qty))
 
@@ -482,7 +487,7 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
         "stop_price":     sl_price,
         "target_price":   tp_price,
         "direction":      direction,
-        "leverage":       OKX_LEVERAGE,
+        "leverage":       lev,
         "size_usd":       eff_size,
     }, "ok"
 

@@ -91,6 +91,24 @@
     뒤 체결) ±k×ATR 을 **체결가 기준으로 재계산**하고 OCO 를 재등록한다.
     검증(`outcome_atr`)이 배리어를 진입가 기준으로 잡기 때문. 안 하면 체결가로부터의
     거리가 ±1.5ATR 이 아니게 된다.
+  · **사이징·레버리지 규칙 신설 — sizing.py (2026-09-02, 기본 legacy)**: 현행 '가용잔고 x20%,
+    2x 고정'은 **진입 순서**가 크기를 정하고(POL $96 → ARB $77 → ADA $31, 전부 free x0.2 로
+    재현) 등급·확증 배수는 **페이퍼 기록에만** 곱해졌다(`[사이징]` 로그가 실주문과 2배 어긋남).
+    · risk-based: 건당 위험 = equity x RISK_FRAC, 명목가 = 위험/손절거리, 레버리지 =
+      floor(1/(2x손절+MMR)) 상한 LEV_CAP — **청산가가 손절가의 2배 밖**. 8% 손절이면 최대 5x.
+      레버리지는 명목가를 바꾸지 않고 증거금만 줄여 동시 포지션 수를 늘린다(핵심 사실).
+    · **연구 결과(2026-09-02, 1,093건·부트스트랩 300회)**: 사전 기준(MDD중앙≥−35%, P(ruin)<5%)을
+      만족하는 건 **위험 0.5%/2x 뿐** — 현행 legacy 는 MDD중앙 **−59.9%**(p10 −77%)로 기준 밖.
+      즉 **'작다'는 전제 기각, 현행이 오히려 크다.** 레버리지는 같은 위험에서 2→5x 올려도
+      CAGR 43→36% / MDD −67→−76% — 명목가 불변, 동시 노출만 증가. 위험 1%에선 2x=3x 완전 동일.
+      권고 규칙은 equity<$320(C등급 $457)에서 최소증거금 미달로 스킵 → **현 계좌($271)엔 작동
+      불가**. legacy 유지 중, 선택지 4개는 report_sizing.md.
+  · `paper_executor.SIZING_MODE="legacy"` 기본 — 머지만으로 실거래 불변. `sizing_study.py`
+      (7패턴 방식D 거래 전부를 한 포트폴리오로 시간순 시뮬 + 블록부트스트랩 300회)가
+      "boot MDD중앙 >= -35% AND P(ruin)<5% 중 Calmar 최대" 기준으로 RISK_FRAC/LEV_CAP 을
+      정한 뒤 사용자가 "risk" 로 전환. 단일자산 Kelly 는 참고만(알트 상관으로 과대).
+    · `exchange.place_swap_entry(leverage=)` 주문별 레버리지, 미지정 시 2x 폴백.
+      test_sizing.py 34건 (legacy 가 실거래 로그 3건을 정확히 재현하는지 포함).
   · **스케줄 누락률 실측 + 워크플로 분리 (2026-09-02)**: 스케줄 실행 428건 전수.
     **발화율** 매시(6/29~7/02) 81% / **4h(7/02~9/01) 99%** / **매시(9/01 10:30~) 27%**
     (15틱 중 4: 15:24·19:16·22:27·00:52). 정시 매시 크론은 이 레포에서 반복 불안정 —
@@ -103,8 +121,22 @@
       신설 `fast_scheduler.yml` 매시 **`7 * * * *`(정시 회피) + 항상 --fast**(exit_spec
       패턴 진입 + 청산/손절점검만). 같은 concurrency 그룹으로 직렬화. `scheduler._tick_flag`.
       시간 판정은 플래그 없을 때 폴백으로만. 기존 패턴 케이던스 **원상복구**.
-    · **미해결**: 오프셋 매시 크론 발화율 — 며칠 실측 후 캐스케이드 배포 전제 재판정.
-      부족하면 '서버 불필요' 결론 철회 → 외부 트리거(repository_dispatch) 또는 배포 철회.
+    · **오프셋 매시 크론도 실패 → 외부 트리거 전환 (2026-09-02, 사용자 결정 ①)**: 워크플로
+      분리 머지(01:52) 후 fast `:07` 5틱(02~06시) **0/5**, daily 04:00 틱도 **미발화**
+      (06:46 기준 166분 경과 — 4h 시대 368건 분포의 p99가 188분이라 사실상 유실).
+      4h 크론까지 멈춘 건 워크플로 수정 직후라
+      재등록 지연 가능성 있으나, 어느 쪽이든 GitHub schedule 만으로는 '1h 이내 진입' 전제를
+      못 지킨다. **Supabase pg_cron → GitHub `workflow_dispatch` API** 로 러너를 깨운다
+      (`supabase_external_trigger.sql`, 사용자가 Supabase SQL Editor 에서 실행). fast 매시
+      :03 / daily 00:00 oncefull + 04·08·12·16·20:00 oncequick — **발화 시각 집합은 GitHub
+      크론과 동일**(SLOW_TICK_HOURS). GitHub schedule 은 폴백으로 유지(겹치면 같은
+      concurrency 그룹에서 직렬 대기, 진입 중복은 날짜 dedup 키가 막음, public 레포라 분 무료).
+      PAT(fine-grained, Actions write 만, 1년 만료)는 Vault `github_pat_dispatch`, 발화·응답은
+      `gh_dispatch_log`(204 정상/401 만료/404 권한/422 inputs). **발화율 측정은 이제
+      `workflow_dispatch` 이벤트도 세야 한다.** 남은 위험: PAT 만료 시 조용히 멈춤(로그 401),
+      Supabase 무료 플랜 프로젝트 일시정지(러너가 매 실행 DB 쓰므로 비활성 아님).
+      04:00 누락분은 05:40 수동 dispatch 로 대체 실행(예외 없음, 신호 0, equity $281.73).
+      test_external_trigger.py (31건) 가 SQL 의 워크플로명·mode·시각을 레포와 맞춘다.
     · OKX 감사(9/2 01:09): 실포지션 4(ADA/ARB/POL/UNI, 손절 4건 전부 live), uPnL +$24,
       8/30 이후 실현 −$2.81. **equity $502→$271 은 사용자 자금 이동으로 확인**(매매 아님,
       2026-09-02 확인 — 이상징후로 재조사 말 것). **POL 숏 절반 9/1 10:31 청산도 사용자
@@ -196,7 +228,9 @@
   전체보다 질 우위(+2.36%/중앙+6.5%), ih·marubozu는 top7 밖 급감/불안정.
   하모닉 4h·1h 패턴은 기존 검증 유니버스 유지. 경계 과적합 주의 — 분기별 재점검 권장
 - **자동화**: `daily_scheduler.yml` **4h**(`0 */4`, --slow, oncefull@UTC00:00) +
-  `fast_scheduler.yml` **매시 :07**(--fast, exit_spec 패턴만). 2026-09-02 분리
+  `fast_scheduler.yml` **매시 :07**(--fast, exit_spec 패턴만). 2026-09-02 분리.
+  **실발화는 Supabase pg_cron → workflow_dispatch**(fast :03 / daily 정각, 2026-09-02) —
+  GitHub schedule 은 폴백. 발화율 측정 시 dispatch 이벤트 포함
 - **실거래 안전장치** (2026-07-06): MAX_LIVE_POS 12(사용자 승인 5→12) ·
   킬스위치(equity < $100 → 신규 진입 중지, paper_executor.EQUITY_FLOOR —
   2026-08-29 사용자 지정 절대 하한. 기존 HWM 대비 -20%($230.06) 규칙은 폐기) ·
@@ -275,6 +309,8 @@
 - report_universe_expansion.md: 유니버스 확대 리포트
 - registry.json: 패턴 등록부 (passed 11종: 1d×4 + 4h×4 + 1h×3, cascade 2026-09-01 배포)
 - test_cron_split.py: 매시 크론이 배포 패턴 동작을 바꾸지 않음을 고정 (게이팅/닫힌봉/재정렬)
+- supabase_external_trigger.sql: GitHub 크론 누락 대체 — Supabase pg_cron 이 매시/4h
+  `workflow_dispatch` 호출. Vault PAT, gh_dispatch_log. test_external_trigger.py 가 레포와 정합 고정
 - research_log.csv: 106건 시험 기록
 - detector_three_soldiers_4h.py: 3연속 장대 양봉 (4h, PASSED)
 - detector_three_soldiers_1h.py / detector_three_crows_1h.py: 1h 버전 (검증용)

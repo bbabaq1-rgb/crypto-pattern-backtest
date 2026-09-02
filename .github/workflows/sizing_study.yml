@@ -1,0 +1,35 @@
+name: Sizing Study (research)
+
+# 연구 전용 — 사이징/레버리지 규칙을 실제 신호 분포로 계산. 매매·DB 접근 없음.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "sizing.py"
+      - "sizing_study.py"
+      - "test_sizing.py"
+      - ".github/workflows/sizing_study.yml"
+
+jobs:
+  sizing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_sizing.py
+      - name: Sizing study
+        run: python sizing_study.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sizing-study-${{ github.run_number }}
+          path: _sizing_study.json
+          if-no-files-found: ignore

@@ -41,7 +41,9 @@ jobs:
                    test_cascade_realistic.py \
                    test_cascade_delay.py \
                    test_method_t.py \
-                   test_exchange_stops.py; do
+                   test_exchange_stops.py \
+                   test_sizing.py \
+                   test_external_trigger.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
             echo "::endgroup::"
