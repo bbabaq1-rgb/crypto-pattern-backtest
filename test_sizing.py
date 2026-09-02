@@ -33,16 +33,16 @@ b = sz.risk_based_size(equity=1000, free=300, stop_pct=0.08)
 check("free 가 충분하면 free 와 무관하게 같은 크기", a["notional"] == b["notional"], (a, b))
 
 # 등급/레짐 배수가 실거래 크기에 반영된다 (기존엔 페이퍼에만 곱해짐)
-c = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.08, grade_mult=0.7)
+c = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.08, grade_mult=0.7, risk_frac=0.02, lev_cap=3)
 check("등급 배수 0.7 반영", abs(c["notional"] - r["notional"]*0.7) < 1e-6, (c, r))
-d = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.08, regime_mult=0.6)
+d = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.08, regime_mult=0.6, risk_frac=0.02, lev_cap=3)
 check("레짐 배수 0.6 반영", abs(d["notional"] - r["notional"]*0.6) < 1e-6)
 
 # 캡들
 e = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.01, risk_frac=0.02, lev_cap=3)
 check("좁은 손절(1%)은 포지션 캡에 걸림", e["capped_by"] == "pos_cap"
       and abs(e["notional"] - 1000*sz.MAX_POS_NOTIONAL_FRAC) < 1e-6, e)
-f = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.08, open_notional=2400)
+f = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.08, open_notional=2400, risk_frac=0.02, lev_cap=3)
 check("총 노출 캡: 남은 여유만", f["capped_by"] == "total_cap"
       and abs(f["notional"] - (1000*sz.MAX_TOTAL_NOTIONAL_FRAC - 2400)) < 1e-6, f)
 g = sz.risk_based_size(equity=1000, free=1000, stop_pct=0.08, open_notional=2500)
@@ -68,7 +68,15 @@ check("legacy: $10 미만 스킵", sz.legacy_size(40, 5) is None)
 now = sz.risk_based_size(271.31, 73.63, 0.08)
 leg = sz.legacy_size(73.63, 5)
 print(f"\n[참고] 현 계좌 8% 손절 신호: risk-based {now} | legacy {leg}")
-check("risk-based 가 현 계좌에서도 주문 가능", now is not None)
+thr = sz.MIN_MARGIN * sz.LEV_CAP * 0.08 / sz.RISK_FRAC
+print(f"[참고] risk-based 최소 주문 가능 equity(8% 손절, B등급) = ${thr:.0f}")
+check("연구 권고 기본값(0.5%/2x)에서 현 계좌($271)는 최소증거금 미달로 스킵", now is None)
+check("문턱 바로 위 equity 에서는 주문 가능",
+      sz.risk_based_size(thr * 1.01, thr, 0.08) is not None)
+check("문턱 바로 아래 equity 에서는 스킵",
+      sz.risk_based_size(thr * 0.99, thr, 0.08) is None)
+check("연구 권고 기본값 고정: RISK_FRAC 0.5%", sz.RISK_FRAC == 0.005)
+check("연구 권고 기본값 고정: LEV_CAP 2", sz.LEV_CAP == 2)
 
 
 # ── 엔진 연결 (소스 단언) ────────────────────────────────────────────────────

@@ -1414,5 +1414,35 @@
   "pol_half_close_explained": "POL 숏 절반이 2026-09-01 10:31 청산된 것은 **사용자 수동 청산**으로 확인됨. 엔진 청산 아님(해당 시각 스케줄러 실행 없음, 손절가 미도달). 실현 -$2.81.",
   "stop_size_mismatch": "수동 청산 결과 POL 손절 algo 는 원래 수량(sz=213)으로 남고 실포지션은 107 이다. **위험하지 않음**: 해당 주문은 reduceOnly=True 로 등록됐고(8/31 16:15 진입 로그에 'reduceOnly 거부 → 폴백' 경고 없음) OKX 가 reduceOnly 주문을 포지션 크기로 제한하므로 반대 포지션 신규 진입이 되지 않는다. 2026-08-29 고아주문 사고와는 다른 상황. **남은 갭**: ensure_stop_orders 는 손절 주문의 '존재'만 보고(inst in covered) 수량을 비교하지 않는다. 수동 개입으로 포지션이 줄면 장부 수량과 어긋난 채 유지된다 — 체결 위험은 없으나 기록 정확도 문제. 별도 과제.",
   "db_schema_gap": "positions: entry_ts/live_mode/target 컬럼 없음. trades: live_mode/pnl_usd 없음. entry_ts 만 미방어(PR #9 가드로 임시 차단), 나머지는 폴백 존재. trades.pnl_usd 부재 → 복원 시 size $200 가정으로 재구성되어 daily_summary 누적%가 왜곡된다."
+ },
+ "sizing_study_2026_09": {
+  "date": "2026-09-02",
+  "script": "sizing_study.py",
+  "report": "report_sizing.md",
+  "n_trades": 1093,
+  "patterns": 7,
+  "boot_n": 300,
+  "criteria": "boot MDD중앙 >= -35% AND P(ruin) < 5% 중 Calmar중앙 최대 (사전 고정)",
+  "legacy": {
+   "rule": "free x20%, 2x",
+   "cagr": 0.393,
+   "mdd": -0.558,
+   "boot_mdd_med": -0.599,
+   "boot_mdd_p10": -0.771,
+   "calmar_med": 2.75,
+   "p_ruin": 0.003
+  },
+  "recommended": {
+   "rule": "risk 0.5% / lev 2",
+   "cagr": 0.236,
+   "mdd": -0.327,
+   "boot_mdd_med": -0.239,
+   "boot_mdd_p10": -0.363,
+   "calmar_med": 2.08,
+   "p_ruin": 0.0
+  },
+  "leverage_finding": "같은 위험 2%에서 2/3/5x: CAGR 43/39/36%, MDD -67/-76/-76%, P(ruin) 0.7/2.0/3.0%. 위험 1%에서는 2x=3x 완전 동일(증거금 비제약). 레버리지는 명목가를 바꾸지 않고 동시 노출만 키운다.",
+  "verdict": "'포지션·레버리지가 작다'는 전제 기각. 현행은 사전 기준 밖(MDD -60%). 권고 규칙은 equity < $320 에서 최소주문 미달로 스킵 — 현 계좌($271)는 위험 0.5% 관리엔 작다.",
+  "status": "SIZING_MODE=legacy 유지. 전환은 사용자 판단 (report_sizing.md 선택지 4개)."
  }
 }
