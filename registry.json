@@ -1407,5 +1407,12 @@
   "regression_found": "scheduler.is_slow_tick(now.hour) 는 큐 지연이 정각을 넘기면 느린틱을 놓친다 — 4h 시대 27% 실행, 3일은 6틱 전부. 머지 후 9/1 오후 1d/4h 탐지가 4회 기대 대비 1회만 돌았다.",
   "fix": "워크플로 분리: daily_scheduler(4h, --slow) + fast_scheduler(매시 :07, --fast). 시간 판정은 폴백으로 격하.",
   "open_question": "오프셋 매시 크론의 발화율 — 며칠 실측 후 캐스케이드 배포 전제 재판정. 불충분하면 외부 트리거 또는 배포 철회."
+ },
+ "live_account_notes_2026_09_02": {
+  "audit": "audit_okx.yml run #13, 2026-09-02T01:09Z (읽기 전용)",
+  "equity_drop_explained": "equity $502.76(8/31) → $271.31(9/2) 은 **사용자 자금 이동**으로 확인됨(2026-09-02). 매매 손익 아님 — 같은 기간 실현 -$2.81, 미실현 +$23.97. 이상징후로 재조사하지 말 것. 다만 사이징(가용잔고 20%)과 킬스위치 하한($100, EQUITY_FLOOR)이 이 잔고 기준으로 동작한다.",
+  "pol_half_close_explained": "POL 숏 절반이 2026-09-01 10:31 청산된 것은 **사용자 수동 청산**으로 확인됨. 엔진 청산 아님(해당 시각 스케줄러 실행 없음, 손절가 미도달). 실현 -$2.81.",
+  "stop_size_mismatch": "수동 청산 결과 POL 손절 algo 는 원래 수량(sz=213)으로 남고 실포지션은 107 이다. **위험하지 않음**: 해당 주문은 reduceOnly=True 로 등록됐고(8/31 16:15 진입 로그에 'reduceOnly 거부 → 폴백' 경고 없음) OKX 가 reduceOnly 주문을 포지션 크기로 제한하므로 반대 포지션 신규 진입이 되지 않는다. 2026-08-29 고아주문 사고와는 다른 상황. **남은 갭**: ensure_stop_orders 는 손절 주문의 '존재'만 보고(inst in covered) 수량을 비교하지 않는다. 수동 개입으로 포지션이 줄면 장부 수량과 어긋난 채 유지된다 — 체결 위험은 없으나 기록 정확도 문제. 별도 과제.",
+  "db_schema_gap": "positions: entry_ts/live_mode/target 컬럼 없음. trades: live_mode/pnl_usd 없음. entry_ts 만 미방어(PR #9 가드로 임시 차단), 나머지는 폴백 존재. trades.pnl_usd 부재 → 복원 시 size $200 가정으로 재구성되어 daily_summary 누적%가 왜곡된다."
  }
 }
