@@ -64,25 +64,43 @@ check("legacy: 9/1  09:08 ADA  free 157.23 → $31.45", sz.legacy_size(157.23, 5
 check("legacy: 첫 주문 $20 고정", sz.legacy_size(500, 0)["margin_usd"] == 20.0)
 check("legacy: $10 미만 스킵", sz.legacy_size(40, 5) is None)
 
-# ── 현재 계좌에 대입 (equity 271.31 / free 73.63) ───────────────────────────
-now = sz.risk_based_size(271.31, 73.63, 0.08)
+# ── 현재 계좌에 대입 (equity 285.34 / free 73.63) ───────────────────────────
+# 채택값 1% 의 존재 이유가 여기다: 권고값 0.5% 는 이 계좌에서 주문이 아예 안 나갔다.
+now = sz.risk_based_size(285.34, 73.63, 0.08)
 leg = sz.legacy_size(73.63, 5)
 print(f"\n[참고] 현 계좌 8% 손절 신호: risk-based {now} | legacy {leg}")
 thr = sz.MIN_MARGIN * sz.LEV_CAP * 0.08 / sz.RISK_FRAC
 print(f"[참고] risk-based 최소 주문 가능 equity(8% 손절, B등급) = ${thr:.0f}")
-check("연구 권고 기본값(0.5%/2x)에서 현 계좌($271)는 최소증거금 미달로 스킵", now is None)
+check("채택값(1%/2x)에서 현 계좌는 주문 가능 — 0.5% 를 못 쓴 이유", now is not None, now)
+
+# 낙폭 축소의 실체는 '항상 더 작다'가 아니라 **진입 순서 의존성이 사라진다**는 것.
+# legacy 는 free x20% 라 첫 진입이 크고 뒤로 갈수록 잘게 쪼개진다(실측 $95.96 → $76.83 →
+# $31.45). risk 는 equity 기준이라 같은 equity·같은 손절거리면 몇 번째 진입이든 같다.
+# MDD 를 만드는 건 '큰 첫 진입들이 동시에 물리는 것'이므로, 잘리는 쪽은 초기 대형 진입이다.
+eq_early = 502.0     # POL 진입 당시 equity
+r_early = sz.risk_based_size(eq_early, 479.79, 0.08)
+l_early = sz.legacy_size(479.79, 5)
+check("초기 대형 진입은 risk 가 legacy 를 크게 깎는다",
+      r_early and l_early and r_early["margin_usd"] < l_early["margin_usd"] * 0.5,
+      (r_early, l_early))
+check("risk 는 진입 순서와 무관 — free 만 달라도 같은 크기",
+      sz.risk_based_size(285.34, 200.0, 0.08)["margin_usd"] == now["margin_usd"])
+check("legacy 는 진입 순서에 따라 크기가 요동",
+      sz.legacy_size(479.79, 5)["margin_usd"] > sz.legacy_size(157.23, 5)["margin_usd"] * 3)
+check("문턱은 $160 — 현 계좌보다 낮아야 작동", abs(thr - 160.0) < 1e-9, thr)
 check("문턱 바로 위 equity 에서는 주문 가능",
       sz.risk_based_size(thr * 1.01, thr, 0.08) is not None)
 check("문턱 바로 아래 equity 에서는 스킵",
       sz.risk_based_size(thr * 0.99, thr, 0.08) is None)
-check("연구 권고 기본값 고정: RISK_FRAC 0.5%", sz.RISK_FRAC == 0.005)
-check("연구 권고 기본값 고정: LEV_CAP 2", sz.LEV_CAP == 2)
+check("채택 기본값 고정: RISK_FRAC 1% (사용자 결정 ③)", sz.RISK_FRAC == 0.01)
+check("채택 기본값 고정: LEV_CAP 2", sz.LEV_CAP == 2)
 
 
 # ── 엔진 연결 (소스 단언) ────────────────────────────────────────────────────
 pe = open("paper_executor.py", encoding="utf-8").read()
 ex = open("exchange.py", encoding="utf-8").read()
-check("SIZING_MODE 기본값은 legacy (머지만으로 동작 불변)", 'SIZING_MODE = "legacy"' in pe)
+check("SIZING_MODE 는 risk (2026-09-02 사용자 결정 ③ — 실거래 반영됨)",
+      'SIZING_MODE = "risk"' in pe)
 check("risk 모드는 sizing.risk_based_size 를 호출", "sizing.risk_based_size(" in pe)
 check("legacy 모드는 sizing.legacy_size 로 종전 규칙 재현", "sizing.legacy_size(" in pe)
 check("위험 기준은 equity(free 아님)", "eq_now, usdt_free, stop_pct" in pe)
