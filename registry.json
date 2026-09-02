@@ -1413,7 +1413,7 @@
     "ran": 0
    },
    "daily_0400": "미발화 (06:46 기준 166분 경과 — 4h 시대 368건 지연 분포의 p99 가 188분이라 사실상 유실) — 05:40 수동 dispatch 로 대체"
-   }
+  }
  },
  "external_trigger_2026_09": {
   "date": "2026-09-02",
@@ -1470,6 +1470,15 @@
   },
   "leverage_finding": "같은 위험 2%에서 2/3/5x: CAGR 43/39/36%, MDD -67/-76/-76%, P(ruin) 0.7/2.0/3.0%. 위험 1%에서는 2x=3x 완전 동일(증거금 비제약). 레버리지는 명목가를 바꾸지 않고 동시 노출만 키운다.",
   "verdict": "'포지션·레버리지가 작다'는 전제 기각. 현행은 사전 기준 밖(MDD -60%). 권고 규칙은 equity < $320 에서 최소주문 미달로 스킵 — 현 계좌($271)는 위험 0.5% 관리엔 작다.",
-  "status": "SIZING_MODE=legacy 유지. 전환은 사용자 판단 (report_sizing.md 선택지 4개)."
+  "status": "SIZING_MODE=legacy 유지. 전환은 사용자 판단 (report_sizing.md 선택지 4개).",
+  "decision_2026_09_02": {
+   "choice": "③ risk 1%/2x — 사용자 결정, 실거래 반영",
+   "config": "paper_executor.SIZING_MODE=\"risk\", sizing.RISK_FRAC=0.01, LEV_CAP=2",
+   "why_not_recommended_0_5": "문턱 equity $320(C등급 $457) — 현 계좌 $285 에서 최소증거금 미달로 주문 자체가 안 나간다. 실사용 불가.",
+   "effect": "legacy 대비 CAGR +39.3%→+38.8%(사실상 동일), boot MDD중앙 -59.9%→-43.1%, p10 -77.1%→-60.7%",
+   "caveat": "사전 기준(MDD중앙>=-35%)은 1% 도 미충족 — '기준 통과'가 아니라 '현 계좌에서 가능한 가장 큰 개선'. equity>$320 되면 0.5% 하향 재검토.",
+   "mechanism": "낙폭 축소는 '항상 더 작아짐'이 아니라 진입 순서 의존성 제거. legacy 는 free x20% 라 첫 진입이 크고 뒤로 갈수록 쪼개진다($95.96→$76.83→$31.45); risk 는 equity 기준이라 순서 무관. 잘리는 건 초기 대형 진입이고, free 가 낮으면 risk 가 오히려 크다(현 계좌 실측 risk $17.83 > legacy $14.73).",
+   "scope": "기존 오픈 포지션 21건 무영향, 신규 진입부터 적용. 롤백은 SIZING_MODE='legacy'"
+  }
  }
 }
