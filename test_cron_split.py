@@ -61,11 +61,14 @@ chk("oncefull 은 UTC 00시 조건 유지", 'HOUR" = "0"' in wf)
 
 fw = io.open(".github/workflows/fast_scheduler.yml", encoding="utf-8").read()
 fcrons = re.findall(r"- cron: '([^']+)'", fw)
-chk("매시 워크플로 크론 1개", len(fcrons) == 1, fcrons)
-m = re.fullmatch(r"(\d+) \* \* \* \*", fcrons[0]) if fcrons else None
-chk("매시 워크플로는 시간당 1회", bool(m), fcrons)
-chk("매시 워크플로는 정시(:00)를 피한다", bool(m) and int(m.group(1)) != 0, fcrons)
-chk("오프셋이 60분 내 진입을 깨지 않음(<15분)", bool(m) and int(m.group(1)) < 15, fcrons)
+# 2026-09-02: 매시 워크플로의 GitHub schedule 을 제거했다. 발화는 외부 트리거
+# (Supabase pg_cron → workflow_dispatch, 매시 :03)만 담당한다. 폴백을 남기면
+# daily 와 공유하는 concurrency 그룹에서 **먼저 대기 중이던 실행이 취소**되어
+# (GitHub 규칙) daily 의 느린TF 탐지를 통째로 잃을 수 있다. 실제로 12:03 외부
+# 트리거 실행이 12:04:30 폴백 때문에 취소됐다. 매시 시각 자체는
+# test_external_trigger.py 가 SQL 쪽에서 고정한다.
+chk("매시 워크플로에 GitHub schedule 없음(경합 제거)", fcrons == [], fcrons)
+chk("매시 워크플로는 workflow_dispatch 를 받는다", "workflow_dispatch:" in fw)
 chk("매시 워크플로는 항상 --fast", "python scheduler.py oncequick --fast" in fw)
 chk("매시 워크플로 실행 커맨드에 --slow 없음",
     not re.search(r"python scheduler\.py[^\n]*--slow", fw))

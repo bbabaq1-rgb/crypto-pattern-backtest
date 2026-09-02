@@ -35,11 +35,9 @@ GitHub Actions `schedule` 만으로는 이 레포의 실행 케이던스를 지�
 
 - **발화 시각 집합은 GitHub 크론과 동일**하다. daily 는 `SLOW_TICK_HOURS` 6틱, fast 는
   매시. 배포 패턴의 탐지 시각 분포가 바뀌지 않는다(test_external_trigger.py 가 고정).
-- **GitHub schedule 은 폴백으로 남긴다.** 겹치면 같은 concurrency 그룹
-  (`cancel-in-progress: false`)에서 직렬 대기하고, 진입 중복은 날짜 단위 dedup 키가 막는다.
-  레포가 public 이라 Actions 분은 무료다.
+- **GitHub schedule 폴백은 daily 에만 남긴다** (fast 는 제거 — 아래 참조).
 - fast 를 :03 으로 둔 이유: 닫힌 1h 봉(`rows[-2]`)이 확정된 직후이고, pg_cron 은 GitHub
-  부하 피크와 무관하다. GitHub 폴백 :07 과 4분 차이라 겹쳐도 직렬 대기.
+  부하 피크와 무관하다.
 - daily 의 workflow_dispatch 입력 `mode` 기본값이 oncefull 이므로 SQL 이 반드시 명시한다.
 
 ### 시크릿
@@ -59,8 +57,37 @@ anon/authenticated 의 execute 를 회수했다. 만료 1년 — 만료되면 `g
    측정은 `schedule` 이벤트만 세면 0 으로 보인다. `workflow_dispatch` 를 포함해야 한다.**
    차이가 곧 큐 지연이며, 캐스케이드 전제(60분 이내 81%)와 대조한다.
 
+## 작동 확인 (2026-09-02)
+
+| 틱 | 발화 | 러너 시작 | 결과 |
+|---|---|---|---|
+| fast 09:03 / 10:03 / 11:03 | :03:01 | 즉시 | 성공 |
+| fast 12:03 | :03:01 | 대기 중 취소 | 아래 참조 |
+| daily 12:00 | :00:01 | :00:07 | 성공, `실행 모드: oncequick --slow` |
+
+두 달간 중앙 25분·최악 3시간씩 밀리던 GitHub 크론과 질적으로 다르다. daily 의 `mode`
+입력도 정상 전달됐다(oncequick 으로 실행, 느린TF 블록 수행).
+
+## fast 의 GitHub schedule 폴백 제거
+
+12:03 외부 트리거 실행이 **취소**됐다. daily 12:00 이 실행 중이라 pending 이었는데,
+12:04:30 에 GitHub 폴백(`7 * * * *`)이 큐에 들어오면서 밀려났다 — GitHub 는 같은
+concurrency 그룹에 새 실행이 큐에 들어오면 **먼저 대기 중이던 실행을 취소**한다
+(`cancel-in-progress: false` 여도 pending 은 취소 대상이다). 이번엔 폴백이 대신 돌아
+손실이 없었다.
+
+문제는 거울상이다. **daily 가 pending 인 사이 fast 가 큐에 들어오면 daily 가 취소되고,
+느린TF 탐지를 4시간 통째로 잃는다.** 확률은 낮지만(daily 는 보통 7초 내 시작) 발화율
+0~27% 짜리 폴백을 위해 감수할 위험이 아니다. `fast_scheduler.yml` 의 `schedule` 을
+제거해 경합 자체를 없앴다.
+
+daily 폴백은 유지한다 — 4h 간격이라 fast 와 큐가 겹칠 창이 좁고, 두 달간 99% 발화 실적이
+있다. 외부 트리거가 멈추면 `gh_dispatch_log.status_code` 401 로 드러나며, 그때는 fast 를
+수동 dispatch 하거나 크론을 임시로 되살린다.
+
 ## 남은 위험
 - PAT 만료 — 알림 없음. 로그 401 로만 확인.
 - Supabase 무료 플랜 비활성 일시정지 — 러너가 매 실행 DB 를 쓰므로 활성이 유지되지만,
   러너가 멈추면 pg_cron 도 함께 멈추는 순환 구조.
-- GitHub 폴백이 되살아나면 시간당 2회 실행 — 무해(직렬 대기 + dedup), 분만 소모.
+- fast 는 이제 폴백이 없다 — 외부 트리거가 멈추면 캐스케이드 진입·하위TF 청산이 daily
+  6틱에만 의존하게 된다(진입 지연 전제 위반). 401 감시가 그만큼 중요해졌다.

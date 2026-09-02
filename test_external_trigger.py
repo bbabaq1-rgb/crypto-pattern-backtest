@@ -81,7 +81,17 @@ chk("daily yml 이 oncefull/oncequick 을 안다", "oncefull" in daily_yml and "
 for name in ("fast_scheduler.yml", "daily_scheduler.yml"):
     chk(f"{name} 존재", os.path.exists(os.path.join(WF_DIR, name)))
     chk(f"{name} workflow_dispatch 수신", "workflow_dispatch:" in wf(name))
-    chk(f"{name} GitHub schedule 폴백 유지", re.search(r"^\s*schedule:", wf(name), re.M) is not None)
+
+# 폴백 정책 (2026-09-02): daily 만 GitHub schedule 을 남긴다.
+#   fast 는 제거 — 매시 폴백이 daily 와 같은 concurrency 그룹에 큐로 들어오면
+#   GitHub 가 **먼저 대기 중이던 실행을 취소**한다(실측: 12:03 외부 트리거 실행이
+#   12:04:30 폴백 때문에 취소). 거울상으로 daily 가 취소되면 느린TF 탐지를 4시간
+#   잃으므로, 발화율 0~27% 짜리 폴백을 위해 감수할 위험이 아니다.
+#   daily 는 4h 간격이라 fast 와 큐가 겹칠 창이 좁고, 두 달간 99% 발화 실적이 있다.
+chk("daily 는 GitHub schedule 폴백 유지",
+    re.search(r"^\s*schedule:", wf("daily_scheduler.yml"), re.M) is not None)
+chk("fast 는 GitHub schedule 없음(큐 경합 제거)",
+    re.search(r"^\s*schedule:", wf("fast_scheduler.yml"), re.M) is None)
 chk("ref 는 master (스케줄 크론과 같은 기본 브랜치)", "'ref', 'master'" in SQL)
 chk("레포 경로 정확", "repos/bbabaq1-rgb/crypto-pattern-backtest/actions/workflows/" in SQL)
 chk("User-Agent 헤더(GitHub 필수)", "'User-Agent'" in SQL)

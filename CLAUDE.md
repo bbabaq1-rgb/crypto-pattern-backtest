@@ -139,8 +139,18 @@
       못 지킨다. **Supabase pg_cron → GitHub `workflow_dispatch` API** 로 러너를 깨운다
       (`supabase_external_trigger.sql`, 사용자가 Supabase SQL Editor 에서 실행). fast 매시
       :03 / daily 00:00 oncefull + 04·08·12·16·20:00 oncequick — **발화 시각 집합은 GitHub
-      크론과 동일**(SLOW_TICK_HOURS). GitHub schedule 은 폴백으로 유지(겹치면 같은
-      concurrency 그룹에서 직렬 대기, 진입 중복은 날짜 dedup 키가 막음, public 레포라 분 무료).
+      크론과 동일**(SLOW_TICK_HOURS).
+    · **작동 확인 (2026-09-02)**: fast 09:03/10:03/11:03/12:03 전부 :03:01 정시 발화,
+      러너 시작 지연 0초. daily 12:00:01 발화 + `실행 모드: oncequick --slow` 확인.
+      두 달간 25분~3시간씩 밀리던 GitHub 크론과 질적으로 다르다.
+    · **fast 의 GitHub schedule 폴백 제거 (2026-09-02)**: 폴백을 남기면 daily 와 공유하는
+      concurrency 그룹에서 **먼저 대기 중이던 실행이 취소된다** — GitHub 는 같은 그룹에 새
+      실행이 큐에 들어오면 pending 을 취소한다(`cancel-in-progress: false` 여도 그렇다).
+      실측: 12:03 외부 트리거 실행이 12:04:30 폴백 진입으로 **cancelled**(이번엔 폴백이
+      대신 돌아 손실 없음). 거울상으로 daily 가 pending 인 사이 fast 가 큐에 들어오면
+      **daily 가 취소되어 느린TF 탐지를 4시간 통째로 잃는다.** 발화율 0~27% 짜리 폴백을
+      위해 감수할 위험이 아니라 제거했다. daily 폴백은 유지(4h 간격이라 겹칠 창이 좁고
+      두 달 99% 실적). 외부 트리거가 멈추면 로그 401 로 드러나며 수동 dispatch 로 메운다.
       PAT(fine-grained, Actions write 만, 1년 만료)는 Vault `github_pat_dispatch`, 발화·응답은
       `gh_dispatch_log`(204 정상/401 만료/404 권한/422 inputs). **발화율 측정은 이제
       `workflow_dispatch` 이벤트도 세야 한다.** 남은 위험: PAT 만료 시 조용히 멈춤(로그 401),
@@ -238,9 +248,9 @@
   전체보다 질 우위(+2.36%/중앙+6.5%), ih·marubozu는 top7 밖 급감/불안정.
   하모닉 4h·1h 패턴은 기존 검증 유니버스 유지. 경계 과적합 주의 — 분기별 재점검 권장
 - **자동화**: `daily_scheduler.yml` **4h**(`0 */4`, --slow, oncefull@UTC00:00) +
-  `fast_scheduler.yml` **매시 :07**(--fast, exit_spec 패턴만). 2026-09-02 분리.
-  **실발화는 Supabase pg_cron → workflow_dispatch**(fast :03 / daily 정각, 2026-09-02) —
-  GitHub schedule 은 폴백. 발화율 측정 시 dispatch 이벤트 포함
+  `fast_scheduler.yml` (--fast, exit_spec 패턴만, **schedule 없음**). 2026-09-02 분리.
+  **발화는 Supabase pg_cron → workflow_dispatch**(fast 매시 :03 / daily 정각) —
+  daily 만 GitHub schedule 폴백 유지. 발화율 측정 시 dispatch 이벤트 포함
 - **실거래 안전장치** (2026-07-06): MAX_LIVE_POS 12(사용자 승인 5→12) ·
   킬스위치(equity < $100 → 신규 진입 중지, paper_executor.EQUITY_FLOOR —
   2026-08-29 사용자 지정 절대 하한. 기존 HWM 대비 -20%($230.06) 규칙은 폐기) ·
