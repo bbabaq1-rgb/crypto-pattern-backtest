@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 
 import detlib
 import intraday_lab as ilab
+import sizing
 import regime_switch as rs
 import exchange as ex_mod
 
@@ -62,6 +63,15 @@ MAX_LIVE_POS   = 12    # 동시 최대 실거래 포지션 (2026-07-06 사용자
 LIVE_MIN_USD   = 10.0  # 최소 주문 금액 (이하 스킵)
 LIVE_FIRST_USD = 20.0  # 첫 주문 고정 금액
 LIVE_BAL_PCT   = 0.20  # 두 번째부터 가용잔고 × 20%
+
+# 실거래 사이징 모드 (2026-09-02).
+#   "legacy" : 첫 주문 $20 → 이후 가용잔고 x20%, 레버리지 2x 고정 (종전 동작 그대로)
+#   "risk"   : sizing.risk_based_size — 건당 위험 = equity x RISK_FRAC, 명목가 = 위험/손절거리,
+#              레버리지 = 청산가가 손절가의 2배 밖에 오도록 계산(상한 LEV_CAP). 등급·레짐 배수가
+#              실주문에도 반영된다(legacy 에서는 페이퍼 기록에만 곱해졌다).
+# 기본값은 legacy — 머지만으로 실거래 동작이 바뀌지 않는다. sizing_study.py 결과로 파라미터를
+# 정한 뒤 사용자가 "risk" 로 전환한다.
+SIZING_MODE = "legacy"
 
 # 계좌 킬스위치: equity가 하한선 밑으로 내려가면 신규 실거래 진입 중지.
 # (개별 손절과 별개의 계좌 차원 브레이크. 기존 포지션 청산 모니터링은 계속 동작)
@@ -695,7 +705,8 @@ def run(stamp=None):
         if grade != "B" or not tf_ok or regime_cut:
             tf_tag = " [4h비확증×0.5]" if not tf_ok else ""
             rg_tag = f" [complacent×{REGIME_CAP_MULT}]" if regime_cut else ""
-            print(f"  [사이징] {s['symbol']} {grade}등급×{grade_mult}{tf_tag}{rg_tag} → ${size_for_pos:.1f}")
+            print(f"  [사이징·페이퍼] {s['symbol']} {grade}등급×{grade_mult}{tf_tag}{rg_tag} → ${size_for_pos:.1f}"
+                  f"  (실주문 크기는 아래 [live] 라인 — SIZING_MODE={SIZING_MODE})")
 
         # 킬스위치 발동 시 실주문 블록 전체 스킵(페이퍼 기록은 아래에서 계속)
         if live_conn and kill_switch:
@@ -707,24 +718,43 @@ def run(stamp=None):
                 print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']} 스킵")
                 continue
 
-            # 포지션 사이징 (첫 주문 $20 고정 / 이후 잔고 20%)
-            if live_filled_count == 0:
-                live_size_usd = LIVE_FIRST_USD
+            # 포지션 사이징 — SIZING_MODE 참조
+            bal_info  = ex_mod.get_balance(live_conn)
+            usdt_free = bal_info["free"] if isinstance(bal_info, dict) else float(bal_info or 0)
+            live_lev  = None
+            if SIZING_MODE == "risk":
+                eq_now   = (bal_info or {}).get("equity") if isinstance(bal_info, dict) else None
+                eq_now   = float(eq_now or 0.0)
+                stop_pct = abs(entry - stop_px) / entry if entry else 0.0
+                # 이미 열린 실거래 포지션의 명목가 합 (총 노출 캡용)
+                open_notional = sum(
+                    float(p.get("size_usd") or 0) * float((p.get("live_order") or {}).get("leverage") or 2)
+                    for p in still_open if p.get("live_mode"))
+                sz_ = sizing.risk_based_size(
+                    eq_now, usdt_free, stop_pct, grade_mult=grade_mult,
+                    regime_mult=(REGIME_CAP_MULT if regime_cut else 1.0),
+                    open_notional=open_notional)
+                if sz_ is None:
+                    print(f"  [live 사이징] {s['symbol']} risk-based 스킵 (equity ${eq_now:.2f}, "
+                          f"free ${usdt_free:.2f}, stop {stop_pct:.2%})")
+                    continue
+                live_size_usd, live_lev = sz_["margin_usd"], sz_["leverage"]
+                print(f"  [live 사이징] {s['symbol']} risk={sz_['risk_usd']} notional=${sz_['notional']} "
+                      f"lev={live_lev}x margin=${live_size_usd} ({sz_['capped_by']}) "
+                      f"| equity ${eq_now:.2f} stop {stop_pct:.2%} 등급x{grade_mult}")
             else:
-                bal_info      = ex_mod.get_balance(live_conn)
-                usdt_free     = bal_info["free"] if isinstance(bal_info, dict) else float(bal_info or 0)
-                live_size_usd = round(usdt_free * LIVE_BAL_PCT, 2)
-            if regime_cut:                  # complacent 국면 롱 → 실거래도 축소
-                live_size_usd = round(live_size_usd * REGIME_CAP_MULT, 2)
-
-            # 최소 주문 금액 체크
-            if live_size_usd < LIVE_MIN_USD:
-                print(f"  [live] 최소주문금액 미만(${live_size_usd:.1f}) — {s['symbol']} 스킵")
-                continue
+                # legacy: 첫 주문 $20 고정 / 이후 잔고 20% / complacent 롱 x0.6
+                sz_ = sizing.legacy_size(usdt_free, live_filled_count,
+                                         regime_mult=(REGIME_CAP_MULT if regime_cut else 1.0))
+                if sz_ is None:
+                    print(f"  [live] 최소주문금액 미만 — {s['symbol']} 스킵 (free ${usdt_free:.2f})")
+                    continue
+                live_size_usd = sz_["margin_usd"]
 
             result, reason = ex_mod.place_swap_entry(
                 live_conn, s["symbol"], s["direction"], stop_px,
                 size_usd=live_size_usd, target_px=target_px,
+                **({"leverage": live_lev} if live_lev else {}),
             )
             if result is None:
                 print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
