@@ -5,7 +5,8 @@
 
 ## 현재 상태 (2026-06-29)
 - 검증 완료 패턴: engulfing(validated), fvg(passed), inverted_hammer(passed), marubozu(passed)
-- 하모닉 패턴: gartley/bat/butterfly PASSED(4h), crab/shark/cypher 보류(표본부족/mean<eff)
+- 하모닉 패턴: gartley/bat/butterfly 4h + bat_1h/butterfly_1h **등재 정지(2026-09-03, 룩어헤드)** —
+  아래 '전체 점검' 참조. crab/shark/cypher 보류(표본부족/mean<eff)
 - **신규 4h 패턴**: three_soldiers_4h PASSED (n=908, mean=+1.04%, OOS 3/4, p<0.0001)
   - bull_btc/bull_altseason → 롱 전용, bear/sideways 스킵
   - 나머지 6종 기각 (three_crows/breakout_retest/equal_highs_lows/vwap_rev)
@@ -20,7 +21,10 @@
 - **신규 1h 패턴**: butterfly_1h PASSED (n=161, mean=+1.59%, OOS 4/4, boot_p=0.024)
   - 레짐 무관 전 구간 양수 (bear Q4도 양수), 스케줄러 all regimes 탐지
   - 나머지 10종 기각 (gartley_1h boot_p=0.092 경계 탈락 포함)
-- 레짐 스위치: bull_btc→롱, bear/altseason→숏
+- 레짐 스위치: bull_btc→롱, bear/altseason→숏 (실제 표 direction_switch.json — bull_btc 롱/롱,
+  bull_altseason engulfing 숏·fvg 롱, bear engulfing 롱·fvg 숏, sideways FLAT. 2026-06-24 고정 표,
+  regime_switch.json by_pattern 의 n≥20·mean>0 만 본 것 — **median/boot_p/OOS 게이트는 미적용**.
+  registry 의 engulfing_short/fvg_short 는 무조건부 표본에서 rejected. 2026-09-03 점검에서 확인, 사용자 판단 보류)
 - 청산 로직: 방식A(±10%) / 방식D(-8% 손절+조건부 익절) 병행
 - 방식D 게이트: Calmar 기반 — engulfing/fvg/engulfing_short → D 채택, fvg_short → A 유지
 - **청산 방식 E·F 기각** (2026-07-03): E(Chandelier ATR22×3) vs D 0/3 전패(MDD -71.5%),
@@ -278,6 +282,34 @@
     이전 진입)은 대상 아님. **판정 시점: 분기 거래 n≥50** — 그 전엔 기록만.
   · 실거래 주문 규칙 무변경(D 유지). method_r.py / test_method_r.py(65건) /
     test_shadow_r.py(26건) / report_regime_exit.md
+- **전체 로직 점검 → 수정 (2026-09-03, 사용자 지시 "최적의 형태로 진행")**: report_audit_2026_09.md
+  · **하모닉 5종 룩어헤드 — 등재 정지**: detect_harmonic 이 D 피벗 봉을 신호로 찍는데 피벗 확정에
+    이후 3봉이 필요해 마지막 봉은 절대 신호가 못 됐다(합성 300회 0/300, **배포 이래 진입 0건**).
+    백테스트는 미래 3봉을 보고 D 를 골라 등재 수치가 낙관 편향. 신호를 확정 봉(D+PIVOT_WINDOW)으로
+    고치고(confirm=True) gartley/bat/butterfly 4h·bat_1h/butterfly_1h 를 suspended_lookahead 로.
+    복귀는 validate_confirm_bar.py(new/old 두 판) PASSED 셀만, 사용자 결정. triple_bottom 도 L3
+    미확정 돌파를 세고 있었음 → causal 판(실거래 집합 불변, 수치만 재검증). test_confirm_bar.py
+  · **실행 엔진**: 진입·손절·청산가 8자리(4자리는 SHIB/BONK 진입가를 0 으로 → 0 나누기로 run()
+    전체 중단 경로) · DB 복원 tf 를 universe 기준으로(triple_bottom 1w 가 1d 로 복원돼 UNI 가 30일
+    만기·일봉 레짐으로 평가되고 있었음) · reconcile 이 엔진 D 청산 포지션을 다시 기록해 원래 행을
+    덮어쓰던 것 차단 · 킬스위치 fail-closed(잔고 조회 실패 → 진입 보류) · 같은 종목·방향 실포지션
+    (거래소 실측+장부) 중복 진입 스킵 · 실체결가는 주문 재조회(종전은 주문 직전 시세) · 체결가 기준
+    배리어 재정렬이 '손절 있음'으로 건너뛰어 무효였던 것을 replace= 로 교체 · 실거래 손익
+    pnl_live_usd 기록. test_executor_safety.py
+  · **사이징**: '위험 1%' 가 실제로는 0.5~0.7% 였다 — 앙상블 등급(백테스트 근거 없음)이 실주문에
+    곱해져 단독 1d=C(x0.7), 단독 4h/1h=D(x0.5). 사이징 연구는 등급 없이 돌렸음. 실주문은 등급·TF확증
+    배수 없이 equity x 1%(레짐 오버레이만 유지), 등급·확증은 페이퍼 장부·표기 전용.
+  · **레짐 결정성**: 형성 중인 오늘 일봉과 실시간 BTC.D 로 오늘 라벨을 만들어 하루 안에 뒤집힐 수
+    있었고 eval_D 가 그걸 전환으로 읽을 수 있었다 → 닫힌 봉만 + 오늘=마지막 닫힌 봉 라벨. 진입
+    시 raw 레짐을 positions.entry_regime 에 기록해 청산 판정이 맵 재조회에 의존하지 않게. BTC.D
+    fetch 실패 시 만료 캐시 우선(프록시 전환 금지). 온체인 레짐 조정은 미검증이라 표시 전용.
+    test_regime_determinism.py
+  · **DB 스키마 패치 필요(사용자 실행)**: supabase_schema_patch_2026_09.sql — positions.entry_ts/
+    target/live_mode/tf/regime/entry_regime, trades.live_mode/pnl_usd/pnl_live_usd/regime/
+    entry_regime. 실행 전까지 해당 값은 복원 시 유실(코드는 폴백으로 동작).
+  · **손대지 않은 것(판단 보류·후속)**: 숏 라우팅(위 레짐 스위치 항목) · 방식D 가 1d engulfing/fvg
+    외 TF 에서 미검증(ih/marubozu/three_soldiers/1h/1w 는 ±10%/20봉 라벨로만 통과) · 기존 패턴
+    형성 중인 봉 탐지(별도 과제 유지) · 유니버스 드리프트 · fvg/ih/marubozu 워크포워드 실패 플래그
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -297,7 +329,8 @@
   손절 algo 주문 매 실행 자동점검(ensure_stop_orders — 누락 시 재등록 +
   포지션 없는 고아 주문 취소, 주문은 reduceOnly 청산 전용. 2026-08-29) ·
   텔레그램 알림(notify.py — TELEGRAM_BOT_TOKEN/CHAT_ID secrets 등록 시 활성)
-- **멀티 TF 확증**: 1d 신호 → 4h 최근 3봉 확증. 비확증 시 size 50% 축소
+- **멀티 TF 확증**: 1d 신호 → 4h 최근 3봉 확증. 비확증 시 **페이퍼** size 50% 축소
+  (실주문에는 미적용 — 2026-09-03 확인. 확증 판정은 형성 중인 4h 봉 포함)
 - **RS 필터 폐기** (2026-07-08): 상대강도(relative_strength.py)는 rs_score 계산·표시만.
   당초 롱 rs<0.2 ×0.5 필터를 채택했으나, 레짐 통제 검증(backtest_rs_controlled.py)에서
   rs 순진 엣지(+2.76%p)가 시장 레짐(avg_cap)의 교란으로 판명 — 통제 후 cap구간 우위 1/3,
@@ -329,6 +362,14 @@
       실측 지연으로 재평가하니 1h 크론만으로 게이트 통과(+1.54%/median +0.31%)
 - [x] **크론 분리** (2026-09-01) — 매시 실행 + SLOW_TICK_HOURS 게이팅. 배포 패턴 무영향
 - [x] 캐스케이드 adopted_1h_patterns 등재 (2026-09-01, 사용자 승인) — registry deployed
+- [ ] **supabase_schema_patch_2026_09.sql 실행** (사용자, SQL Editor) — 실행 전까지 entry_ts/tf/
+      entry_regime 등이 복원 시 유실
+- [ ] **하모닉 5종 재검증 결과 판독** — revalidate_confirm_bar.yml 아티팩트(_confirm_bar.json).
+      new(인과) PASSED 셀만 복귀 후보. triple_bottom_1w 수치 갱신
+- [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
+      three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
+- [ ] **숏 라우팅 재판정** — 레짐 조건부 engulfing_short(bull_altseason)/fvg_short(bear) 셀을
+      동결 게이트(median/boot_p/OOS)로. 통과 못 하면 숏 중단은 사용자 결정
 - [ ] **형성 중인 봉 탐지 재검토** — 기존 배포 패턴은 아직 `rows[-1]`(미완성 봉)에서
       탐지한다. 검증은 닫힌 봉 기준이라 전반적 불일치. 영향 범위 측정 후 결정
 - [ ] 캐스케이드 첫 실거래 후 체결 지연·슬리피지 실측 → 검증치와 대조
@@ -371,7 +412,12 @@
 - universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
-- registry.json: 패턴 등록부 (passed 11종: 1d×4 + 4h×4 + 1h×3, cascade 2026-09-01 배포)
+- registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 suspended_lookahead → 배포 중 1d×4 + 4h×1 +
+  1w×1 + 1h×1 cascade)
+- validate_confirm_bar.py / test_confirm_bar.py / revalidate_confirm_bar.yml: 룩어헤드 제거 재검증
+- test_executor_safety.py / test_regime_determinism.py: 2026-09-03 점검 수정분 고정
+- supabase_schema_patch_2026_09.sql: 매매 DB 컬럼 보강(사용자 실행)
+- report_audit_2026_09.md: 전체 점검 결과·수정·보류 목록
 - test_cron_split.py: 매시 크론이 배포 패턴 동작을 바꾸지 않음을 고정 (게이팅/닫힌봉/재정렬)
 - supabase_external_trigger.sql: GitHub 크론 누락 대체 — Supabase pg_cron 이 매시/4h
   `workflow_dispatch` 호출. Vault PAT, gh_dispatch_log. test_external_trigger.py 가 레포와 정합 고정
