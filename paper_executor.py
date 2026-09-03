@@ -895,8 +895,14 @@ def run(stamp=None):
                 open_notional = sum(
                     float(p.get("size_usd") or 0) * float((p.get("live_order") or {}).get("leverage") or 2)
                     for p in still_open if p.get("live_mode"))
+                # 실주문 위험은 **등급·TF확증 배수 없이** equity x RISK_FRAC (2026-09-03).
+                # 앙상블 등급은 어떤 백테스트에도 근거가 없는 휴리스틱인데 단독 1d 신호가
+                # C(x0.7), 단독 4h/1h 신호가 D(x0.5) 로 나와 '위험 1%' 채택이 실제로는
+                # 0.5~0.7% 였다. 사이징 연구(sizing_study)도 등급 없이 돌렸다. 등급·확증은
+                # 페이퍼 장부(size_for_pos)와 알림 표기에만 남긴다. 레짐 오버레이(avg_cap)는
+                # 검증된 축소 규칙이라 유지.
                 sz_ = sizing.risk_based_size(
-                    eq_now, usdt_free, stop_pct, grade_mult=grade_mult,
+                    eq_now, usdt_free, stop_pct, grade_mult=1.0,
                     regime_mult=(REGIME_CAP_MULT if regime_cut else 1.0),
                     open_notional=open_notional)
                 if sz_ is None:
@@ -906,7 +912,7 @@ def run(stamp=None):
                 live_size_usd, live_lev = sz_["margin_usd"], sz_["leverage"]
                 print(f"  [live 사이징] {s['symbol']} risk={sz_['risk_usd']} notional=${sz_['notional']} "
                       f"lev={live_lev}x margin=${live_size_usd} ({sz_['capped_by']}) "
-                      f"| equity ${eq_now:.2f} stop {stop_pct:.2%} 등급x{grade_mult}")
+                      f"| equity ${eq_now:.2f} stop {stop_pct:.2%} (등급 {grade} 는 페이퍼만)")
             else:
                 # legacy: 첫 주문 $20 고정 / 이후 잔고 20% / complacent 롱 x0.6
                 sz_ = sizing.legacy_size(usdt_free, live_filled_count,
