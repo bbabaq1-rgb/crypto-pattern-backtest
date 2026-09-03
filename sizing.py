@@ -70,6 +70,8 @@ def liq_safe_leverage(stop_pct, safety=LIQ_SAFETY, mmr=MMR, cap=LEV_CAP):
     return max(1, min(cap, l))
 
 
+# 2026-09-03: paper_executor 는 grade_mult 를 실주문에서 1.0 으로 넘긴다(등급은 페이퍼 전용).
+# 이 함수의 인자는 연구·테스트 호환용으로 남긴다.
 def risk_based_size(equity, free, stop_pct, *, grade_mult=1.0, regime_mult=1.0,
                     open_notional=0.0, risk_frac=RISK_FRAC, lev_cap=LEV_CAP,
                     max_pos_frac=MAX_POS_NOTIONAL_FRAC,

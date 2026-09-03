@@ -331,8 +331,8 @@ check("e2e: ATR 패턴 보유봉 <= horizon(12)",
 check("e2e: ATR 청산 손익이 ±1.5ATR 규모(±8%/±10% 아님)",
       casc and abs(casc[0]["ret"]) < 0.06, casc)
 check("e2e: ATR 진입가는 ts 로 특정한 봉의 종가(그날 첫 봉 아님)",
-      casc and abs(casc[0]["entry_price"] - round(entry_bar["c"], 4)) < 1e-9,
-      (casc[0]["entry_price"] if casc else None, round(entry_bar["c"], 4)))
+      casc and abs(casc[0]["entry_price"] - round(entry_bar["c"], 8)) < 1e-9,
+      (casc[0]["entry_price"] if casc else None, round(entry_bar["c"], 8)))
 check("e2e: 레거시 패턴은 방식A·D 병행 기록 유지", len(maru) == 2, maru)
 check("e2e: 레거시 청산 사유·보유봉이 기존 규칙 그대로",
       {t["method"]: (t["reason"], t["hold_bars"]) for t in maru}
@@ -345,7 +345,7 @@ check("e2e: 레거시 청산 사유·보유봉이 기존 규칙 그대로",
 # 만들어진다. 그런 포지션은 건드리지 않고 유지해야 한다.
 src_pe = open("paper_executor.py", encoding="utf-8").read()
 check("entry_ts 유실 시 엔진 청산 보류 분기 존재",
-    'if not pos.get("entry_ts") and _derive_tf(pos["pattern"]) != "1d":' in src_pe)
+    'if not pos.get("entry_ts") and _pattern_tf(pos["pattern"]) not in ("1d", "1w"):' in src_pe)
 check("보류 분기가 청산이 아니라 포지션 유지로 간다",
     src_pe.split('entry_ts 유실 — ')[1].split('continue')[0].count('still_open.append(pos)') == 1)
 

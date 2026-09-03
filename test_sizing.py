@@ -105,7 +105,9 @@ check("risk 모드는 sizing.risk_based_size 를 호출", "sizing.risk_based_siz
 check("legacy 모드는 sizing.legacy_size 로 종전 규칙 재현", "sizing.legacy_size(" in pe)
 check("위험 기준은 equity(free 아님)", "eq_now, usdt_free, stop_pct" in pe)
 check("손절 거리는 실제 손절가로 계산(ATR 패턴도 동일 식)", "abs(entry - stop_px) / entry" in pe)
-check("등급 배수가 실주문 사이징에 전달", "grade_mult=grade_mult" in pe)
+check("등급 배수는 실주문에 곱하지 않음(2026-09-03 — 위험 1% 가 등급으로 0.5~0.7% 되던 것 교정)",
+      "grade_mult=1.0," in pe and "grade_mult=grade_mult" not in pe)
+check("레짐 오버레이(검증된 축소)는 실주문에 유지", "regime_mult=(REGIME_CAP_MULT if regime_cut else 1.0)" in pe)
 check("총 노출 캡용 open_notional 전달", "open_notional=open_notional" in pe)
 check("레버리지는 risk 모드에서만 주문에 전달(legacy 스텁 호환)", '**({"leverage": live_lev} if live_lev else {})' in pe)
 check("페이퍼 사이징 로그가 실주문과 구분됨", "[사이징·페이퍼]" in pe)

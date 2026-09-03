@@ -142,12 +142,17 @@ def _syms_for_pattern(pattern):
         return _volume_ranked()[:int(rule[3:])]
     return SYMBOLS
 
-# 하모닉 패턴 4h (PASSED: gartley/bat/butterfly)
-HARMONIC_FOCUS = [
+# 하모닉 패턴 4h — **등재 정지 (2026-09-03)**. 디텍터가 D 피벗 봉을 신호로 찍는데
+# 피벗 확정에 이후 3봉이 필요해 마지막 봉에서는 절대 발화하지 못했고(배포 이래 진입 0건),
+# 백테스트는 그 미래 3봉을 보고 D 를 골라 룩어헤드였다. detector_harmonic_base 를
+# 확정 봉(D+3) 기준으로 고친 뒤 재검증(validate_confirm_bar.py)을 통과해야 복귀한다.
+# 복귀 시 HARMONIC_FOCUS 에 다시 넣는다 — 그 전까지 이 블록은 돌지 않는다.
+HARMONIC_SUSPENDED = [
     ("gartley",   "detector_gartley"),
     ("bat",       "detector_bat"),
     ("butterfly", "detector_butterfly"),
 ]
+HARMONIC_FOCUS = []
 HARMONIC_TF = "4h"
 
 
@@ -541,19 +546,24 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
     primary_regime = regime
     print(f"    현재 레짐(primary): {regime} ({latest})")
 
-    print("[2.5] 온체인 보조 신호 수집...")
+    print("[2.5] 온체인 보조 신호 수집 (표시 전용)...")
+    # 2026-09-03: 온체인 조정(bear/bull_btc → sideways)은 어떤 검증도 거치지 않은 실거래
+    # 전용 필터였다(orchestrator/method_* 미참조). 라우팅·게이팅은 raw 레짐만 쓰고,
+    # 조정값은 로그·대시보드 표시로만 남긴다(RS 필터 폐기 2026-07-08 과 같은 원칙).
     onchain = {}
+    onchain_adjusted_regime = primary_regime
     try:
         import onchain_signals as oc
         onchain = oc.fetch(use_cache=True)
-        regime  = oc.adjust_regime(primary_regime, onchain)
-        if regime != primary_regime:
-            print(f"    온체인 조정: {primary_regime} → {regime} "
-                  f"(score={onchain.get('score', 0)})")
+        onchain_adjusted_regime = oc.adjust_regime(primary_regime, onchain)
+        if onchain_adjusted_regime != primary_regime:
+            print(f"    온체인 힌트: {primary_regime} → {onchain_adjusted_regime} "
+                  f"(score={onchain.get('score', 0)}) — 표시 전용, 라우팅 미반영")
         else:
             print(f"    온체인 점수: {onchain.get('score', 0):+d} (레짐 변화 없음)")
     except Exception as e:
         print(f"    온체인 수집 실패(무시): {str(e)[:80]}")
+    regime = primary_regime
 
     print("[3] direction_switch 갱신..."); ds.main()
     routing = json.load(open("direction_switch.json", encoding="utf-8"))["routing"]
@@ -785,6 +795,7 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
         generated_at=stamp,
         regime=regime,
         primary_regime=primary_regime,
+        onchain_adjusted_regime=onchain_adjusted_regime,
         regime_date=latest,
         onchain_score=onchain.get("score", 0),
         onchain_detail=onchain_detail,

@@ -107,8 +107,11 @@ six_tick = [a["pattern"] for a in ad1h if a["pattern"] not in specs]
 
 chk("매시 도는 1h 패턴은 exit_spec 보유분뿐",
     hourly == ["cascade_fade_long_1h"], hourly)
-chk("bat_1h/butterfly_1h 는 6틱 유지(검증 당시 동작 보존)",
-    set(six_tick) == {"bat_1h", "butterfly_1h"}, six_tick)
+# 2026-09-03: bat_1h/butterfly_1h 는 룩어헤드로 등재 정지(suspended_1h_patterns) —
+# 6틱 대상 1h 패턴은 현재 없다. 복귀하면 이 집합에 다시 들어온다.
+chk("6틱 대상 1h 패턴 없음(하모닉 1h 정지 중)", six_tick == [], six_tick)
+susp = [a["pattern"] for a in uni.get("suspended_1h_patterns", [])]
+chk("bat_1h/butterfly_1h 는 suspended 목록에", set(susp) == {"bat_1h", "butterfly_1h"}, susp)
 
 # 느린 TF 채택 패턴은 exit_spec 이 없어야 한다 = 전부 6틱
 slow_pats = [a.get("pattern") for a in uni.get("adopted_patterns", [])] + \
