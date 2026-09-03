@@ -578,7 +578,8 @@
    "passed_tf": "4h",
    "regime_dependent": false,
    "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
   },
   {
    "id": "bat",
@@ -628,7 +629,8 @@
    "passed_tf": "4h",
    "regime_dependent": false,
    "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
   },
   {
    "id": "butterfly",
@@ -673,7 +675,8 @@
    "passed_tf": "4h",
    "regime_dependent": false,
    "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
   },
   {
    "id": "crab",
@@ -751,7 +754,8 @@
    "regime_routing": "all regimes -> long (OOS Q4도 +2.33%로 레짐 무관 강건)",
    "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요.",
    "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
   },
   {
    "id": "butterfly_1h",
@@ -770,7 +774,8 @@
    "regime_routing": "all regimes -> long (OOS 4/4 전구간 양수)",
    "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상.",
    "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
   },
   {
    "id": "triple_bottom_4h",
@@ -794,7 +799,7 @@
    "id": "triple_bottom_1w",
    "name": "Triple Bottom Breakout (1w)",
    "category": "패턴",
-   "status": "passed",
+   "status": "suspended_lookahead",
    "detector_file": "detector_triple_bottom.py",
    "passed_tf": "1w",
    "n": 141,
@@ -807,7 +812,9 @@
    "passed_date": "2026-08-29",
    "regime_routing": "all regimes -> long",
    "note": "2차 연장 검증(1d 5년 리샘플, 주봉 ~260봉/종목)에서 통과. 1차(900일) 기각 사유였던 '단일 분기 집중'은 데이터 부족 탓으로 판명 — 표본 54→141, Q2(2022-12~) 78건 +8.5% / Q3(~2025-05) 55건 +10.1% 두 분위 양수. 신호=주봉 넥라인 돌파, 1d 리샘플로 탐지(detlib).",
-   "note_2026_09_03": "detect 가 L3 미확정 돌파(L3+1·L3+2)를 세고 있었음(룩어헤드). 실거래 신호 집합은 불변(원래 잡히던 것만 잡힘). causal 판으로 재검증해 수치 갱신 예정 — 배포 유지"
+   "note_2026_09_03": "detect 가 L3 미확정 돌파(L3+1·L3+2)를 세고 있었음(룩어헤드). 실거래 신호 집합은 불변(원래 잡히던 것만 잡힘). causal 판으로 재검증해 수치 갱신 예정 — 배포 유지",
+   "status_before_2026_09_03": "passed",
+   "suspended_2026_09_03": "validate_confirm_bar new(인과) REJECTED: n=104 mean +3.07% median -11.36% boot_p 0.164 OOS 2/4 vs old n=142 +7.73% PASSED. 부풀림 +4.65%p — 미확정 돌파 38건이 엣지 전부. 신규 진입 정지, 열린 UNI 포지션은 청산 규칙(D) 그대로(사용자 판단)"
   },
   {
    "id": "cascade_fade_long_1h",
@@ -1581,7 +1588,13 @@
     "regime": "닫힌 봉만 + 오늘 forward-fill / positions.entry_regime 우선 / BTC.D 만료 캐시 우선 / 온체인 조정 표시 전용",
     "db": "supabase_schema_patch_2026_09.sql (사용자 실행)"
    },
-   "deferred": ["숏 라우팅 게이트 재판정", "방식D 비-1d TF 검증", "기존 패턴 형성 봉 탐지", "유니버스 드리프트", "워크포워드 실패 플래그 정리"],
+   "deferred": [
+    "숏 라우팅 게이트 재판정",
+    "방식D 비-1d TF 검증",
+    "기존 패턴 형성 봉 탐지",
+    "유니버스 드리프트",
+    "워크포워드 실패 플래그 정리"
+   ],
    "tests": "test_confirm_bar / test_executor_safety / test_regime_determinism",
    "report": "report_audit_2026_09.md"
   },
@@ -1594,5 +1607,32 @@
    "decision_point": "분기 거래 n>=50 에서 짝지음/분기승률/CAGR 재판정. 그 전 규칙 변경 없음",
    "files": "paper_executor.py(eval_R, shadow_r_records, _pattern_tf) / test_shadow_r.py(26건)"
   }
+ },
+ "confirm_bar_2026_09_03": {
+  "run": "revalidate_confirm_bar.yml #1 (33734141728), 라벨 ±10%/20봉, 유니버스 67, 부트스트랩 1000",
+  "cells": {
+   "gartley_4h": "new n=44  +1.48% med +0.05% bp .109 OOS 2/4 REJECT | old +4.58% PASSED | 부풀림 +3.10%p",
+   "bat_4h": "new n=49  -0.26% med -0.37% bp .522 OOS 1/4 REJECT | old +2.27% PASSED | +2.53%p",
+   "butterfly_4h": "new n=45  -0.33% med -0.32% bp .540 OOS 1/4 REJECT | old +2.09% REJECT(bp .057) | +2.42%p",
+   "gartley_1h": "new n=107 +0.45% med -0.01% bp .119 OOS 4/4 REJECT | old +1.35% PASSED | +0.91%p",
+   "bat_1h": "new n=40  -0.82% med -1.22% bp .743 OOS 1/4 REJECT | old +0.32% REJECT | +1.15%p",
+   "butterfly_1h": "new n=71  -0.36% med -0.60% bp .482 OOS 2/4 REJECT | old +0.76% REJECT | +1.12%p",
+   "triple_bottom_1w": "new n=104 +3.07% med -11.36% bp .164 OOS 2/4 REJECT | old n=142 +7.73% PASSED | +4.65%p"
+  },
+  "verdict": "7셀 전부 인과 판 REJECT. 하모닉 5종 정지 유지 + triple_bottom_1w 추가 정지. 복귀 후보 없음",
+  "note": "old 의 n/mean 이 registry 등재 수치와 일치(bat_1h 는 검증 창이 달라 n 108→40) — 재현 확인. 종전 4h 창(1100일)은 4h 패턴 등재 당시(3년)와 같음"
+ },
+ "regime_scale_2026_09": {
+  "date": "2026-09-03",
+  "question": "레짐이 일봉 한 스케일이라 기각된 규칙(특히 방식R)이 레짐 스케일 문제였나. 주단위(slow 1w)/시간단위(fast 4h) 레짐을 진입 필터·청산 소스로",
+  "design": "regime_multi.py 3-신호 동일 구조, 임계값 lookback 비례, 봉 닫힘 시각부터 유효. arm D/D_slow/D_fast/RL/RL_slow/RL_fast/F_slow/F_fast 짝지음, 기준 ①~⑦ method_r 동일 + ⑧ 레짐별·연도별 층화 진단. 공통지지(세 스케일 라벨 존재) 신호만",
+  "runs": {
+   "5y (1d 1800/4h 1100)": "n=470 train. D_slow -2.42%p t-2.05 | D_fast -6.64%p t-4.75 | RL +1.66%p t2.04 bp.012 CAGR3/7 분기52% | RL_slow +0.97%p bp.138 | RL_fast +0.63%p bp.093 | F_slow -2.79%p | F_fast -0.28%p — 7 arm REJECT",
+   "max (1d 3000/4h 2200, 일봉 레짐 2019~)": "n=570 train. D_slow -2.69%p t-2.99 | D_fast -4.94%p t-4.35 | RL +0.95%p t1.88 bp.032 CAGR4/7 분기53% train 통과·holdout -0.18 탈락 | RL_slow +0.19%p | RL_fast +0.55%p | F_slow -2.20%p(분기승률63%지만 합산 음수) | F_fast -0.35%p — 7 arm REJECT"
+  },
+  "strata": "D_slow/RL_slow 는 bear 진입에서만 양수(단일 레짐 의존), bull_btc 진입에서 -3.9/-0.2%p. 2024년(bull)에 slow/fast 계열 전부 크게 음수(-9.3/-12.6%p). RL(daily)만 레짐별 전부 >= 0",
+  "answer": "아니오 — 스케일을 바꾸면 더 나빠진다. 주봉 레짐은 전환이 늦어 이익을 반납하고, 4h 레짐은 너무 자주 바뀌어 조기 청산. 진입 필터는 bear 진입 롱(가장 수익 좋은 부분집합)을 막아 손해. 방식R 은 일봉 스케일에서 가장 좋았고 그 결론(train 통과·holdout 탈락)은 method_r 과 동일. 창 확장(2019~)해도 결론 불변",
+  "live_impact": "없음",
+  "files": "regime_multi.py / method_m.py / test_method_m.py / method_m.yml / report_regime_scale.md"
  }
 }

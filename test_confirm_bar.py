@@ -104,7 +104,11 @@ r = json.load(open("registry.json", encoding="utf-8"))
 st = {p["id"]: p["status"] for p in r["patterns"]}
 check("registry: 하모닉 5종 suspended_lookahead",
       all(st.get(k) == "suspended_lookahead" for k in ("gartley", "bat", "butterfly", "bat_1h", "butterfly_1h")), st)
-check("registry: triple_bottom_1w 는 passed 유지(실거래 신호 집합 불변)", st.get("triple_bottom_1w") == "passed")
+check("registry: triple_bottom_1w 도 suspended_lookahead (인과 판 재검증 REJECT)", st.get("triple_bottom_1w") == "suspended_lookahead")
+check("universe: triple_bottom 은 adopted 에서 빠지고 suspended_patterns 에", "triple_bottom" not in {a["pattern"] for a in u.get("adopted_patterns", [])}
+      and "triple_bottom" in {a["pattern"] for a in u.get("suspended_patterns", [])})
+import paper_executor as _pe
+check("정지돼도 _pattern_tf(triple_bottom) 는 1w (열린 UNI 포지션 청산 평가용)", _pe._pattern_tf("triple_bottom") == "1w")
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

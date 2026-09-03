@@ -420,7 +420,10 @@ def _pattern_tf(pattern, path="universe.json"):
         m = {}
         try:
             u = json.load(open(path, encoding="utf-8"))
-            for key in ("adopted_patterns", "adopted_4h_patterns", "adopted_1h_patterns"):
+            # suspended_* 도 본다 — 등재 정지된 패턴의 열린 포지션(예: triple_bottom UNI)은
+            # 여전히 검증 tf(1w)로 청산 평가해야 한다.
+            for key in ("adopted_patterns", "adopted_4h_patterns", "adopted_1h_patterns",
+                        "suspended_patterns", "suspended_1h_patterns"):
                 for p in u.get(key, []) or []:
                     if p.get("pattern") and p.get("tf"):
                         m[p["pattern"]] = p["tf"]

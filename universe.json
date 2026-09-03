@@ -230,12 +230,6 @@
    "module": "detector_marubozu",
    "pattern": "marubozu",
    "direction": "long"
-  },
-  {
-   "module": "detector_triple_bottom",
-   "pattern": "triple_bottom",
-   "direction": "long",
-   "tf": "1w"
   }
  ],
  "candle_results": {
@@ -460,6 +454,16 @@
    "regime_routing": "all",
    "suspended_date": "2026-09-03",
    "suspended_reason": "하모닉 디텍터 룩어헤드 — D 피벗 봉 신호는 실거래에서 발화 불가(배포 후 진입 0건), 백테스트는 미래 3봉 참조. 확정 봉(D+3) 기준 재검증 통과 시 복귀"
+  }
+ ],
+ "suspended_patterns": [
+  {
+   "module": "detector_triple_bottom",
+   "pattern": "triple_bottom",
+   "direction": "long",
+   "tf": "1w",
+   "suspended_date": "2026-09-03",
+   "suspended_reason": "causal 판 재검증 REJECTED — n=104 mean +3.07% median -11.36% boot_p 0.164 OOS 2/4. 종전 통과(n=142 +7.73%)는 L3 미확정 돌파 38건(평균 약 +20%)이 만든 룩어헤드. 실거래가 잡을 수 있는 집합은 게이트 미달"
   }
  ]
 }

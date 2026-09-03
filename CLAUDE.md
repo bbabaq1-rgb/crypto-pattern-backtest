@@ -11,6 +11,7 @@
   - bull_btc/bull_altseason → 롱 전용, bear/sideways 스킵
   - 나머지 6종 기각 (three_crows/breakout_retest/equal_highs_lows/vwap_rev)
 - **신규 1h 패턴**: bat_1h PASSED (n=108, mean=+1.46%, OOS 4/4, boot_p=0.034)
+- **triple_bottom_1w 등재 정지 (2026-09-03, 룩어헤드 재검증 REJECT)** — 아래 '전체 점검' 참조. 종전 기록:
 - **신규 1w 패턴**: triple_bottom_1w PASSED (2026-08-29 2차 연장검증, n=141,
   mean=+7.72%, median=+10.19%, boot_p=0.023, OOS 2/4) — 사용자 지정 패턴
   (차트 5장) 데이터화. 1d 5년 리샘플, 레짐 무관 롱, detlib가 1w/1M 리샘플 지원.
@@ -304,12 +305,30 @@
     시 raw 레짐을 positions.entry_regime 에 기록해 청산 판정이 맵 재조회에 의존하지 않게. BTC.D
     fetch 실패 시 만료 캐시 우선(프록시 전환 금지). 온체인 레짐 조정은 미검증이라 표시 전용.
     test_regime_determinism.py
+  · **재검증 결과(2026-09-03, validate_confirm_bar #1)**: 인과 판 **7셀 전부 REJECT**. gartley_4h +1.48%
+    bp.109 / bat_4h −0.26% / butterfly_4h −0.33% / gartley_1h +0.45% med −0.01% / bat_1h −0.82% /
+    butterfly_1h −0.36% / **triple_bottom_1w +3.07% med −11.36% bp.164**. old(룩어헤드) 판은 등재 수치를
+    재현(부풀림 +0.9~+4.7%p). triple_bottom 은 L3 미확정 돌파 38건(평균 ≈+20%)이 엣지 전부였고 실거래가
+    잡을 수 있는 104건은 게이트 미달 → **triple_bottom_1w 도 suspended_lookahead**(신규 진입 정지, 열린 UNI
+    는 D 규칙대로). 복귀 후보 없음. `_pattern_tf` 는 suspended 목록도 읽어 UNI 청산 tf(1w) 유지.
+    후속 가설(미검증): 미확정 돌파 셋업을 L3+3 에서 '지각 진입' — 별도 사전등록 필요.
   · **DB 스키마 패치 필요(사용자 실행)**: supabase_schema_patch_2026_09.sql — positions.entry_ts/
     target/live_mode/tf/regime/entry_regime, trades.live_mode/pnl_usd/pnl_live_usd/regime/
     entry_regime. 실행 전까지 해당 값은 복원 시 유실(코드는 폴백으로 동작).
   · **손대지 않은 것(판단 보류·후속)**: 숏 라우팅(위 레짐 스위치 항목) · 방식D 가 1d engulfing/fvg
     외 TF 에서 미검증(ih/marubozu/three_soldiers/1h/1w 는 ±10%/20봉 라벨로만 통과) · 기존 패턴
     형성 중인 봉 탐지(별도 과제 유지) · 유니버스 드리프트 · fvg/ih/marubozu 워크포워드 실패 플래그
+- **레짐 스케일 연구 기각** (2026-09-03, 사용자 가설 "기각된 규칙이 레짐 문제일 수도"): 현행 일봉 레짐
+  (200일선 20일 기울기)에 주봉(slow: 30주선 4주) / 4h(fast: 200봉 20봉) 스케일을 같은 3-신호 구조로
+  만들어 청산 소스 교체(D_slow/D_fast, RL_slow/RL_fast)와 진입 필터(F_slow/F_fast)로 짝지음 시험.
+  5년 창(n=470)과 최대 창(1d 2019~, n=570) **둘 다 7 arm 전부 REJECT**, 결론 불변.
+  · 주봉 레짐 청산 D_slow −2.4~−2.7%p(t −2~−3): 전환이 늦어 번 걸 반납. 4h 레짐 D_fast −5~−6.6%p
+    (t −4.4~−4.8, CAGR 우위 0/7): 너무 자주 바뀌어 조기 청산. 진입 필터 F_slow −2.2~−2.8%p: **bear
+    진입 롱이 가장 수익 좋은 부분집합**이라 막으면 손해(방식R 불변 사실과 일치). F_fast −0.3%p.
+  · 방식R 은 **일봉 스케일에서 가장 좋다**(RL +0.95~+1.66%p, max 창 train 통과 · holdout −0.18 탈락 —
+    method_r 결론 그대로). RL_slow/RL_fast 는 RL 보다 나쁨. 층화: slow 계열은 bear 진입에서만 양수
+    (단일 레짐 의존), 2024 상승장에서 slow/fast 전부 크게 음수. **레짐 스케일은 원인이 아니다.**
+  · regime_multi.py / method_m.py / test_method_m.py(20건) / method_m.yml / report_regime_scale.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -364,8 +383,8 @@
 - [x] 캐스케이드 adopted_1h_patterns 등재 (2026-09-01, 사용자 승인) — registry deployed
 - [ ] **supabase_schema_patch_2026_09.sql 실행** (사용자, SQL Editor) — 실행 전까지 entry_ts/tf/
       entry_regime 등이 복원 시 유실
-- [ ] **하모닉 5종 재검증 결과 판독** — revalidate_confirm_bar.yml 아티팩트(_confirm_bar.json).
-      new(인과) PASSED 셀만 복귀 후보. triple_bottom_1w 수치 갱신
+- [x] **하모닉 5종 재검증 결과 판독** (2026-09-03) — 7셀 전부 인과 판 REJECT, triple_bottom_1w 도 정지
+- [ ] **UNI(triple_bottom 1w 롱) 처리** — 패턴은 정지, 포지션은 D 규칙대로 유지 중. 수동 청산 여부는 사용자 판단
 - [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
       three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
 - [ ] **숏 라우팅 재판정** — 레짐 조건부 engulfing_short(bull_altseason)/fvg_short(bear) 셀을
@@ -412,8 +431,9 @@
 - universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
-- registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 suspended_lookahead → 배포 중 1d×4 + 4h×1 +
-  1w×1 + 1h×1 cascade)
+- registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 + triple_bottom_1w suspended_lookahead → 배포 중
+  1d×4(engulfing/fvg/ih/marubozu) + 4h×1(three_soldiers) + 1h×1(cascade))
+- regime_multi.py / method_m.py: 레짐 스케일(주봉/4h) 연구 — 기각 기록용. report_regime_scale.md
 - validate_confirm_bar.py / test_confirm_bar.py / revalidate_confirm_bar.yml: 룩어헤드 제거 재검증
 - test_executor_safety.py / test_regime_determinism.py: 2026-09-03 점검 수정분 고정
 - supabase_schema_patch_2026_09.sql: 매매 DB 컬럼 보강(사용자 실행)
