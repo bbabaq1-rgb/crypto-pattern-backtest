@@ -162,6 +162,13 @@ def _count(it):
     return out
 
 
+def _jsonable(x):
+    """json.dump default — set 을 정렬 리스트로 (1차 실행이 ADVERSE 의 set 에서 죽었다)."""
+    if isinstance(x, (set, frozenset)):
+        return sorted(x)
+    raise TypeError(f"not serializable: {type(x).__name__}")
+
+
 # ── 실행 ────────────────────────────────────────────────────────────────────
 def run_pattern(label, direction, detmod, oppmod, tf):
     mod = importlib.import_module(detmod)
@@ -351,13 +358,15 @@ def main():
               f"패턴훼손없음={v['c3_no_pattern_hurt']} 분기승률>50%={v['c4_divergence_winrate']}")
 
     payload = dict(config=dict(stop=STOP_LOSS_PCT, max_hold=MAX_HOLD, fee=FEE,
-                               adverse=ADVERSE, boot_n=BOOT_N,
+                               adverse={m: {d: sorted(s) for d, s in v.items()}
+                                        for m, v in ADVERSE.items()},
+                               boot_n=BOOT_N,
                                sim=dict(pos_pct=mt.SIM_POS_PCT, max_pos=mt.SIM_MAX_POS,
                                         leverage=mt.SIM_LEVERAGE, start=mt.SIM_START_EQ)),
                    patterns={k: v for k, v in results.items() if not k.startswith("_")},
                    pooled=results["_pooled"], summary=summary)
     json.dump(payload, open("method_r.json", "w", encoding="utf-8"),
-              ensure_ascii=False, indent=1, default=lambda x: round(x, 6))
+              ensure_ascii=False, indent=1, default=_jsonable)
     print("\n[저장] method_r.json")
     print("RESULT_SUMMARY: " + json.dumps(summary, separators=(",", ":")))
 

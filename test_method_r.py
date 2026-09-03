@@ -148,6 +148,13 @@ check("분기 비율", abs(dv["share"] - 1 / 3) < 1e-9, dv)
 check("boot_p: 전부 양수면 0", mr.boot_p([0.01] * 20) == 0.0)
 check("boot_p: 전부 음수면 1", mr.boot_p([-0.01] * 20) == 1.0)
 
+# ── 8b. 결과 저장 직렬화 (1차 실행이 여기서 죽었다 — set 이 JSON 불가) ────────
+import json as _json
+blob = _json.dumps(dict(adverse={m: {d: sorted(s) for d, s in v.items()} for m, v in mr.ADVERSE.items()},
+                        x=mr.ADVERSE["R1"]["long"], z={None: 3, "bear": 1}),
+                   default=mr._jsonable)
+check("payload 직렬화: set→정렬리스트, None 키(진입레짐 미상) 허용", '["bear"]' in blob and '"null": 3' in blob)
+
 # ── 9. 실거래 코드 무변경 (연구 파일이 eval_D 를 건드리지 않았는가) ──────────
 src = open("paper_executor.py", encoding="utf-8").read()
 check("paper_executor.eval_D 의 레짐 조건은 현행 그대로(방향 무관)",

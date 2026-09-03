@@ -238,6 +238,19 @@
   · 짝지음으로 재면 IH 우위가 +0.20~0.68%p 에 불과. 2026-07-06 의 'G +8.32% vs D +4.04%'는
     현 데이터·프레임에서 재현 안 됨 — '두 규칙이 같은 패턴에서 신호' 관찰 자체가 착시.
     validate_ih_exit.py / report_followup_2026_09.md
+- **방향 인지 레짐 청산(방식R) 기각** (2026-09-03): 현행 eval_D 의 레짐 청산은
+  `regmap[j] != entry_reg` 로 **방향을 안 본다** — bear 에서 잡은 롱이 bull 로 유리하게
+  바뀌는 순간 청산된다(사용자 관찰). 방식R = '불리 국면으로 들어가는 전환'에만 청산.
+  7패턴 n=1,091 짝지음: 합산 +0.597%p, t 1.58, 패턴재표본 boot_p 0.006, 짝지음우위 6/7,
+  CAGR우위 4/7 — 그러나 **분기 거래 285건 중 R 승률 44%** 로 사전기준 ④ 탈락 → REJECT.
+  · **롱은 맞고 숏은 틀리다**: bear 진입 fvg 롱 n=134 는 +2.39→+5.29% (boot_p 0.006)로
+    사용자 직관대로. 그런데 bull 진입 fvg 숏 n=188 은 −2.05→−2.58% (boot_p 0.975)로 손해.
+    대칭 규칙이 안 맞는다.
+  · **건당은 올라도 CAGR 은 반토막(fvg 22.9→12.3%)**: 보유 10.5→14.5봉으로 회전율 하락 +
+    손절이 진입가 고정이라 버티는 동안 번 걸 −8% 까지 반납(stop 206→244, 중앙값 −8.2%).
+  · R1(sideways 중립)≡R2(sideways 불리) 전 패턴 동일 — 표본에 sideways 전환 0건.
+  · 후속 가설(사후 선택, 새로 사전등록 필요): R-롱한정 / R+유리전환시 손절 본전이동 / 둘 다.
+  · 실거래 무변경. method_r.py / test_method_r.py / report_regime_exit.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -314,6 +327,8 @@
   + OKX OCO 브래킷. 라우팅은 registry.json 의 exit_spec 유무로만 결정
 - test_intraday_exit.py: 청산 경로 테스트 (신규 경로 + 기존 경로 무변화 e2e)
 - method_t.py: 고정 익절 arm 시험 (짝지음 비교 + 회전율 반영 자산곡선). 기각 기록용
+- method_r.py: 방향 인지 레짐 청산 시험 (D vs R1/R2, 분기 거래·불리국면 진입 부분집합). 기각 기록용.
+  report_regime_exit.md
 - validate_cascade_delay.py: 캐스케이드 진입 지연 민감도 (고정지연 + 실제 스케줄러 격자)
 - validate_cascade_realistic.py: 실측 Actions 지연 분포(100건 내장) + 마찰 스윕.
   1h vs 4h 크론 비교로 '서버가 필요한가'에 답한다. report_cascade_deployment.md
