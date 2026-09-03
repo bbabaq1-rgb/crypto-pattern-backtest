@@ -238,6 +238,46 @@
   · 짝지음으로 재면 IH 우위가 +0.20~0.68%p 에 불과. 2026-07-06 의 'G +8.32% vs D +4.04%'는
     현 데이터·프레임에서 재현 안 됨 — '두 규칙이 같은 패턴에서 신호' 관찰 자체가 착시.
     validate_ih_exit.py / report_followup_2026_09.md
+- **방향 인지 레짐 청산(방식R) 기각** (2026-09-03): 현행 eval_D 의 레짐 청산은
+  `regmap[j] != entry_reg` 로 **방향을 안 본다** — bear 에서 잡은 롱이 bull 로 유리하게
+  바뀌는 순간 청산된다(사용자 관찰). 방식R = '불리 국면으로 들어가는 전환'에만 청산.
+  7패턴 n=1,091 짝지음: 합산 +0.597%p, t 1.58, 패턴재표본 boot_p 0.006, 짝지음우위 6/7,
+  CAGR우위 4/7 — 그러나 **분기 거래 285건 중 R 승률 44%** 로 사전기준 ④ 탈락 → REJECT.
+  · **롱은 맞고 숏은 틀리다**: bear 진입 fvg 롱 n=134 는 +2.39→+5.29% (boot_p 0.006)로
+    사용자 직관대로. 그런데 bull 진입 fvg 숏 n=188 은 −2.05→−2.58% (boot_p 0.975)로 손해.
+    대칭 규칙이 안 맞는다.
+  · **건당은 올라도 CAGR 은 반토막(fvg 22.9→12.3%)**: 보유 10.5→14.5봉으로 회전율 하락 +
+    손절이 진입가 고정이라 버티는 동안 번 걸 −8% 까지 반납(stop 206→244, 중앙값 −8.2%).
+  · R1(sideways 중립)≡R2(sideways 불리) 전 패턴 동일 — 표본에 sideways 전환 0건.
+  · **2차 후속 가설 3개도 전부 REJECT** (2026-09-03, 사용자 지시, 기준 ⑤ 전후반 양수 추가):
+    RL(롱만 R1) +0.548%p CAGR우위 3/7 분기승률 46% / RB(R1+유리전환시 본전이동) +0.536%p
+    분기승률 43% 후반 −0.11 / RLB +0.490%p. **본전 이동은 1,091건 중 12건만 발동**하고 R1 대비
+    미세 악화. 해석 정정: fvg 롱 분기 161건 중 bull 진입 ≈124건은 D 가 **bull_btc↔bull_altseason
+    라벨 전환**에서 청산하던 것을 R 이 '유리→유리'로 보고 버티다 −8% 에 걸린 것. 즉 D 의
+    라벨 전환 청산이 bull 진입 알트 롱의 조기 출구 역할을 하고 있었고, 본전 이동은 '유리로
+    들어가는' 순간에만 걸려 이미 bull 에서 진입한 거래엔 무효. **확실한 건 하나** — bear 진입
+    롱을 bull 전환에 청산하지 않는 것은 옳다(fvg n=134 +2.9%p boot_p 0.006, 4 arm 동일).
+  · **3차 RA(altseason 인지)+홀드아웃도 REJECT** (2026-09-03, 사용자 지시): 마지막 365일
+    (n=233) 홀드아웃, train n=858. RA +0.387%p(비유의) CAGR우위 2/7 분기 40% — **RL(+0.744%p)
+    보다 나쁨**. altseason→btc 불리 규칙이 triple_bottom(+21.3→−1.0)·IH 의 출구를 막았다 —
+    R1 의 triple_bottom 대박은 정확히 그 전환을 버텨서 난 것. 2차 해석은 fvg 한 패턴에서만
+    성립. **홀드아웃(bear 지배 해)**: RL 분기 6건 0승 7패, RA 는 D 와 분기 0건(발동 상황 없음).
+  · **세 라운드 종합 — 여기서 멈춤(4번째 변형은 과적합)**. 불변 사실: bear 진입 롱의 bull 전환
+    유지는 매번 재현(train fvg n=73 +5.3~5.5%p boot_p≤0.004). 그러나 규칙화하면 부작용이 상쇄 —
+    분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%). 남은 경로는 **실거래 병행
+    기록**(A/D 처럼 R-롱한정을 3번째 장부로, 주문은 D 그대로) — 사용자 승인 사항.
+  · **방식R 그림자 장부 배포** (2026-09-03, 사용자 승인): `paper_executor.eval_R`(RL 규칙,
+    test_shadow_r 가 method_r.outcome_r("RL") 과 400 시나리오 완전 일치로 고정) +
+    `shadow_r_records` — **R_SHADOW_SINCE(2026-09-03) 이후 진입한 방식D 롱 거래**(exit_spec
+    패턴 제외, 숏은 RL≡D 라 미기록)를 매 실행 봉 데이터로 재평가해 해소되면 method="R"
+    행 추가(live_mode=False). **주문·포지션 수명·live 집계 무변경** — 롱에서 R 청산은 항상
+    D 와 같거나 늦으므로 포지션이 아니라 **D 거래 기록**에서 재평가한다(D 청산 뒤에도 R 은
+    미결일 수 있음). 진입봉은 같은 실행이면 entry_ts, DB 복원분이면 date 폴백(D 와 동일).
+    tf 는 universe.json adopted 목록 우선(`_pattern_tf`, triple_bottom→1w). daily_summary 는
+    A/D 만 합산하므로 무영향, paper_summary 에 R 블록 추가. 현 오픈 3건(ARB/ADA/UNI, 9/3
+    이전 진입)은 대상 아님. **판정 시점: 분기 거래 n≥50** — 그 전엔 기록만.
+  · 실거래 주문 규칙 무변경(D 유지). method_r.py / test_method_r.py(65건) /
+    test_shadow_r.py(26건) / report_regime_exit.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -314,6 +354,10 @@
   + OKX OCO 브래킷. 라우팅은 registry.json 의 exit_spec 유무로만 결정
 - test_intraday_exit.py: 청산 경로 테스트 (신규 경로 + 기존 경로 무변화 e2e)
 - method_t.py: 고정 익절 arm 시험 (짝지음 비교 + 회전율 반영 자산곡선). 기각 기록용
+- method_r.py: 방향 인지 레짐 청산 시험 (D vs R1/R2, 분기 거래·불리국면 진입 부분집합). 기각 기록용.
+  report_regime_exit.md
+- paper_executor.eval_R / shadow_r_records: 방식R(롱 한정) 그림자 장부 — 2026-09-03 이후 D 롱 거래에
+  R 청산을 나란히 기록(주문 무관). test_shadow_r.py 가 검증 프레임과의 일치·기록 전용 성질을 고정
 - validate_cascade_delay.py: 캐스케이드 진입 지연 민감도 (고정지연 + 실제 스케줄러 격자)
 - validate_cascade_realistic.py: 실측 Actions 지연 분포(100건 내장) + 마찰 스윕.
   1h vs 4h 크론 비교로 '서버가 필요한가'에 답한다. report_cascade_deployment.md

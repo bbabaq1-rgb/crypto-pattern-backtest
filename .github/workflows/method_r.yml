@@ -1,0 +1,49 @@
+name: Regime-Aware Exit (research)
+
+# 연구 전용 — 방식D(레짐 바뀌면 무조건 청산) vs 방식R(불리 국면 진입 시에만 청산).
+# 매매/DB 접근 없음(공개 시세만 수집). 결과는 로그 + 아티팩트.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "method_r.py"
+      - "test_method_r.py"
+      - ".github/workflows/method_r.yml"
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p data
+
+      - name: Logic tests (no network)
+        run: |
+          python test_method_t.py
+          python test_method_r.py
+
+      - name: Run regime-aware exit comparison
+        run: python method_r.py
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: method-r-${{ github.run_number }}
+          path: method_r.json
+          if-no-files-found: ignore

@@ -1489,5 +1489,86 @@
    "mechanism": "낙폭 축소는 '항상 더 작아짐'이 아니라 진입 순서 의존성 제거. legacy 는 free x20% 라 첫 진입이 크고 뒤로 갈수록 쪼개진다($95.96→$76.83→$31.45); risk 는 equity 기준이라 순서 무관. 잘리는 건 초기 대형 진입이고, free 가 낮으면 risk 가 오히려 크다(현 계좌 실측 risk $17.83 > legacy $14.73).",
    "scope": "기존 오픈 포지션 21건 무영향, 신규 진입부터 적용. 롤백은 SIZING_MODE='legacy'"
   }
+ },
+ "regime_exit_2026_09": {
+  "date": "2026-09-03",
+  "question": "eval_D 레짐 청산이 방향을 안 봐서 bear 진입 롱이 bull 전환에 청산된다(사용자 관찰). '불리 국면 진입 시에만 청산'(방식R)이 더 나은가",
+  "design": "method_t 틀. 같은 신호에 D/R1/R2 짝지음. R1 롱불리={bear} 숏불리={bull_*} sideways 중립, R2 sideways 도 불리. 손절/반대신호/30봉 동일. 사전기준 ①합산 t>2 or boot_p<.05 ②CAGR우위>=4/7 ③t<-2 패턴 없음 ④분기거래 R승률>50%",
+  "result": {
+   "pooled": "n=1091 짝지음 +0.597%p t=1.58 boot_p(패턴재표본)=0.006 짝지음우위 6/7 CAGR우위 4/7 분기 285건 R 125승/157패(44%)",
+   "verdict": "REJECT — ④ 탈락(분기 승률 44%). ①②③ 통과",
+   "by_pattern": {
+    "engulfing": "+2.22%p t1.88 bp.011 분기8 R75% CAGR 11.2→16.3",
+    "fvg": "+0.43%p t.70 분기161 R45% CAGR 22.9→12.3 (보유 10.5→14.5봉, stop 206→244)",
+    "engulfing_short": "+0.31%p 중립",
+    "fvg_short": "+0.09%p 분기50 R36% CAGR 7.7→6.1",
+    "inverted_hammer": "+0.38%p 중립 CAGR 4.1→7.7",
+    "marubozu": "-1.85%p 분기11 R27% (n=27)",
+    "triple_bottom_1w": "+21.33%p bp.092 CAGR 25→62 (n=15 보류)"
+   },
+   "user_scenario_subset": {
+    "fvg_long_bear_entry": "n=134 D+2.39→R+5.29 (+2.90%p t1.89 bp.006 21/16) — 직관 맞음",
+    "fvg_short_bull_entry": "n=188 D-2.05→R-2.58 (-0.53%p t-1.89 bp.975 12/32) — 대칭 적용은 손해",
+    "engulfing_long_bear_entry": "n=16 +1.67%p bp.104",
+    "inverted_hammer_bear_entry": "n=51 +0.02%p 무차이"
+   },
+   "R1_vs_R2": "전 패턴 동일 — 표본에 sideways 전환 0건"
+  },
+  "mechanism": "롱은 맞고 숏은 틀림(비대칭). 건당 상승에도 CAGR 하락은 회전율(보유 +38%) + 진입가 고정 손절로 유리국면에서 번 걸 반납(트레일링 부재).",
+  "followups_post_hoc": [
+   "R-롱한정(숏은 D)",
+   "R + 유리 전환 시 손절 본전 이동",
+   "둘 결합"
+  ],
+  "live_impact": "없음. eval_D 무변경(test_method_r 소스 고정)",
+  "files": "method_r.py / test_method_r.py / method_r.yml / report_regime_exit.md",
+  "round2_2026_09_03": {
+   "arms": {
+    "RL": "롱만 R1, 숏 D",
+    "RB": "R1 + 유리 전환 시 손절 본전 이동(수익 중만, 1회)",
+    "RLB": "롱만 (R1+본전), 숏 D"
+   },
+   "criteria_added": "⑤ 진입일 중앙값 전반/후반 합산 짝지음 차이 둘 다 > 0 (사후 선택 방어)",
+   "pooled": {
+    "R1": "+0.597%p t1.58 bp.006 짝지음우위6/7 CAGR우위4/7 분기125/157(44%) 전반+1.24 후반-0.04 → REJECT ④⑤",
+    "RL": "+0.548%p t1.48 bp.019 짝지음우위4/7 CAGR우위3/7 분기98/116(46%) 전반+0.96 후반+0.14 → REJECT ②④",
+    "RB": "+0.536%p t1.42 bp.009 짝지음우위6/7 CAGR우위4/7 분기120/162(43%) 전반+1.19 후반-0.11 → REJECT ④⑤",
+    "RLB": "+0.490%p t1.33 bp.025 짝지음우위4/7 CAGR우위3/7 분기95/119(44%) 전반+0.90 후반+0.08 → REJECT ②④"
+   },
+   "breakeven_fired": "stop_be 12/1091 (fvg5 fvg_short3 IH2 engulfing_short1 triple_bottom1). R1 대비 fvg +0.43→+0.32, IH +0.38→+0.21 미세 악화. triple_bottom +21.33→+21.87 (n=15)",
+   "mechanism_corrected": "fvg 롱 분기 161 = bear진입 37(R 21/16 +2.9%p) + bull진입 ≈124(R ≈50/71). bull 진입분은 D 가 bull_btc↔bull_altseason 라벨 전환에서 청산 → R 은 유리→유리로 버티다 -8% 손절. D 의 라벨전환 청산이 bull 진입 알트 롱의 조기출구였음. 본전이동은 '유리로 들어가는' 순간만 발동해 bull 진입 거래엔 무효 — 문제 지점에 닿지 않는 도구.",
+   "robust_finding": "bear 진입 롱을 bull 전환에 청산하지 않는 것은 옳다 — fvg n=134 +2.9%p bp.006, engulfing n=16 +1.67%p, 4 arm 모두 동일",
+   "round3_hypothesis_not_run": "adverse(long) = {bear} ∪ {bull_altseason→bull_btc 전환}. 같은 데이터 3번째 검정이라 사전등록 + 마지막 1년 홀드아웃 필수",
+   "verdict": "4 arm 전부 REJECT. 실거래 무변경."
+  },
+  "round3_2026_09_03": {
+   "arms": {
+    "RL": "롱만 R1, 숏 D (비교군)",
+    "RA": "RL + bull_altseason→bull_btc 전환을 롱 불리로"
+   },
+   "holdout": "마지막 365일 진입(cutoff 2025-09-03, n=233, 6패턴 — triple_bottom 0건) 판정 제외. train n=858. 기준 ⑥ 홀드아웃 합산>0 ⑦ 홀드아웃 분기승률>50% 추가, 7개 전부여야 PASS",
+   "train": {
+    "RL": "+0.744%p t1.59 bp.017 짝지음우위4/7 CAGR우위3/7 분기98/109(47%) 전반+1.19 후반+0.30 → ②④ 탈락",
+    "RA": "+0.387%p t1.29 bp.148 짝지음우위2/7 CAGR우위2/7 분기72/106(40%) 전반+0.45 후반+0.33 → ①②④ 탈락"
+   },
+   "holdout_result": {
+    "RL": "-0.176%p t-2.24 분기 7건 0승7패(fvg6 IH1) → ⑥⑦ 탈락",
+    "RA": "D 와 분기 0건 — 홀드아웃(bear 지배)에 bear→bull 전환이 열린 포지션 창에 없어 발동 상황 부재 → ⑥⑦ 탈락(무결과)"
+   },
+   "ra_vs_rl": "altseason→btc 불리 추가가 손해: fvg +0.63→+0.88 개선이나 triple_bottom +21.33→-0.98, IH +0.60→-0.13. R1/RL 의 triple_bottom 대박은 정확히 그 전환을 버텨서 난 것. 2차 해석은 fvg 한 패턴에서만 성립",
+   "invariant": "bear 진입 롱의 bull 전환 유지는 3라운드 모두 재현 — train fvg n=73 D+6.29→+11.6~11.8% (bp .001~.004), engulfing n=12 +2.2%p",
+   "why_no_rule_passes": "규칙화하면 부작용이 상쇄. 분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%) — 갈라질 때마다 지는 쪽이 많고 소수 대승이 평균을 끌어올림. method_t 의 거울상",
+   "decision": "3라운드로 종료. 같은 데이터 4번째 변형은 과적합. 남은 경로: 실거래 병행 기록(A/D 처럼 R-롱한정 3번째 장부, 주문은 D 그대로) — 사용자 승인 사항",
+   "verdict": "RL·RA 모두 REJECT. 실거래 무변경."
+  },
+  "shadow_ledger_2026_09_03": {
+   "status": "deployed_record_only",
+   "approved_by_user": "2026-09-03",
+   "rule": "paper_executor.eval_R = RL arm (롱: 손절/반대신호/bear 진입 전환/30봉, 숏: D). test_shadow_r 가 method_r.outcome_r('RL') 과 400 시나리오 일치 고정",
+   "scope": "R_SHADOW_SINCE=2026-09-03 이후 진입 방식D 롱 거래. exit_spec 패턴 제외, 숏 미기록(RL≡D)",
+   "mechanics": "포지션이 아니라 D 거래 기록에서 매 실행 재평가(롱에서 R 청산 >= D 청산 봉). 해소 시 method='R' live_mode=False 행 추가. 주문·포지션 수명·live 집계·daily_summary 무변경",
+   "decision_point": "분기 거래 n>=50 에서 짝지음/분기승률/CAGR 재판정. 그 전 규칙 변경 없음",
+   "files": "paper_executor.py(eval_R, shadow_r_records, _pattern_tf) / test_shadow_r.py(26건)"
+  }
  }
 }
