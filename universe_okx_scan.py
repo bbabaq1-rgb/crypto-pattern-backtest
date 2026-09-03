@@ -47,9 +47,30 @@ def okx_perps_by_volume():
         base = s.split("/")[0]
         if base in STABLE:
             continue
-        rows.append((float(tk.get("quoteVolume") or 0), base))
+        # OKX 무기한 티커는 ccxt quoteVolume 이 비어 있을 수 있다(1차 실행에서 전부 0 →
+        # 알파벳 역순 정렬). volCcy24h(기초자산 수량) x 현재가 → USD 거래대금으로 폴백.
+        last = float(tk.get("last") or 0)
+        qv = float(tk.get("quoteVolume") or 0)
+        if not qv:
+            info = tk.get("info") or {}
+            base_vol = float(tk.get("baseVolume") or info.get("volCcy24h") or 0)
+            qv = base_vol * last
+        rows.append((qv, base))
     rows.sort(reverse=True)
     return rows
+
+
+def fetch_1d(sym):
+    """현물 심볼로 받고, 없으면(선물 전용 상장) 무기한 심볼로 다시 받는다. 반환 총 봉수."""
+    path = detlib.CSV(sym, "1d")
+    for symbol in (f"{sym}/USDT", f"{sym}/USDT:USDT"):
+        try:
+            _, total = fetch_data.update_csv(symbol, "1d", path, window_days=WINDOW_1D)
+        except Exception as e:
+            print(f"  [fetch] {symbol} 실패: {str(e)[:60]}"); total = 0
+        if total:
+            return total
+    return 0
 
 
 def turnover_30d(rows):
@@ -79,18 +100,16 @@ def main():
     rank24 = {b: i + 1 for i, (_, b) in enumerate(vol)}
     cands = [b for _, b in vol[:TOP_SCAN] if b not in cur and b not in known_bad]
     print(f"[okx] 24h 상위 {TOP_SCAN} 중 유니버스 밖 후보 {len(cands)}종목")
-    print("[okx] 24h 상위 40:", "  ".join(f"{i+1}{'★' if b in cur else ''}{b}" for i, (_, b) in enumerate(vol[:40])))
+    print("[okx] 24h 상위 40:", "  ".join(f"{i+1}{'★' if b in cur else ''}{b}({v/1e6:.0f}M)" for i, (v, b) in enumerate(vol[:40])))
+    if vol and vol[0][0] <= 0:
+        raise SystemExit("[okx] 거래대금이 전부 0 — 티커 필드 확인 필요(정렬 무의미)")
 
     # ── fetch 1d (현 유니버스 + 후보), 시간 측정 ─────────────────────────────
     info = {}
     tf0 = time.time(); per_sym = []
     for s in cur + cands:
         t1 = time.time()
-        try:
-            _, total = fetch_data.update_csv(f"{s}/USDT", "1d", detlib.CSV(s, "1d"), window_days=WINDOW_1D)
-        except Exception as e:
-            total = 0
-            print(f"  [fetch] {s} 실패: {str(e)[:60]}")
+        total = fetch_1d(s)
         per_sym.append(time.time() - t1)
         rows = []
         if total:
