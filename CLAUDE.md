@@ -257,9 +257,16 @@
     라벨 전환 청산이 bull 진입 알트 롱의 조기 출구 역할을 하고 있었고, 본전 이동은 '유리로
     들어가는' 순간에만 걸려 이미 bull 에서 진입한 거래엔 무효. **확실한 건 하나** — bear 진입
     롱을 bull 전환에 청산하지 않는 것은 옳다(fvg n=134 +2.9%p boot_p 0.006, 4 arm 동일).
-    3차 가설(안 돌림): adverse(long)={bear}∪{bull_altseason→bull_btc}. 돌리려면 사전등록 +
-    마지막 1년 홀드아웃 필수 — 같은 데이터 세 번째 검정.
-  · 실거래 무변경. method_r.py / test_method_r.py(57건) / report_regime_exit.md
+  · **3차 RA(altseason 인지)+홀드아웃도 REJECT** (2026-09-03, 사용자 지시): 마지막 365일
+    (n=233) 홀드아웃, train n=858. RA +0.387%p(비유의) CAGR우위 2/7 분기 40% — **RL(+0.744%p)
+    보다 나쁨**. altseason→btc 불리 규칙이 triple_bottom(+21.3→−1.0)·IH 의 출구를 막았다 —
+    R1 의 triple_bottom 대박은 정확히 그 전환을 버텨서 난 것. 2차 해석은 fvg 한 패턴에서만
+    성립. **홀드아웃(bear 지배 해)**: RL 분기 6건 0승 7패, RA 는 D 와 분기 0건(발동 상황 없음).
+  · **세 라운드 종합 — 여기서 멈춤(4번째 변형은 과적합)**. 불변 사실: bear 진입 롱의 bull 전환
+    유지는 매번 재현(train fvg n=73 +5.3~5.5%p boot_p≤0.004). 그러나 규칙화하면 부작용이 상쇄 —
+    분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%). 남은 경로는 **실거래 병행
+    기록**(A/D 처럼 R-롱한정을 3번째 장부로, 주문은 D 그대로) — 사용자 승인 사항.
+  · 실거래 무변경. method_r.py / test_method_r.py(65건) / report_regime_exit.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)

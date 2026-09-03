@@ -1540,6 +1540,26 @@
    "robust_finding": "bear 진입 롱을 bull 전환에 청산하지 않는 것은 옳다 — fvg n=134 +2.9%p bp.006, engulfing n=16 +1.67%p, 4 arm 모두 동일",
    "round3_hypothesis_not_run": "adverse(long) = {bear} ∪ {bull_altseason→bull_btc 전환}. 같은 데이터 3번째 검정이라 사전등록 + 마지막 1년 홀드아웃 필수",
    "verdict": "4 arm 전부 REJECT. 실거래 무변경."
+  },
+  "round3_2026_09_03": {
+   "arms": {
+    "RL": "롱만 R1, 숏 D (비교군)",
+    "RA": "RL + bull_altseason→bull_btc 전환을 롱 불리로"
+   },
+   "holdout": "마지막 365일 진입(cutoff 2025-09-03, n=233, 6패턴 — triple_bottom 0건) 판정 제외. train n=858. 기준 ⑥ 홀드아웃 합산>0 ⑦ 홀드아웃 분기승률>50% 추가, 7개 전부여야 PASS",
+   "train": {
+    "RL": "+0.744%p t1.59 bp.017 짝지음우위4/7 CAGR우위3/7 분기98/109(47%) 전반+1.19 후반+0.30 → ②④ 탈락",
+    "RA": "+0.387%p t1.29 bp.148 짝지음우위2/7 CAGR우위2/7 분기72/106(40%) 전반+0.45 후반+0.33 → ①②④ 탈락"
+   },
+   "holdout_result": {
+    "RL": "-0.176%p t-2.24 분기 7건 0승7패(fvg6 IH1) → ⑥⑦ 탈락",
+    "RA": "D 와 분기 0건 — 홀드아웃(bear 지배)에 bear→bull 전환이 열린 포지션 창에 없어 발동 상황 부재 → ⑥⑦ 탈락(무결과)"
+   },
+   "ra_vs_rl": "altseason→btc 불리 추가가 손해: fvg +0.63→+0.88 개선이나 triple_bottom +21.33→-0.98, IH +0.60→-0.13. R1/RL 의 triple_bottom 대박은 정확히 그 전환을 버텨서 난 것. 2차 해석은 fvg 한 패턴에서만 성립",
+   "invariant": "bear 진입 롱의 bull 전환 유지는 3라운드 모두 재현 — train fvg n=73 D+6.29→+11.6~11.8% (bp .001~.004), engulfing n=12 +2.2%p",
+   "why_no_rule_passes": "규칙화하면 부작용이 상쇄. 분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%) — 갈라질 때마다 지는 쪽이 많고 소수 대승이 평균을 끌어올림. method_t 의 거울상",
+   "decision": "3라운드로 종료. 같은 데이터 4번째 변형은 과적합. 남은 경로: 실거래 병행 기록(A/D 처럼 R-롱한정 3번째 장부, 주문은 D 그대로) — 사용자 승인 사항",
+   "verdict": "RL·RA 모두 REJECT. 실거래 무변경."
   }
  }
 }
