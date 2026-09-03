@@ -243,10 +243,35 @@ R 은 기록만. 새 데이터가 n≥50 분기 거래를 만들면 그때 다�
 
 ## 실거래 영향
 
-없음. `paper_executor.eval_D` 무변경(test_method_r 이 소스로 고정). 현재 실포지션(ARB engulfing
+주문 규칙은 없음. `paper_executor.eval_D` 무변경(test_method_r 이 소스로 고정). 현재 실포지션(ARB engulfing
 롱 / ADA marubozu 롱 / UNI triple_bottom 1w 롱, 전부 bear 진입)은 레짐이 bull 로 바뀌면 현행
 규칙대로 청산된다 — 이 시험이 그게 최선이 아닐 수 있음을 보였지만, 대체 규칙이 기준을 못 넘었다.
 
+## 그림자 장부 배포 (2026-09-03, 사용자 승인)
+
+위의 '실거래 병행 기록' 경로를 구현했다. 방식A 가 방식D 옆에 페이퍼로 쌓이듯, 방식R(롱 한정 =
+RL arm)을 세 번째 장부로 얹는다.
+
+| 항목 | 내용 |
+|---|---|
+| 규칙 | `paper_executor.eval_R` — 롱: 손절 −8% / 반대신호 / **bear 로 들어가는 전환** / 30봉. 숏: D 위임 |
+| 정합 | test_shadow_r: 무작위 400 시나리오(롱/숏·레짐열·반대신호)에서 `method_r.outcome_r("RL")` 과 수익률·보유봉·사유 완전 일치 |
+| 대상 | `R_SHADOW_SINCE`(2026-09-03) 이후 진입한 방식D **롱** 거래. exit_spec 패턴(캐스케이드) 제외, 숏 미기록(RL≡D) |
+| 평가 위치 | 포지션이 아니라 **D 거래 기록**. 롱에서 R 의 청산 봉은 항상 D 와 같거나 늦으므로(손절·반대신호·만기 동일, 레짐 조건은 D 의 부분집합 — 300 시나리오 고정) D 가 청산돼 포지션이 사라진 뒤에도 R 은 미결일 수 있다. 매 실행 R 쌍둥이 없는 D 거래를 재평가해 해소되면 `method="R"` 행 추가 |
+| 무변경 | 주문·포지션 수명(D·A 로만 닫힘)·`live_open_count`/`live_filled_count`(R 은 live_mode=False)·daily_summary(A/D 만 합산) |
+| 진입봉 | 같은 실행에서 D 가 막 기록한 거래는 entry_ts, DB 복원분은 date 폴백 — D 자체가 복원 시 같은 폴백을 쓴다 |
+| tf | universe.json adopted 목록 우선(`_pattern_tf`: triple_bottom→1w, three_soldiers_4h→4h) |
+| 멱등 | DB trades 의 method="R" 행이 쌍둥이 존재의 근거. 재실행 시 추가 0 |
+
+**판정 시점**: D 와 R 이 갈라진 거래(분기)가 **n≥50** 이 되면 짝지음 차이·분기 승률·CAGR 을
+백테스트와 같은 기준으로 본다. 그 전엔 기록만 하고 규칙을 바꾸지 않는다. 현 오픈 3건은 9/3
+이전 진입이라 대상이 아니다 — 첫 R 행은 9/3 이후 새 롱 진입이 D 청산을 맞이한 뒤 생긴다.
+
+**수기 청산은 지지되지 않는다**: 이 시험이 보인 것은 "bear 진입 롱을 bull 전환에 버티면 평균이
+오른다"이지 "사람이 골라서 청산하면 낫다"가 아니다. 분기 거래 승률이 50% 를 못 넘었다는 건
+버티는 쪽이 더 자주 진다는 뜻이고, 그 판단을 수기로 하면 규칙보다 나을 근거가 없다.
+
 ## 파일
 
-`method_r.py` / `test_method_r.py`(57건) / `.github/workflows/method_r.yml` / `method_r.json`(아티팩트)
+`method_r.py` / `test_method_r.py`(65건) / `.github/workflows/method_r.yml` / `method_r.json`(아티팩트) /
+`paper_executor.py`(eval_R, shadow_r_records) / `test_shadow_r.py`(26건)

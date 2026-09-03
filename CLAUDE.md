@@ -266,7 +266,18 @@
     유지는 매번 재현(train fvg n=73 +5.3~5.5%p boot_p≤0.004). 그러나 규칙화하면 부작용이 상쇄 —
     분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%). 남은 경로는 **실거래 병행
     기록**(A/D 처럼 R-롱한정을 3번째 장부로, 주문은 D 그대로) — 사용자 승인 사항.
-  · 실거래 무변경. method_r.py / test_method_r.py(65건) / report_regime_exit.md
+  · **방식R 그림자 장부 배포** (2026-09-03, 사용자 승인): `paper_executor.eval_R`(RL 규칙,
+    test_shadow_r 가 method_r.outcome_r("RL") 과 400 시나리오 완전 일치로 고정) +
+    `shadow_r_records` — **R_SHADOW_SINCE(2026-09-03) 이후 진입한 방식D 롱 거래**(exit_spec
+    패턴 제외, 숏은 RL≡D 라 미기록)를 매 실행 봉 데이터로 재평가해 해소되면 method="R"
+    행 추가(live_mode=False). **주문·포지션 수명·live 집계 무변경** — 롱에서 R 청산은 항상
+    D 와 같거나 늦으므로 포지션이 아니라 **D 거래 기록**에서 재평가한다(D 청산 뒤에도 R 은
+    미결일 수 있음). 진입봉은 같은 실행이면 entry_ts, DB 복원분이면 date 폴백(D 와 동일).
+    tf 는 universe.json adopted 목록 우선(`_pattern_tf`, triple_bottom→1w). daily_summary 는
+    A/D 만 합산하므로 무영향, paper_summary 에 R 블록 추가. 현 오픈 3건(ARB/ADA/UNI, 9/3
+    이전 진입)은 대상 아님. **판정 시점: 분기 거래 n≥50** — 그 전엔 기록만.
+  · 실거래 주문 규칙 무변경(D 유지). method_r.py / test_method_r.py(65건) /
+    test_shadow_r.py(26건) / report_regime_exit.md
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
@@ -345,6 +356,8 @@
 - method_t.py: 고정 익절 arm 시험 (짝지음 비교 + 회전율 반영 자산곡선). 기각 기록용
 - method_r.py: 방향 인지 레짐 청산 시험 (D vs R1/R2, 분기 거래·불리국면 진입 부분집합). 기각 기록용.
   report_regime_exit.md
+- paper_executor.eval_R / shadow_r_records: 방식R(롱 한정) 그림자 장부 — 2026-09-03 이후 D 롱 거래에
+  R 청산을 나란히 기록(주문 무관). test_shadow_r.py 가 검증 프레임과의 일치·기록 전용 성질을 고정
 - validate_cascade_delay.py: 캐스케이드 진입 지연 민감도 (고정지연 + 실제 스케줄러 격자)
 - validate_cascade_realistic.py: 실측 Actions 지연 분포(100건 내장) + 마찰 스윕.
   1h vs 4h 크론 비교로 '서버가 필요한가'에 답한다. report_cascade_deployment.md

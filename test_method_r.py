@@ -255,7 +255,7 @@ check("payload 직렬화: set→정렬리스트, None 키(진입레짐 미상) �
 src = open("paper_executor.py", encoding="utf-8").read()
 check("paper_executor.eval_D 의 레짐 조건은 현행 그대로(방향 무관)",
       'regsw = regmap.get(rows[j]["date"]) not in (None, entry_reg)' in src)
-check("paper_executor 는 method_r 를 import 하지 않음", "method_r" not in src)
+check("paper_executor 는 method_r 를 import 하지 않음", "import method_r" not in src and "from method_r" not in src)
 
 print()
 print(f"실패 {len(fails)} 건" if fails else "실패 0 — 전체 통과")

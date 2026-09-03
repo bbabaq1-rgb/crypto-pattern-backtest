@@ -1560,6 +1560,15 @@
    "why_no_rule_passes": "규칙화하면 부작용이 상쇄. 분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%) — 갈라질 때마다 지는 쪽이 많고 소수 대승이 평균을 끌어올림. method_t 의 거울상",
    "decision": "3라운드로 종료. 같은 데이터 4번째 변형은 과적합. 남은 경로: 실거래 병행 기록(A/D 처럼 R-롱한정 3번째 장부, 주문은 D 그대로) — 사용자 승인 사항",
    "verdict": "RL·RA 모두 REJECT. 실거래 무변경."
+  },
+  "shadow_ledger_2026_09_03": {
+   "status": "deployed_record_only",
+   "approved_by_user": "2026-09-03",
+   "rule": "paper_executor.eval_R = RL arm (롱: 손절/반대신호/bear 진입 전환/30봉, 숏: D). test_shadow_r 가 method_r.outcome_r('RL') 과 400 시나리오 일치 고정",
+   "scope": "R_SHADOW_SINCE=2026-09-03 이후 진입 방식D 롱 거래. exit_spec 패턴 제외, 숏 미기록(RL≡D)",
+   "mechanics": "포지션이 아니라 D 거래 기록에서 매 실행 재평가(롱에서 R 청산 >= D 청산 봉). 해소 시 method='R' live_mode=False 행 추가. 주문·포지션 수명·live 집계·daily_summary 무변경",
+   "decision_point": "분기 거래 n>=50 에서 짝지음/분기승률/CAGR 재판정. 그 전 규칙 변경 없음",
+   "files": "paper_executor.py(eval_R, shadow_r_records, _pattern_tf) / test_shadow_r.py(26건)"
   }
  }
 }

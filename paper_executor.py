@@ -5,6 +5,7 @@ signals_today.json -> 진입 기록(paper_positions.json).
 매 실행마다 오픈 포지션 청산 모니터링:
   방식D: 손절 -8% / 반대패턴 신호 / 레짐 전환 / 최대30봉 시가청산.
   방식A: +10%/-10% / 최대20봉 종가청산 (병행 비교).
+  방식R: 롱 한정 — 레짐 청산을 'bear 진입 전환'에만 (2026-09-03, 기록 전용 그림자 장부).
 청산 시 paper_trades.json 에 기록(방식별 1행).
 
 자본 $2,000, 포지션당 10%($200), 레버리지 1x. 체결가=시가/종가 가정(슬리피지 없음).
@@ -33,6 +34,23 @@ MAX_HOLD_A = 20
 # 같은 값을 쓰는 EXIT_SPECS(ATR 배리어 경로)에서만 적용한다.
 MAX_HOLD_BY_TF = {"1d": 30, "4h": 20, "1h": 48, "15m": 120}
 FEE = detlib.FEE
+
+# ── 방식R(롱 한정) 그림자 장부 (2026-09-03 사용자 승인) ─────────────────────────
+# 방식D 의 레짐 청산은 `regmap[j] != entry_reg` 로 방향을 안 본다 — bear 에서 잡은
+# 롱이 bull 로 유리하게 바뀌는 순간에도 청산된다. 방식R 은 롱에 한해 '불리 국면(bear)
+# 으로 들어가는 전환'에만 청산한다(method_r.py 의 RL arm). 백테스트 3라운드는 규칙
+# 전체로는 REJECT 였으나(분기 거래 승률 44~47%) bear 진입 롱의 bull 전환 유지만은 매번
+# 재현됐다(report_regime_exit.md). 그래서 **주문은 D 그대로 내고 R 은 기록만** 한다 —
+# 방식A 처럼 세 번째 장부로 나란히 쌓아 실거래 신호에서 두 규칙을 짝지어 비교한다.
+#   · 대상: R_SHADOW_SINCE 이후 진입한 방식D **롱** 거래(exit_spec 패턴 제외 — 그쪽은
+#     ATR 배리어라 D 자체가 안 돈다). 숏은 RL 에서 D 와 동일하므로 기록하지 않는다.
+#   · 롱에서 R 의 청산 시점은 항상 D 와 같거나 늦다(손절·반대신호·만기는 동일, 레짐
+#     조건은 D 의 부분집합). 따라서 D 가 청산돼 포지션이 사라진 뒤에도 R 은 미결일 수
+#     있어 **포지션이 아니라 D 거래 기록에서** 매 실행 재평가한다(D 쌍둥이만 있고 R
+#     쌍둥이가 없는 거래 → 해소되면 method="R" 행 추가). 포지션 수명·live 집계·주문에는
+#     손대지 않는다. test_shadow_r.py 가 이 성질들을 고정한다.
+R_SHADOW_SINCE = "2026-09-03"
+R_ADVERSE_LONG = frozenset({"bear"})        # method_r.ADVERSE["R1"]["long"] 과 동일
 
 # ── ATR 배리어 청산 경로 (하위 TF 전용) ────────────────────────────────────────
 # 기존 방식A(±10%/20봉)·방식D(±8%/30봉)는 1d 기준으로 동결된 규칙이라 1h 이하
@@ -132,6 +150,38 @@ def eval_D(rows, ei, direction, opp_set, regmap):
     if last >= ei + MAX_HOLD_D:
         px = rows[end]["o"]; r = (px - base) / base if direction == "long" else (base - px) / base
         return end, px, r - FEE, "maxhold"
+    return None
+
+
+def eval_R(rows, ei, direction, opp_set, regmap):
+    """
+    방식R(롱 한정) — method_r.outcome_r(mode="RL") 과 같은 규칙, eval_D 와 같은 반환형.
+
+    롱: 손절 -8%(봉 내) / 반대신호 / **bear 로 들어가는 전환**(직전 관측 레짐이 bear 가
+        아닌데 이번 봉이 bear) / 최대 30봉 시가청산. 레짐 정보 없는 봉(None)은 판단 보류.
+    숏: 방식D 와 동일(eval_D 위임) — RL arm 정의.
+    반환: (j, exit_px, ret, reason) | None(미해소)
+    """
+    if direction != "long":
+        return eval_D(rows, ei, direction, opp_set, regmap)
+    base = rows[ei]["c"]; entry_reg = regmap.get(rows[ei]["date"]); last = len(rows) - 1
+    end = min(ei + MAX_HOLD_D, last)
+    prev_adv = entry_reg in R_ADVERSE_LONG
+    for j in range(ei + 1, end + 1):
+        if rows[j]["l"] <= base * (1 - STOP):
+            return j, base * (1 - STOP), -STOP - FEE, "stop"
+        cur = regmap.get(rows[j]["date"])
+        regsw = False
+        if cur is not None:
+            cur_adv = cur in R_ADVERSE_LONG
+            regsw = cur_adv and not prev_adv
+            prev_adv = cur_adv
+        if j in opp_set or regsw:
+            c = rows[j]["c"]
+            return j, c, (c - base) / base - FEE, ("opp_signal" if j in opp_set else "regime_switch")
+    if last >= ei + MAX_HOLD_D:
+        px = rows[end]["o"]
+        return end, px, (px - base) / base - FEE, "maxhold"
     return None
 
 
@@ -241,7 +291,10 @@ def _record_trade(trades, pos, method, ex, exit_date=None):
                        exit_date=exit_date, exit_price=round(exit_px, 4), ret=round(ret, 5),
                        pnl_usd=round(ret * POS_USD, 2), hold_bars=j - pos["entry_idx"],
                        reason=reason, method_label=method,
-                       live_mode=is_live_trade))
+                       live_mode=is_live_trade,
+                       # 같은 실행 안에서 방식R 그림자가 진입봉을 ts 로 특정하기 위한 참고값.
+                       # DB trades 에는 컬럼이 없어 복원 시 유실 → date 폴백(_bar_idx).
+                       entry_ts=pos.get("entry_ts"), tf=pos.get("tf")))
 
 
 # ---- Supabase 동기화 (베스트에포트; 실패/미설정 시 JSON 폴백) ----
@@ -341,6 +394,75 @@ def _derive_tf(pattern):
     if pattern.endswith("_1h"):
         return "1h"
     return "1d"
+
+
+_UNIVERSE_TF = None
+
+
+def _pattern_tf(pattern, path="universe.json"):
+    """
+    패턴의 검증 timeframe. universe.json 의 adopted_* 목록에 적힌 tf 를 우선하고
+    (triple_bottom → 1w 처럼 접미사로는 알 수 없는 것), 없으면 _derive_tf 폴백.
+    """
+    global _UNIVERSE_TF
+    if _UNIVERSE_TF is None:
+        m = {}
+        try:
+            u = json.load(open(path, encoding="utf-8"))
+            for key in ("adopted_patterns", "adopted_4h_patterns", "adopted_1h_patterns"):
+                for p in u.get(key, []) or []:
+                    if p.get("pattern") and p.get("tf"):
+                        m[p["pattern"]] = p["tf"]
+        except Exception:
+            pass
+        _UNIVERSE_TF = m
+    return _UNIVERSE_TF.get(pattern) or _derive_tf(pattern)
+
+
+def shadow_r_records(trades, rows_of, regmap, since=R_SHADOW_SINCE):
+    """
+    방식R 그림자 장부 갱신 — R_SHADOW_SINCE 이후 진입한 방식D 롱 거래 중 R 쌍둥이가
+    없는 것을 봉 데이터로 재평가해, 해소된 것만 method="R" 행으로 추가한다.
+
+    기록 전용: 포지션 목록·live 집계·주문에는 관여하지 않는다. 진입봉은 같은 실행에서
+    D 가 방금 기록한 거래면 entry_ts 로, DB 복원분이면 date 폴백으로 특정한다(D 도
+    복원 시 같은 폴백을 쓴다). 반환: 새로 추가한 R 행 수.
+    """
+    have_r = {(t["symbol"], t["pattern"], t["direction"], t["entry_date"])
+              for t in trades if t.get("method") == "R"}
+    added = 0
+    for t in list(trades):
+        if t.get("method") != "D" or t.get("direction") != "long":
+            continue
+        if not t.get("entry_date") or t["entry_date"] < since:
+            continue
+        if t["pattern"] in EXIT_SPECS:
+            continue
+        key = (t["symbol"], t["pattern"], t["direction"], t["entry_date"])
+        if key in have_r:
+            continue
+        rows = rows_of(t["symbol"], _pattern_tf(t["pattern"]))
+        if rows is None:
+            continue
+        ei = _bar_idx(rows, t.get("entry_ts"), t["entry_date"])
+        if ei is None:
+            continue
+        oppname = OPP.get((t["pattern"], t["direction"]))
+        opp_set = set(importlib.import_module(oppname).detect(rows)) if oppname else set()
+        ex = eval_R(rows, ei, "long", opp_set, regmap)
+        if not ex:
+            continue                      # 미해소 — 다음 실행에 재평가
+        pos_like = dict(symbol=t["symbol"], direction="long", pattern=t["pattern"],
+                        regime=t.get("regime"), entry_date=t["entry_date"],
+                        entry_price=t["entry_price"], entry_idx=ei,
+                        entry_ts=t.get("entry_ts"), tf=_pattern_tf(t["pattern"]),
+                        live_mode=False)
+        _record_trade(trades, pos_like, "R", ex, rows[ex[0]]["date"])
+        have_r.add(key)
+        added += 1
+        print(f"  [shadow-R] {t['symbol']} {t['pattern']} 롱 R청산 기록 ({ex[3]}, "
+              f"{ex[2]*100:+.2f}%, {ex[0]-ei}봉) — D 는 {t.get('reason')} {float(t.get('ret') or 0)*100:+.2f}%")
+    return added
 
 
 def restore_state_db(positions, trades):
@@ -640,6 +762,11 @@ def run(stamp=None):
             still_open.append(pos)
         else:
             closed_now.append(pos)
+
+    # 1-b) 방식R(롱 한정) 그림자 장부 — 기록 전용, 주문·포지션 무관 (상단 주석 참조)
+    r_added = shadow_r_records(trades, rows_of, regmap)
+    if r_added:
+        print(f"  [shadow-R] 방식R 행 {r_added}건 추가(기록 전용)")
 
     # 2) 신규 진입 (signals_today.json)
 

@@ -53,8 +53,8 @@ def main():
     print("\n[전체]")
     block("전체", trades)
 
-    print("\n[방식 A vs D]")
-    for m in ("A", "D"):
+    print("\n[방식 A vs D vs R(롱 한정 그림자, 2026-09-03~)]")
+    for m in ("A", "D", "R"):
         block(f"방식 {m}", [t for t in trades if t["method"] == m])
 
     print("\n[방식 D : 패턴x방향]")
