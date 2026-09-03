@@ -174,8 +174,8 @@ def _fetch_btcd_from_cg():
     return btcd
 
 
-def _load_btcd_cache():
-    """캐시 로드. TTL 이내면 history dict 반환, 만료시 None."""
+def _load_btcd_cache(allow_stale=False):
+    """캐시 로드. TTL 이내면 history dict 반환, 만료시 None (allow_stale=True 면 만료돼도 반환)."""
     if not os.path.exists(BTCD_CACHE):
         return None
     try:
@@ -186,8 +186,8 @@ def _load_btcd_cache():
                 datetime.now(timezone.utc)
                 - datetime.fromisoformat(fetched_at)
             ).total_seconds() / 3600
-            if age_h < BTCD_TTL_H:
-                return c.get("history", {})
+            if age_h < BTCD_TTL_H or allow_stale:
+                return c.get("history", {}) or ({} if not allow_stale else None)
     except Exception:
         pass
     return None
@@ -223,8 +223,16 @@ def _dom_signal_hybrid(btc_rows, alts_rows):
     btcd_hist = _load_btcd_cache()
     if btcd_hist is None:
         print("  [BTC.D] CoinGecko fetch 시작...", flush=True)
-        btcd_hist = _fetch_btcd_from_cg()
-        _save_btcd_cache(btcd_hist)
+        fetched = _fetch_btcd_from_cg()
+        if fetched:
+            btcd_hist = fetched
+            _save_btcd_cache(btcd_hist)
+        else:
+            # 2026-09-03: 종전엔 실패 시 {} 를 저장하고 전 기간 프록시로 조용히 바뀌어
+            # 러너마다 라벨이 달라졌다. 만료된 캐시라도 있으면 그걸 쓴다(결정성 우선).
+            stale = _load_btcd_cache(allow_stale=True)
+            btcd_hist = stale or {}
+            print(f"  [BTC.D] fetch 실패 → {'만료 캐시 사용' if stale else '프록시 폴백'}", flush=True)
         if btcd_hist:
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             pct = btcd_hist.get(today)
@@ -348,17 +356,34 @@ def _build_regime_map_v1():
 
 
 # ── V2 레짐 맵 (공개 API) ──────────────────────────────────────────────────
-def build_regime_map():
+def _closed_rows(rows, tf_ms=86_400_000, now_ms=None):
+    """형성 중인 마지막 봉 제거. ts 가 없으면(합성 데이터) 그대로."""
+    if not rows or not rows[-1].get("ts"):
+        return rows
+    now_ms = now_ms if now_ms is not None else time.time() * 1000
+    return rows[:-1] if rows[-1]["ts"] + tf_ms > now_ms else rows
+
+
+def build_regime_map(now_ms=None):
     """
     date -> regime  (3-signal majority vote with hysteresis)
     스케줄러가 호출하는 공개 함수. 기존 인터페이스 유지.
+
+    2026-09-03: **닫힌 봉만** 으로 라벨을 만든다. 종전엔 형성 중인 오늘 일봉이 표에
+    들어가 09시 라벨이 13시에 뒤집히고 종가에 되돌아오는 일이 가능했고, eval_D 가
+    그걸 레짐 전환으로 읽어 청산할 수 있었다. 오늘 날짜의 라벨은 마지막 닫힌 봉의
+    라벨을 그대로 잇는다(forward-fill) — 하루 안에서는 라벨이 바뀌지 않는다.
     """
     btc = detlib.load_ohlcv(MARKET, TF)
-    eth = detlib.load_ohlcv("ETH", TF)
+    forming_date = btc[-1]["date"] if btc else None
+    btc = _closed_rows(btc, now_ms=now_ms)
+    if btc and forming_date == btc[-1]["date"]:
+        forming_date = None                       # 마지막 봉이 이미 닫힘
+    eth = _closed_rows(detlib.load_ohlcv("ETH", TF), now_ms=now_ms)
     alts_rows = {}
     for a in ALTS:
         try:
-            alts_rows[a] = detlib.load_ohlcv(a, TF)
+            alts_rows[a] = _closed_rows(detlib.load_ohlcv(a, TF), now_ms=now_ms)
         except FileNotFoundError:
             pass
 
@@ -391,6 +416,8 @@ def build_regime_map():
             reg[d] = prev
         prev = reg[d]
 
+    if forming_date and reg and forming_date not in reg:
+        reg[forming_date] = reg[max(reg)]         # 오늘 = 마지막 닫힌 봉의 라벨
     return reg
 
 

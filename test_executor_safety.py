@@ -51,7 +51,8 @@ check("reconcile 기록에 거래소 실손익 동봉", trades and trades[-1].ge
 ex_mod.get_okx_positions, ex_mod.get_okx_closed_positions = orig_pos, orig_hist
 
 # ── 2. 복원 tf ────────────────────────────────────────────────────────────────
-check("복원 시 tf 는 _pattern_tf(universe 기준)", 'tf=_pattern_tf(p["pattern"])' in src_pe and 'tf=_derive_tf(p["pattern"])' not in src_pe)
+check("복원 시 tf 는 DB 컬럼 우선, 없으면 _pattern_tf(universe 기준)",
+      'tf=p.get("tf") or _pattern_tf(p["pattern"])' in src_pe and 'tf=_derive_tf(p["pattern"])' not in src_pe)
 check("triple_bottom 복원 tf = 1w", pe._pattern_tf("triple_bottom") == "1w")
 
 # ── 3. 킬스위치 / 중복 진입 (소스 고정) ──────────────────────────────────────

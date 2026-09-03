@@ -546,19 +546,24 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
     primary_regime = regime
     print(f"    현재 레짐(primary): {regime} ({latest})")
 
-    print("[2.5] 온체인 보조 신호 수집...")
+    print("[2.5] 온체인 보조 신호 수집 (표시 전용)...")
+    # 2026-09-03: 온체인 조정(bear/bull_btc → sideways)은 어떤 검증도 거치지 않은 실거래
+    # 전용 필터였다(orchestrator/method_* 미참조). 라우팅·게이팅은 raw 레짐만 쓰고,
+    # 조정값은 로그·대시보드 표시로만 남긴다(RS 필터 폐기 2026-07-08 과 같은 원칙).
     onchain = {}
+    onchain_adjusted_regime = primary_regime
     try:
         import onchain_signals as oc
         onchain = oc.fetch(use_cache=True)
-        regime  = oc.adjust_regime(primary_regime, onchain)
-        if regime != primary_regime:
-            print(f"    온체인 조정: {primary_regime} → {regime} "
-                  f"(score={onchain.get('score', 0)})")
+        onchain_adjusted_regime = oc.adjust_regime(primary_regime, onchain)
+        if onchain_adjusted_regime != primary_regime:
+            print(f"    온체인 힌트: {primary_regime} → {onchain_adjusted_regime} "
+                  f"(score={onchain.get('score', 0)}) — 표시 전용, 라우팅 미반영")
         else:
             print(f"    온체인 점수: {onchain.get('score', 0):+d} (레짐 변화 없음)")
     except Exception as e:
         print(f"    온체인 수집 실패(무시): {str(e)[:80]}")
+    regime = primary_regime
 
     print("[3] direction_switch 갱신..."); ds.main()
     routing = json.load(open("direction_switch.json", encoding="utf-8"))["routing"]
@@ -790,6 +795,7 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
         generated_at=stamp,
         regime=regime,
         primary_regime=primary_regime,
+        onchain_adjusted_regime=onchain_adjusted_regime,
         regime_date=latest,
         onchain_score=onchain.get("score", 0),
         onchain_detail=onchain_detail,

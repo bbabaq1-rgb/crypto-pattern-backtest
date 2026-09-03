@@ -135,8 +135,12 @@ def _save(fn, obj):
     json.dump(obj, open(fn, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
 
-def eval_D(rows, ei, direction, opp_set, regmap):
-    base = rows[ei]["c"]; entry_reg = regmap.get(rows[ei]["date"]); last = len(rows) - 1
+def eval_D(rows, ei, direction, opp_set, regmap, entry_reg=None):
+    # entry_reg: 진입 시 기록한 레짐(pos["entry_regime"]). 레짐맵은 실행마다 다시 계산돼
+    # 과거 라벨이 밀릴 수 있으므로(BTC.D 캐시 창 이동 + 히스테리시스 경로 의존) 기록값을
+    # 우선한다. 없으면(구 포지션·컬럼 미존재 복원) 종전대로 맵에서 조회.
+    base = rows[ei]["c"]; last = len(rows) - 1
+    entry_reg = entry_reg if entry_reg is not None else regmap.get(rows[ei]["date"])
     end = min(ei + MAX_HOLD_D, last)
     for j in range(ei + 1, end + 1):
         if direction == "long" and rows[j]["l"] <= base * (1 - STOP):
@@ -153,7 +157,7 @@ def eval_D(rows, ei, direction, opp_set, regmap):
     return None
 
 
-def eval_R(rows, ei, direction, opp_set, regmap):
+def eval_R(rows, ei, direction, opp_set, regmap, entry_reg=None):
     """
     방식R(롱 한정) — method_r.outcome_r(mode="RL") 과 같은 규칙, eval_D 와 같은 반환형.
 
@@ -163,8 +167,9 @@ def eval_R(rows, ei, direction, opp_set, regmap):
     반환: (j, exit_px, ret, reason) | None(미해소)
     """
     if direction != "long":
-        return eval_D(rows, ei, direction, opp_set, regmap)
-    base = rows[ei]["c"]; entry_reg = regmap.get(rows[ei]["date"]); last = len(rows) - 1
+        return eval_D(rows, ei, direction, opp_set, regmap, entry_reg=entry_reg)
+    base = rows[ei]["c"]; last = len(rows) - 1
+    entry_reg = entry_reg if entry_reg is not None else regmap.get(rows[ei]["date"])
     end = min(ei + MAX_HOLD_D, last)
     prev_adv = entry_reg in R_ADVERSE_LONG
     for j in range(ei + 1, end + 1):
@@ -295,6 +300,7 @@ def _record_trade(trades, pos, method, ex, exit_date=None, extra=None):
                        # 같은 실행 안에서 방식R 그림자가 진입봉을 ts 로 특정하기 위한 참고값.
                        # DB trades 에는 컬럼이 없어 복원 시 유실 → date 폴백(_bar_idx).
                        entry_ts=pos.get("entry_ts"), tf=pos.get("tf"),
+                       entry_regime=pos.get("entry_regime"),
                        # 실거래 손익(USD, 거래소 기준). 페이퍼 pnl_usd($40 기준)와 별개.
                        pnl_live_usd=(extra or {}).get("pnl_live_usd")))
 
@@ -324,6 +330,7 @@ def push_trades_db(new_trades):
              "exit_reason": _reason(t), "method": t["method"],
              "pnl_usd": t.get("pnl_usd"),
              "pnl_live_usd": t.get("pnl_live_usd"),
+             "regime": t.get("regime"), "entry_regime": t.get("entry_regime"),
              "live_mode": bool(t.get("live_mode", False))} for t in new_trades]
     try:
         import supabase_client as sc
@@ -354,6 +361,7 @@ def push_positions_db(new_positions):
              # 하위 TF ATR 배리어용 — 컬럼 미존재 시 insert_tolerant 가 자동 제외.
              # target 이 유실돼도 barriers_of() 가 손절 거리 대칭으로 복원한다.
              "target": p.get("target"), "entry_ts": p.get("entry_ts"),
+             "tf": p.get("tf"), "regime": p.get("regime"), "entry_regime": p.get("entry_regime"),
              "live_mode": bool(p.get("live_mode", False)),
              "status": "open",
              "method": "AD-LIVE" if p.get("live_mode") else "AD"} for p in new_positions]
@@ -452,14 +460,14 @@ def shadow_r_records(trades, rows_of, regmap, since=R_SHADOW_SINCE):
             continue
         oppname = OPP.get((t["pattern"], t["direction"]))
         opp_set = set(importlib.import_module(oppname).detect(rows)) if oppname else set()
-        ex = eval_R(rows, ei, "long", opp_set, regmap)
+        ex = eval_R(rows, ei, "long", opp_set, regmap, entry_reg=t.get("entry_regime"))
         if not ex:
             continue                      # 미해소 — 다음 실행에 재평가
         pos_like = dict(symbol=t["symbol"], direction="long", pattern=t["pattern"],
                         regime=t.get("regime"), entry_date=t["entry_date"],
                         entry_price=t["entry_price"], entry_idx=ei,
                         entry_ts=t.get("entry_ts"), tf=_pattern_tf(t["pattern"]),
-                        live_mode=False)
+                        entry_regime=t.get("entry_regime"), live_mode=False)
         _record_trade(trades, pos_like, "R", ex, rows[ex[0]]["date"])
         have_r.add(key)
         added += 1
@@ -498,7 +506,7 @@ def restore_state_db(positions, trades):
                     exit_price=t.get("exit_price"), ret=ret,
                     pnl_usd=pnl, hold_bars=t.get("hold_bars"),
                     reason=t.get("exit_reason"), method_label=t.get("method"),
-                    pnl_live_usd=t.get("pnl_live_usd"),
+                    pnl_live_usd=t.get("pnl_live_usd"), entry_regime=t.get("entry_regime"),
                     live_mode=bool(t.get("live_mode") or False)))
             if tr:
                 print(f"  [restore] Supabase trades {len(tr)}건 복원")
@@ -520,9 +528,10 @@ def restore_state_db(positions, trades):
                     symbol=p["symbol"], direction=p["direction"], pattern=p["pattern"],
                     # tf 는 universe adopted 목록 우선(_pattern_tf): 접미사 추정(_derive_tf)은
                     # triple_bottom(1w) 을 1d 로 복원해 30주 만기·주봉 레짐이 30일·일봉으로 바뀌었다.
-                    regime=p.get("regime"), tf=_pattern_tf(p["pattern"]),
+                    regime=p.get("regime"), tf=p.get("tf") or _pattern_tf(p["pattern"]),
                     entry_date=p["entry_date"],
                     entry_ts=p.get("entry_ts"),
+                    entry_regime=p.get("entry_regime"),
                     entry_price=p.get("entry_price"), stop=p.get("stop_loss"),
                     target=p.get("target"),
                     size_usd=p.get("size_usd") or POS_USD,
@@ -741,7 +750,8 @@ def run(stamp=None):
                 ex = eval_I(rows, ei, pos["direction"], stop_px, target_px,
                             spec.get("horizon_bars", MAX_HOLD_A))
             else:
-                ex = eval_D(rows, ei, pos["direction"], opp_set, regmap)
+                ex = eval_D(rows, ei, pos["direction"], opp_set, regmap,
+                            entry_reg=pos.get("entry_regime"))
             if ex:
                 do_record = True
                 live_extra = None            # 실거래 청산 시 실손익(USD) 동봉
@@ -987,6 +997,9 @@ def run(stamp=None):
                  regime=s.get("regime"), tf=s.get("tf", "1d"),
                  entry_date=s["date"], entry_ts=s.get("ts") or rows[ei].get("ts"),
                  entry_idx=ei,
+                 # 진입 시점 레짐(raw 레짐맵). eval_D/eval_R 의 entry_reg — 실행마다 달라질 수
+                 # 있는 맵 재조회 대신 이 값을 쓴다. DB positions.entry_regime 컬럼 필요.
+                 entry_regime=regmap.get(rows[ei]["date"]),
                  # 8자리 고정(2026-09-03): 4자리 반올림은 SHIB/BONK(≈1e-5) 진입가를 0 으로 만들어
                  # 실거래 청산 시 0 나누기로 실행 전체가 죽는 경로였다.
                  entry_price=round(entry, 8),

@@ -47,7 +47,8 @@ jobs:
                    test_external_trigger.py \
                    test_shadow_r.py \
                    test_confirm_bar.py \
-                   test_executor_safety.py; do
+                   test_executor_safety.py \
+                   test_regime_determinism.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
             echo "::endgroup::"
