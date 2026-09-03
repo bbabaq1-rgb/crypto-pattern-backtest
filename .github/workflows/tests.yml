@@ -46,7 +46,8 @@ jobs:
                    test_sizing.py \
                    test_external_trigger.py \
                    test_shadow_r.py \
-                   test_confirm_bar.py; do
+                   test_confirm_bar.py \
+                   test_executor_safety.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
             echo "::endgroup::"

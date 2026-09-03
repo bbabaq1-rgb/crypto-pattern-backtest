@@ -268,7 +268,7 @@ def place_stop_algo(ex, inst_id, close_side, qty, sl_px, tp_px=None):
     return resp
 
 
-def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None):
+def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
     """
     안전망: 오픈 포지션의 손절(algo) 주문 점검·재등록 + 고아 손절 주문 취소.
 
@@ -309,6 +309,25 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None):
                     continue              # (중복 취소 시도 방지)
                 seen_algo.add(aid)
                 pending.append(o)
+        # replace: 이 심볼들은 살아있는 algo 를 먼저 취소하고 stop_map 값으로 다시 건다
+        # (체결가 기준 배리어 재정렬용 — 없으면 '손절 있음'으로 건너뛰어 재정렬이 무효).
+        if replace:
+            rep_inst = {f"{s}-USDT-SWAP" for s in replace}
+            keep = []
+            for o in pending:
+                if o.get("instId") in rep_inst:
+                    try:
+                        r = ex.privatePostTradeCancelAlgos(
+                            [{"algoId": str(o.get("algoId")), "instId": o.get("instId")}])
+                        if str(r.get("code")) == "0":
+                            cancelled.append((o.get("instId"), o.get("algoId")))
+                            print(f"  [SL점검] {o.get('instId')} 기존 algo 취소(재정렬) algoId={o.get('algoId')}")
+                            continue
+                        print(f"  [SL점검] {o.get('instId')} 재정렬 취소 실패: {str(r)[:80]}")
+                    except Exception as ex_:
+                        print(f"  [SL점검] {o.get('instId')} 재정렬 취소 오류: {str(ex_)[:60]}")
+                keep.append(o)
+            pending = keep
         covered = {o.get("instId") for o in pending}
 
         # 1) 포지션에 손절 누락 → 재등록
@@ -454,6 +473,17 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
         entry_id     = entry_order.get("id", "")
     except Exception as e:
         return None, f"entry_failed: {str(e)[:60]}"
+    # 시장가 주문 응답에는 보통 average 가 없어 '주문 직전 시세'가 체결가로 기록됐다
+    # (2026-09-03 점검). 주문을 다시 조회해 실제 평균 체결가를 쓴다. 실패 시 종전 폴백.
+    try:
+        if entry_id:
+            od = ex.fetch_order(entry_id, ccxt_sym)
+            avg = float(od.get("average") or 0)
+            if avg > 0:
+                filled_price = avg
+                filled_qty = float(od.get("filled") or filled_qty) or filled_qty
+    except Exception:
+        pass
 
     # ---- 2단계: OKX Algo 손절 주문 (privatePostTradeOrderAlgo) ----------------
     # OKX code 50015 원인: create_order의 stopLoss dict 형식이 algo endpoint와 불일치

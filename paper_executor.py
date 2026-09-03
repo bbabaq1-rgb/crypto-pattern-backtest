@@ -278,7 +278,7 @@ def _bar_idx(rows, entry_ts=None, entry_date=None):
     return None
 
 
-def _record_trade(trades, pos, method, ex, exit_date=None):
+def _record_trade(trades, pos, method, ex, exit_date=None, extra=None):
     j, exit_px, ret, reason = ex
     # 실거래 판정: 방식D만 실제 OKX 청산과 연결됨(af7b3c4 결정). 방식A(±10%)는
     # 페이퍼 비교 전용이므로 live 포지션이라도 A청산은 '페이퍼'로 기록해야 한다.
@@ -288,13 +288,15 @@ def _record_trade(trades, pos, method, ex, exit_date=None):
     trades.append(dict(method=method, symbol=pos["symbol"], direction=pos["direction"],
                        pattern=pos["pattern"], regime=pos.get("regime"),
                        entry_date=pos["entry_date"], entry_price=pos["entry_price"],
-                       exit_date=exit_date, exit_price=round(exit_px, 4), ret=round(ret, 5),
+                       exit_date=exit_date, exit_price=round(exit_px, 8), ret=round(ret, 5),
                        pnl_usd=round(ret * POS_USD, 2), hold_bars=j - pos["entry_idx"],
                        reason=reason, method_label=method,
                        live_mode=is_live_trade,
                        # 같은 실행 안에서 방식R 그림자가 진입봉을 ts 로 특정하기 위한 참고값.
                        # DB trades 에는 컬럼이 없어 복원 시 유실 → date 폴백(_bar_idx).
-                       entry_ts=pos.get("entry_ts"), tf=pos.get("tf")))
+                       entry_ts=pos.get("entry_ts"), tf=pos.get("tf"),
+                       # 실거래 손익(USD, 거래소 기준). 페이퍼 pnl_usd($40 기준)와 별개.
+                       pnl_live_usd=(extra or {}).get("pnl_live_usd")))
 
 
 # ---- Supabase 동기화 (베스트에포트; 실패/미설정 시 JSON 폴백) ----
@@ -321,6 +323,7 @@ def push_trades_db(new_trades):
              "return_pct": round(t["ret"] * 100, 4), "hold_bars": t["hold_bars"],
              "exit_reason": _reason(t), "method": t["method"],
              "pnl_usd": t.get("pnl_usd"),
+             "pnl_live_usd": t.get("pnl_live_usd"),
              "live_mode": bool(t.get("live_mode", False))} for t in new_trades]
     try:
         import supabase_client as sc
@@ -495,6 +498,7 @@ def restore_state_db(positions, trades):
                     exit_price=t.get("exit_price"), ret=ret,
                     pnl_usd=pnl, hold_bars=t.get("hold_bars"),
                     reason=t.get("exit_reason"), method_label=t.get("method"),
+                    pnl_live_usd=t.get("pnl_live_usd"),
                     live_mode=bool(t.get("live_mode") or False)))
             if tr:
                 print(f"  [restore] Supabase trades {len(tr)}건 복원")
@@ -514,7 +518,9 @@ def restore_state_db(positions, trades):
                     str(p.get("method", "")).upper().endswith("LIVE")
                 positions.append(dict(
                     symbol=p["symbol"], direction=p["direction"], pattern=p["pattern"],
-                    regime=p.get("regime"), tf=_derive_tf(p["pattern"]),
+                    # tf 는 universe adopted 목록 우선(_pattern_tf): 접미사 추정(_derive_tf)은
+                    # triple_bottom(1w) 을 1d 로 복원해 30주 만기·주봉 레짐이 30일·일봉으로 바뀌었다.
+                    regime=p.get("regime"), tf=_pattern_tf(p["pattern"]),
                     entry_date=p["entry_date"],
                     entry_ts=p.get("entry_ts"),
                     entry_price=p.get("entry_price"), stop=p.get("stop_loss"),
@@ -575,17 +581,24 @@ def reconcile_closed_positions(positions, trades, live_conn):
         key = (pos["symbol"], pos["direction"])
         if not pos.get("live_mode") or key in open_keys:
             kept.append(pos); continue
+        if pos.get("d_closed"):
+            # 엔진이 이미 D 청산을 기록한 포지션(A 다리만 남음). 종전엔 여기서 두 번째 D 행
+            # ("OKX청산", hold 0)을 만들어 delete-then-insert 로 원래 D 행을 덮어썼다.
+            kept.append(pos); continue
         hist = history.get(key)
         if not hist or not hist.get("close_px"):
             kept.append(pos); continue          # OKX엔 없지만 이력도 없음 → 유지(다음 점검)
         base = pos["entry_price"]; fill = hist["close_px"]
-        ret = ((fill - base) / base if pos["direction"] == "long"
-               else (base - fill) / base)
+        if not base:            # 구 4자리 반올림으로 0 이 된 진입가 방어(0 나누기 → 실행 중단)
+            print(f"  [reconcile-close] {pos['symbol']} 진입가 0 — 수익률 계산 불가, 0 으로 기록")
+        ret = (((fill - base) / base if pos["direction"] == "long"
+                else (base - fill) / base) if base else 0.0)
         reason = "손절(OKX algo)" if hist.get("type") in ("2", "3", "5") else "OKX청산"
         pos["entry_idx"] = pos.get("entry_idx", 0)
         _record_trade(trades, pos, "D",
                       (pos["entry_idx"], fill, ret - FEE, reason),
-                      exit_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+                      exit_date=datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                      extra={"pnl_live_usd": hist.get("pnl")})
         closed_syms.append(pos["symbol"])
         # DB 포지션 status=closed
         cli = _db()
@@ -674,7 +687,12 @@ def run(stamp=None):
         # 안전망 2: 계좌 킬스위치 — equity가 하한선(EQUITY_FLOOR) 미만이면 신규 중지
         bal = ex_mod.get_balance(live_conn)
         equity = (bal or {}).get("equity") or 0.0
-        if equity and equity < EQUITY_FLOOR:
+        if bal is None:
+            # 잔고 조회 실패 — 종전엔 equity 0 이 '통과'로 찍혔다(fail-open). 자산 상태를
+            # 모르면 신규 진입을 보류한다. 청산·손절 점검은 계속 돈다.
+            kill_switch = True
+            print("  [kill] 잔고 조회 실패 → 신규 실거래 진입 보류(fail-closed)")
+        elif equity and equity < EQUITY_FLOOR:
             kill_switch = True
             msg = (f"🛑 킬스위치 발동: equity ${equity:.2f} < 하한 ${EQUITY_FLOOR:.2f}"
                    f" — 신규 실거래 진입 중지")
@@ -709,7 +727,7 @@ def run(stamp=None):
             # base=rows[ei]["c"] 도 틀려 수익률까지 오염된다.
             # 배리어는 거래소 OCO 가 이미 지키고 있으므로 엔진은 손대지 않고 유지한다.
             # positions.entry_ts 컬럼이 생기면 이 분기는 자동으로 사라진다.
-            if not pos.get("entry_ts") and _derive_tf(pos["pattern"]) != "1d":
+            if not pos.get("entry_ts") and _pattern_tf(pos["pattern"]) not in ("1d", "1w"):
                 print(f"  [hold] {pos['symbol']} {pos['pattern']} entry_ts 유실 — "
                       f"진입봉 특정 불가로 엔진 청산 보류(거래소 OCO 유효). "
                       f"positions.entry_ts 컬럼 추가 필요")
@@ -726,6 +744,7 @@ def run(stamp=None):
                 ex = eval_D(rows, ei, pos["direction"], opp_set, regmap)
             if ex:
                 do_record = True
+                live_extra = None            # 실거래 청산 시 실손익(USD) 동봉
                 if pos.get("live_mode"):
                     if live_conn is None:
                         do_record = False    # 연결 없으면 유지 → 다음 실행 재시도
@@ -735,11 +754,14 @@ def run(stamp=None):
                         fill, why = ex_mod.close_swap_position(
                             live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id)
                         if why == "ok":
-                            if fill:         # 실체결가로 D 기록 교체
+                            if fill and pos["entry_price"]:   # 실체결가로 D 기록 교체
                                 base = pos["entry_price"]
                                 r = ((fill - base) / base if pos["direction"] == "long"
                                      else (base - fill) / base)
                                 ex = (ex[0], fill, r - FEE, ex[3])
+                            lo_ = pos.get("live_order") or {}
+                            notional_ = float(pos.get("size_usd") or 0) * float(lo_.get("leverage") or 2)
+                            live_extra = {"pnl_live_usd": round(ex[2] * notional_, 2) if notional_ else None}
                             print(f"  [live] {pos['symbol']} {pos['direction']} D청산 실행 "
                                   f"({ex[3]}) fill={fill}")
                             import notify
@@ -753,7 +775,8 @@ def run(stamp=None):
                             do_record = False
                             print(f"  [live] {pos['symbol']} D청산 주문 실패({why}) — 유지, 재시도")
                 if do_record:
-                    _record_trade(trades, pos, "D", ex, rows[ex[0]]["date"]); pos["d_closed"] = True
+                    _record_trade(trades, pos, "D", ex, rows[ex[0]]["date"], extra=live_extra)
+                    pos["d_closed"] = True
         if not pos.get("a_closed"):
             ex = eval_A(rows, ei, pos["direction"])
             if ex:
@@ -784,6 +807,16 @@ def run(stamp=None):
     closedkeys = {(t["symbol"], t["pattern"], t["direction"], t["entry_date"]) for t in trades}
     new = 0
     live_orders = 0
+    # 같은 종목·방향 실포지션 중복 방어(2026-09-03): (a) DB 저장 실패·실행 중단으로 장부에
+    # 없는 OKX 포지션에 같은 신호가 다시 들어가는 것, (b) 두 패턴이 같은 종목·방향에
+    # 들어가 첫 D 청산(전량 시장가)이 둘 다 닫는 것. 거래소 실측 + 엔진 장부 둘 다 본다.
+    live_dir_keys = set()
+    if live_conn:
+        try:
+            live_dir_keys = {(p["symbol"], p["direction"]) for p in ex_mod.get_okx_positions(live_conn)}
+        except Exception:
+            live_dir_keys = set()
+        live_dir_keys |= {(p["symbol"], p["direction"]) for p in still_open if p.get("live_mode")}
     for s in sig.get("signals", []):
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:
@@ -846,6 +879,9 @@ def run(stamp=None):
             if live_open_count >= MAX_LIVE_POS:
                 print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']} 스킵")
                 continue
+            if (s["symbol"], s["direction"]) in live_dir_keys:
+                print(f"  [live] {s['symbol']} {s['direction']} 같은 종목·방향 실포지션 존재 — 중복 진입 스킵")
+                continue
 
             # 포지션 사이징 — SIZING_MODE 참조
             bal_info  = ex_mod.get_balance(live_conn)
@@ -890,6 +926,7 @@ def run(stamp=None):
                 # 주문 실패 시 size_for_pos = POS_USD (페이퍼 기록만 유지)
             else:
                 live_info    = {"live_order": result, "live_mode": True}
+                live_dir_keys.add((s["symbol"], s["direction"]))
                 # 실체결 기준으로 기록 (신호가와 체결가 불일치 방지)
                 entry        = result["entry_price"]
                 stop_px      = result["stop_price"]
@@ -906,9 +943,12 @@ def run(stamp=None):
                         stop_px, target_px = entry - dist_r, entry + dist_r
                     else:
                         stop_px, target_px = entry + dist_r, entry - dist_r
+                    # replace= 필수: 진입과 함께 건 OCO 가 이미 살아 있어, 그냥 부르면
+                    # '손절 있음'으로 건너뛰어 재정렬이 무효였다(2026-09-03 점검).
                     ok_r = ex_mod.ensure_stop_orders(
                         live_conn,
-                        stop_map={s["symbol"]: {"stop": stop_px, "target": target_px}})
+                        stop_map={s["symbol"]: {"stop": stop_px, "target": target_px}},
+                        replace={s["symbol"]})
                     print(f"  [live] {s['symbol']} 배리어를 체결가 기준으로 재정렬 "
                           f"(신호 {sig_entry:.6f} → 체결 {entry:.6f}, "
                           f"±{dist_r:.6f}) 재등록={ok_r}")
@@ -941,10 +981,10 @@ def run(stamp=None):
                  regime=s.get("regime"), tf=s.get("tf", "1d"),
                  entry_date=s["date"], entry_ts=s.get("ts") or rows[ei].get("ts"),
                  entry_idx=ei,
-                 entry_price=round(entry, 4),
-                 # ATR 배리어는 거리가 0.75~1.5%로 좁아 4자리 반올림이 저가 코인에서
-                 # 배리어를 유의미하게 왜곡한다 → spec 패턴만 8자리 보존.
-                 stop=round(stop_px, 8 if spec else 4),
+                 # 8자리 고정(2026-09-03): 4자리 반올림은 SHIB/BONK(≈1e-5) 진입가를 0 으로 만들어
+                 # 실거래 청산 시 0 나누기로 실행 전체가 죽는 경로였다.
+                 entry_price=round(entry, 8),
+                 stop=round(stop_px, 8),
                  target=(round(target_px, 8) if target_px else None),
                  size_usd=size_for_pos, d_closed=False,
                  a_closed=bool(spec),      # ATR 경로는 방식A 병행 비교 없음
@@ -1010,7 +1050,7 @@ def seed(days=60):
                     stop_px = entry * (1 - STOP) if d == "long" else entry * (1 + STOP)
                     positions.append(dict(symbol=sym, direction=d, pattern=pat, regime=rg,
                                           entry_date=rows[ei]["date"], entry_idx=ei,
-                                          entry_price=round(entry, 4), stop=round(stop_px, 4),
+                                          entry_price=round(entry, 8), stop=round(stop_px, 8),
                                           size_usd=POS_USD, d_closed=False, a_closed=False))
                     keys.add(key); added += 1
     _save(POS_FILE, positions)
