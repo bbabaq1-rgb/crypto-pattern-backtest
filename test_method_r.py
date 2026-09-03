@@ -100,8 +100,8 @@ check("bull 롱 → sideways: R2 청산", mr.outcome_r(rows, 0, "long", set(), "
 
 # ── 4. 불리 방향 전환 — 세 규칙 동일 ─────────────────────────────────────────
 setreg(regmap(["bull_btc"] * 7 + ["bear"] * (N - 7)))
-outs = [mr.outcome_r(rows, 0, "long", set(), m) for m in mr.MODES]
-check("bull 롱 → bear: D/R1/R2 전부 7봉에 청산", all(o[1] == 7 and o[2] == "regime_switch" for o in outs), outs)
+outs = [mr.outcome_r(rows, 0, "long", set(), m) for m in mr.MODES + ["R2"]]
+check("bull 롱 → bear: 모든 arm 이 7봉에 청산", all(o[1] == 7 and o[2] == "regime_switch" for o in outs), outs)
 
 # bull_btc → bull_altseason (같은 bull 계열) : D 는 청산, R 은 유지
 setreg(regmap(["bull_btc"] * 6 + ["bull_altseason"] * (N - 6)))
@@ -120,8 +120,8 @@ check("bear 숏 → bull_altseason: R1 청산(불리)", mr.outcome_r(rows, 0, "s
 # ── 6. 변화 없음 / 정보 없음 → 동일 ──────────────────────────────────────────
 for name, seq in [("변화 없음", ["bear"] * N), ("정보 없음", [None] * N)]:
     setreg(regmap(seq))
-    outs = [mr.outcome_r(rows, 0, "long", set(), m) for m in mr.MODES]
-    check(f"{name}: 세 규칙 동일(maxhold)", len(set(outs)) == 1 and outs[0][2] == "maxhold", outs)
+    outs = [mr.outcome_r(rows, 0, "long", set(), m) for m in mr.MODES + ["R2"]]
+    check(f"{name}: 모든 arm 동일(maxhold)", len(set(outs)) == 1 and outs[0][2] == "maxhold", outs)
 
 # 중간에 레짐 정보가 빠진 봉 — R 은 그 봉을 건너뛰고 상태 유지
 setreg(regmap(["bear"] * 5 + [None] * 3 + ["bull_btc"] * 4 + ["bear"] * (N - 12)))
@@ -131,13 +131,80 @@ check("레짐 결측 봉은 판단 보류 — 이후 bear 재진입(12)에 청�
 # ── 7. 손절·반대신호 우선순위 불변 ─────────────────────────────────────────
 setreg(regmap(["bear"] * 3 + ["bull_btc"] * (N - 3)))
 rows2 = mk(); rows2[2] = dict(rows2[2], l=90.0)          # 2봉째 -10% 저가
-for m in mr.MODES:
+for m in mr.MODES + ["R2"]:
     o = mr.outcome_r(rows2, 0, "long", set(), m)
     check(f"{m}: 손절이 레짐보다 먼저(2봉 stop)", o[1] == 2 and o[2] == "stop", o)
 setreg(regmap(["bear"] * N))
-for m in mr.MODES:
+for m in mr.MODES + ["R2"]:
     o = mr.outcome_r(rows, 0, "long", {4}, m)
     check(f"{m}: 반대신호 청산 유지(4봉 opp_signal)", o[1] == 4 and o[2] == "opp_signal", o)
+
+# ── 7b. 2차 arm — RL / RB / RLB ─────────────────────────────────────────────
+# RL: 롱만 R1, 숏은 D
+setreg(regmap(["bull_btc"] * 5 + ["bear"] * 5 + ["bull_btc"] * (N - 10)))
+check("RL 숏: D 규칙 → 유리(bear) 전환에도 5봉 청산", mr.outcome_r(rows, 0, "short", set(), "RL")[1] == 5)
+setreg(regmap(["bear"] * 5 + ["bull_btc"] * 5 + ["bear"] * (N - 10)))
+check("RL 롱: R1 규칙 → bull 버티고 bear 재진입(10)에 청산", mr.outcome_r(rows, 0, "long", set(), "RL")[1] == 10)
+
+# RB: 유리 전환 시 수익 중이면 손절을 본전으로. 진입 100, bar5 에 bull 전환(종가 110 > 100) → stop=100
+# 주의: 본전 손절은 진입가에 닿는 어떤 꼬리에도 걸린다(가장 타이트한 변형). 그래서
+# 전환 이후 봉은 진입가 위(110 수준)에 두고, 의도한 봉에서만 저가를 100 아래로 찍는다.
+def lift(rows, start, px):
+    """start 봉부터 끝까지 px 수준의 평탄 봉으로 (l = px-0.5 > 100)."""
+    for i in range(start, len(rows)):
+        rows[i] = dict(rows[i], o=px, h=px + 0.5, l=px - 0.5, c=px)
+    return rows
+
+setreg(regmap(["bear"] * 5 + ["bull_btc"] * (N - 5)))
+rb = lift(mk(), 5, 110.0); rb[8] = dict(rb[8], l=99.0)          # 8봉 저가 99 < 100(본전)
+o_r1 = mr.outcome_r(rb, 0, "long", set(), "R1")
+o_rb = mr.outcome_r(rb, 0, "long", set(), "RB")
+check("R1: 저가 99 는 -8% 손절선(92) 위 → 유지", o_r1[2] != "stop", o_r1)
+check("RB: 본전 이동 후 저가 99 ≤ 100 → 8봉 stop_be, 수익률 = -수수료",
+      o_rb == (-mr.FEE, 8, "stop_be"), o_rb)
+# 손실 중에 유리 전환 → 본전으로 안 옮김 (다음 봉 본전 체결 방지)
+rb2 = mk(); rb2[5] = dict(rb2[5], c=95.0, l=94.5); rb2[8] = dict(rb2[8], l=99.0)
+o = mr.outcome_r(rb2, 0, "long", set(), "RB")
+check("RB: 전환 시 손실 중(95<100)이면 본전 이동 없음 → 저가 99 에 안 걸림", o[2] != "stop_be" and o[1] > 8, o)
+# 본전 이동 뒤에도 -8% 가 아니라 본전에서 잡힌다(더 얕은 손절)
+rb3 = lift(mk(), 5, 110.0); rb3[9] = dict(rb3[9], l=91.0)
+o = mr.outcome_r(rb3, 0, "long", set(), "RB")
+check("RB: 본전 이동 후 91 까지 빠지면 stop_be(본전)로 기록(−8% 아님)", o == (-mr.FEE, 9, "stop_be"), o)
+# 진입이 이미 유리(bull 롱)면 전환이 아니므로 본전 이동 없음
+setreg(regmap(["bull_btc"] * N))
+rb4 = mk(); rb4[3] = dict(rb4[3], c=110.0, h=110.5); rb4[6] = dict(rb4[6], l=99.0)
+o = mr.outcome_r(rb4, 0, "long", set(), "RB")
+check("RB: bull 진입 롱은 '유리로의 전환'이 없어 본전 이동 없음", o[2] == "maxhold", o)
+# bear→sideways→bull : bull 진입(6)이 유리로의 전환 → 본전 이동
+setreg(regmap(["bear"] * 3 + ["sideways"] * 3 + ["bull_btc"] * (N - 6)))
+rb5 = lift(mk(), 6, 112.0); rb5[9] = dict(rb5[9], l=99.5)
+o = mr.outcome_r(rb5, 0, "long", set(), "RB")
+check("RB: bear→sideways→bull 에서 bull 진입(6)이 전환 → 본전 이동 → 9봉 stop_be", o == (-mr.FEE, 9, "stop_be"), o)
+# 숏 거울상: 진입 100, bear 전환 시 종가 90 → stop=100, 이후 고가 101 → stop_be
+setreg(regmap(["bull_btc"] * 5 + ["bear"] * (N - 5)))
+rbs = lift(mk(), 5, 90.0); rbs[8] = dict(rbs[8], h=101.0)
+o = mr.outcome_r(rbs, 0, "short", set(), "RB")
+check("RB 숏: bear 전환 시 수익 중 → 본전 이동 → 고가 101 ≥ 100 → stop_be", o == (-mr.FEE, 8, "stop_be"), o)
+# RLB: 롱은 RB 와 같고, 숏은 D
+o_rlb_l = mr.outcome_r(rb, 0, "long", set(), "RLB")
+setreg(regmap(["bear"] * 5 + ["bull_btc"] * (N - 5)))
+o_rlb_l = mr.outcome_r(rb, 0, "long", set(), "RLB")
+check("RLB 롱 ≡ RB 롱", o_rlb_l == mr.outcome_r(rb, 0, "long", set(), "RB"), o_rlb_l)
+setreg(regmap(["bull_btc"] * 5 + ["bear"] * (N - 5)))
+o_rlb_s = mr.outcome_r(rbs, 0, "short", set(), "RLB")
+check("RLB 숏 ≡ D 숏 (본전 이동 없이 5봉 regime_switch)", o_rlb_s == mr.outcome_r(rbs, 0, "short", set(), "D") and o_rlb_s[1] == 5, o_rlb_s)
+# 본전 이동 arm 도 레짐 변화 없으면 D 와 동일
+setreg(regmap(["bear"] * N))
+check("RB/RLB: 레짐 변화 없으면 D 와 동일",
+      mr.outcome_r(rb, 0, "long", set(), "RB") == mr.outcome_r(rb, 0, "long", set(), "D")
+      and mr.outcome_r(rb, 0, "long", set(), "RLB") == mr.outcome_r(rb, 0, "long", set(), "D"))
+check("2차 실행 목록은 D/R1/RL/RB/RLB", mr.MODES == ["D", "R1", "RL", "RB", "RLB"], mr.MODES)
+
+# 시간 분할 헬퍼
+base_h = [(f"2026-01-{i+1:02d}", "x", 0.0, 1, "maxhold") for i in range(8)]
+arm_h  = [(f"2026-01-{i+1:02d}", "x", (0.01 if i < 4 else -0.01), 1, "maxhold") for i in range(8)]
+hv = mr.halves(base_h, arm_h)
+check("halves: 전반 +1%, 후반 -1% 로 부호 분리", abs(hv["d1"] - 0.01) < 1e-12 and abs(hv["d2"] + 0.01) < 1e-12, hv)
 
 # ── 8. 분기 거래 집계 ────────────────────────────────────────────────────────
 base = [("a", "b", 0.05, 5, "regime_switch"), ("a", "b", 0.02, 3, "stop"), ("a", "b", 0.01, 30, "maxhold")]
