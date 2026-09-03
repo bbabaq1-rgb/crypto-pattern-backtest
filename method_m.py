@@ -38,7 +38,11 @@ ARM_RULE = {"D": "D", "D_slow": "D", "D_fast": "D", "RL": "RL", "RL_slow": "RL",
 ARM_SCALE = {"D": "daily", "D_slow": "slow", "D_fast": "fast", "RL": "daily", "RL_slow": "slow",
              "RL_fast": "fast", "F_slow": "slow", "F_fast": "fast"}
 HOLDOUT_DAYS = 365
-FAST_FETCH_DAYS = 1100
+# 데이터 창 — 사용자 지적(2026-09-03): 최근 5년만 쓰면 특정 국면(2021 상승/2026 하락)에
+# 결과가 묶인다. 거래소가 주는 만큼 최대로 받는다(1d 3000일 ≈ 2018~, 4h 2200일 ≈ 2020~).
+# 실제 받은 범위·연도별 레짐 구성은 로그에 찍어 표본이 어느 국면을 포함하는지 드러낸다.
+DAILY_FETCH_DAYS = 3000
+FAST_FETCH_DAYS = 2200
 BULL = {"bull_btc", "bull_altseason"}
 
 MAPS = {}          # scale -> RegimeMap ("daily" 는 date dict 로 별도)
@@ -118,6 +122,7 @@ def run_pattern(label, direction, detmod, oppmod, tf, cutoff):
     arms = {m: [] for m in ARMS}
     n_skipped = 0
     entry_labels = {"slow": [], "daily": [], "fast": []}
+    entry_daily = []                          # 거래별 진입 일봉 레짐(층화 진단용)
     for sym in detlib.SYMBOLS:
         try:
             rows = detlib.load_ohlcv(sym, tf)
@@ -136,6 +141,7 @@ def run_pattern(label, direction, detmod, oppmod, tf, cutoff):
                 continue                      # 공통 지지 밖
             for s in ent:
                 entry_labels[s].append(ent[s])
+            entry_daily.append(ent["daily"])
             for m in ARMS:
                 rule, scale = ARM_RULE[m], ARM_SCALE[m]
                 if rule == "F":
@@ -156,6 +162,20 @@ def run_pattern(label, direction, detmod, oppmod, tf, cutoff):
         out[m] = dict(train=_arm_stats(base, arms[m], tr, m, True),
                       holdout=_arm_stats(base, arms[m], ho, m, False))
     out["_entry_labels"] = {s: mr._count(v) for s, v in entry_labels.items()}
+    # ⑧ 층화 진단(판정 기준 아님): 진입 일봉 레짐별·연도별 짝지음 차이. 한 국면에서만
+    # 양수면 '단일 레짐 의존'으로 표시한다 — 데이터 창의 국면 구성에 결과가 묶이는지 본다.
+    out["_strata"] = {}
+    for m in ARMS:
+        if m == "D":
+            continue
+        d = [arms[m][i][2] - base[i][2] for i in range(len(base))]
+        by_reg, by_year = {}, {}
+        for i, x in enumerate(d):
+            by_reg.setdefault(entry_daily[i], []).append(x)
+            by_year.setdefault(base[i][0][:4], []).append(x)
+        out["_strata"][m] = dict(
+            by_regime={k: dict(n=len(v), diff=st.mean(v)) for k, v in by_reg.items()},
+            by_year={k: dict(n=len(v), diff=st.mean(v)) for k, v in sorted(by_year.items())})
     out["_n_train"], out["_n_holdout"], out["_n_skipped_no_support"] = len(tr), len(ho), n_skipped
     return out
 
@@ -202,7 +222,7 @@ def _print(res, split):
 
 def main():
     global REGMAP, MAPS
-    mt.ensure_data()
+    mt.ensure_data(DAILY_FETCH_DAYS)
     ensure_fast_data()
     REGMAP = rs.build_regime_map()
     mr.REGMAP = REGMAP
@@ -214,7 +234,12 @@ def main():
         f = datetime.fromtimestamp(m.first_ts() / 1000, tz=timezone.utc).strftime("%Y-%m-%d") if len(m) else None
         cnt = mr._count(m.lab)
         print(f"[regime:{s}] {len(m)}봉 라벨, 시작 {f}, 분포 {cnt}")
+    ymix = {}
+    for d, g in REGMAP.items():
+        ymix.setdefault(d[:4], {}).setdefault(g, 0)
+        ymix[d[:4]][g] += 1
     print(f"[regime:daily] {len(REGMAP)}일 | 홀드아웃 cutoff {cutoff}")
+    print("[regime:daily] 연도별 구성: " + "  ".join(f"{y}:{v}" for y, v in sorted(ymix.items())))
     print("=" * 130)
     print("레짐 스케일 연구 — D(현행) vs D_slow/D_fast vs RL/RL_slow/RL_fast vs 진입필터 F_slow/F_fast")
     print("=" * 130)
@@ -254,8 +279,35 @@ def main():
               f"| holdout diff={ho.get('mean_diff', 0)*100:+.3f}%p → {'PASS' if v['pass_'] else 'REJECT'} "
               f"(train {'통과' if v['train_pass'] else '탈락'})")
     results["_verdicts"] = verdicts
+    # ⑧ 층화 진단 합산: 진입 레짐별 / 연도별 (표본 가중)
+    print("\n" + "=" * 130)
+    print("⑧ 층화 진단 — 합산 짝지음 차이(%p) 진입 일봉 레짐별 · 연도별. 한 국면에서만 양수면 단일 레짐 의존")
+    strata_pooled = {}
+    for m in ARMS:
+        if m == "D":
+            continue
+        agg_r, agg_y = {}, {}
+        for lb, res in results.items():
+            if lb.startswith("_"):
+                continue
+            for k, v in res["_strata"][m]["by_regime"].items():
+                a = agg_r.setdefault(k, [0, 0.0]); a[0] += v["n"]; a[1] += v["diff"] * v["n"]
+            for k, v in res["_strata"][m]["by_year"].items():
+                a = agg_y.setdefault(k, [0, 0.0]); a[0] += v["n"]; a[1] += v["diff"] * v["n"]
+        reg = {k: dict(n=n, diff=(sd / n if n else 0.0)) for k, (n, sd) in agg_r.items()}
+        yr = {k: dict(n=n, diff=(sd / n if n else 0.0)) for k, (n, sd) in sorted(agg_y.items())}
+        pos_regs = [k for k, v in reg.items() if v["n"] >= 20 and v["diff"] > 0]
+        big_regs = [k for k, v in reg.items() if v["n"] >= 20]
+        single = len(big_regs) >= 2 and len(pos_regs) == 1
+        strata_pooled[m] = dict(by_regime=reg, by_year=yr, single_regime_dependent=single)
+        rs_txt = "  ".join(f"{k}:{v['diff']*100:+.2f}%p(n{v['n']})" for k, v in reg.items())
+        yr_txt = "  ".join(f"{k}:{v['diff']*100:+.2f}%p(n{v['n']})" for k, v in yr.items())
+        print(f"  {m:<8} 레짐별 {rs_txt}{'  ← 단일 레짐 의존' if single else ''}")
+        print(f"  {'':<8} 연도별 {yr_txt}")
+    results["_strata_pooled"] = strata_pooled
     results["_config"] = dict(arms=ARMS, scales=rm.SCALES, holdout_days=HOLDOUT_DAYS, cutoff=cutoff,
-                              fast_fetch_days=FAST_FETCH_DAYS, thr_rule="0.1% x lookback_days/20")
+                              daily_fetch_days=DAILY_FETCH_DAYS, fast_fetch_days=FAST_FETCH_DAYS,
+                              daily_year_mix=ymix, thr_rule="0.1% x lookback_days/20")
     json.dump(results, open("method_m.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1,
               default=mr._jsonable)
     print("\nRESULT_JSON: " + json.dumps({m: dict(pass_=v["pass_"], train_pass=v["train_pass"],
