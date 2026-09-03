@@ -1634,5 +1634,20 @@
   "answer": "아니오 — 스케일을 바꾸면 더 나빠진다. 주봉 레짐은 전환이 늦어 이익을 반납하고, 4h 레짐은 너무 자주 바뀌어 조기 청산. 진입 필터는 bear 진입 롱(가장 수익 좋은 부분집합)을 막아 손해. 방식R 은 일봉 스케일에서 가장 좋았고 그 결론(train 통과·holdout 탈락)은 method_r 과 동일. 창 확장(2019~)해도 결론 불변",
   "live_impact": "없음",
   "files": "regime_multi.py / method_m.py / test_method_m.py / method_m.yml / report_regime_scale.md"
+ },
+ "universe_okx_scan_2026_09_04": {
+  "trigger": "사용자 — 업비트 교집합 대신 OKX 선물 전 종목/거래대금 상위 확대 검토",
+  "scan": "OKX USDT 무기한 활성 452, 24h 상위150 중 후보 113, 1d>=500봉 101(현67+신규34), 부족 77(토큰화 주식·원자재·신규상장). 무기한 캔들 30일 거래대금 순위. fetch 중앙 1.2s/종목",
+  "rank_change": "무기한 기준 top20 신규 HYPE/ENA/BICO/BCH/ONDO/TAO, 퇴출 DOT/TRX/ZRO/ETC/STX/OP",
+  "cohort": {
+   "engulfing": "rank1-20 PASS +3.65% med+9.86% bp.041 (cur_top20 +3.52% PASS, new_top20 +3.65% PASS); 21위 이하 전부 REJECT",
+   "engulfing_short": "31-50 PASS +5.81% bp.009 / 51-80 PASS / 81-101 PASS / current_universe PASS +3.85% bp.012; top20·신규후보 REJECT",
+   "fvg": "롱·숏 전 코호트 REJECT (900일 창) — 마모 플래그와 일치, 별도 판정 필요",
+   "inverted_hammer": "전 코호트 REJECT",
+   "marubozu": "무기한 top20 PASS n=38 +5.04% bp.011 (사후 발견, 사전등록 전 미채택)"
+  },
+  "proposal_step3": "유니버스 = OKX 무기한, 스테이블·토큰화자산 제외, 500봉 이상, 30일 거래대금 상위 N=80. 전 종목 확대 안 함(81위 이하 무통과, 틱 4배). 패턴별 차등(top20/top30/메이저7) 유지, 순위 산출은 무기한 캔들. 적용은 사용자 승인",
+  "runs": "universe_scan.yml #1(정렬 오류) #2(현물/선물 혼용) #3(확정)",
+  "files": "universe_okx_scan.py / report_universe_okx.md"
  }
 }

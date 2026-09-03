@@ -331,6 +331,12 @@
     method_r 결론 그대로). RL_slow/RL_fast 는 RL 보다 나쁨. 층화: slow 계열은 bear 진입에서만 양수
     (단일 레짐 의존), 2024 상승장에서 slow/fast 전부 크게 음수. **레짐 스케일은 원인이 아니다.**
   · regime_multi.py / method_m.py / test_method_m.py(20건) / method_m.yml / report_regime_scale.md
+- **유니버스 확대 검토 — OKX 무기한 거래대금 기준** (2026-09-04, 사용자 지시): report_universe_okx.md.
+  OKX 무기한 452 중 500봉 이상 101(현 67 + 신규 34). **롱 엣지는 거래대금 1~20위에만**(engulfing top20 PASS
+  +3.65%, 21위 이하 전부 기각 — 7월 코호트와 동일). 확대의 실효는 '순위 기준을 무기한 캔들로' 바꾸는 것
+  (top20 의 6/20 교체: HYPE/ENA/BICO/BCH/ONDO/TAO 진입). engulfing 숏은 31~101위·현 유니버스에서 통과.
+  **fvg 는 900일 창 전 코호트 기각**(마모 플래그 일치, 별도 판정 필요). 전 종목 확대는 근거 없음(81위 이하
+  무통과, 틱 4배). 제안 N=80(무기한 30일 거래대금, 토큰화 자산 제외, 500봉 이상) — **적용은 사용자 승인 대기**.
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
