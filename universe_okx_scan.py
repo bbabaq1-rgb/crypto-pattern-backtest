@@ -61,9 +61,15 @@ def okx_perps_by_volume():
 
 
 def fetch_1d(sym):
-    """현물 심볼로 받고, 없으면(선물 전용 상장) 무기한 심볼로 다시 받는다. 반환 총 봉수."""
+    """
+    **무기한 캔들 우선**(없으면 현물). 2차 실행에서 현 유니버스는 현물, 후보는 무기한으로
+    받아 '현물 거래대금 vs 선물 거래대금'을 비교하는 꼴이 됐다(후보 과대평가). 실제 매매가
+    무기한이므로 전 종목을 무기한으로 통일한다. ccxt 는 둘 다 기초자산 수량으로 거래량을
+    주므로(okx.parse_ohlcv: spot idx5 / swap idx6 = base volume) close x volume = USD 거래대금.
+    반환 총 봉수.
+    """
     path = detlib.CSV(sym, "1d")
-    for symbol in (f"{sym}/USDT", f"{sym}/USDT:USDT"):
+    for symbol in (f"{sym}/USDT:USDT", f"{sym}/USDT"):
         try:
             _, total = fetch_data.update_csv(symbol, "1d", path, window_days=WINDOW_1D)
         except Exception as e:
@@ -138,7 +144,7 @@ def main():
     print(f"[rank] 확대 후 top30 중 신규: {[s for s in new_top30 if s not in cur]}")
     print(f"[rank] 현 top20 에서 밀려나는 종목: {[s for s in cur_top20 if s not in new_top20]}")
     print(f"[rank] 현 top30 에서 밀려나는 종목: {[s for s in cur_top30 if s not in new_top30]}")
-    print("[rank] 확대 후 상위 40:", "  ".join(f"{rank30[s]}{'★' if s in cur else ''}{s}" for s in ranked[:40]))
+    print("[rank] 확대 후 상위 40(30일 평균 거래대금 M$):", "  ".join(f"{rank30[s]}{'★' if s in cur else ''}{s}({ok[s]['turnover']/1e6:.0f})" for s in ranked[:40]))
 
     # ── 코호트별 패턴 성적 ───────────────────────────────────────────────────
     rows_cache = {s: detlib.load_ohlcv(s, "1d") for s in ok}
