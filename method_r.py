@@ -58,6 +58,20 @@ method_t.py 와 같은 틀 — 같은 신호에 규칙들을 동시에 적용하
 사용자 시나리오(불리 국면 진입 거래)를 따로 잘라 본다.
 자산곡선(가용잔고 20%/12포지션/2x, method_t 와 동일)으로 CAGR/MDD 도 병기한다.
 
+3차 — altseason 인지 + 홀드아웃 (사용자 지시 2026-09-03, 2차 분해에서 나온 **사후 선택**)
+-------------------------------------------------------------------------------
+2차 분해: fvg 롱 분기 161건 중 bull 진입 ≈124건은 D 가 bull_btc↔bull_altseason 라벨 전환에서
+청산하던 거래였고 R 은 '유리→유리'로 버티다 −8% 에 걸렸다. bull_altseason→bull_btc 는 알트가
+BTC 에 뒤처지기 시작한다는 뜻이라 알트 롱에는 사실상 불리한 전환이다.
+  RA : RL(롱만 방향 인지, 숏은 D) + **bull_altseason→bull_btc 전환을 롱 불리로 추가**.
+       bear→bull_* 는 여전히 유리(유지). 비교군으로 RL 을 같이 돌려 순수 증분을 본다.
+같은 5년 데이터에 대한 **세 번째** 검정이므로 홀드아웃을 붙인다:
+  · 데이터 마지막 HOLDOUT_DAYS(365)일에 진입한 거래는 판정에서 제외(홀드아웃).
+  · train(앞 4년)으로 기준 ①~⑤ 판정. 통과한 arm 만 홀드아웃에서 ⑥⑦ 확인.
+      6) 홀드아웃 합산 짝지음 평균차이 > 0
+      7) 홀드아웃 분기 거래 arm 승률 > 50%
+  · 7개 전부 만족해야 PASS. 홀드아웃은 한 번만 본다(재시도 없음).
+
 실행: python method_r.py   (Actions 러너 — 데이터 자동 수집, method_r.yml)
 """
 import importlib
@@ -90,7 +104,11 @@ ARM = {
     "RB":  {"long": ("R1", True),  "short": ("R1", True)},
     "RLB": {"long": ("R1", True),  "short": ("D",  False)},
 }
-MODES = ["D", "R1", "RL", "RB", "RLB"]       # 2차 실행 목록 (R2 는 1차에서 R1 과 동일)
+ARM["RA"] = {"long": ("R1", False), "short": ("D", False)}
+# arm 별 '전환 자체가 불리'인 (from, to) 쌍 — 상태 집합(ADVERSE)과 별개로 검사
+ADVERSE_TRANSITIONS = {"RA": {"long": {("bull_altseason", "bull_btc")}}}
+MODES = ["D", "RL", "RA"]                    # 3차 실행 목록 (RL 은 비교군)
+HOLDOUT_DAYS = 365
 BOOT_N = 2000
 BOOT_SEED = 7
 
@@ -103,6 +121,7 @@ def outcome_r(rows, si, direction, opp_set, mode):
     mode="D"  : 방식D 그대로 (method_t.outcome_d 와 동일 결과 — 테스트로 고정)
     mode="R1"/"R2": 레짐 조건만 '불리 국면 진입 시'로 교체.
     mode="RL"/"RB"/"RLB": ARM 표 참조 (롱 한정 / 본전 이동 / 둘 다).
+    mode="RA": RL + ADVERSE_TRANSITIONS (bull_altseason→bull_btc 를 롱 불리 전환으로).
     반환: (ret, hold_bars, reason)   reason ∈ stop / stop_be / opp_signal / regime_switch / maxhold
     """
     rule, be = ARM[mode][direction]
@@ -110,9 +129,11 @@ def outcome_r(rows, si, direction, opp_set, mode):
     entry_reg = REGMAP.get(rows[si]["date"])
     end = min(si + MAX_HOLD, len(rows) - 1)
     adv = ADVERSE.get(rule, {}).get(direction, set())
+    adv_tr = ADVERSE_TRANSITIONS.get(mode, {}).get(direction, set())
     fav = FAVORABLE[direction]
     prev_adv = entry_reg in adv
     prev_fav = entry_reg in fav
+    prev_reg = entry_reg                        # 마지막으로 관측된 레짐 (None 제외)
     is_long = direction == "long"
     stop_px = base * (1 - STOP_LOSS_PCT) if is_long else base * (1 + STOP_LOSS_PCT)
     be_armed = False
@@ -134,8 +155,9 @@ def outcome_r(rows, si, direction, opp_set, mode):
                 regsw = False                       # 레짐 정보 없는 봉은 판단 보류
             else:
                 cur_adv = cur in adv
-                regsw = cur_adv and not prev_adv    # 불리 국면으로 '들어가는' 순간만
+                regsw = (cur_adv and not prev_adv) or ((prev_reg, cur) in adv_tr)
                 prev_adv = cur_adv
+                prev_reg = cur
 
         # 3) 반대 신호 / 레짐 (종가)
         if j in opp_set or regsw:
@@ -213,6 +235,13 @@ def halves(base, arm):
     return dict(n1=len(a), d1=d1, n2=len(b), d2=d2)
 
 
+def split_idx(trades, cutoff):
+    """진입일 기준 train(< cutoff) / holdout(>= cutoff) 인덱스. cutoff 는 'YYYY-MM-DD'."""
+    tr = [i for i, t in enumerate(trades) if t[0] < cutoff]
+    ho = [i for i, t in enumerate(trades) if t[0] >= cutoff]
+    return tr, ho
+
+
 def _count(it):
     out = {}
     for x in it:
@@ -228,12 +257,44 @@ def _jsonable(x):
 
 
 # ── 실행 ────────────────────────────────────────────────────────────────────
-def run_pattern(label, direction, detmod, oppmod, tf):
+def _arm_stats(base, arm, idx, entry_regs, m, direction, with_halves):
+    """한 패턴·한 arm·한 분할(train/holdout)의 통계. idx 가 비면 None."""
+    b = [base[i] for i in idx]
+    a = [arm[i] for i in idx]
+    if not b:
+        return None
+    rec = dict(per_trade=mt.summ(a),
+               equity=mt.equity_curve(sorted(a, key=lambda t: t[0])),
+               reasons=_count(t[4] for t in a))
+    if m != "D":
+        br = [t[2] for t in b]
+        ar = [t[2] for t in a]
+        p = mt.paired_stats(br, ar)
+        p["boot_p"] = boot_p([x - y for x, y in zip(ar, br)])
+        rec["paired_vs_D"] = p
+        rec["divergence"] = divergence(b, a)
+        if with_halves:
+            rec["halves"] = halves(b, a)
+        rule = ARM[m][direction][0]
+        adv = ADVERSE.get(rule, {}).get(direction, set())
+        sub = [k for k, i in enumerate(idx) if entry_regs[i] in adv]
+        if adv and len(sub) >= 2:
+            sb = [br[k] for k in sub]
+            sa = [ar[k] for k in sub]
+            ps = mt.paired_stats(sb, sa)
+            ps["boot_p"] = boot_p([x - y for x, y in zip(sa, sb)])
+            ps["base_mean"] = st.mean(sb)
+            ps["arm_mean"] = st.mean(sa)
+            rec["adverse_entry_subset"] = ps
+    return rec
+
+
+def run_pattern(label, direction, detmod, oppmod, tf, cutoff):
     mod = importlib.import_module(detmod)
     opp = importlib.import_module(oppmod) if oppmod else None
 
     arms = {m: [] for m in MODES}
-    entry_regs = []                             # 신호별 진입 레짐 (시나리오 분해용)
+    entry_regs = []
 
     for sym in detlib.SYMBOLS:
         try:
@@ -256,78 +317,139 @@ def run_pattern(label, direction, detmod, oppmod, tf):
         return None
 
     base = arms["D"]
-    base_rets = [t[2] for t in base]
+    tr, ho = split_idx(base, cutoff)
     out = {}
     for m in MODES:
-        trades = arms[m]
-        rec = dict(per_trade=mt.summ(trades),
-                   equity=mt.equity_curve(sorted(trades, key=lambda t: t[0])),
-                   reasons=_count(t[4] for t in trades))
-        if m != "D":
-            rets = [t[2] for t in trades]
-            p = mt.paired_stats(base_rets, rets)
-            p["boot_p"] = boot_p([a - b for a, b in zip(rets, base_rets)])
-            rec["paired_vs_D"] = p
-            rec["divergence"] = divergence(base, trades)
-            rec["halves"] = halves(base, trades)
-            # 사용자 시나리오: 불리 국면에서 진입한 거래만 (이 arm 이 이 방향에 R 규칙을 쓸 때)
-            rule = ARM[m][direction][0]
-            adv = ADVERSE.get(rule, {}).get(direction, set())
-            sub = [i for i, r in enumerate(entry_regs) if r in adv]
-            if adv and len(sub) >= 2:
-                sb = [base_rets[i] for i in sub]
-                sa = [rets[i] for i in sub]
-                ps = mt.paired_stats(sb, sa)
-                ps["boot_p"] = boot_p([a - b for a, b in zip(sa, sb)])
-                ps["base_mean"] = st.mean(sb)
-                ps["arm_mean"] = st.mean(sa)
-                rec["adverse_entry_subset"] = ps
-        out[m] = rec
+        out[m] = dict(train=_arm_stats(base, arms[m], tr, entry_regs, m, direction, True),
+                      holdout=_arm_stats(base, arms[m], ho, entry_regs, m, direction, False))
     out["_entry_regime_counts"] = _count(entry_regs)
+    out["_n_train"] = len(tr)
+    out["_n_holdout"] = len(ho)
+    return out
+
+
+def _pool(results, split, m):
+    """패턴별 결과를 표본수 가중으로 합산. 해당 분할이 없는 패턴은 건너뜀."""
+    items = []
+    for lb, res in results.items():
+        if lb.startswith("_"):
+            continue
+        r = res[m][split]
+        if not r:
+            continue
+        p = r["paired_vs_D"]
+        n = r["per_trade"]["n"]
+        items.append((p["mean_diff"], p.get("sd_diff", 0.0), n, r["divergence"], r.get("halves")))
+    if not items:
+        return None
+    tot = sum(x[2] for x in items)
+    mean_diff = sum(x[0] * x[2] for x in items) / tot
+    var = sum((x[1] ** 2) * x[2] for x in items) / tot
+    t = mean_diff / ((var ** 0.5) / (tot ** 0.5)) if var > 0 else 0.0
+    rng = random.Random(BOOT_SEED)
+    pairs = [(x[0], x[2]) for x in items]
+    le = 0
+    for _ in range(BOOT_N):
+        smp = [pairs[rng.randrange(len(pairs))] for _ in pairs]
+        s = sum(a * w for a, w in smp) / sum(w for _, w in smp)
+        if s <= 0:
+            le += 1
+    dv = dict(n=sum(x[3]["n"] for x in items),
+              arm_wins=sum(x[3].get("arm_wins", 0) for x in items),
+              arm_losses=sum(x[3].get("arm_losses", 0) for x in items))
+    out = dict(n=tot, n_patterns=len(items), mean_diff=mean_diff, t=t, boot_p=le / BOOT_N,
+               divergence=dv)
+    hv = [x[4] for x in items if x[4]]
+    if hv:
+        n1 = sum(h["n1"] for h in hv); n2 = sum(h["n2"] for h in hv)
+        out["halves"] = dict(n1=n1, n2=n2,
+                             d1=sum(h["d1"] * h["n1"] for h in hv) / n1 if n1 else 0.0,
+                             d2=sum(h["d2"] * h["n2"] for h in hv) / n2 if n2 else 0.0)
     return out
 
 
 def verdict(results, arm):
-    """사전 등록 기준 5개를 전부 만족하는가."""
-    if not results:
-        return dict(pass_=False, reason="no results")
-    pooled = results["_pooled"][arm]
-    c1 = pooled["mean_diff"] > 0 and (pooled["t"] > 2.0 or pooled["boot_p"] < 0.05)
-    pats = [lb for lb in results if not lb.startswith("_")]
+    """train 으로 ①~⑤, 통과 시 holdout 으로 ⑥⑦. 7개 전부 만족해야 PASS."""
+    tr = results["_pooled"]["train"].get(arm)
+    ho = results["_pooled"]["holdout"].get(arm)
+    if not tr:
+        return dict(pass_=False, reason="no train")
+    pats = [lb for lb in results if not lb.startswith("_") and results[lb][arm]["train"]]
+    c1 = tr["mean_diff"] > 0 and (tr["t"] > 2.0 or tr["boot_p"] < 0.05)
     cw = sum(1 for lb in pats
-             if results[lb][arm]["equity"]["cagr"] > results[lb]["D"]["equity"]["cagr"])
+             if results[lb][arm]["train"]["equity"]["cagr"] > results[lb]["D"]["train"]["equity"]["cagr"])
     c2 = cw >= 4
-    c3 = all(results[lb][arm]["paired_vs_D"]["t"] >= -2.0 for lb in pats)
-    dv = pooled["divergence"]
+    c3 = all(results[lb][arm]["train"]["paired_vs_D"]["t"] >= -2.0 for lb in pats)
+    dv = tr["divergence"]
     c4 = dv["n"] > 0 and dv["arm_wins"] > dv["arm_losses"]
-    hv = pooled["halves"]
-    c5 = hv["d1"] > 0 and hv["d2"] > 0
-    return dict(pass_=bool(c1 and c2 and c3 and c4 and c5),
+    hv = tr.get("halves", {})
+    c5 = hv.get("d1", 0) > 0 and hv.get("d2", 0) > 0
+    train_pass = bool(c1 and c2 and c3 and c4 and c5)
+    c6 = bool(ho) and ho["mean_diff"] > 0
+    c7 = bool(ho) and ho["divergence"]["arm_wins"] > ho["divergence"]["arm_losses"]
+    return dict(pass_=bool(train_pass and c6 and c7), train_pass=train_pass,
                 c1_pooled_sig=c1, c2_cagr_wins=cw, c3_no_pattern_hurt=c3,
-                c4_divergence_winrate=c4, c5_halves_both_pos=c5)
+                c4_divergence_winrate=c4, c5_halves_both_pos=c5,
+                c6_holdout_diff_pos=c6, c7_holdout_divergence=c7)
+
+
+def _print_split(res, split):
+    print(f"  [{split}]")
+    print(f"  {'arm':<4}{'n':>5}{'건당평균':>10}{'중앙':>9}{'승률':>7}{'평균보유':>8}"
+          f"  |{'짝지음차이':>11}{'t':>7}{'boot_p':>8}{'승/패':>9}"
+          f"  |{'분기n':>6}{'분기승률':>9}  |{'전반':>8}{'후반':>8}"
+          f"  |{'CAGR':>8}{'MDD':>8}{'Calmar':>8}")
+    print("  " + "-" * 114)
+    for m in MODES:
+        r = res[m][split]
+        if not r:
+            print(f"  {m:<4}    0  (해당 분할 거래 없음)")
+            continue
+        s, eq = r["per_trade"], r["equity"]
+        if m == "D":
+            pair = f"{'(기준)':>11}{'':>7}{'':>8}{'':>9}"
+            dvs = f"{'-':>6}{'-':>9}"
+            hv = f"{'-':>8}{'-':>8}"
+        else:
+            p = r["paired_vs_D"]; dv = r["divergence"]; h = r.get("halves")
+            pair = (f"{p['mean_diff']*100:>+10.2f}%{p['t']:>7.2f}{p['boot_p']:>8.3f}"
+                    f"{p['wins']:>4}/{p['losses']:<4}")
+            tot = dv["arm_wins"] + dv["arm_losses"]
+            dvs = f"{dv['n']:>6}{(dv['arm_wins']/tot if tot else 0):>8.0%}"
+            hv = (f"{h['d1']*100:>+7.2f}%{h['d2']*100:>+7.2f}%" if h else f"{'-':>8}{'-':>8}")
+        print(f"  {m:<4}{s['n']:>5}{s['mean']*100:>+9.2f}%{s['median']*100:>+8.2f}%"
+              f"{s['winrate']:>6.0%}{s['avghold']:>8.1f}  |{pair}  |{dvs}  |{hv}"
+              f"  |{eq['cagr']*100:>+7.1f}%{eq['mdd']*100:>+7.1f}%{eq['calmar']:>8.2f}")
+        print(f"       사유 {r['reasons']}")
+    for m in MODES[1:]:
+        r = res[m][split]
+        sub = r.get("adverse_entry_subset") if r else None
+        if sub:
+            print(f"  [{m} 불리국면 진입만 n={sub['n']}] D {sub['base_mean']*100:+.2f}% → {m} "
+                  f"{sub['arm_mean']*100:+.2f}%  차이 {sub['mean_diff']*100:+.2f}%p "
+                  f"t={sub['t']:.2f} boot_p={sub['boot_p']:.3f} 승/패 {sub['wins']}/{sub['losses']}")
 
 
 def main():
     global REGMAP
+    from datetime import date, timedelta
     mt.ensure_data()
     REGMAP = rs.build_regime_map()
     mt.REGMAP = REGMAP
-    print(f"[regime] 레짐맵 {len(REGMAP)}일")
+    last = max(REGMAP)
+    cutoff = (date.fromisoformat(last) - timedelta(days=HOLDOUT_DAYS)).isoformat()
+    print(f"[regime] 레짐맵 {len(REGMAP)}일  |  홀드아웃 cutoff {cutoff} (마지막 {HOLDOUT_DAYS}일, 데이터 끝 {last})")
     results = {}
 
     print("=" * 118)
-    print("방식D(레짐 바뀌면 무조건 청산) vs 방식R 계열 — 2차: 후속 가설 3개")
-    print("  R1 : 불리 국면 진입 시에만 청산(롱 불리={bear} / 숏 불리={bull_*}, sideways 중립)")
-    print("  RL : 롱만 R1, 숏은 D   |   RB : R1 + 유리 전환 시 손절 본전 이동(수익 중일 때만, 1회)   |   RLB : 롱만 (R1+본전), 숏은 D")
+    print("3차 — 방식D vs RL(롱만 방향인지) vs RA(RL + bull_altseason→bull_btc 롱 불리) | train 판정 → holdout 확인")
     print(f"  손절 -{int(STOP_LOSS_PCT*100)}% / 반대신호 / 최대 {MAX_HOLD}봉 동일. "
           f"자산곡선 가용잔고x{mt.SIM_POS_PCT:.0%}/{mt.SIM_MAX_POS}포지션/{mt.SIM_LEVERAGE}x")
     print("=" * 118)
 
-    pooled = {m: [] for m in MODES[1:]}
-
     for label, direction, detmod, oppmod, tf in mt.PATS:
         try:
-            res = run_pattern(label, direction, detmod, oppmod, tf)
+            res = run_pattern(label, direction, detmod, oppmod, tf, cutoff)
         except Exception as e:
             print(f"\n[{label}] 실행 오류: {str(e)[:80]}")
             continue
@@ -335,100 +457,54 @@ def main():
             print(f"\n[{label}] 신호 없음 — 스킵")
             continue
         results[label] = res
-
-        print(f"\n[{label} @{tf} {direction}]  진입레짐 {res['_entry_regime_counts']}")
-        print(f"  {'arm':<4}{'n':>5}{'건당평균':>10}{'중앙':>9}{'승률':>7}{'평균보유':>8}"
-              f"  |{'짝지음차이':>11}{'t':>7}{'boot_p':>8}{'승/패':>9}"
-              f"  |{'분기n':>6}{'분기승률':>9}  |{'전반':>8}{'후반':>8}"
-              f"  |{'CAGR':>8}{'MDD':>8}{'Calmar':>8}")
-        print("  " + "-" * 114)
-        for m in MODES:
-            r = res[m]
-            s, eq = r["per_trade"], r["equity"]
-            if m == "D":
-                pair = f"{'(기준)':>11}{'':>7}{'':>8}{'':>9}"
-                dvs = f"{'-':>6}{'-':>9}"
-                hv = f"{'-':>8}{'-':>8}"
-            else:
-                p = r["paired_vs_D"]; dv = r["divergence"]; h = r["halves"]
-                pair = (f"{p['mean_diff']*100:>+10.2f}%{p['t']:>7.2f}{p['boot_p']:>8.3f}"
-                        f"{p['wins']:>4}/{p['losses']:<4}")
-                tot = dv["arm_wins"] + dv["arm_losses"]
-                wr = dv["arm_wins"] / tot if tot else 0
-                dvs = f"{dv['n']:>6}{wr:>8.0%}"
-                hv = f"{h['d1']*100:>+7.2f}%{h['d2']*100:>+7.2f}%"
-            print(f"  {m:<4}{s['n']:>5}{s['mean']*100:>+9.2f}%{s['median']*100:>+8.2f}%"
-                  f"{s['winrate']:>6.0%}{s['avghold']:>8.1f}  |{pair}  |{dvs}  |{hv}"
-                  f"  |{eq['cagr']*100:>+7.1f}%{eq['mdd']*100:>+7.1f}%{eq['calmar']:>8.2f}")
-            print(f"       사유 {r['reasons']}")
-        for m in MODES[1:]:
-            sub = res[m].get("adverse_entry_subset")
-            if sub:
-                print(f"  [{m} 불리국면 진입 거래만 n={sub['n']}] D {sub['base_mean']*100:+.2f}% "
-                      f"→ {m} {sub['arm_mean']*100:+.2f}%  차이 {sub['mean_diff']*100:+.2f}%p "
-                      f"t={sub['t']:.2f} boot_p={sub['boot_p']:.3f} 승/패 {sub['wins']}/{sub['losses']}")
-
-        n = res["D"]["per_trade"]["n"]
-        for m in MODES[1:]:
-            p = res[m]["paired_vs_D"]
-            pooled[m].append((p["mean_diff"], p.get("sd_diff", 0.0), n,
-                              res[m]["divergence"], res[m]["halves"]))
+        print(f"\n[{label} @{tf} {direction}]  진입레짐 {res['_entry_regime_counts']}  "
+              f"train {res['_n_train']} / holdout {res['_n_holdout']}")
+        _print_split(res, "train")
+        _print_split(res, "holdout")
 
     if not results:
         print("결과 없음")
         return
 
-    # ── 합산 (패턴 가중 평균 + 분기 거래 합 + 시간분할 가중) ───────────────
+    results["_pooled"] = {"train": {}, "holdout": {}}
     print("\n" + "=" * 118)
     print("종합 — 7패턴 합산")
     print("=" * 118)
-    results["_pooled"] = {}
-    for m in MODES[1:]:
-        tot_n = sum(x[2] for x in pooled[m])
-        mean_diff = sum(x[0] * x[2] for x in pooled[m]) / tot_n
-        var = sum((x[1] ** 2) * x[2] for x in pooled[m]) / tot_n if tot_n else 0.0
-        t = mean_diff / ((var ** 0.5) / (tot_n ** 0.5)) if var > 0 else 0.0
-        rng = random.Random(BOOT_SEED)
-        items = [(x[0], x[2]) for x in pooled[m]]
-        le = 0
-        for _ in range(BOOT_N):
-            smp = [items[rng.randrange(len(items))] for _ in items]
-            s = sum(a * w for a, w in smp) / sum(w for _, w in smp)
-            if s <= 0:
-                le += 1
-        dv_n = sum(x[3]["n"] for x in pooled[m])
-        dv_w = sum(x[3].get("arm_wins", 0) for x in pooled[m])
-        dv_l = sum(x[3].get("arm_losses", 0) for x in pooled[m])
-        n1 = sum(x[4]["n1"] for x in pooled[m]); n2 = sum(x[4]["n2"] for x in pooled[m])
-        d1 = sum(x[4]["d1"] * x[4]["n1"] for x in pooled[m]) / n1 if n1 else 0.0
-        d2 = sum(x[4]["d2"] * x[4]["n2"] for x in pooled[m]) / n2 if n2 else 0.0
-        results["_pooled"][m] = dict(n=tot_n, mean_diff=mean_diff, t=t, boot_p=le / BOOT_N,
-                                     divergence=dict(n=dv_n, arm_wins=dv_w, arm_losses=dv_l),
-                                     halves=dict(n1=n1, d1=d1, n2=n2, d2=d2))
-        pats = [lb for lb in results if not lb.startswith("_")]
-        pw = sum(1 for lb in pats if results[lb][m]["paired_vs_D"]["mean_diff"] > 0)
-        cw = sum(1 for lb in pats
-                 if results[lb][m]["equity"]["cagr"] > results[lb]["D"]["equity"]["cagr"])
-        hurt = [lb for lb in pats if results[lb][m]["paired_vs_D"]["t"] < -2.0]
-        print(f"  {m:<4}: 합산 n={tot_n} 짝지음 {mean_diff*100:+.3f}%p t={t:.2f} "
-              f"boot_p(패턴재표본)={le/BOOT_N:.3f} | 짝지음우위 {pw}/{len(pats)} CAGR우위 {cw}/{len(pats)} "
-              f"| 분기 {dv_n}건 승/패 {dv_w}/{dv_l} | 전반 {d1*100:+.2f}%p 후반 {d2*100:+.2f}%p "
-              f"| t<-2 패턴 {hurt or '없음'}")
+    for split in ("train", "holdout"):
+        for m in MODES[1:]:
+            p = _pool(results, split, m)
+            results["_pooled"][split][m] = p
+            if not p:
+                print(f"  [{split}] {m}: 거래 없음")
+                continue
+            pats = [lb for lb in results if not lb.startswith("_") and results[lb][m][split]]
+            pw = sum(1 for lb in pats if results[lb][m][split]["paired_vs_D"]["mean_diff"] > 0)
+            cw = sum(1 for lb in pats
+                     if results[lb][m][split]["equity"]["cagr"] > results[lb]["D"][split]["equity"]["cagr"])
+            hurt = [lb for lb in pats if results[lb][m][split]["paired_vs_D"]["t"] < -2.0]
+            dv = p["divergence"]
+            hv = p.get("halves")
+            hvs = f" | 전반 {hv['d1']*100:+.2f}%p 후반 {hv['d2']*100:+.2f}%p" if hv else ""
+            print(f"  [{split:<7}] {m:<3}: n={p['n']} ({p['n_patterns']}패턴) 짝지음 {p['mean_diff']*100:+.3f}%p "
+                  f"t={p['t']:.2f} boot_p={p['boot_p']:.3f} | 짝지음우위 {pw}/{len(pats)} CAGR우위 {cw}/{len(pats)} "
+                  f"| 분기 {dv['n']}건 승/패 {dv['arm_wins']}/{dv['arm_losses']}{hvs} | t<-2 {hurt or '없음'}")
 
     summary = {}
     for m in MODES[1:]:
         v = verdict(results, m)
         summary[m] = v
         print(f"  [{m} 판정] {'PASS' if v['pass_'] else 'REJECT'}  "
-              f"①합산유의={v['c1_pooled_sig']} ②CAGR우위={v['c2_cagr_wins']}/7 "
-              f"③훼손없음={v['c3_no_pattern_hurt']} ④분기승률>50%={v['c4_divergence_winrate']} "
-              f"⑤전후반양수={v['c5_halves_both_pos']}")
+              f"train: ①{v['c1_pooled_sig']} ②{v['c2_cagr_wins']}/7 ③{v['c3_no_pattern_hurt']} "
+              f"④{v['c4_divergence_winrate']} ⑤{v['c5_halves_both_pos']} → {'통과' if v['train_pass'] else '탈락'}"
+              f"  | holdout: ⑥{v['c6_holdout_diff_pos']} ⑦{v['c7_holdout_divergence']}")
 
     payload = dict(config=dict(stop=STOP_LOSS_PCT, max_hold=MAX_HOLD, fee=FEE,
-                               adverse={m: {d: sorted(s) for d, s in v.items()}
-                                        for m, v in ADVERSE.items()},
+                               adverse={m: {d: sorted(s) for d, s in v.items()} for m, v in ADVERSE.items()},
+                               adverse_transitions={m: {d: sorted(list(x) for x in s) for d, s in v.items()}
+                                                    for m, v in ADVERSE_TRANSITIONS.items()},
                                favorable={d: sorted(s) for d, s in FAVORABLE.items()},
-                               arms={m: ARM[m] for m in MODES}, boot_n=BOOT_N,
+                               arms={m: ARM[m] for m in MODES}, holdout_days=HOLDOUT_DAYS,
+                               cutoff=cutoff, data_end=last, boot_n=BOOT_N,
                                sim=dict(pos_pct=mt.SIM_POS_PCT, max_pos=mt.SIM_MAX_POS,
                                         leverage=mt.SIM_LEVERAGE, start=mt.SIM_START_EQ)),
                    patterns={k: v for k, v in results.items() if not k.startswith("_")},

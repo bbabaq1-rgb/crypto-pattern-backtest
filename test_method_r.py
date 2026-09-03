@@ -198,7 +198,36 @@ setreg(regmap(["bear"] * N))
 check("RB/RLB: 레짐 변화 없으면 D 와 동일",
       mr.outcome_r(rb, 0, "long", set(), "RB") == mr.outcome_r(rb, 0, "long", set(), "D")
       and mr.outcome_r(rb, 0, "long", set(), "RLB") == mr.outcome_r(rb, 0, "long", set(), "D"))
-check("2차 실행 목록은 D/R1/RL/RB/RLB", mr.MODES == ["D", "R1", "RL", "RB", "RLB"], mr.MODES)
+check("3차 실행 목록은 D/RL/RA (RL 은 비교군)", mr.MODES == ["D", "RL", "RA"], mr.MODES)
+
+# ── 7c. 3차 arm — RA: bull_altseason→bull_btc 전환을 롱 불리로 ─────────────────
+# bear 진입 롱 → bull_altseason@5 → bull_btc@10 : RL 은 유리→유리로 보유, RA 는 10 에 청산
+setreg(regmap(["bear"] * 5 + ["bull_altseason"] * 5 + ["bull_btc"] * (N - 10)))
+o_rl = mr.outcome_r(rows, 0, "long", set(), "RL")
+o_ra = mr.outcome_r(rows, 0, "long", set(), "RA")
+check("RL: altseason→btc 는 유리→유리 → 만기 보유", o_rl[2] == "maxhold", o_rl)
+check("RA: altseason→btc 전환에 10봉 청산", o_ra == o_ra and o_ra[1] == 10 and o_ra[2] == "regime_switch", o_ra)
+# 반대 방향 btc→altseason 은 불리 아님
+setreg(regmap(["bear"] * 5 + ["bull_btc"] * 5 + ["bull_altseason"] * (N - 10)))
+check("RA: btc→altseason 은 유지(만기)", mr.outcome_r(rows, 0, "long", set(), "RA")[2] == "maxhold")
+# altseason 에서 진입 → 첫 봉부터 btc : 진입 직후 전환도 잡는다
+setreg(regmap(["bull_altseason"] * 1 + ["bull_btc"] * (N - 1)))
+check("RA: altseason 진입 → 1봉째 btc 전환 → 1봉 청산", mr.outcome_r(rows, 0, "long", set(), "RA")[1] == 1)
+# 상태 규칙(bear 재진입)은 그대로 살아 있다
+setreg(regmap(["bear"] * 5 + ["bull_btc"] * 5 + ["bear"] * (N - 10)))
+check("RA: bear→btc→bear 는 bear 재진입(10)에 청산", mr.outcome_r(rows, 0, "long", set(), "RA")[1] == 10)
+# 숏은 D 그대로
+setreg(regmap(["bull_btc"] * 5 + ["bull_altseason"] * (N - 5)))
+check("RA 숏 ≡ D 숏 (라벨 변화 5봉 청산)",
+      mr.outcome_r(rows, 0, "short", set(), "RA") == mr.outcome_r(rows, 0, "short", set(), "D")
+      and mr.outcome_r(rows, 0, "short", set(), "RA")[1] == 5)
+# 레짐 결측 봉을 건너뛰어도 전환 쌍은 '마지막 관측 레짐' 기준으로 잡는다
+setreg(regmap(["bull_altseason"] * 4 + [None] * 2 + ["bull_btc"] * (N - 6)))
+check("RA: altseason → (결측 2봉) → btc 도 전환으로 인식(6봉)", mr.outcome_r(rows, 0, "long", set(), "RA")[1] == 6)
+
+# 홀드아웃 분할
+tr_, ho_ = mr.split_idx([("2025-01-01",), ("2025-06-30",), ("2025-07-01",), ("2026-01-01",)], "2025-07-01")
+check("split_idx: cutoff 미만 train / 이상 holdout", tr_ == [0, 1] and ho_ == [2, 3], (tr_, ho_))
 
 # 시간 분할 헬퍼
 base_h = [(f"2026-01-{i+1:02d}", "x", 0.0, 1, "maxhold") for i in range(8)]
