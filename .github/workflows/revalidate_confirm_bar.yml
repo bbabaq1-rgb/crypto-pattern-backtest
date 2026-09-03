@@ -1,0 +1,43 @@
+name: Re-validate confirm-bar detectors (research)
+
+# 연구 전용 — 룩어헤드를 제거한 하모닉(4h/1h)·triple_bottom(1w) 디텍터를
+# 검증 당시 라벨·게이트로 다시 잰다. 매매/DB 접근 없음. 결과는 로그 + 아티팩트.
+# 등재 복귀는 new(인과) 판이 PASSED 인 셀만 후보이며 사용자 결정 사항.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_confirm_bar.py"
+      - "detector_harmonic_base.py"
+      - "detector_triple_bottom.py"
+      - ".github/workflows/revalidate_confirm_bar.yml"
+
+jobs:
+  confirm-bar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Causality tests (no network)
+        run: python test_confirm_bar.py
+      - name: Re-validate
+        run: python validate_confirm_bar.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: confirm-bar-${{ github.run_number }}
+          path: _confirm_bar.json
+          if-no-files-found: ignore

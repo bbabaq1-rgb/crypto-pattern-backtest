@@ -142,12 +142,17 @@ def _syms_for_pattern(pattern):
         return _volume_ranked()[:int(rule[3:])]
     return SYMBOLS
 
-# 하모닉 패턴 4h (PASSED: gartley/bat/butterfly)
-HARMONIC_FOCUS = [
+# 하모닉 패턴 4h — **등재 정지 (2026-09-03)**. 디텍터가 D 피벗 봉을 신호로 찍는데
+# 피벗 확정에 이후 3봉이 필요해 마지막 봉에서는 절대 발화하지 못했고(배포 이래 진입 0건),
+# 백테스트는 그 미래 3봉을 보고 D 를 골라 룩어헤드였다. detector_harmonic_base 를
+# 확정 봉(D+3) 기준으로 고친 뒤 재검증(validate_confirm_bar.py)을 통과해야 복귀한다.
+# 복귀 시 HARMONIC_FOCUS 에 다시 넣는다 — 그 전까지 이 블록은 돌지 않는다.
+HARMONIC_SUSPENDED = [
     ("gartley",   "detector_gartley"),
     ("bat",       "detector_bat"),
     ("butterfly", "detector_butterfly"),
 ]
+HARMONIC_FOCUS = []
 HARMONIC_TF = "4h"
 
 

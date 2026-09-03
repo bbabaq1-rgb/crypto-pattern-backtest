@@ -101,13 +101,24 @@ def check_ratios(x, a, b, c, d, cfg):
     return True
 
 
-def detect_harmonic(rows, cfg):
+def detect_harmonic(rows, cfg, confirm=True):
     """
     BULLISH 하모닉 신호 인덱스 목록 반환.
-    L-H-L-H-L 교대 피벗 5개 중 비율 조건 충족 시 D 봉 인덱스 기록.
+    L-H-L-H-L 교대 피벗 5개 중 비율 조건 충족 시 신호 기록.
+
+    confirm=True(기본, 2026-09-03 수정): 신호 봉 = **D 피벗 확정 봉**(D + PIVOT_WINDOW).
+      D 가 스윙 저점으로 확정되려면 이후 PIVOT_WINDOW 봉의 저가가 D 보다 높아야 하는데,
+      그 사실은 D+PIVOT_WINDOW 봉이 닫혀야 안다. 종전(D 봉 인덱스)은
+      (a) 실거래에서 절대 발화하지 못했다 — 마지막 봉은 피벗이 될 수 없어 스케줄러의
+          '최신 봉이 신호' 조건이 영원히 거짓(합성 300회 0/300). 배포 후 하모닉 진입 0건.
+      (b) 백테스트는 미래 3봉의 저가를 보고 D 를 고른 뒤 D 종가에서 수익률을 쟀다 —
+          룩어헤드. 등재 수치(n/mean/boot_p)는 낙관 편향이라 재검증 전까지 등재 정지.
+    confirm=False: 종전 동작(D 봉 인덱스). 룩어헤드 크기를 재는 비교용으로만 남긴다.
+    인과성은 test_confirm_bar.py 가 고정한다: detect(rows[:i+1]) 이 i 를 포함해야 한다.
     """
     pivots = find_pivots(rows)
     signals = []
+    n = len(rows)
     for i in range(4, len(pivots)):
         types = tuple(pivots[j][2] for j in range(i - 4, i + 1))
         if types != ("L", "H", "L", "H", "L"):
@@ -118,7 +129,10 @@ def detect_harmonic(rows, cfg):
         cp = pivots[i - 1][1]
         dp = pivots[i][1]
         if check_ratios(xp, ap, bp, cp, dp, cfg):
-            signals.append(pivots[i][0])  # D 피벗 봉 인덱스
+            d_idx = pivots[i][0]
+            sig = d_idx + PIVOT_WINDOW if confirm else d_idx
+            if sig < n:
+                signals.append(sig)
     return signals
 
 

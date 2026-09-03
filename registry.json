@@ -535,7 +535,7 @@
    "name": "Gartley Harmonic (Bullish)",
    "category": "하모닉",
    "difficulty": 3,
-   "status": "passed",
+   "status": "suspended_lookahead",
    "detector_file": "detector_gartley.py",
    "ratios": {
     "ab_xa": "0.618±0.05",
@@ -576,14 +576,16 @@
     }
    },
    "passed_tf": "4h",
-   "regime_dependent": false
+   "regime_dependent": false,
+   "status_before_2026_09_03": "passed",
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
   },
   {
    "id": "bat",
    "name": "Bat Harmonic (Bullish)",
    "category": "하모닉",
    "difficulty": 3,
-   "status": "passed",
+   "status": "suspended_lookahead",
    "detector_file": "detector_bat.py",
    "ratios": {
     "ab_xa": "0.382-0.500",
@@ -624,14 +626,16 @@
     }
    },
    "passed_tf": "4h",
-   "regime_dependent": false
+   "regime_dependent": false,
+   "status_before_2026_09_03": "passed",
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
   },
   {
    "id": "butterfly",
    "name": "Butterfly Harmonic (Bullish)",
    "category": "하모닉",
    "difficulty": 3,
-   "status": "passed",
+   "status": "suspended_lookahead",
    "detector_file": "detector_butterfly.py",
    "ratios": {
     "ab_xa": "0.786±0.05",
@@ -667,7 +671,9 @@
     }
    },
    "passed_tf": "4h",
-   "regime_dependent": false
+   "regime_dependent": false,
+   "status_before_2026_09_03": "passed",
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
   },
   {
    "id": "crab",
@@ -732,7 +738,7 @@
    "id": "bat_1h",
    "name": "Bullish Bat (1h)",
    "category": "harmonic_1h",
-   "status": "passed",
+   "status": "suspended_lookahead",
    "detector_file": "detector_bat.py",
    "passed_tf": "1h",
    "n": 108,
@@ -743,13 +749,15 @@
    "baseline_p": 0.034,
    "passed_date": "2026-06-29",
    "regime_routing": "all regimes -> long (OOS Q4도 +2.33%로 레짐 무관 강건)",
-   "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요."
+   "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요.",
+   "status_before_2026_09_03": "passed",
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
   },
   {
    "id": "butterfly_1h",
    "name": "Bullish Butterfly (1h)",
    "category": "harmonic_1h",
-   "status": "passed",
+   "status": "suspended_lookahead",
    "detector_file": "detector_butterfly.py",
    "passed_tf": "1h",
    "n": 161,
@@ -760,7 +768,9 @@
    "baseline_p": 0.024,
    "passed_date": "2026-06-29",
    "regime_routing": "all regimes -> long (OOS 4/4 전구간 양수)",
-   "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상."
+   "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상.",
+   "status_before_2026_09_03": "passed",
+   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지"
   },
   {
    "id": "triple_bottom_4h",
@@ -796,7 +806,8 @@
    "oos_quarters": 4,
    "passed_date": "2026-08-29",
    "regime_routing": "all regimes -> long",
-   "note": "2차 연장 검증(1d 5년 리샘플, 주봉 ~260봉/종목)에서 통과. 1차(900일) 기각 사유였던 '단일 분기 집중'은 데이터 부족 탓으로 판명 — 표본 54→141, Q2(2022-12~) 78건 +8.5% / Q3(~2025-05) 55건 +10.1% 두 분위 양수. 신호=주봉 넥라인 돌파, 1d 리샘플로 탐지(detlib)."
+   "note": "2차 연장 검증(1d 5년 리샘플, 주봉 ~260봉/종목)에서 통과. 1차(900일) 기각 사유였던 '단일 분기 집중'은 데이터 부족 탓으로 판명 — 표본 54→141, Q2(2022-12~) 78건 +8.5% / Q3(~2025-05) 55건 +10.1% 두 분위 양수. 신호=주봉 넥라인 돌파, 1d 리샘플로 탐지(detlib).",
+   "note_2026_09_03": "detect 가 L3 미확정 돌파(L3+1·L3+2)를 세고 있었음(룩어헤드). 실거래 신호 집합은 불변(원래 잡히던 것만 잡힘). causal 판으로 재검증해 수치 갱신 예정 — 배포 유지"
   },
   {
    "id": "cascade_fade_long_1h",

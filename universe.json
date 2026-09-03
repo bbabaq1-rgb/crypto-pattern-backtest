@@ -414,30 +414,6 @@
  ],
  "adopted_1h_patterns": [
   {
-   "pattern": "bat_1h",
-   "module": "detector_bat",
-   "direction": "long",
-   "tf": "1h",
-   "passed_date": "2026-06-29",
-   "n": 108,
-   "mean": 0.0146,
-   "median": 0.0099,
-   "oos_positive": 4,
-   "regime_routing": "all"
-  },
-  {
-   "pattern": "butterfly_1h",
-   "module": "detector_butterfly",
-   "direction": "long",
-   "tf": "1h",
-   "passed_date": "2026-06-29",
-   "n": 161,
-   "mean": 0.0159,
-   "median": 0.0117,
-   "oos_positive": 4,
-   "regime_routing": "all"
-  },
-  {
    "pattern": "cascade_fade_long_1h",
    "module": "detector_cascade_fade_1h",
    "direction": "long",
@@ -455,5 +431,35 @@
    "detects_on_closed_bar": true
   }
  ],
- "data_unavailable_note": "2026-07-16: SEI/MOVE/BERA/VANA — 전 거래소 1d fetch 실패 지속 (상장폐지·거래중단 추정) → trading_universe에서 제외. 데이터 복구 시 okx_unavailable에서 되돌리면 됨."
+ "data_unavailable_note": "2026-07-16: SEI/MOVE/BERA/VANA — 전 거래소 1d fetch 실패 지속 (상장폐지·거래중단 추정) → trading_universe에서 제외. 데이터 복구 시 okx_unavailable에서 되돌리면 됨.",
+ "suspended_1h_patterns": [
+  {
+   "pattern": "bat_1h",
+   "module": "detector_bat",
+   "direction": "long",
+   "tf": "1h",
+   "passed_date": "2026-06-29",
+   "n": 108,
+   "mean": 0.0146,
+   "median": 0.0099,
+   "oos_positive": 4,
+   "regime_routing": "all",
+   "suspended_date": "2026-09-03",
+   "suspended_reason": "하모닉 디텍터 룩어헤드 — D 피벗 봉 신호는 실거래에서 발화 불가(배포 후 진입 0건), 백테스트는 미래 3봉 참조. 확정 봉(D+3) 기준 재검증 통과 시 복귀"
+  },
+  {
+   "pattern": "butterfly_1h",
+   "module": "detector_butterfly",
+   "direction": "long",
+   "tf": "1h",
+   "passed_date": "2026-06-29",
+   "n": 161,
+   "mean": 0.0159,
+   "median": 0.0117,
+   "oos_positive": 4,
+   "regime_routing": "all",
+   "suspended_date": "2026-09-03",
+   "suspended_reason": "하모닉 디텍터 룩어헤드 — D 피벗 봉 신호는 실거래에서 발화 불가(배포 후 진입 0건), 백테스트는 미래 3봉 참조. 확정 봉(D+3) 기준 재검증 통과 시 복귀"
+  }
+ ]
 }

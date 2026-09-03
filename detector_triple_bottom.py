@@ -54,7 +54,15 @@ def _swing_pivots(rows, key, cmp_min=True):
     return out
 
 
-def detect(rows):
+def detect(rows, causal=True):
+    """
+    causal=True(기본, 2026-09-03 수정): 첫 돌파 봉이 L3 의 스윙 저점 **확정 전**
+    (L3 + PIVOT_HALF 이전)이면 그 셋업을 버린다. L3 확정에는 이후 PIVOT_HALF 봉의 저가가 필요하므로
+    돌파가 L3+1·L3+2 에서 난 신호는 실거래에서 마지막 봉으로는 절대 잡히지 않는데
+    백테스트는 미래 저가를 보고 세고 있었다(합성 신호의 약 21%). 실거래 신호 집합은
+    이 수정으로 바뀌지 않는다(원래 잡히던 것만 잡힌다) — 백테스트 수치만 정직해진다.
+    causal=False: 종전 동작(룩어헤드 크기 비교용).
+    """
     n = len(rows)
     if n < MAX_SPAN // 2:
         return []
@@ -105,6 +113,12 @@ def detect(rows):
                 brk = j
                 break
         if brk is None or brk in used_brk:
+            continue
+        # causal: 첫 돌파가 L3 확정(L3+PIVOT_HALF) 전이면 그 셋업은 버린다.
+        # (L3+PIVOT_HALF 에서 뒤늦게 진입하는 '지각 진입'을 만들지 않는다 — 그건 검증된 적
+        #  없는 새 신호 집합이다. 종전 실거래가 잡을 수 있던 집합과 정확히 같게 유지.)
+        if causal and brk < L3 + PIVOT_HALF:
+            used_brk.add(brk)
             continue
         # 거래량 확인: 돌파봉 >= 형성구간 평균 x 배수
         form_avg = sum(vo[L1:L3 + 1]) / max(1, L3 + 1 - L1)
