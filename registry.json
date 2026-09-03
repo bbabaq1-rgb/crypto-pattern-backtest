@@ -1521,6 +1521,25 @@
    "둘 결합"
   ],
   "live_impact": "없음. eval_D 무변경(test_method_r 소스 고정)",
-  "files": "method_r.py / test_method_r.py / method_r.yml / report_regime_exit.md"
+  "files": "method_r.py / test_method_r.py / method_r.yml / report_regime_exit.md",
+  "round2_2026_09_03": {
+   "arms": {
+    "RL": "롱만 R1, 숏 D",
+    "RB": "R1 + 유리 전환 시 손절 본전 이동(수익 중만, 1회)",
+    "RLB": "롱만 (R1+본전), 숏 D"
+   },
+   "criteria_added": "⑤ 진입일 중앙값 전반/후반 합산 짝지음 차이 둘 다 > 0 (사후 선택 방어)",
+   "pooled": {
+    "R1": "+0.597%p t1.58 bp.006 짝지음우위6/7 CAGR우위4/7 분기125/157(44%) 전반+1.24 후반-0.04 → REJECT ④⑤",
+    "RL": "+0.548%p t1.48 bp.019 짝지음우위4/7 CAGR우위3/7 분기98/116(46%) 전반+0.96 후반+0.14 → REJECT ②④",
+    "RB": "+0.536%p t1.42 bp.009 짝지음우위6/7 CAGR우위4/7 분기120/162(43%) 전반+1.19 후반-0.11 → REJECT ④⑤",
+    "RLB": "+0.490%p t1.33 bp.025 짝지음우위4/7 CAGR우위3/7 분기95/119(44%) 전반+0.90 후반+0.08 → REJECT ②④"
+   },
+   "breakeven_fired": "stop_be 12/1091 (fvg5 fvg_short3 IH2 engulfing_short1 triple_bottom1). R1 대비 fvg +0.43→+0.32, IH +0.38→+0.21 미세 악화. triple_bottom +21.33→+21.87 (n=15)",
+   "mechanism_corrected": "fvg 롱 분기 161 = bear진입 37(R 21/16 +2.9%p) + bull진입 ≈124(R ≈50/71). bull 진입분은 D 가 bull_btc↔bull_altseason 라벨 전환에서 청산 → R 은 유리→유리로 버티다 -8% 손절. D 의 라벨전환 청산이 bull 진입 알트 롱의 조기출구였음. 본전이동은 '유리로 들어가는' 순간만 발동해 bull 진입 거래엔 무효 — 문제 지점에 닿지 않는 도구.",
+   "robust_finding": "bear 진입 롱을 bull 전환에 청산하지 않는 것은 옳다 — fvg n=134 +2.9%p bp.006, engulfing n=16 +1.67%p, 4 arm 모두 동일",
+   "round3_hypothesis_not_run": "adverse(long) = {bear} ∪ {bull_altseason→bull_btc 전환}. 같은 데이터 3번째 검정이라 사전등록 + 마지막 1년 홀드아웃 필수",
+   "verdict": "4 arm 전부 REJECT. 실거래 무변경."
+  }
  }
 }
