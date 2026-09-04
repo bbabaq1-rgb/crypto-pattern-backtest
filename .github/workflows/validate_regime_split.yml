@@ -1,0 +1,38 @@
+name: Regime-split gate (research)
+
+# 연구 전용 — 배포 1d 패턴 6종을 진입 레짐 x 거래대금 코호트로 나눠 셀별 동결 게이트.
+# 매매/DB 접근 없음. 결과는 로그 + 아티팩트. 라우팅·유니버스 변경은 사용자 결정.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_regime_split.py"
+      - ".github/workflows/validate_regime_split.yml"
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Regime-split gate
+        run: python validate_regime_split.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regime-split-${{ github.run_number }}
+          path: _regime_split.json
+          if-no-files-found: ignore
