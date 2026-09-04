@@ -84,8 +84,14 @@ for i in range(400):
 sim = {a: sv.simulate(trades, a) for a in sv.ARMS}
 check("simulate: 세 arm 모두 진입이 있다", all(sim[a]["taken"] > 0 for a in sv.ARMS))
 check("simulate: risk arm 의 평균 스케일 = 1.0", abs(sim["risk"]["mean_scale"] - 1.0) < 1e-9)
-expo_m = sim["vol_matched"]["mean_notional"] / sim["risk"]["mean_notional"]
-expo_r = sim["vol_raw"]["mean_notional"] / sim["risk"]["mean_notional"]
+check("simulate: 진입 레버리지(명목가/equity)를 기록한다",
+      all(sim[a]["mean_lev"] > 0 for a in sv.ARMS))
+expo_m = sim["vol_matched"]["mean_lev"] / sim["risk"]["mean_lev"]
+expo_r = sim["vol_raw"]["mean_lev"] / sim["risk"]["mean_lev"]
+# 회귀: 달러 명목가 비율은 성과가 좋은 arm 에서 부풀어 노출 지표로 못 쓴다(1차 실행 오독의 원인)
+usd_m = sim["vol_matched"]["mean_notional"] / sim["risk"]["mean_notional"]
+check("노출은 레버리지 기준 — 달러 명목가 기준과 다를 수 있다(자본 성장 혼입)",
+      isinstance(usd_m, float))
 check("vol_matched: 평균 노출이 base 와 근접(±20%)", 0.8 <= expo_m <= 1.2, f"{expo_m:.3f}")
 check("vol_matched 가 vol_raw 보다 base 에 가깝다",
       abs(expo_m - 1) < abs(expo_r - 1) or abs(expo_r - 1) < 0.05, f"m={expo_m:.3f} r={expo_r:.3f}")
@@ -106,14 +112,16 @@ check("block_bootstrap: 수익·변동성이 함께 이동", any(x[2] != t[2] fo
 
 
 # ── 6. 판정 3조건 ──────────────────────────────────────────────────────────
-def decide(cal_m, cal_b, mdd_m, mdd_b, ruin_m, ruin_b):
-    return bool(cal_m > cal_b and mdd_m >= mdd_b and ruin_m <= ruin_b)
+def decide(cal_m, cal_b, mdd_m, mdd_b, ruin_m, ruin_b, expo=1.0):
+    return bool(cal_m > cal_b and mdd_m >= mdd_b and ruin_m <= ruin_b and 0.8 <= expo <= 1.2)
 
 
-check("판정: 셋 다 만족 -> ADOPT", decide(1.2, 1.0, -0.30, -0.35, 0.02, 0.03))
-check("판정: Calmar 개선 없으면 탈락", not decide(0.9, 1.0, -0.30, -0.35, 0.02, 0.03))
-check("판정: MDD 악화면 탈락", not decide(1.2, 1.0, -0.40, -0.35, 0.02, 0.03))
-check("판정: P(ruin) 악화면 탈락", not decide(1.2, 1.0, -0.30, -0.35, 0.05, 0.03))
+check("판정: 넷 다 만족 -> ADOPT", decide(1.2, 1.0, -0.30, -0.35, 0.02, 0.03, 1.0))
+check("판정: Calmar 개선 없으면 탈락", not decide(0.9, 1.0, -0.30, -0.35, 0.02, 0.03, 1.0))
+check("판정: MDD 악화면 탈락", not decide(1.2, 1.0, -0.40, -0.35, 0.02, 0.03, 1.0))
+check("판정: P(ruin) 악화면 탈락", not decide(1.2, 1.0, -0.30, -0.35, 0.05, 0.03, 1.0))
+check("판정: 노출 정합이 깨지면(1.9배) 탈락 — 개선이 레버리지 효과일 수 있음",
+      not decide(1.2, 1.0, -0.30, -0.35, 0.02, 0.03, 1.94))
 
 # ── 7. e2e ─────────────────────────────────────────────────────────────────
 def write_csv(path, rws):
@@ -144,10 +152,12 @@ check("e2e: 거래가 실제로 잡혔다", out["config"]["n_trades"] > 50, str(
 check("e2e: 노출 비율 기록", "matched" in out["exposure"] and "raw" in out["exposure"])
 check("e2e: vol_matched 노출이 1 근처", 0.7 <= out["exposure"]["matched"] <= 1.3,
       str(out["exposure"]["matched"]))
-check("e2e: 판정 3조건 bool", all(isinstance(out["verdict"][k], bool)
-                                 for k in ("adopt", "c_a_calmar", "c_b_mdd", "c_c_ruin")))
-check("e2e: adopt = 3조건 AND", out["verdict"]["adopt"] ==
-      (out["verdict"]["c_a_calmar"] and out["verdict"]["c_b_mdd"] and out["verdict"]["c_c_ruin"]))
+check("e2e: 판정 4조건 bool", all(isinstance(out["verdict"][k], bool)
+                                 for k in ("adopt", "c_a_calmar", "c_b_mdd", "c_c_ruin", "c_d_exposure")))
+check("e2e: adopt = 4조건 AND", out["verdict"]["adopt"] ==
+      (out["verdict"]["c_a_calmar"] and out["verdict"]["c_b_mdd"]
+       and out["verdict"]["c_c_ruin"] and out["verdict"]["c_d_exposure"]))
+check("e2e: 달러 기준 노출도 함께 기록(비교용)", "matched_usd" in out["exposure"])
 
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)

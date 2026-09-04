@@ -27,7 +27,9 @@ validate_xsec_momentum.py — 횡단면 모멘텀 (2026-09-04 사전 등록, 사
 다중검정 사전 규칙: L 5개를 본다. PASSED 는 위 동결 게이트. **배포 후보(STRICT)** 는 추가로
   (a) boot_p < 0.01 (b) 인접 L 중 최소 하나도 PASSED — 파라미터 칼끝에 선 셀을 배제한다.
 실거래 코드 무변경. 출력 _xsec_momentum.json + RESULT_JSON.
-실행: python validate_xsec_momentum.py [--no-fetch] [--majors]
+실행: python validate_xsec_momentum.py [--no-fetch] [--majors] [--min-bars N]
+  --min-bars 는 이력이 긴 종목만 남겨 관측 창을 넓힌다. 유니버스 80 은 최근 상장이 많아
+  기본 실행이 2024~2026(2.4년)만 덮는다 — 1차 실행에서 확인된 한계이고, 긴 이력 판을 병기한다.
 """
 import json
 import random
@@ -55,12 +57,21 @@ def _pval(t, df):
     return 2 * (1 - 0.5 * (1 + erf(z / sqrt(2))))
 
 
-def load_all(syms):
+MIN_BARS_DEFAULT = LABEL_W + 120
+
+
+def load_all(syms, min_bars=MIN_BARS_DEFAULT):
+    """
+    min_bars 로 이력이 긴 종목만 남길 수 있다. 유니버스 80 은 최근 상장이 많아 대부분 900봉
+    이라, 리밸런스마다 '20종목 이상이 lb+1 이력을 가진 날짜'가 2024 이후에만 성립한다
+    (1차 실행이 실제로 2024~2026 2.4년만 덮었다). --min-bars 로 긴 이력 부분집합을 돌려
+    관측 창을 넓힌 판을 함께 본다.
+    """
     out = {}
     for s in syms:
         try:
             r = detlib.load_ohlcv(s, "1d")
-            if len(r) > LABEL_W + 120:
+            if len(r) >= min_bars:
                 out[s] = r
         except (FileNotFoundError, RuntimeError):
             pass
@@ -192,13 +203,18 @@ def main(argv=None):
     print(f"[표본] {len(syms)}종목 ({'유니버스 80' if ms.UNIVERSE_MODE else '메이저'})")
     if "--no-fetch" not in argv:
         ms.ensure_data(ms.FETCH_DAYS, syms)
-    rows_by = load_all(syms)
+    min_bars = MIN_BARS_DEFAULT
+    if "--min-bars" in argv:
+        min_bars = int(argv[argv.index("--min-bars") + 1])
+    rows_by = load_all(syms, min_bars)
     didx = date_index(rows_by)
     regmap = rs.build_regime_map()
     pool = {g: [(rows_by[s], i) for s in rows_by
                 for i in range(len(rows_by[s]) - LABEL_W - 1)
                 if regmap.get(rows_by[s][i]["date"]) == g] for g in REGIMES}
-    print(f"[data] 종목 {len(rows_by)} | 날짜 {len(didx)} | 레짐 {len(regmap)}일 | "
+    ad = sorted(didx)
+    print(f"[data] 종목 {len(rows_by)} (min_bars={min_bars}) | 날짜 {len(didx)} "
+          f"({ad[0]}~{ad[-1]}) | 레짐 {len(regmap)}일 | "
           f"풀 " + " ".join(f"{g}:{len(pool[g])}" for g in REGIMES))
     print(f"[규칙] 리밸런스 {REBAL}일 · 상위 {TOP_N} · skip-{SKIP} · L={LOOKBACKS}")
     print("=" * 126)
@@ -244,10 +260,12 @@ def main(argv=None):
     print("       STRICT = PASSED + boot_p<0.01 + 인접 L 중 하나도 PASSED (파라미터 칼끝 배제)")
     json.dump(dict(config=dict(lookbacks=LOOKBACKS, top_n=TOP_N, rebal=REBAL, skip=SKIP,
                                trend_h=TREND_H, boot_n=BOOT_N, strict_boot_p=STRICT_BOOT_P,
-                               n_symbols=len(rows_by)),
+                               n_symbols=len(rows_by), min_bars=min_bars,
+                               date_from=ad[0], date_to=ad[-1]),
                    results={str(k): v for k, v in results.items()},
                    passed=passed, strict=strict, frame_blocked=frame_blocked),
-              open("_xsec_momentum.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+              open(f"_xsec_momentum{'_long' if min_bars > MIN_BARS_DEFAULT else ''}.json",
+                   "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("\nRESULT_JSON: " + json.dumps(dict(passed=passed, strict=strict,
                                               frame_blocked=frame_blocked,
                                               mean={str(k): round(v["mean"], 5) for k, v in results.items()}),

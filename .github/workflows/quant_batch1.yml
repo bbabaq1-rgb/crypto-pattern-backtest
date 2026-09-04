@@ -36,8 +36,10 @@ jobs:
           python test_xsec_momentum.py
       - name: 1) Volatility targeting sizing
         run: python sizing_vol.py
-      - name: 2) Cross-sectional momentum
+      - name: 2) Cross-sectional momentum (유니버스 80)
         run: python validate_xsec_momentum.py --no-fetch
+      - name: 2b) Cross-sectional momentum (긴 이력 종목만 — 관측 창 확대)
+        run: python validate_xsec_momentum.py --no-fetch --min-bars 1800
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
@@ -46,4 +48,5 @@ jobs:
           path: |
             sizing_vol.json
             _xsec_momentum.json
+            _xsec_momentum_long.json
           if-no-files-found: ignore

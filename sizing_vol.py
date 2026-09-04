@@ -18,7 +18,11 @@ TF 에 맞춰 연율화(1d √365 / 1w √52).
 
 사전 등록 판정 (실행 전 고정, 부트스트랩 300회 블록 재표집)
   채택 후보 = **vol_matched** 가 (a) boot Calmar 중앙 > base AND (b) boot MDD 중앙 >= base
-              (더 나쁘지 않음) AND (c) P(ruin) <= base. 셋 다 만족해야 한다.
+              (더 나쁘지 않음) AND (c) P(ruin) <= base AND (d) 노출 비율 0.8~1.2.
+              (d) 는 vol_matched 의 정의('평균 노출 정합')가 실제로 성립했는지 확인하는 가드다 —
+              깨지면 (a)(b)(c) 개선이 재분배가 아니라 레버리지 효과일 수 있어 판정이 성립하지 않는다.
+              노출은 **진입 시점 레버리지(명목가/equity)** 로 잰다. 달러 명목가로 재면 성과가 좋은
+              arm 이 자본을 키워 명목가도 커져 '레버리지'와 '수익'이 뒤섞인다.
   vol_raw 는 진단 전용 — 좋아 보여도 평균 노출 비율(로그에 출력)이 1 보다 크면 그만큼은
   '변동성 타겟팅'이 아니라 그냥 레버리지다.
 실거래 코드 무변경. 출력 sizing_vol.json + RESULT_JSON.
@@ -114,7 +118,7 @@ def simulate(trades, arm):
     open_pos, peak, mdd = {}, START_EQ, 0.0
     taken = skipped = 0
     s_sum, s_cnt = 0.0, 0            # 인과적 확장평균(정규화용) — 지금까지 본 s 만 쓴다
-    scales, notionals = [], []
+    scales, notionals, lev_ratios = [], [], []
     for day, kind, idx in evs:
         if kind == -1:
             rec = open_pos.pop(idx, None)
@@ -149,6 +153,8 @@ def simulate(trades, arm):
             free -= r["margin_usd"]
             open_pos[idx] = (r["margin_usd"], r["notional"])
             scales.append(s); notionals.append(r["notional"])
+            if equity > 0:
+                lev_ratios.append(r["notional"] / equity)     # 노출 = 명목가/자본 (달러 아님)
             taken += 1
     days = max(1, evs[-1][0] - evs[0][0]) if evs else 1
     yrs = days / 365.25
@@ -157,7 +163,8 @@ def simulate(trades, arm):
                 calmar=(cagr / abs(mdd) if mdd < 0 else float("inf")),
                 taken=taken, skipped=skipped,
                 mean_scale=(st.mean(scales) if scales else 0.0),
-                mean_notional=(st.mean(notionals) if notionals else 0.0))
+                mean_notional=(st.mean(notionals) if notionals else 0.0),
+                mean_lev=(st.mean(lev_ratios) if lev_ratios else 0.0))
 
 
 def block_bootstrap(trades, rng, block=BLOCK):
@@ -218,27 +225,38 @@ def main(argv=None):
               f" | {t['cagr_med']*100:>+8.1f}%{t['mdd_med']*100:>+8.1f}%{t['calmar_med']:>8.2f}{t['p_ruin']*100:>8.1f}%")
     base_b, mat_b = res["risk"]["boot"], res["vol_matched"]["boot"]
     raw_b = res["vol_raw"]["boot"]
-    expo = (res["vol_matched"]["base"]["mean_notional"] / res["risk"]["base"]["mean_notional"]
-            if res["risk"]["base"]["mean_notional"] else 0.0)
-    expo_raw = (res["vol_raw"]["base"]["mean_notional"] / res["risk"]["base"]["mean_notional"]
+    # 노출 비율은 **진입 시점 레버리지(명목가/equity)** 로 잰다. 달러 명목가로 재면
+    # 성과가 좋은 arm 이 자본을 키워 명목가도 커지므로 '레버리지를 더 썼다'와 '돈을 더 벌었다'가
+    # 구분되지 않는다(1차 실행에서 실제로 1.94배로 나와 오독을 유발했다).
+    lev_base = res["risk"]["base"]["mean_lev"]
+    expo = (res["vol_matched"]["base"]["mean_lev"] / lev_base) if lev_base else 0.0
+    expo_raw = (res["vol_raw"]["base"]["mean_lev"] / lev_base) if lev_base else 0.0
+    expo_usd = (res["vol_matched"]["base"]["mean_notional"] / res["risk"]["base"]["mean_notional"]
                 if res["risk"]["base"]["mean_notional"] else 0.0)
     c_a = mat_b["calmar_med"] > base_b["calmar_med"]
     c_b = mat_b["mdd_med"] >= base_b["mdd_med"]
     c_c = mat_b["p_ruin"] <= base_b["p_ruin"]
-    adopt = bool(c_a and c_b and c_c)
-    print(f"\n[노출 비율] vol_matched/risk = {expo:.2f}배 (1.0 근처여야 정규화가 작동) | "
-          f"vol_raw/risk = {expo_raw:.2f}배")
+    # (d) 정규화 가드 — vol_matched 의 존재 이유가 '평균 노출 정합'이므로 이게 깨지면
+    #     (a)(b)(c) 개선은 재분배가 아니라 레버리지 효과일 수 있어 판정이 성립하지 않는다.
+    c_d = 0.8 <= expo <= 1.2
+    adopt = bool(c_a and c_b and c_c and c_d)
+    print(f"\n[노출 비율] 진입 레버리지(명목가/equity) 기준 — vol_matched/risk = {expo:.2f}배 "
+          f"(1.0 근처여야 정규화 작동) | vol_raw/risk = {expo_raw:.2f}배")
+    print(f"             참고: 달러 명목가 기준은 {expo_usd:.2f}배 — 성과가 좋은 arm 이 자본을 키워"
+          f" 커지므로 노출 판단에 쓰면 안 된다")
     print("\n[사전 등록 판정] 주 arm = vol_matched")
     print(f"  (a) boot Calmar 개선  {mat_b['calmar_med']:.2f} vs {base_b['calmar_med']:.2f}  -> {'통과' if c_a else '탈락'}")
     print(f"  (b) boot MDD 악화 없음 {mat_b['mdd_med']*100:+.1f}% vs {base_b['mdd_med']*100:+.1f}%  -> {'통과' if c_b else '탈락'}")
     print(f"  (c) P(ruin) 악화 없음  {mat_b['p_ruin']*100:.1f}% vs {base_b['p_ruin']*100:.1f}%  -> {'통과' if c_c else '탈락'}")
+    print(f"  (d) 노출 정합 0.8~1.2  {expo:.2f}배  -> {'통과' if c_d else '탈락 (정규화 미작동 = 판정 불성립)'}")
     print(f"  => {'ADOPT 후보 (사용자 결정)' if adopt else 'REJECT'}")
     print(f"\n[진단] vol_raw 는 노출 {expo_raw:.2f}배 — 1 을 넘는 만큼은 변동성 타겟팅이 아니라 레버리지다.")
     json.dump(dict(config=dict(target_vol=TARGET_VOL, lo=LO, hi=HI, vol_lb=VOL_LB,
                                risk_frac=RISK_FRAC, lev=LEV, boot_n=BOOT_N, block=BLOCK,
                                n_symbols=len(syms), n_trades=len(trades)),
-                   results=res, exposure=dict(matched=expo, raw=expo_raw),
-                   verdict=dict(adopt=adopt, c_a_calmar=c_a, c_b_mdd=c_b, c_c_ruin=c_c)),
+                   results=res, exposure=dict(matched=expo, raw=expo_raw, matched_usd=expo_usd),
+                   verdict=dict(adopt=adopt, c_a_calmar=c_a, c_b_mdd=c_b, c_c_ruin=c_c,
+                                c_d_exposure=c_d)),
               open("sizing_vol.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print("\nRESULT_JSON: " + json.dumps(dict(
         adopt=adopt, exposure_matched=round(expo, 3),

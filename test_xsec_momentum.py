@@ -139,6 +139,14 @@ check("STRICT: 인접 L 이 함께 통과하고 boot_p<0.01 이면 후보", stri
 check("STRICT: 혼자만 통과하면 제외", strict_of(res, [28]) == [])
 check("STRICT: boot_p 0.02 는 PASSED 여도 STRICT 아님", 14 not in strict_of(res, [7, 14]))
 
+# ── 4b. min_bars 필터 ──────────────────────────────────────────────────────
+short_rows = {"A": rows_of(50, 1), "B": rows_of(500, 2), "C": rows_of(900, 3)}
+import unittest.mock as _m
+with _m.patch.object(detlib, "load_ohlcv", side_effect=lambda s, tf="1d": short_rows[s]):
+    check("load_all: 기본 min_bars 는 짧은 종목을 뺀다", set(x.load_all(list(short_rows))) == {"B", "C"})
+    check("load_all: min_bars=800 이면 긴 종목만", set(x.load_all(list(short_rows), 800)) == {"C"})
+    check("load_all: min_bars 가 크면 빈 결과", x.load_all(list(short_rows), 5000) == {})
+
 # ── 5. e2e ─────────────────────────────────────────────────────────────────
 def write_csv(path, rws):
     with open(path, "w", newline="") as f:
@@ -183,6 +191,8 @@ check("e2e: 프레임 탓 기각은 동결 기각 + 추세 양수",
           for l in out["frame_blocked"]))
 check("e2e: 베이스라인이 산출됐다",
       all(v["base_mean"] is not None for v in out["results"].values()))
+check("e2e: config 에 관측 창 기록",
+      all(k in out["config"] for k in ("min_bars", "date_from", "date_to")))
 
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)
