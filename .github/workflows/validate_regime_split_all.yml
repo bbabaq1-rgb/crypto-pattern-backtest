@@ -1,0 +1,45 @@
+name: Regime-split re-test — all rejected/suspended patterns (research)
+
+# 연구 전용 — 기각·정지·보류 패턴 55종을 진입 레짐 x 코호트로 나눠 셀별 동결 게이트.
+# 1d/1w/4h 는 ±10%/20봉, 1h 는 ±1.5ATR/12봉(intraday_lab). 매매/DB 접근 없음.
+# 결과는 로그 + 아티팩트. 등재 변경은 STRICT 규칙 + 사용자 결정.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tfs:
+        description: "재시험 TF (쉼표 구분)"
+        default: "1d,1w,4h,1h"
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_regime_split_all.py"
+      - ".github/workflows/validate_regime_split_all.yml"
+
+jobs:
+  retest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_regime_split_all.py
+      - name: Regime-split re-test
+        run: python validate_regime_split_all.py --tf "${{ github.event.inputs.tfs || '1d,1w,4h,1h' }}"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regime-split-all-${{ github.run_number }}
+          path: _regime_split_all.json
+          if-no-files-found: ignore
