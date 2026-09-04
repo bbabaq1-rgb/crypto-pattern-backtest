@@ -31,7 +31,11 @@ arm (base = D, 현행 실거래 규칙과 동일: 손절 −8% / 반대신호 / 
      단순 보유 상한이 같은 성과를 낸다 = 실무 결론은 '더 단순한 쪽'. 가장 있을 법한 결과다.
   넷 다 아니면 INCONCLUSIVE. 실거래 규칙 변경은 사용자 결정 사항 — 이 모듈은 무변경.
 
-실행: python method_s.py [--no-fetch] [--shuffles N]. 출력 method_s.json + RESULT_JSON.
+실행: python method_s.py [--no-fetch] [--shuffles N] [--universe]
+  기본 표본은 메이저 7종목(method_r/m/q 와 정합). --universe 는 universe.json 의 80종목으로
+  넓혀 '표본이 작아서 나온 결론인가'를 재확인한다. 출력 method_s.json / method_s_universe.json.
+  주의: --universe 는 모든 패턴을 80종목 전체에 돌린다. 실거래 라우팅(PATTERN_UNIVERSE:
+  engulfing→top30, inverted_hammer·marubozu→메이저)의 복제가 아니라 **표본 크기 강건성 확인**이다.
 """
 import importlib
 import json
@@ -41,6 +45,7 @@ import sys
 from datetime import date, timedelta
 
 import detlib
+import fetch_data
 import method_m as mm
 import method_r as mr
 import method_t as mt
@@ -53,6 +58,34 @@ SHUFFLES = 20
 SHUFFLE_SEED0 = 1000
 ARMS = ["D", "D_norg", "D_time", "D_shuffle"]
 ARM_RULE = {"D": "regime", "D_norg": "none", "D_time": "cap", "D_shuffle": "regime"}
+
+# 표본 범위. 기본은 메이저 7종목 — method_r/method_m/method_q 와 표본을 맞춰 결론을 직접
+# 비교하기 위해서다. --universe 를 주면 universe.json trading_universe(80종목)로 넓혀
+# '표본이 작아서 나온 결론인가'를 재확인한다. 두 판 모두 기록한다.
+UNIVERSE_MODE = False
+
+
+def symbols():
+    if UNIVERSE_MODE:
+        try:
+            u = json.load(open("universe.json", encoding="utf-8")).get("trading_universe")
+            if u:
+                return list(u)
+        except Exception as e:
+            print(f"[universe] universe.json 읽기 실패({str(e)[:50]}) — 메이저 폴백")
+    return list(detlib.SYMBOLS)
+
+
+def ensure_data(days, syms):
+    ok = new = 0
+    for s in syms:
+        try:
+            n_new, total = fetch_data.update_csv(f"{s}/USDT", "1d", detlib.CSV(s, "1d"), window_days=days)
+            if total:
+                ok += 1; new += n_new
+        except Exception as e:
+            print(f"  [fetch] {s} 실패: {str(e)[:60]}")
+    print(f"[fetch] 1d {days}일: {ok}/{len(syms)}종목 (+{new}봉)", flush=True)
 
 
 # ── 청산 규칙 ───────────────────────────────────────────────────────────────
@@ -147,11 +180,11 @@ def flips(regmap):
 
 
 # ── 신호 수집 (디텍터는 한 번만 돌리고 arm 평가에서 재사용) ────────────────
-def collect(detmod, oppmod, tf):
+def collect(detmod, oppmod, tf, syms=None):
     mod = importlib.import_module(detmod)
     opp = importlib.import_module(oppmod) if oppmod else None
     out = []
-    for sym in detlib.SYMBOLS:
+    for sym in (syms if syms is not None else detlib.SYMBOLS):
         try:
             rows = detlib.load_ohlcv(sym, tf)
         except (FileNotFoundError, RuntimeError):
@@ -183,10 +216,15 @@ def weighted(pairs):
 
 
 def main(argv=None):
+    global UNIVERSE_MODE
     argv = argv if argv is not None else sys.argv[1:]
     n_shuf = int(argv[argv.index("--shuffles") + 1]) if "--shuffles" in argv else SHUFFLES
+    UNIVERSE_MODE = "--universe" in argv
+    syms = symbols()
+    print(f"[표본] {'유니버스 80' if UNIVERSE_MODE else '메이저'} {len(syms)}종목: "
+          f"{', '.join(syms[:12])}{' …' if len(syms) > 12 else ''}")
     if "--no-fetch" not in argv:
-        mt.ensure_data(FETCH_DAYS)
+        ensure_data(FETCH_DAYS, syms)
     regmap = rs.build_regime_map()
     last = max(regmap)
     cutoff = (date.fromisoformat(last) - timedelta(days=HOLDOUT_DAYS)).isoformat()
@@ -208,7 +246,7 @@ def main(argv=None):
     print("=" * 130)
     results, caps, shuf_pairs = {}, {}, [[] for _ in range(n_shuf)]
     for label, direction, detmod, oppmod, tf in mt.PATS:
-        collected = collect(detmod, oppmod, tf)
+        collected = collect(detmod, oppmod, tf, syms)
         if not collected:
             print(f"\n[{label}] 신호 없음 — 스킵"); continue
         base = eval_arm(collected, direction, regmap, True, MAX_HOLD)
@@ -285,11 +323,15 @@ def main(argv=None):
     results["_verdicts"], results["_verdict"] = verdicts, verdict
     results["_config"] = dict(arms=ARMS, caps=caps, holdout_days=HOLDOUT_DAYS, cutoff=cutoff,
                               shuffles=n_shuf, stop=STOP, max_hold=MAX_HOLD, fetch_days=FETCH_DAYS,
-                              year_mix=ymix)
-    json.dump(results, open("method_s.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1,
+                              year_mix=ymix, universe_mode=UNIVERSE_MODE, n_symbols=len(syms),
+                              symbols=syms)
+    out_path = "method_s_universe.json" if UNIVERSE_MODE else "method_s.json"
+    json.dump(results, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1,
               default=mr._jsonable)
+    print(f"[저장] {out_path}")
     print("\nRESULT_JSON: " + json.dumps(dict(
-        verdict=verdict, d_win_frac=round(frac, 3),
+        verdict=verdict, universe="80" if UNIVERSE_MODE else "majors", n_symbols=len(syms),
+        d_win_frac=round(frac, 3),
         pooled={m: round((results["_pooled"]["train"].get(m) or {}).get("mean_diff", 0), 5)
                 for m in ARMS if m != "D"}), separators=(",", ":")))
 

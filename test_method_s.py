@@ -160,6 +160,25 @@ check("판정 B: 셔플 구분 불가 + 시간 상한 열세도 B",
 check("판정 C: 소거가 유의 우위면 최우선", decide(0.95, +0.01, -0.01, -3.0, True) == "C_레짐청산_해로움")
 check("판정 INCONCLUSIVE", decide(0.75, -0.004, -0.01, -3.0, False) == "INCONCLUSIVE")
 
+# ── 4b. 표본 범위 (--universe) ──────────────────────────────────────────────
+check("기본 표본은 메이저 7종목", ms.symbols() == list(detlib.SYMBOLS) and not ms.UNIVERSE_MODE)
+_cwd = os.getcwd()
+with tempfile.TemporaryDirectory() as _td:
+    os.chdir(_td)
+    try:
+        json.dump({"trading_universe": ["AAA", "BBB", "CCC"]}, open("universe.json", "w"))
+        ms.UNIVERSE_MODE = True
+        check("--universe 는 universe.json trading_universe 를 쓴다", ms.symbols() == ["AAA", "BBB", "CCC"])
+        json.dump({}, open("universe.json", "w"))
+        check("trading_universe 없으면 메이저 폴백", ms.symbols() == list(detlib.SYMBOLS))
+        os.remove("universe.json")
+        check("universe.json 없어도 예외 없이 메이저 폴백", ms.symbols() == list(detlib.SYMBOLS))
+    finally:
+        ms.UNIVERSE_MODE = False
+        os.chdir(_cwd)
+check("collect 는 넘긴 심볼만 본다",
+      ms.collect("detector_engulfing", None, "1d", syms=[]) == [])
+
 # ── 5. e2e ──────────────────────────────────────────────────────────────────
 def write_csv(path, rws):
     with open(path, "w", newline="") as f:
@@ -205,6 +224,8 @@ check("e2e: 판정 문자열", out["_verdict"] in
       ("A_상태정보_실재", "B_레짐은_시계", "C_레짐청산_해로움",
        "D_정보있음_그러나_시계로대체가능", "INCONCLUSIVE"), out["_verdict"])
 check("e2e: 합산에 3 arm", set(out["_pooled"]["train"]) == {"D_norg", "D_time", "D_shuffle"})
+check("e2e: config 에 표본 범위 기록",
+      out["_config"]["universe_mode"] is False and out["_config"]["n_symbols"] == len(detlib.SYMBOLS))
 
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)
