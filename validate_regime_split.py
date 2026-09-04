@@ -69,7 +69,7 @@ def _pval(t, df):
 
 def gate_cell(label, sigs, pool, verbose=True):
     """sigs: [(date, ret)], pool: [(rows, i)] 같은 레짐·코호트의 무작위 진입 후보."""
-    rets = [r for _, r in sigs]
+    rets = [r for _, r, *_ in sigs]
     n = len(rets)
     mean = st.mean(rets) if rets else 0.0
     med = st.median(rets) if rets else 0.0
