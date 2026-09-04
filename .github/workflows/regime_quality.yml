@@ -1,0 +1,48 @@
+name: Regime labeler study (research)
+
+# 연구 전용 — 레짐 라벨러 후보(시장 폭·변동성·펀딩·기울기 단축) 1단계 라벨 품질 벤치마크
+# (regime_quality.py) + 2단계 짝지음 거래 시험(method_q.py). 매매/DB 접근 없음.
+# 실거래 레짐(regime_switch)은 이 워크플로가 바꾸지 않는다 — 채택은 사용자 결정.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "regime_alt.py"
+      - "regime_quality.py"
+      - "method_q.py"
+      - ".github/workflows/regime_quality.yml"
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_regime_quality.py
+      - name: Stage 1 — label quality benchmark
+        run: python regime_quality.py
+      - name: Stage 2 — paired trade test (method_q)
+        run: python method_q.py --no-fetch
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regime-quality-${{ github.run_number }}
+          path: |
+            _regime_quality.json
+            method_q.json
+            funding_history_btc.json
+          if-no-files-found: ignore
