@@ -147,11 +147,16 @@ def split_half(base, arm):
 
 
 def by_regime(base, arm):
-    """진입 레짐별 짝지음 차이."""
+    """
+    진입 레짐별 짝지음 차이. 레짐 맵 워밍업(200일선+기울기) 이전 진입은 라벨이 None 이라
+    층화 대상에서 제외한다 — 짝지음 합산에는 그대로 들어간다(실제 거래이므로).
+    """
     out = {}
     for b, a in zip(base, arm):
+        if b[4] is None:
+            continue
         out.setdefault(b[4], []).append(a[1] - b[1])
-    return {k: dict(n=len(v), mean=st.mean(v)) for k, v in sorted(out.items()) if k}
+    return {k: dict(n=len(v), mean=st.mean(v)) for k, v in sorted(out.items())}
 
 
 def pool(items):

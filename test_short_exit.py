@@ -38,8 +38,11 @@ def rows_of(n, seed, drift=0.0, start=date(2021, 1, 1)):
         o = px * (1 + random.gauss(0, 0.004))
         nx = px * (1 + drift + random.gauss(0, 0.02))
         d = start + timedelta(days=i)
+        # 거래량은 반드시 변동시킨다 — 상수면 거래량 조건이 있는 디텍터가 신호를 0건 내고
+        # e2e 가 조용히 무의미해진다(초기 작성 시 실제로 그랬다).
         out.append(dict(ts=int((d - date(1970, 1, 1)).total_seconds() * 1000), date=d.isoformat(),
-                        o=o, h=max(o, nx) * 1.006, l=min(o, nx) * 0.994, c=nx, v=1000.0))
+                        o=o, h=max(o, nx) * 1.006, l=min(o, nx) * 0.994, c=nx,
+                        v=1000.0 * (1 + abs(random.gauss(0, 0.8)))))
         px = nx
     return out
 
@@ -120,6 +123,15 @@ h1, h2 = v.split_half(b, a)
 check("split_half: 전반/후반 각 2건", h1["n"] == 2 and h2["n"] == 2)
 reg = v.by_regime(b, a)
 check("by_regime: bear 2건 평균 +3%p", reg["bear"]["n"] == 2 and abs(reg["bear"]["mean"] - 0.03) < 1e-12)
+# 회귀: 레짐 맵 워밍업 이전 진입은 라벨이 None — 정렬에서 터지면 안 되고 층화에서 빠져야 한다
+b_n = b + [("2023-01-01", 0.03, 5, "x", None), ("2023-02-01", 0.01, 5, "x", None)]
+a_n = a + [("2023-01-01", 0.09, 5, "x", None), ("2023-02-01", 0.02, 5, "x", None)]
+reg_n = v.by_regime(b_n, a_n)
+check("by_regime: None 진입 레짐이 있어도 예외 없음", isinstance(reg_n, dict))
+check("by_regime: None 은 층화에서 제외", None not in reg_n and set(reg_n) == set(reg))
+check("by_regime: None 이 다른 레짐 통계를 오염시키지 않음",
+      reg_n["bear"]["n"] == 2 and abs(reg_n["bear"]["mean"] - 0.03) < 1e-12)
+check("paired: None 진입 거래도 짝지음에는 포함", v.paired(b_n, a_n)["n"] == 6)
 check("pool: 표본 가중", abs(v.pool([(0.02, 100), (-0.01, 300)]) - (-0.0025)) < 1e-12)
 check("pool: 빈 입력 0", v.pool([]) == 0.0)
 
@@ -138,6 +150,67 @@ check("판정 PARTIAL: 2개", decide(0.01, -0.01, 0.005, 0.02, 0.00, [-0.01]) ==
 check("판정 NOISE: 부호 뒤집힘 + CI 0 포함 + 롱도 좋아짐 + bear 전용",
       decide(-0.02, 0.03, -0.005, 0.001, 0.004, [-0.01]) == "NOISE")
 check("판정 NOISE: bear 밖 표본이 없으면 ④ 탈락", decide(0.01, 0.01, -0.005, 0.00, 0.02, []) == "NOISE")
+
+
+# ── 5. e2e — main() 이 합성 CSV 위에서 끝까지 돈다 ─────────────────────────
+# 이 e2e 가 없어서 run #1 이 러너에서야 터졌다(None 진입 레짐 정렬). 레짐 맵에 None 구간을
+# 일부러 넣어 같은 경로를 다시 밟는다.
+import csv
+import json
+import os
+import tempfile
+
+import regime_switch as rs
+
+
+def write_csv(path, rws):
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f); w.writerow(["timestamp", "open", "high", "low", "close", "volume"])
+        for r in rws:
+            w.writerow([r["ts"], r["o"], r["h"], r["l"], r["c"], r["v"]])
+
+
+import detlib
+
+cwd = os.getcwd()
+with tempfile.TemporaryDirectory() as td:
+    os.chdir(td)
+    try:
+        os.makedirs("data")
+        syms = sorted(set(detlib.SYMBOLS) | set(rs.ALTS))
+        for k, sy in enumerate(syms):
+            write_csv(f"data/{sy.lower()}_1d.csv", rows_of(900, 300 + k, drift=0.0006 if k % 2 else -0.0004))
+        json.dump({"trading_universe": syms}, open("universe.json", "w"))
+        big = rows_of(900, 300)
+        rgm, lb, rr = {}, "bull_btc", random.Random(21)
+        for i, r in enumerate(big):
+            if i < 120:
+                continue                      # 워밍업 구간 — 라벨 없음(None 경로)
+            if rr.random() < 0.03:
+                lb = rr.choice(LABELS)
+            rgm[r["date"]] = lb
+        rs.build_regime_map = lambda *a, **k: rgm
+        v.BOOT_N = 200
+        v.main(["--no-fetch", "--majors"])
+        out = json.load(open("_short_exit.json", encoding="utf-8"))
+    finally:
+        os.chdir(cwd)
+check("e2e: 숏 패턴 결과 존재", len(out["results"]["short"]) >= 1, str(list(out["results"]["short"])))
+check("e2e: 숏 신호가 실제로 잡혔다(픽스처 자체 점검)",
+      all(out["results"]["short"][l]["n"] >= 10 for l in out["results"]["short"]),
+      str({l: out["results"]["short"][l]["n"] for l in out["results"]["short"]}))
+# 합성 데이터에서는 조건이 빡빡한 디텍터(ih/marubozu/triple_bottom)가 신호를 못 낼 수 있다.
+# 대조군 합산이 성립하려면 롱이 최소 2종은 잡혀야 한다(실제 실행에서는 5종 전부).
+check("e2e: 롱 대조군 2종 이상", len(out["results"]["long"]) >= 2, str(list(out["results"]["long"])))
+check("e2e: 두 arm 판정", set(out["verdicts"]) == set(v.ARMS))
+check("e2e: 판정 문자열", all(x["verdict"] in ("SURVIVES", "PARTIAL", "NOISE") for x in out["verdicts"].values()))
+check("e2e: 4조건 전부 bool", all(isinstance(x[k], bool) for x in out["verdicts"].values()
+                                 for k in ("c1_split", "c2_ci", "c3_placebo", "c4_regime")))
+check("e2e: n_passed = 4조건 합", all(
+    x["n_passed"] == sum((x["c1_split"], x["c2_ci"], x["c3_placebo"], x["c4_regime"]))
+    for x in out["verdicts"].values()))
+check("e2e: 레짐 층화에 None 키 없음",
+      all(None not in x["by_regime"] and "None" not in x["by_regime"] for x in out["verdicts"].values()))
 
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)
