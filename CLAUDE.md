@@ -377,6 +377,11 @@
     라벨을 빠르게 하면(D_*) D 의 레짐 전환 청산이 잦아져 전부 악화 — 레짐의 기여는 예측이 아니라 청산
     트리거·셀 분리. **'레짐을 예측기로 쓰지 말 것'**이 결론. D_vote4 train t 2.54 이나 holdout 분기 0건,
     F_*(bear 롱 차단)는 train 손해·holdout(bear 해) +1%p 단일국면. funding 은 OKX 이력 94일뿐(미검증).
+    **지평 진단(run #2)**: 20/40/60/90일 전부 적중률 47~49%, 40·60일 분리폭 음수 — 느려서가 아니라 신호 집합에
+    방향 정보가 없다. 폭 라벨은 긴 지평에서 강한 역행(90일 −18.7%p). **레짐은 상태 분류기로만 유지.**
+    라벨러 채택 시 재검증 경로: `validate_regime_split(_all).py --labeler <name>` (셀 재정의) + 라우팅 재생성 +
+    method_d 청산 재검증 — 세 곳 모두 라벨에 의존(사용자 질문 2026-09-04 "레짐 바뀌면 패턴 재테스트?" → 예, 단
+    지금은 채택된 라벨러가 없어 대상 없음).
     regime_alt.py / regime_quality.py / method_q.py / test_regime_quality.py(43건) / regime_quality.yml
   · **bear fvg 숏 OFF (2026-09-04, 사용자 결정 "bear 숏 끄고")**: `direction_switch.ROUTING_OVERRIDES`
     {(bear, fvg): FLAT}. main() 이 매 실행 regime_switch.json 의 무조건부 n≥20·mean>0 로 표를 다시

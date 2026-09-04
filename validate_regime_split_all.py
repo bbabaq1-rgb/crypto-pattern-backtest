@@ -280,6 +280,15 @@ def collect(detect_fn, rows_by, atrs, regmap, tf, direction):
     return sigs_by_sym
 
 
+def _labeler_arg(argv=None):
+    """--labeler <name> (regime_alt.LABELERS). 없으면 None = 현행 레짐."""
+    argv = sys.argv[1:] if argv is None else argv
+    if "--labeler" in argv:
+        i = argv.index("--labeler")
+        return argv[i + 1] if i + 1 < len(argv) else None
+    return None
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     tfs = ["1d", "1w", "4h", "1h"]
@@ -290,6 +299,16 @@ def main(argv=None):
     if "--no-fetch" not in argv:
         fetch(syms, [tf for tf in ("1d", "4h", "1h") if tf in tfs or (tf == "1d" and "1w" in tfs)])
     regmap = rs.build_regime_map()
+    # --labeler <name>: regime_alt 후보 라벨러로 셀을 다시 정의해 재시험 (라벨러 채택 시 필수 재검증 경로).
+    # 기본은 현행 라벨. 후보 맵은 현행 3신호 + 추가 신호로 같은 데이터에서 만든다.
+    labeler = _labeler_arg()
+    if labeler and labeler != "current":
+        import regime_alt as ra
+        ctx = ra.load_context(fetch_funding=False)
+        if labeler not in ctx["labels"]:
+            raise SystemExit(f"[labeler] 알 수 없는 라벨러 {labeler} — {list(ctx['labels'])}")
+        regmap = ctx["labels"][labeler]
+        print(f"[labeler] 셀 정의 라벨러 = {labeler} ({len(regmap)}일)")
     ymix = {}
     for d, g in regmap.items():
         ymix.setdefault(d[:4], {}).setdefault(g, 0); ymix[d[:4]][g] += 1

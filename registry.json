@@ -1744,6 +1744,8 @@
       "method_q.py",
       "test_regime_quality.py",
       "report_regime_quality.md"
-    ]
+    ],
+    "horizon_diag": "run #2: current hit 49/49/47/47% (20/40/60/90d), sep +0.81/−2.20/−1.48/+3.88%p. breadth 90d −18.7%p 역행. 방향 정보 없음 확정",
+    "retest_path": "validate_regime_split(_all).py --labeler <name> — 라벨러 채택 시 셀 재정의 재시험"
   }
 }
