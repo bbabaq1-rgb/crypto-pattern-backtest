@@ -395,6 +395,21 @@
       되며 D_norg 쪽으로 끌려갔다 → `_sequence_no_adjacent` 로 전환 수 정확 보존(2차). 편향이
       결론에 불리하게 작용했음이 확인 — 격차가 −0.98%p(1차) → −2.58%p(2차) 로 벌어짐.
     · **판정 A_상태정보_실재. 실거래 무변경(방식D 유지).** method_s.py / test_method_s.py(41건) / method_s.yml
+  · **숏 레짐 청산 재검토 REJECT (2026-09-04, 사용자 지시)**: report_regime_exit_ablation.md.
+    method_s 홀드아웃에서 숏 두 셀만 D_norg 우세였던 것(사후 선택 셀)을 반증 시도. 유니버스 80
+    전 구간. arm: S_norg(숏 레짐청산 제거) / **S_adv(숏은 불리 국면 진입 전환에만 청산 — method_r
+    RL 의 거울상, 최초 시험)**. 반증 4종 중 **둘 다 1/4 NOISE**.
+    · ④ 레짐층화가 결정타: bear 만 −0.39/+0.00%p, bull_btc −0.05, **bull_altseason −2.67%p** —
+      홀드아웃(2026 bear 단일) 관찰은 국면 아티팩트. ① 전후반 양쪽 음수, ② 부트 CI 가 0 을
+      배제하되 **음수 쪽**(D 가 유의하게 우위).
+    · **③ 대조군 통과는 무의미** — 사전 규칙을 '숏>롱'으로만 두고 부호를 안 걸어, 숏 −0.45%p /
+      롱 −1.54%p 로 둘 다 D 보다 나쁜데 통과로 집계됐다. '숏>롱 **이고** 숏>0' 이었다면 0/4.
+      다음 대조군 설계 시 부호 조건 필수(기록).
+    · 부수: 롱 대조군 −1.21~−1.54%p 가 method_s D_norg·method_r RL 기각을 독립 재현.
+      S_adv 가 S_norg 보다 일관되게 덜 나쁨(방향 인지가 낫지만 D 에는 못 미침).
+    · **실효 범위**: 라우팅상 숏이 나가는 셀은 bull_altseason engulfing_short 뿐이고 bear fvg 숏은
+      이미 OFF — 그 유일한 셀이 층화 최악 구간이라 바꿨으면 손해. 실거래 무변경.
+    validate_short_exit.py / test_short_exit.py(36건) / short_exit.yml
   · **레짐 라벨러 강화 연구 REJECT (2026-09-04, 사용자 지시 "레짐 정확도를 올릴 변수 추가")**: report_regime_quality.md.
     breadth/vol/funding 신호로 라벨러 6후보(fast_slope/breadth_price/vote4/vol_side/funding_cap/breadth_only) —
     1단계 라벨 품질(분리폭·적중·지연·flips, 사전 규칙 4개) **후보 0**, 2단계 짝지음 19 arm **전부 REJECT**.
@@ -474,7 +489,7 @@
       three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
 - [x] bear fvg 숏 OFF (2026-09-04) / 유니버스 N=80 적용 (2026-09-04)
 - [x] 레짐 청산 소거 시험 유니버스 80종목 재확인 (2026-09-04) — 판정 A 동일, D_norg 결론 정정
-- [ ] **숏의 레짐 청산 재검토** — bear 지배 홀드아웃에서 engulfing_short/fvg_short 는 레짐 청산을 빼는 쪽이 우세(t 2.19/3.19). n 작고 단일 국면이라 사전 등록 후 재시험
+- [x] **숏의 레짐 청산 재검토 (2026-09-04) — NOISE, 추격 중단.** 반증 4종 중 1개만 통과(그 1개도 부호 미요구 규칙 탓 무의미). bear 에서만 중립(+0.00%p)이고 bull_btc −0.05 / bull_altseason −2.67%p — 홀드아웃 관찰은 bear 국면 아티팩트. 숏 청산도 방식D 유지
 - [ ] **three_soldiers_4h 재판정** — 레짐 베이스라인(같은 레짐 무작위 진입)으로 bull_btc 셀 bp .165. 원 프레임과 병기해 배포 유지 여부 판단
 - [ ] triple_bottom top30 코호트 사전 등록 재시험 (데이터 누적 후, 현재 n=35 bp .078)
 - [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
@@ -520,6 +535,7 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- validate_short_exit.py: 숏 레짐 청산 반증 4종(시간분할/부트CI/롱 대조군/레짐층화). 기각 기록용
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md

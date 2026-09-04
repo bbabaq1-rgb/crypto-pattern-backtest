@@ -1785,5 +1785,32 @@
       "caveat": "--universe 는 모든 패턴을 80종목에 돌림. 실거래 라우팅 복제 아님(표본 크기 강건성 확인)",
       "run": "33839613800"
     }
+  },
+  "short_exit_2026_09_04": {
+    "trigger": "사용자 — 숏 레짐 청산 재검토 (method_s 홀드아웃 관찰 추격)",
+    "design": "사후 선택 셀 반증 4종(시간분할/부트CI/롱 대조군/레짐층화), 유니버스 80 전 구간 2019~2026",
+    "arms": {
+      "S_norg": "숏은 레짐 전환 청산 없음",
+      "S_adv": "숏은 불리 국면(bull_*) 진입 전환에만 청산 — method_r RL 거울상, 최초 시험"
+    },
+    "result": {
+      "S_norg": "1/4 NOISE, 숏 −0.450%p (롱 대조군 −1.540%p)",
+      "S_adv": "1/4 NOISE, 숏 −0.338%p (롱 대조군 −1.209%p)",
+      "regime_strata": "bear −0.39/+0.00%p (n772) · bull_btc −0.05%p (n1546) · bull_altseason −2.67%p (n308)",
+      "split": "전반 −0.80/−0.58, 후반 −0.10/−0.10 — 양쪽 음수",
+      "boot_ci": "[−0.64,−0.25] / [−0.52,−0.15] — 0 배제하되 음수 쪽"
+    },
+    "key_finding": "홀드아웃 관찰은 bear 국면 아티팩트. bull 국면에서는 음수, 전 구간 재현 안 됨",
+    "rule_weakness": "③ 대조군 사전 규칙이 '숏>롱' 만 보고 부호를 안 걸어 둘 다 음수인데 통과 집계. '숏>0' 추가했다면 0/4 — 차기 설계 반영",
+    "live_impact": "없음 — 숏 청산도 방식D 유지. 라우팅상 숏 셀은 bull_altseason engulfing_short 뿐(층화 최악 구간)이고 bear fvg 숏은 이미 OFF",
+    "runs": {
+      "run1": "33840858534 실패(None 진입 레짐 정렬, e2e 부재)",
+      "run2": "33841491822 성공"
+    },
+    "files": [
+      "validate_short_exit.py",
+      "test_short_exit.py",
+      "short_exit.yml"
+    ]
   }
 }
