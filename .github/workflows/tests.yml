@@ -57,6 +57,7 @@ jobs:
                    test_method_s.py \
                    test_short_exit.py \
                    test_sizing_vol.py \
+                   test_sizing_vol_live.py \
                    test_xsec_momentum.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi

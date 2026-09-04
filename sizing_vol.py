@@ -50,10 +50,11 @@ START_EQ, MAX_POS = ss.START_EQ, ss.MAX_POS
 RISK_FRAC, LEV = sz.RISK_FRAC, sz.LEV_CAP
 BOOT_N, BLOCK, SEED = ss.BOOT_N, ss.BLOCK, ss.SEED
 RUIN_LEVEL = ss.RUIN_LEVEL
-VOL_LB = 20                      # 실현변동성 lookback(봉)
-TARGET_VOL = 0.80                # 연율 80% — 크립토 메이저의 통상 수준(사전 고정, 최적화 금지)
-LO, HI = 0.5, 2.0                # 스케일 상하한
-BARS_PER_YEAR = {"1d": 365.0, "4h": 365.0 * 6, "1h": 365.0 * 24, "1w": 52.0}
+# 파라미터·함수는 **sizing.py 가 원본**이다(2026-09-04 채택 이후). 연구와 실거래가 같은
+# 코드를 쓰지 않으면 검증한 규칙과 실제 주문이 조용히 갈라진다.
+VOL_LB, TARGET_VOL = sz.VOL_LB, sz.VOL_TARGET_VOL
+LO, HI = sz.VOL_LO, sz.VOL_HI
+BARS_PER_YEAR = sz.VOL_BARS_PER_YEAR
 ARMS = ["risk", "vol_raw", "vol_matched"]
 
 # --routing: 실거래 라우팅 복제. 기본(전 패턴 x 80종목)은 '표본을 최대로 키운' 강건성 표본이고
@@ -93,22 +94,7 @@ def routed_in(label, direction, date, routing, regmap):
     return routing.get(g, {}).get(base) == direction
 
 
-def realized_vol(rows, si, lb=VOL_LB, tf="1d"):
-    """진입 봉까지만 보고 계산한 연율 실현변동성. 표본 부족·0 이면 None."""
-    if si < lb:
-        return None
-    rets = []
-    for j in range(si - lb + 1, si + 1):
-        p0, p1 = rows[j - 1]["c"], rows[j]["c"]
-        if p0 <= 0 or p1 <= 0:
-            return None
-        rets.append(math.log(p1 / p0))
-    if len(rets) < 2:
-        return None
-    sd = st.pstdev(rets)
-    if sd <= 0:
-        return None
-    return sd * math.sqrt(BARS_PER_YEAR.get(tf, 365.0))
+realized_vol = sz.realized_vol      # 진입 봉까지만 보는 연율 실현변동성(인과적)
 
 
 def collect_all(syms):
@@ -151,11 +137,7 @@ def collect_all(syms):
     return out
 
 
-def scale_of(vol):
-    """s = clip(TARGET/σ, LO, HI). σ 없으면 1.0(중립)."""
-    if vol is None or vol <= 0:
-        return 1.0
-    return max(LO, min(HI, TARGET_VOL / vol))
+scale_of = sz.vol_scale_raw        # s_raw = clip(TARGET/σ, LO, HI)
 
 
 def simulate(trades, arm):
@@ -263,6 +245,14 @@ def main(argv=None):
     print(f"[거래] {len(trades)}건 | 변동성 산출 {len(vols)}건 "
           f"(중앙 연율 {st.median(vols)*100:.0f}%, 10~90분위 "
           f"{sorted(vols)[len(vols)//10]*100:.0f}~{sorted(vols)[len(vols)*9//10]*100:.0f}%)")
+    # s_norm = 전 신호에 대한 s_raw 평균 = vol_matched 의 인과적 확장평균이 수렴하는 값.
+    # 실거래(sizing.VOL_S_NORM)는 이 상수를 쓴다 — 앞으로 나갈 거래는 확장평균이 이미
+    # 수렴한 지점에 있기 때문. 값이 sizing.VOL_S_NORM 과 어긋나면 아래에서 경고한다.
+    s_norm = st.mean([scale_of(t[6]) for t in trades])
+    print(f"[정규화] s_raw 평균(s_norm) = {s_norm:.4f}  | sizing.VOL_S_NORM = {sz.VOL_S_NORM}")
+    if ROUTING_MODE and sz.VOL_S_NORM and abs(s_norm - sz.VOL_S_NORM) > 0.02:
+        print(f"  [경고] 실거래 상수가 이 표본의 s_norm 과 {abs(s_norm - sz.VOL_S_NORM):.4f} 차이 "
+              f"— sizing.VOL_S_NORM 갱신 검토")
     print(f"[설정] TARGET_VOL={TARGET_VOL*100:.0f}% clip[{LO},{HI}] risk={RISK_FRAC*100:.1f}% lev<={LEV} "
           f"boot={BOOT_N} block={BLOCK}")
     print("=" * 118)
@@ -309,14 +299,14 @@ def main(argv=None):
     json.dump(dict(config=dict(target_vol=TARGET_VOL, lo=LO, hi=HI, vol_lb=VOL_LB,
                                risk_frac=RISK_FRAC, lev=LEV, boot_n=BOOT_N, block=BLOCK,
                                n_symbols=len(syms), n_trades=len(trades),
-                               routing_mode=ROUTING_MODE),
+                               routing_mode=ROUTING_MODE, s_norm=round(s_norm, 4)),
                    results=res, exposure=dict(matched=expo, raw=expo_raw, matched_usd=expo_usd),
                    verdict=dict(adopt=adopt, c_a_calmar=c_a, c_b_mdd=c_b, c_c_ruin=c_c,
                                 c_d_exposure=c_d)),
               open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"[저장] {out_path}")
     print("\nRESULT_JSON: " + json.dumps(dict(
-        adopt=adopt, exposure_matched=round(expo, 3),
+        adopt=adopt, exposure_matched=round(expo, 3), s_norm=round(s_norm, 4),
         calmar={a: round(res[a]["boot"]["calmar_med"], 3) for a in ARMS},
         mdd={a: round(res[a]["boot"]["mdd_med"], 4) for a in ARMS}), separators=(",", ":")))
 
