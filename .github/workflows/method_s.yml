@@ -1,0 +1,44 @@
+name: Regime-exit ablation (research)
+
+# 연구 전용 — 방식D 의 레짐 전환 청산을 소거/대체/셔플해 '레짐 청산이 실제로 일하는가'를 가른다.
+# 매매·DB 접근 없음. 실거래 청산 규칙(eval_D)은 이 워크플로가 바꾸지 않는다 — 변경은 사용자 결정.
+
+on:
+  workflow_dispatch:
+    inputs:
+      shuffles:
+        description: "블록 셔플 draw 수"
+        default: "20"
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "method_s.py"
+      - ".github/workflows/method_s.yml"
+
+jobs:
+  ablation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_method_s.py
+      - name: Regime-exit ablation
+        run: python method_s.py --shuffles "${{ github.event.inputs.shuffles || '20' }}"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: method-s-${{ github.run_number }}
+          path: method_s.json
+          if-no-files-found: ignore

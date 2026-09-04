@@ -53,7 +53,8 @@ jobs:
                    test_regime_split.py \
                    test_direction_switch.py \
                    test_regime_split_all.py \
-                   test_regime_quality.py; do
+                   test_regime_quality.py \
+                   test_method_s.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
             echo "::endgroup::"
