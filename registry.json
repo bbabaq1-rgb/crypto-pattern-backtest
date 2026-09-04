@@ -1649,5 +1649,19 @@
   "proposal_step3": "유니버스 = OKX 무기한, 스테이블·토큰화자산 제외, 500봉 이상, 30일 거래대금 상위 N=80. 전 종목 확대 안 함(81위 이하 무통과, 틱 4배). 패턴별 차등(top20/top30/메이저7) 유지, 순위 산출은 무기한 캔들. 적용은 사용자 승인",
   "runs": "universe_scan.yml #1(정렬 오류) #2(현물/선물 혼용) #3(확정)",
   "files": "universe_okx_scan.py / report_universe_okx.md"
+ },
+ "regime_split_2026_09_04": {
+  "trigger": "사용자 제안 — 같은 패턴도 레짐별 수익이 다르니 레짐으로 나눠 테스트해야 한다",
+  "design": "배포 1d 패턴 6종 x 진입레짐 4 x 코호트 3 = 72셀, 셀별 동결 게이트. boot_p 베이스라인 = 같은 레짐·코호트의 무작위 진입(레짐 자체 방향성 제거). 1,580일(2022-01~2026-09)",
+  "passed_cells": {
+   "engulfing_long_top20_bull_btc": "n=52 +4.84% med+10.14% bp.049 OOS3/4",
+   "engulfing_short_top30_bull_altseason": "n=75 +5.70% med+10.28% bp.045 OOS4/4"
+  },
+  "regime_spread": "같은 패턴 레짐 간 최대 13%p 차(engulfing 롱 bull_btc +1.78% vs bull_altseason -6.97%). 전체 기간 하나로 재면 상쇄돼 전부 REJECT 로 보임 — 사용자 가설 확인",
+  "routing_mismatch": "fvg 2셀 부호 반대 — bull_altseason 롱(-2.12%, 숏이 +1.39%), bear 숏(-0.72%, 롱이 +0.70%). 2026-06-24 표는 n>=20·mean>0 만 보고 만든 것",
+  "fvg_verdict": "전 레짐 사망이 아님. bull_btc 에서 n=1837 +2.23% med +9.89%(top30 +2.79% OOS4/4)로 살아 있고 boot_p(.135~.178)만 못 넘음 = 상승장 무작위 롱을 못 이김. 죽은 곳은 bull_altseason(-2.12%)과 2026 bear. 900일 창이 bear 비중이 커서 '마모'로 보였던 것",
+  "caveat": "boot_p 베이스라인이 30건 표본 평균 분포라 n 큰 셀에 보수적 — 베이스라인 표본 수를 셀 n 에 맞추는 후속 수정 필요",
+  "live_impact": "없음(연구). 라우팅·fvg 배포 변경은 사용자 결정",
+  "files": "validate_regime_split.py / test_regime_split.py(11) / validate_regime_split.yml / report_regime_split.md"
  }
 }
