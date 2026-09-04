@@ -6,7 +6,9 @@ sizing_vol(변동성 타겟팅) 로직 검증 (합성 데이터, 네트워크 �
   - arm "risk" 가 현행 규칙(sizing.risk_based_size, risk 1%/lev 2)과 같은 크기를 낸다
   - vol_matched 가 평균 노출을 base 와 맞춘다(재분배만, 레버리지 아님) / vol_raw 는 안 맞춘다
   - block_bootstrap 이 날짜 골격을 유지하고 튜플 모양을 보존
-  - 판정 3조건 분기
+  - 판정 4조건 분기
+  - --routing(실거래 라우팅 복제): _base_pattern / routed_in 게이트 의미 / 정지 패턴 제외 /
+    패턴별 유니버스 제한 — 기본 모드는 아무것도 거르지 않는다는 대칭 확인 포함
   - e2e: 합성 CSV 로 main() 이 끝까지 돌고 sizing_vol.json 을 쓴다
 실행: python test_sizing_vol.py
 """
@@ -158,6 +160,97 @@ check("e2e: adopt = 4조건 AND", out["verdict"]["adopt"] ==
       (out["verdict"]["c_a_calmar"] and out["verdict"]["c_b_mdd"]
        and out["verdict"]["c_c_ruin"] and out["verdict"]["c_d_exposure"]))
 check("e2e: 달러 기준 노출도 함께 기록(비교용)", "matched_usd" in out["exposure"])
+
+
+# ── 8. --routing: 실거래 라우팅 복제 ───────────────────────────────────────
+check("_base_pattern: 숏 라벨 -> 기본 패턴", sv._base_pattern("engulfing_short") == "engulfing")
+check("_base_pattern: 롱 라벨 그대로", sv._base_pattern("fvg") == "fvg")
+check("_base_pattern: '_short' 를 포함만 하는 이름은 안 건드림",
+      sv._base_pattern("inverted_hammer") == "inverted_hammer")
+
+ROUTE = {"bear": {"engulfing": "long", "fvg": "FLAT"},
+         "bull_btc": {"engulfing": "long", "fvg": "long"},
+         "bull_altseason": {"engulfing": "short", "fvg": "long"},
+         "sideways": {"engulfing": "FLAT", "fvg": "FLAT"}}
+RMAP = {"2024-01-01": "bear", "2024-01-02": "bull_btc",
+        "2024-01-03": "bull_altseason", "2024-01-04": "sideways"}
+
+check("routed_in: bear engulfing 롱은 통과", sv.routed_in("engulfing", "long", "2024-01-01", ROUTE, RMAP))
+check("routed_in: bear fvg 롱은 차단 (ROUTING_OVERRIDES 로 FLAT)",
+      not sv.routed_in("fvg", "long", "2024-01-01", ROUTE, RMAP))
+check("routed_in: bear engulfing 숏은 차단 (그 레짐 방향이 롱)",
+      not sv.routed_in("engulfing_short", "short", "2024-01-01", ROUTE, RMAP))
+check("routed_in: altseason engulfing 숏은 통과",
+      sv.routed_in("engulfing_short", "short", "2024-01-03", ROUTE, RMAP))
+check("routed_in: sideways 는 FOCUS 양방향 전부 차단",
+      not sv.routed_in("engulfing", "long", "2024-01-04", ROUTE, RMAP)
+      and not sv.routed_in("fvg", "long", "2024-01-04", ROUTE, RMAP))
+check("routed_in: adopted 패턴(ih/marubozu)은 레짐 게이트 없음 — 어느 레짐이든 통과",
+      all(sv.routed_in(p, "long", d, ROUTE, RMAP)
+          for p in ("inverted_hammer", "marubozu", "triple_bottom") for d in RMAP))
+check("routed_in: 레짐 미판정 날짜는 FOCUS 차단",
+      not sv.routed_in("engulfing", "long", "2019-05-05", ROUTE, RMAP))
+check("routed_in: 레짐 미판정 날짜라도 adopted 패턴은 통과",
+      sv.routed_in("marubozu", "long", "2019-05-05", ROUTE, RMAP))
+
+# collect_all 이 세 겹(정지 패턴 / 패턴별 유니버스 / 레짐 라우팅)을 실제로 거는지 —
+# routing_ctx 를 합성 컨텍스트로 갈아끼워 scheduler/regime_switch 없이 성질만 본다.
+cwd = os.getcwd()
+with tempfile.TemporaryDirectory() as td:
+    os.chdir(td)
+    try:
+        os.makedirs("data")
+        syms = list(detlib.SYMBOLS)
+        for k, s_ in enumerate(syms):
+            write_csv(f"data/{s_.lower()}_1d.csv",
+                      rows_of(900, 400 + k, drift=0.0006 if k % 2 else -0.0003,
+                              vol=0.015 + 0.01 * (k % 3)))
+        # 1w 는 detlib 리샘플이 1d 를 쓰므로 별도 파일 불필요
+        two = syms[:2]
+        orig_ctx = sv.routing_ctx
+        # 전 날짜 bear: engulfing 롱만 열리고 fvg 롱·engulfing 숏은 닫힌다
+        rmap_all = {r["date"]: "bear" for r in detlib.load_ohlcv(syms[0], "1d")}
+
+        def ctx_with(susp):
+            def fake_ctx():
+                return ((lambda p: two if p in ("engulfing", "fvg") else syms),
+                        ROUTE, rmap_all, susp)
+            return fake_ctx
+
+        sv.routing_ctx = ctx_with({"triple_bottom"})
+        sv.ROUTING_MODE = True
+        routed = sv.collect_all(syms)
+        # 정지 게이트는 **신호가 실제로 나는 패턴**으로 확인한다 — 합성 데이터에서
+        # triple_bottom/ih/marubozu 는 어느 모드에서도 0건이라 존재 여부로는 증명이 안 된다.
+        sv.routing_ctx = ctx_with({"triple_bottom", "engulfing"})
+        routed_susp = sv.collect_all(syms)
+        sv.ROUTING_MODE = False
+        full = sv.collect_all(syms)
+        sv.routing_ctx = orig_ctx
+    finally:
+        os.chdir(cwd)
+
+pats_r = {t[4] for t in routed}
+pats_f = {t[4] for t in full}
+check("routing: 정지 패턴은 표본에서 빠진다 (engulfing 을 정지시키면 사라짐)",
+      "engulfing" in pats_r and "engulfing" not in {t[4] for t in routed_susp},
+      str(sorted({t[4] for t in routed_susp})))
+check("routing: bear 에서 fvg 롱·engulfing 숏이 빠진다",
+      not ({"fvg", "engulfing_short", "fvg_short"} & pats_r), str(sorted(pats_r)))
+check("routing: 기본 모드에서는 그 셀들이 남아 있다 — 차이가 라우팅 때문임",
+      {"fvg", "engulfing_short", "fvg_short"} <= pats_f, str(sorted(pats_f)))
+check("routing: engulfing 롱은 남는다", "engulfing" in pats_r)
+check("routing: engulfing 이 패턴별 유니버스(2종목)로 제한된다",
+      {t[5] for t in routed if t[4] == "engulfing"} <= set(two))
+check("routing: 유니버스 제한 대상이 아닌 패턴은 종목이 줄지 않는다",
+      all(len({t[5] for t in full if t[4] == p})
+          == len({t[5] for t in routed if t[4] == p})
+          for p in ("inverted_hammer", "marubozu")))
+check("routing: 복제 표본이 전체 표본보다 작다",
+      0 < len(routed) < len(full), f"{len(routed)} vs {len(full)}")
+check("routing: 출력 파일명이 모드에 따라 갈린다 — 소스에 고정",
+      'sizing_vol_routing.json" if ROUTING_MODE' in open(
+          os.path.join(cwd, "sizing_vol.py"), encoding="utf-8").read())
 
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)

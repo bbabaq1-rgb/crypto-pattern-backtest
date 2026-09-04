@@ -26,7 +26,10 @@ TF 에 맞춰 연율화(1d √365 / 1w √52).
   vol_raw 는 진단 전용 — 좋아 보여도 평균 노출 비율(로그에 출력)이 1 보다 크면 그만큼은
   '변동성 타겟팅'이 아니라 그냥 레버리지다.
 실거래 코드 무변경. 출력 sizing_vol.json + RESULT_JSON.
-실행: python sizing_vol.py [--no-fetch] [--majors]
+실행: python sizing_vol.py [--no-fetch] [--majors] [--routing]
+  기본은 전 패턴 x 전 종목(표본 최대화 = 강건성 표본). --routing 은 **실거래 라우팅을 복제**해
+  실제로 주문이 나갔을 집합만 남긴다 — 패턴별 유니버스(engulfing·fvg=top30, ih·marubozu=메이저)
+  + 레짐->방향 라우팅(FOCUS 한정) + 정지 패턴 제외. 표본은 줄지만 **실주문 기준 판정**이다.
 """
 import importlib
 import json
@@ -53,6 +56,42 @@ LO, HI = 0.5, 2.0                # 스케일 상하한
 BARS_PER_YEAR = {"1d": 365.0, "4h": 365.0 * 6, "1h": 365.0 * 24, "1w": 52.0}
 ARMS = ["risk", "vol_raw", "vol_matched"]
 
+# --routing: 실거래 라우팅 복제. 기본(전 패턴 x 80종목)은 '표본을 최대로 키운' 강건성 표본이고
+# 실제 주문 집합이 아니다. 복제 모드는 scheduler 의 실제 진입 조건 세 겹을 그대로 건다.
+#   (1) 패턴별 유니버스 — scheduler._syms_for_pattern (engulfing·fvg=top30, ih·marubozu=메이저)
+#   (2) 레짐->방향 라우팅 — direction_switch.json routing (FOCUS 인 engulfing/fvg 에만 적용.
+#       ROUTING_OVERRIDES 의 bear fvg FLAT 이 이 표에 이미 반영돼 있다)
+#   (3) 정지 패턴 제외 — universe.json suspended_patterns (triple_bottom 1w)
+# adopted_patterns(inverted_hammer / marubozu)는 스케줄러에서 레짐 게이트 없이 롱으로 진입한다.
+ROUTING_MODE = False
+FOCUS_PATTERNS = ("engulfing", "fvg")
+
+
+def _base_pattern(label):
+    return label[:-6] if label.endswith("_short") else label
+
+
+def routing_ctx():
+    """(syms_for_pattern, routing, regmap, suspended) — 실거래 진입 조건 재현용."""
+    import scheduler as sch
+    import regime_switch as rs
+    routing = json.load(open("direction_switch.json", encoding="utf-8"))["routing"]
+    uni = json.load(open("universe.json", encoding="utf-8"))
+    suspended = {e["pattern"] for e in uni.get("suspended_patterns", [])}
+    suspended |= {e["pattern"] for e in uni.get("suspended_1h_patterns", [])}
+    return sch._syms_for_pattern, routing, rs.build_regime_map(), suspended
+
+
+def routed_in(label, direction, date, routing, regmap):
+    """그 날짜에 이 (패턴, 방향)이 실제로 나갔을 조건인가."""
+    base = _base_pattern(label)
+    if base not in FOCUS_PATTERNS:
+        return True                      # adopted_patterns 는 레짐 게이트 없음
+    g = regmap.get(date)
+    if not g:
+        return False                     # 레짐 미판정 구간은 스케줄러도 라우팅을 못 만든다
+    return routing.get(g, {}).get(base) == direction
+
 
 def realized_vol(rows, si, lb=VOL_LB, tf="1d"):
     """진입 봉까지만 보고 계산한 연율 실현변동성. 표본 부족·0 이면 None."""
@@ -75,11 +114,19 @@ def realized_vol(rows, si, lb=VOL_LB, tf="1d"):
 def collect_all(syms):
     """[(entry_date, exit_date, ret, hold, pattern, sym, vol)] 시간순. vol=None 이면 스케일 1."""
     out = []
+    syms_for, routing, regmap, suspended = (routing_ctx() if ROUTING_MODE
+                                            else (None, None, None, set()))
     for label, direction, detmod, oppmod, tf in mt.PATS:
+        if ROUTING_MODE and label in suspended:
+            print(f"  [{label}] 정지 패턴 — 제외", flush=True)
+            continue
+        pat_syms = syms
+        if ROUTING_MODE:
+            pat_syms = [s for s in syms_for(_base_pattern(label)) if s in set(syms)]
         mod = importlib.import_module(detmod)
         opp = importlib.import_module(oppmod) if oppmod else None
-        n = 0
-        for sym in syms:
+        n = n_routed_out = 0
+        for sym in pat_syms:
             try:
                 rows = detlib.load_ohlcv(sym, tf)
             except (FileNotFoundError, RuntimeError):
@@ -90,12 +137,16 @@ def collect_all(syms):
             for si in mod.detect(rows):
                 if si + 1 >= len(rows):
                     continue
+                if ROUTING_MODE and not routed_in(label, direction, rows[si]["date"], routing, regmap):
+                    n_routed_out += 1
+                    continue
                 ret, hold, _ = mt.outcome_d(rows, si, direction, opp_set)
                 xi = min(si + hold, len(rows) - 1)
                 out.append((rows[si]["date"], rows[xi]["date"], ret, hold, label, sym,
                             realized_vol(rows, si, tf=tf)))
                 n += 1
-        print(f"  [{label}] {n}건", flush=True)
+        extra = (f" (종목 {len(pat_syms)}, 라우팅 제외 {n_routed_out}건)" if ROUTING_MODE else "")
+        print(f"  [{label}] {n}건{extra}", flush=True)
     out.sort(key=lambda t: (t[0], t[4], t[5]))
     return out
 
@@ -195,12 +246,16 @@ def evaluate(trades, arm):
 
 
 def main(argv=None):
+    global ROUTING_MODE
     argv = argv if argv is not None else sys.argv[1:]
+    ROUTING_MODE = "--routing" in argv
     ms.UNIVERSE_MODE = "--majors" not in argv
     syms = ms.symbols()
-    print(f"[표본] {len(syms)}종목 ({'유니버스 80' if ms.UNIVERSE_MODE else '메이저'})")
+    print(f"[표본] {len(syms)}종목 ({'유니버스 80' if ms.UNIVERSE_MODE else '메이저'})"
+          f"{' | **실거래 라우팅 복제**' if ROUTING_MODE else ' | 전 패턴 x 전 종목(강건성 표본)'}")
     if "--no-fetch" not in argv:
         ms.ensure_data(ms.FETCH_DAYS, syms)
+    out_path = "sizing_vol_routing.json" if ROUTING_MODE else "sizing_vol.json"
     trades = collect_all(syms)
     if not trades:
         print("거래 없음"); return
@@ -253,11 +308,13 @@ def main(argv=None):
     print(f"\n[진단] vol_raw 는 노출 {expo_raw:.2f}배 — 1 을 넘는 만큼은 변동성 타겟팅이 아니라 레버리지다.")
     json.dump(dict(config=dict(target_vol=TARGET_VOL, lo=LO, hi=HI, vol_lb=VOL_LB,
                                risk_frac=RISK_FRAC, lev=LEV, boot_n=BOOT_N, block=BLOCK,
-                               n_symbols=len(syms), n_trades=len(trades)),
+                               n_symbols=len(syms), n_trades=len(trades),
+                               routing_mode=ROUTING_MODE),
                    results=res, exposure=dict(matched=expo, raw=expo_raw, matched_usd=expo_usd),
                    verdict=dict(adopt=adopt, c_a_calmar=c_a, c_b_mdd=c_b, c_c_ruin=c_c,
                                 c_d_exposure=c_d)),
-              open("sizing_vol.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+              open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print(f"[저장] {out_path}")
     print("\nRESULT_JSON: " + json.dumps(dict(
         adopt=adopt, exposure_matched=round(expo, 3),
         calmar={a: round(res[a]["boot"]["calmar_med"], 3) for a in ARMS},
