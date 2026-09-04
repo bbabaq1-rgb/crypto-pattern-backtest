@@ -131,5 +131,25 @@ check("고변동 신호가 저변동 신호보다 작게 들어간다", wild < c
 check("명목가 x σ 가 클립 구간 안에서 일정 (변동성 기여 균등화)",
       abs(sz.vol_scale_raw(0.6) * 0.6 - sz.vol_scale_raw(1.2) * 1.2) < 1e-12)
 
+
+# ── 9. 채택 상태 고정 (2026-09-04 사용자 채택) ─────────────────────────────
+# 이 절이 깨지면 '채택했다고 기록해 뒀는데 실제로는 안 걸려 있다'는 뜻이다.
+check("변동성 타겟팅이 켜져 있다", sz.VOL_TARGETING is True)
+check("정규화 상수가 설정돼 있다 (라우팅 표본 s_norm)",
+      sz.VOL_S_NORM is not None and abs(sz.VOL_S_NORM - 1.1094) < 1e-9, str(sz.VOL_S_NORM))
+check("실제 배율 범위가 클립/정규화에서 유도한 값과 일치",
+      abs(sz.VOL_LO / sz.VOL_S_NORM - 0.4507) < 5e-4
+      and abs(sz.VOL_HI / sz.VOL_S_NORM - 1.8028) < 5e-4)
+check("동결 파라미터 (튜닝 금지 — 바꾸면 재검증 대상)",
+      (sz.VOL_TARGET_VOL, sz.VOL_LB, sz.VOL_LO, sz.VOL_HI) == (0.80, 20, 0.5, 2.0))
+# 현 계좌 규모($276 대)에서 실제로 잘리는 구간 — 숨기지 않고 수치로 고정한다.
+vs_min_276 = sz.MIN_MARGIN * sz.liq_safe_leverage(0.08) * 0.08 / (sz.RISK_FRAC * 276)
+check("equity $276 에서 고변동 신호가 실제로 스킵된다 (문턱 σ ≈ 124%/yr)",
+      0.57 < vs_min_276 < 0.59
+      and sz.risk_based_size(276, 276, 0.08, vol_scale=sz.VOL_LO / sz.VOL_S_NORM) is None,
+      f"vs_min={vs_min_276:.3f}")
+check("같은 계좌에서 중간 변동성(스케일 1.0) 신호는 정상 진입",
+      sz.risk_based_size(276, 276, 0.08, vol_scale=1.0) is not None)
+
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)

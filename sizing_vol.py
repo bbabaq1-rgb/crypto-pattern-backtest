@@ -296,6 +296,19 @@ def main(argv=None):
     print(f"  (d) 노출 정합 0.8~1.2  {expo:.2f}배  -> {'통과' if c_d else '탈락 (정규화 미작동 = 판정 불성립)'}")
     print(f"  => {'ADOPT 후보 (사용자 결정)' if adopt else 'REJECT'}")
     print(f"\n[진단] vol_raw 는 노출 {expo_raw:.2f}배 — 1 을 넘는 만큼은 변동성 타겟팅이 아니라 레버리지다.")
+    # [문턱] 채택 시 실계좌에서 생기는 부작용을 숨기지 않고 센다. 고변동 신호는 명목가가
+    # 줄어 최소 증거금($10)에 못 미치면 **주문 자체가 안 나간다**. 계좌가 작을수록 심하다.
+    # 현행(risk)은 스케일 1.0 이라 equity >= min_equity_for(1.0) 이면 전 신호가 통과한다.
+    vs_all = sorted(scale_of(t[6]) / s_norm for t in trades)
+    base_floor = sz.min_equity_for(1.0, STOP)
+    print(f"[문턱] 계좌 규모별 '스케일이 작아 최소증거금 미달로 스킵'되는 신호 비율 "
+          f"(현행 규칙은 equity >= ${base_floor:.0f} 이면 0%)")
+    for eq in (200, 250, 300, 400, 600, 1000):
+        vs_min = sz.MIN_MARGIN * sz.liq_safe_leverage(STOP) * STOP / (RISK_FRAC * eq)
+        blocked = sum(1 for v in vs_all if v < vs_min)
+        print(f"    equity ${eq:>5}: vol_scale < {vs_min:.2f} 이면 스킵 → "
+              f"{blocked}/{len(vs_all)} ({blocked/len(vs_all)*100:.1f}%)"
+              + ("   ← 현행에서는 전 신호 스킵" if eq < base_floor else ""))
     json.dump(dict(config=dict(target_vol=TARGET_VOL, lo=LO, hi=HI, vol_lb=VOL_LB,
                                risk_frac=RISK_FRAC, lev=LEV, boot_n=BOOT_N, block=BLOCK,
                                n_symbols=len(syms), n_trades=len(trades),

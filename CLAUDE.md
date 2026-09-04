@@ -397,7 +397,7 @@
     · **판정 A_상태정보_실재. 실거래 무변경(방식D 유지).** method_s.py / test_method_s.py(41건) / method_s.yml
   · **퀀트 카탈로그 1차 묶음 (2026-09-04, 사용자 지시)**: report_quant_batch1.md. 학술 A등급 중
     레포 미시험 2건을 사전 등록해 시험.
-    · **변동성 타겟팅 사이징 — ADOPT 후보(사용자 결정 대기), 실거래 미반영.** 현행은 risk 1%/손절 8%
+    · **변동성 타겟팅 사이징 — 채택·실거래 반영 완료(2026-09-04 사용자 결정).** 현행은 risk 1%/손절 8%
       고정이라 명목가가 자산 변동성과 무관한데, 진입 시점 20봉 실현변동성이 중앙 연율 86%·10~90분위
       49~144% 로 3배 차이. arm risk/vol_raw/vol_matched(노출 정합, 주 판정), 거래 6,640건 부트 300회.
       **4조건 전부 통과** — boot Calmar 0.18 vs −0.00 / boot MDD −73.0% vs −81.8% /
@@ -415,6 +415,25 @@
         P(ruin)이 아니라 Calmar·MDD** 로 옮겨간다(0.3%는 이미 낮은 값에서의 감소).
         유보: 현재 라우팅 표를 과거에 소급 적용한 판이라 절대 수준은 낙관적(세 arm 이 같은 신호
         집합이라 arm 비교는 상쇄). 표본이 1/7 이라 부트 변동 큼. 출력 sizing_vol_routing.json.
+      · **실거래 반영 (2026-09-04)**: `s_raw = clip(0.80/σ, 0.5, 2.0)`, `vol_scale = s_raw/1.1094`,
+        `risk_usd = equity x 1% x regime_mult x vol_scale`. **배율 0.45~1.80배, 손절가·레버리지 불변 —
+        바뀌는 건 명목가뿐.** 1.1094 는 라우팅 표본의 s_raw 평균(s_norm); 연구의 인과적 확장평균이
+        수렴하는 값이라 '앞으로 나갈 거래'에는 상수가 충실한 구현이다. sizing_vol 이 매 실행 이
+        상수와 대조해 0.02 이상 벌어지면 경고.
+        · **sizing.py 가 원본** — realized_vol/vol_scale_raw 가 여기 있고 sizing_vol(연구)이 import.
+          연구와 실거래가 다른 구현을 쓰면 검증한 규칙과 주문이 조용히 갈라진다(test 가 `is` 로 고정).
+          risk_based_size(..., vol_scale=) 추가(연구의 risk_frac 스케일과 수식상 동치, 테스트로 확인).
+          폴백 3종(타겟팅 off / 상수 미설정 / σ 산출 불가)에서 1.0 = 채택 전과 완전 동일.
+        · **부작용 ① 건당 달러 위험이 1% 고정이 아니다** — 손절 8% 고정 + 명목가만 이동이라
+          risk_usd 는 약 0.45~1.80%. 일정해지는 건 달러 위험이 아니라 변동성 기여(명목가 x σ)이고
+          검증에서 개선된 것도 그쪽. 종전 '위험 1% 고정' 표현과 어긋나므로 명시.
+        · **부작용 ② 현 계좌에서 고변동 신호는 주문이 안 나간다** — 명목가가 줄면 증거금이 최소
+          주문($10) 미달로 스킵. 문턱 equity = 160/vol_scale: 1.80→$89 / 1.00→$160 /
+          **0.58→$276(현 계좌, σ 약 124%/yr)** / 0.45→$355. 라우팅 표본 σ 는 중앙 78%·10~90분위
+          41~132% 라 **상위 10%대가 잘린다.** sizing_vol 이 계좌 규모별 스킵 비율을 표로 찍고,
+          실거래 스킵 로그에도 필요 equity 를 남긴다. **레버리지 상향으로 해소 가능하나 안 했다** —
+          sizing_study 에서 상향은 동시 노출만 키워 MDD 악화(2→5x, CAGR 43→36%/MDD −67→−76%).
+        · 되돌리기: `sizing.VOL_TARGETING = False` 한 줄. sizing_vol_live 테스트가 그 성질을 고정.
     · **횡단면 모멘텀 — 전 셀 기각(5/5).** 주간 리밸런스·상위10·skip-1·L={7,14,28,56,84}.
       mean −0.57~−1.08%, 엣지 +0.02~+0.51%p, boot_p .41~.49. **프레임 탓 기각 아님** — 추세 60봉
       진단도 전부 음수(−5.4~−7.8%). 포트폴리오는 상위10 −88% vs 유니버스 −81% 로 **더 나쁨**.
@@ -502,9 +521,12 @@
 - [x] 멀티 TF 확증 필터 (1d 신호 → 4h 3봉 확증, 비확증 size 50%)
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
-- [ ] **변동성 타겟팅 사이징 채택 여부 결정** (사용자) — 전 표본·라우팅 복제 **두 판 모두 4조건 통과**
-      (전 표본 P(ruin) 37.7%→14.3% / 라우팅 복제 boot Calmar 0.65→1.06). 반영 시 sizing.risk_based_size
-      σ 스케일 + 진입 변동성 전달 경로 필요
+- [x] **변동성 타겟팅 사이징 채택 + 실거래 반영** (2026-09-04 사용자 결정) — 두 판 모두 4조건 통과.
+      sizing.vol_scale / risk_based_size(vol_scale=) / paper_executor 진입 경로. **되돌리기는
+      VOL_TARGETING=False 한 줄**
+- [ ] **고변동 신호 스킵 관찰** — 현 계좌 $276 에서 σ>약 124%/yr 신호는 최소증거금 미달로 주문이
+      안 나간다(문턱 equity=160/vol_scale). 실제 스킵 빈도를 로그로 누적해 equity 성장/레버리지
+      상향 중 무엇으로 풀지 판단 (레버리지 상향은 sizing_study 상 MDD 악화라 기본 아님)
 - [ ] 횡단면 모멘텀 재시험 (이력 누적 후 6개월~1년, 현재는 2024 이전 표본 자체가 없음)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [x] cascade_fade_long_1h **청산 경로** (ATR 배리어 + 거래소 OCO 브래킷, 2026-08-30)
@@ -570,8 +592,12 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- sizing.py: 실거래 사이징 원본 — risk_based_size(vol_scale=) + realized_vol/vol_scale(변동성 타겟팅,
+  2026-09-04 채택) + min_equity_for(스킵 문턱). 연구 모듈이 이 함수들을 import 한다
 - sizing_vol.py: 변동성 타겟팅 사이징 시험 (risk/vol_raw/vol_matched, 노출 정합 가드). `--routing` 은
-  실거래 라우팅 복제 판(sizing_vol_routing.json). 두 판 모두 ADOPT 후보 — report_quant_batch1.md
+  실거래 라우팅 복제 판(sizing_vol_routing.json) + s_norm·계좌규모별 스킵 비율 출력 — report_quant_batch1.md
+- test_sizing_vol_live.py: 채택분 고정 — 연구/실거래 구현 동일성(`is`), 배율이 명목가에만 걸리는지,
+  폴백 3종, 문턱 함수가 실제 스킵 경계와 일치, 동결 파라미터·상수
 - validate_xsec_momentum.py: 횡단면 모멘텀 단독 진입 (동결 게이트 + 추세·포트폴리오 진단). 기각 기록용
 - validate_short_exit.py: 숏 레짐 청산 반증 4종(시간분할/부트CI/롱 대조군/레짐층화). 기각 기록용
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
