@@ -65,7 +65,8 @@ check("legacy: 첫 주문 $20 고정", sz.legacy_size(500, 0)["margin_usd"] == 2
 check("legacy: $10 미만 스킵", sz.legacy_size(40, 5) is None)
 
 # ── 현재 계좌에 대입 (equity 285.34 / free 73.63) ───────────────────────────
-# 채택값 1% 의 존재 이유가 여기다: 권고값 0.5% 는 이 계좌에서 주문이 아예 안 나갔다.
+# 채택값의 존재 이유가 여기다: 권고값 0.5% 는 이 계좌에서 주문이 아예 안 나갔다.
+# 2026-09-04 에 1% -> 1.5% 로 상향(사용자 결정) — 문턱이 $160 -> $107 로 더 내려갔다.
 now = sz.risk_based_size(285.34, 73.63, 0.08)
 leg = sz.legacy_size(73.63, 5)
 print(f"\n[참고] 현 계좌 8% 손절 신호: risk-based {now} | legacy {leg}")
@@ -87,12 +88,12 @@ check("risk 는 진입 순서와 무관 — free 만 달라도 같은 크기",
       sz.risk_based_size(285.34, 200.0, 0.08)["margin_usd"] == now["margin_usd"])
 check("legacy 는 진입 순서에 따라 크기가 요동",
       sz.legacy_size(479.79, 5)["margin_usd"] > sz.legacy_size(157.23, 5)["margin_usd"] * 3)
-check("문턱은 $160 — 현 계좌보다 낮아야 작동", abs(thr - 160.0) < 1e-9, thr)
+check("문턱은 $107 — risk 1.5% 상향으로 1% 때의 $160 에서 내려왔다", abs(thr - 160.0 / 1.5) < 0.01, thr)
 check("문턱 바로 위 equity 에서는 주문 가능",
       sz.risk_based_size(thr * 1.01, thr, 0.08) is not None)
 check("문턱 바로 아래 equity 에서는 스킵",
       sz.risk_based_size(thr * 0.99, thr, 0.08) is None)
-check("채택 기본값 고정: RISK_FRAC 1% (사용자 결정 ③)", sz.RISK_FRAC == 0.01)
+check("채택 기본값 고정: RISK_FRAC 1.5% (사용자 결정 2026-09-04)", sz.RISK_FRAC == 0.015)
 check("채택 기본값 고정: LEV_CAP 2", sz.LEV_CAP == 2)
 
 
