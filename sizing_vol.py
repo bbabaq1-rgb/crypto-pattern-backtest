@@ -26,10 +26,12 @@ TF 에 맞춰 연율화(1d √365 / 1w √52).
   vol_raw 는 진단 전용 — 좋아 보여도 평균 노출 비율(로그에 출력)이 1 보다 크면 그만큼은
   '변동성 타겟팅'이 아니라 그냥 레버리지다.
 실거래 코드 무변경. 출력 sizing_vol.json + RESULT_JSON.
-실행: python sizing_vol.py [--no-fetch] [--majors] [--routing]
+실행: python sizing_vol.py [--no-fetch] [--majors] [--routing] [--grid]
   기본은 전 패턴 x 전 종목(표본 최대화 = 강건성 표본). --routing 은 **실거래 라우팅을 복제**해
   실제로 주문이 나갔을 집합만 남긴다 — 패턴별 유니버스(engulfing·fvg=top30, ih·marubozu=메이저)
   + 레짐->방향 라우팅(FOCUS 한정) + 정지 패턴 제외. 표본은 줄지만 **실주문 기준 판정**이다.
+  --grid 는 arm 비교 대신 **(risk_frac x lev_cap) 격자**를 채택 arm(vol_matched)으로 돌린다
+  (사전 등록 기준·근거는 GRID_RISK 위 주석). --routing --grid 조합이 실주문 기준 격자다.
 """
 import importlib
 import json
@@ -140,8 +142,16 @@ def collect_all(syms):
 scale_of = sz.vol_scale_raw        # s_raw = clip(TARGET/σ, LO, HI)
 
 
-def simulate(trades, arm):
-    """시간순 포트폴리오 시뮬. sizing_study.simulate 와 같은 회계, risk_frac 만 arm 별로 스케일."""
+def simulate(trades, arm, risk_frac=None, lev_cap=None):
+    """시간순 포트폴리오 시뮬. sizing_study.simulate 와 같은 회계, risk_frac 만 arm 별로 스케일.
+
+    risk_frac / lev_cap 을 주면 그 값으로 돈다(격자 시험용). 스킵을 **사유별로** 센다 —
+    레버리지는 명목가를 바꾸지 않고 증거금만 줄이므로, 레버리지를 올려서 성과가 달라진다면
+    그 경로는 오직 'margin 스킵이 줄어 동시 포지션이 늘었다' 뿐이다. 그걸 직접 보이려면
+    slot(MAX_POS 도달)과 margin(증거금·최소주문 미달)을 나눠 세야 한다.
+    """
+    risk_frac = RISK_FRAC if risk_frac is None else risk_frac
+    lev_cap = LEV if lev_cap is None else lev_cap
     evs = []
     for i, t in enumerate(trades):
         evs.append((ss._dnum(t[0]), 0, i))
@@ -149,7 +159,7 @@ def simulate(trades, arm):
     evs.sort()
     equity = free = START_EQ
     open_pos, peak, mdd = {}, START_EQ, 0.0
-    taken = skipped = 0
+    taken = skipped = skip_slot = skip_margin = 0
     s_sum, s_cnt = 0.0, 0            # 인과적 확장평균(정규화용) — 지금까지 본 s 만 쓴다
     scales, notionals, lev_ratios = [], [], []
     for day, kind, idx in evs:
@@ -177,12 +187,12 @@ def simulate(trades, arm):
                 s = s_raw / mean_prev if mean_prev > 0 else s_raw
             s_sum += s_raw; s_cnt += 1               # 정규화 통계는 arm 무관하게 같은 열을 쓴다
             if len(open_pos) >= MAX_POS:
-                skipped += 1; continue
+                skipped += 1; skip_slot += 1; continue
             open_notional = sum(n for _, n in open_pos.values())
-            r = sz.risk_based_size(equity, free, STOP, risk_frac=RISK_FRAC * s,
-                                   lev_cap=LEV, open_notional=open_notional)
+            r = sz.risk_based_size(equity, free, STOP, risk_frac=risk_frac * s,
+                                   lev_cap=lev_cap, open_notional=open_notional)
             if r is None:
-                skipped += 1; continue
+                skipped += 1; skip_margin += 1; continue
             free -= r["margin_usd"]
             open_pos[idx] = (r["margin_usd"], r["notional"])
             scales.append(s); notionals.append(r["notional"])
@@ -194,7 +204,7 @@ def simulate(trades, arm):
     cagr = (equity / START_EQ) ** (1 / yrs) - 1 if equity > 0 else -1.0
     return dict(final=equity, cagr=cagr, mdd=mdd,
                 calmar=(cagr / abs(mdd) if mdd < 0 else float("inf")),
-                taken=taken, skipped=skipped,
+                taken=taken, skipped=skipped, skip_slot=skip_slot, skip_margin=skip_margin,
                 mean_scale=(st.mean(scales) if scales else 0.0),
                 mean_notional=(st.mean(notionals) if notionals else 0.0),
                 mean_lev=(st.mean(lev_ratios) if lev_ratios else 0.0))
@@ -211,12 +221,12 @@ def block_bootstrap(trades, rng, block=BLOCK):
     return [(trades[k][0], trades[k][1]) + tuple(trades[j][2:]) for k, j in enumerate(idx)]
 
 
-def evaluate(trades, arm):
-    base = simulate(trades, arm)
+def evaluate(trades, arm, risk_frac=None, lev_cap=None):
+    base = simulate(trades, arm, risk_frac, lev_cap)
     rng = random.Random(SEED)
     mdds, calmars, cagrs, ruins = [], [], [], 0
     for _ in range(BOOT_N):
-        s = simulate(block_bootstrap(trades, rng), arm)
+        s = simulate(block_bootstrap(trades, rng), arm, risk_frac, lev_cap)
         mdds.append(s["mdd"]); calmars.append(min(s["calmar"], 50.0)); cagrs.append(s["cagr"])
         if s["final"] < START_EQ * RUIN_LEVEL:
             ruins += 1
@@ -225,6 +235,79 @@ def evaluate(trades, arm):
     return dict(base=base, boot=dict(mdd_med=mdds[m], mdd_p10=mdds[int(len(mdds) * 0.1)],
                                      calmar_med=calmars[m], cagr_med=cagrs[m],
                                      p_ruin=ruins / BOOT_N))
+
+
+# ── 위험·레버리지 격자 (--grid, 2026-09-04 사용자 질문 "레버리지를 더 공격적으로") ──────
+# **사전 등록 — 실행 전 고정.** sizing_study(2026-09-02)와 같은 기준·같은 격자를 쓰되,
+# 그때와 달라진 세 가지 위에서 다시 잰다: (1) 변동성 타겟팅 채택, (2) 유니버스 80,
+# (3) 실거래 라우팅 복제(bear fvg OFF 포함). 종전 결론('레버리지 상향은 MDD 만 악화')이
+# 이 조건에서도 유지되는지, 그리고 risk_frac 상향 여지가 생겼는지가 물음이다.
+#
+# 채택 기준(sizing_study 와 동일, 동결):
+#     boot MDD 중앙 >= -35%  AND  P(ruin) < 5%   를 만족하는 셀 중 boot Calmar 최대
+# 부가 판정(이번에 명시): 레버리지 상향은 **margin 스킵을 실제로 줄이면서** 위 기준을 만족할
+# 때만 의미가 있다. 명목가는 레버리지와 무관하므로(명목가=위험/손절폭) margin 스킵이 이미
+# 0 이면 레버리지를 올려도 아무것도 사지 못하고 청산 여유만 줄인다.
+GRID_RISK = [0.005, 0.01, 0.015, 0.02, 0.03]
+GRID_LEV = [2, 3, 5]
+MDD_FLOOR, RUIN_MAX = -0.35, 0.05
+
+
+def run_grid(trades, s_norm):
+    """(risk_frac, lev_cap) 격자를 vol_matched arm 으로 돌린다. 실거래 채택 arm 이 그것이므로."""
+    print("=" * 118)
+    print("위험·레버리지 격자 — arm=vol_matched(채택 규칙) | 사전 기준 boot MDD중앙>=-35% AND P(ruin)<5% 중 Calmar 최대")
+    print("=" * 118)
+    print(f"  {'risk':>6}{'lev':>5}{'진입':>6}{'슬롯스킵':>9}{'증거금스킵':>11}{'CAGR':>9}{'MDD':>9}"
+          f" | {'bootCAGR':>9}{'bootMDD':>9}{'bootMDDp10':>11}{'bootCal':>8}{'P(ruin)':>9}  기준")
+    rows, res = [], {}
+    for lev in GRID_LEV:
+        for rf in GRID_RISK:
+            r = evaluate(trades, "vol_matched", rf, lev)
+            b, t = r["base"], r["boot"]
+            ok = t["mdd_med"] >= MDD_FLOOR and t["p_ruin"] < RUIN_MAX
+            rows.append((rf, lev, r, ok))
+            res[f"r{rf}_l{lev}"] = dict(base=b, boot=t, pass_criteria=ok)
+            cur = "  <= 현행" if (abs(rf - RISK_FRAC) < 1e-9 and lev == LEV) else ""
+            print(f"  {rf*100:>5.1f}%{lev:>5}{b['taken']:>6}{b['skip_slot']:>9}{b['skip_margin']:>11}"
+                  f"{b['cagr']*100:>+8.1f}%{b['mdd']*100:>+8.1f}%"
+                  f" | {t['cagr_med']*100:>+8.1f}%{t['mdd_med']*100:>+8.1f}%{t['mdd_p10']*100:>+10.1f}%"
+                  f"{t['calmar_med']:>8.2f}{t['p_ruin']*100:>8.1f}%  {'통과' if ok else '탈락'}{cur}")
+    okrows = [x for x in rows if x[3]]
+    print()
+    if okrows:
+        best = max(okrows, key=lambda x: x[2]["boot"]["calmar_med"])
+        print(f"[기준 통과] {len(okrows)}셀 | 최적 = risk {best[0]*100:.1f}% / lev {best[1]}x "
+              f"(boot Calmar {best[2]['boot']['calmar_med']:.2f}, MDD중앙 {best[2]['boot']['mdd_med']*100:+.1f}%, "
+              f"P(ruin) {best[2]['boot']['p_ruin']*100:.1f}%)")
+    else:
+        print("[기준 통과] 없음 — 사전 기준(MDD중앙>=-35% AND P(ruin)<5%)을 만족하는 셀이 하나도 없다")
+        best = max(rows, key=lambda x: x[2]["boot"]["calmar_med"])
+        print(f"  참고: 기준 무시하고 Calmar 최대만 보면 risk {best[0]*100:.1f}% / lev {best[1]}x "
+              f"(MDD중앙 {best[2]['boot']['mdd_med']*100:+.1f}%)")
+    # 레버리지 단독 효과 — 같은 risk 안에서 lev 만 바꾼 비교
+    print("\n[레버리지 단독 효과] 같은 risk 에서 lev 만 올렸을 때 (명목가는 불변, 증거금만 감소)")
+    for rf in GRID_RISK:
+        cells = {lev: next(x[2] for x in rows if abs(x[0] - rf) < 1e-9 and x[1] == lev) for lev in GRID_LEV}
+        base2 = cells[2]
+        seg = "  ".join(
+            f"lev{lev}: 증거금스킵 {cells[lev]['base']['skip_margin']:>4} "
+            f"Cal {cells[lev]['boot']['calmar_med']:>5.2f} MDD {cells[lev]['boot']['mdd_med']*100:>+6.1f}%"
+            for lev in GRID_LEV)
+        print(f"  risk {rf*100:>4.1f}%  {seg}")
+        if base2["base"]["skip_margin"] == 0:
+            print(f"           └ lev2 에서 이미 증거금 스킵 0 — 레버리지를 올려도 살 수 있는 진입이 없다")
+    json.dump(dict(config=dict(grid_risk=GRID_RISK, grid_lev=GRID_LEV, s_norm=round(s_norm, 4),
+                               mdd_floor=MDD_FLOOR, ruin_max=RUIN_MAX,
+                               routing_mode=ROUTING_MODE, n_trades=len(trades)),
+                   cells=res),
+              open("sizing_grid.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("\n[저장] sizing_grid.json")
+    print("RESULT_JSON: " + json.dumps(dict(
+        best=(f"risk{best[0]}_lev{best[1]}" if rows else None),
+        n_pass=len(okrows),
+        cur=dict(calmar=round(res[f"r{RISK_FRAC}_l{LEV}"]["boot"]["calmar_med"], 3),
+                 mdd=round(res[f"r{RISK_FRAC}_l{LEV}"]["boot"]["mdd_med"], 4))), separators=(",", ":")))
 
 
 def main(argv=None):
@@ -255,6 +338,9 @@ def main(argv=None):
               f"— sizing.VOL_S_NORM 갱신 검토")
     print(f"[설정] TARGET_VOL={TARGET_VOL*100:.0f}% clip[{LO},{HI}] risk={RISK_FRAC*100:.1f}% lev<={LEV} "
           f"boot={BOOT_N} block={BLOCK}")
+    if "--grid" in argv:
+        run_grid(trades, s_norm)
+        return
     print("=" * 118)
     print("변동성 타겟팅 사이징 — risk(현행) vs vol_raw(스케일 그대로) vs vol_matched(평균 노출 정합)")
     print("=" * 118)

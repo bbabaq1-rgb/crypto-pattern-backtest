@@ -252,5 +252,28 @@ check("routing: 출력 파일명이 모드에 따라 갈린다 — 소스에 고
       'sizing_vol_routing.json" if ROUTING_MODE' in open(
           os.path.join(cwd, "sizing_vol.py"), encoding="utf-8").read())
 
+
+# ── 9. 격자 모드 (--grid): 파라미터화·스킵 사유 분리 ───────────────────────
+# 레버리지 물음의 답은 'margin 스킵이 실제로 줄었는가'에 달려 있으므로, 스킵을 사유별로
+# 정확히 세는지부터 고정한다. 여기가 틀리면 격자 해석 전체가 틀린다.
+g_lo = sv.simulate(trades, "vol_matched", risk_frac=0.001, lev_cap=2)
+g_hi = sv.simulate(trades, "vol_matched", risk_frac=0.03, lev_cap=2)
+check("simulate: risk_frac 을 올리면 명목가가 커진다",
+      g_hi["mean_notional"] > g_lo["mean_notional"])
+check("simulate: 스킵 사유 합이 총 스킵과 일치",
+      all(r["skip_slot"] + r["skip_margin"] == r["skipped"] for r in (g_lo, g_hi)))
+lev2 = sv.simulate(trades, "vol_matched", risk_frac=0.02, lev_cap=2)
+lev5 = sv.simulate(trades, "vol_matched", risk_frac=0.02, lev_cap=5)
+check("simulate: 레버리지를 올려도 명목가 공식은 그대로 — 증거금 스킵만 줄 수 있다",
+      lev5["skip_margin"] <= lev2["skip_margin"],
+      f"{lev5['skip_margin']} vs {lev2['skip_margin']}")
+check("simulate: 인자 미지정은 모듈 기본값과 동일",
+      sv.simulate(trades, "vol_matched") == sv.simulate(trades, "vol_matched",
+                                                        sv.RISK_FRAC, sv.LEV))
+check("격자 기준이 sizing_study 와 같은 값으로 동결",
+      (sv.MDD_FLOOR, sv.RUIN_MAX) == (-0.35, 0.05))
+check("격자에 현행 설정(risk 1%, lev 2)이 포함돼 비교 기준이 된다",
+      sv.RISK_FRAC in sv.GRID_RISK and sv.LEV in sv.GRID_LEV)
+
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)
