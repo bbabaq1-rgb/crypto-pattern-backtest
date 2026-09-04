@@ -379,8 +379,17 @@
       로 사실상 동률). **청산 시점에 정보가 실재.**
     · **D_time −3.62%p (t −4.80, CAGR우위 1/7)** — D 의 실측 평균 보유를 그대로 상한으로 줘도
       무너짐. '레짐 청산은 그냥 시계'라는 해석 기각.
-    · **D_norg −0.045%p (t −0.14)** — 아예 빼도 건당은 D 와 **구분 불가**. 즉 알파의 원천이
-      아니라 잘 맞춰진 출구다(제때 나가면 이득, 엉뚱하게 나가면 손해, 안 나가면 중립).
+    · **D_norg — 메이저 −0.045%p(t −0.14, 구분 불가) 이나 유니버스 80 에서 −1.788%p(t −12.83)**.
+      **정정: '순기여가 작다'는 표본 부족 탓이었다.** 80종목 train n=4,136 에서 분기 거래 1,126건
+      중 D 가 76% 승리, 패턴별 승률 21~24% 로 일관. 즉 제때 나가면 이득, 엉뚱하게 나가면 손해,
+      **안 나가면 손해**.
+    · **유니버스 80 재확인 (2026-09-04, 사용자 지시)**: 판정 A 동일, 모든 지표가 더 강함 —
+      셔플 20/20(중앙 −1.70%p, 20 draw 전부 음수), D_time −3.30%p, D_shuffle −3.15%p.
+      **홀드아웃(2025-09~2026-09)은 판별력 없음** — 2026 이 bear 247일 단일이라 레짐 전환이
+      거의 없어 arm 이 안 갈라진다(D_norg 분기 1,126→약 96건). 숏 2셀만 홀드아웃에서 D_norg
+      우세(engulfing_short +0.93%p t2.19, fvg_short +0.26%p t3.19) — 방식R 의 '롱·숏 비대칭'과
+      같은 방향, n 작아 후속 과제. 주의: --universe 는 모든 패턴을 80종목에 돌려 실거래 라우팅
+      (engulfing→top30 등)의 복제가 아니라 표본 크기 강건성 확인.
     · 청산 사유에서 레짐 전환은 fvg 의 약 1/3(134/366)을 담당하는 주 출구. 빼면 손절·만기가 대체.
     · 방법 정정: 1차 무제약 셔플은 전환 수가 97→43~61 로 줄어(같은 라벨 런 병합) 청산이 절반이
       되며 D_norg 쪽으로 끌려갔다 → `_sequence_no_adjacent` 로 전환 수 정확 보존(2차). 편향이
@@ -464,7 +473,8 @@
 - [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
       three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
 - [x] bear fvg 숏 OFF (2026-09-04) / 유니버스 N=80 적용 (2026-09-04)
-- [ ] 레짐 청산 소거 시험을 **유니버스 80종목**으로 재확인 (현재 메이저 7종목, 기존 연구 표본 정합용)
+- [x] 레짐 청산 소거 시험 유니버스 80종목 재확인 (2026-09-04) — 판정 A 동일, D_norg 결론 정정
+- [ ] **숏의 레짐 청산 재검토** — bear 지배 홀드아웃에서 engulfing_short/fvg_short 는 레짐 청산을 빼는 쪽이 우세(t 2.19/3.19). n 작고 단일 국면이라 사전 등록 후 재시험
 - [ ] **three_soldiers_4h 재판정** — 레짐 베이스라인(같은 레짐 무작위 진입)으로 bull_btc 셀 bp .165. 원 프레임과 병기해 배포 유지 여부 판단
 - [ ] triple_bottom top30 코호트 사전 등록 재시험 (데이터 누적 후, 현재 n=35 bp .078)
 - [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
@@ -510,7 +520,7 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
-- method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). report_regime_exit_ablation.md
+- method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py
