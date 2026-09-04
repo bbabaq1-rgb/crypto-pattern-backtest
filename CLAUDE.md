@@ -336,7 +336,15 @@
   +3.65%, 21위 이하 전부 기각 — 7월 코호트와 동일). 확대의 실효는 '순위 기준을 무기한 캔들로' 바꾸는 것
   (top20 의 6/20 교체: HYPE/ENA/BICO/BCH/ONDO/TAO 진입). engulfing 숏은 31~101위·현 유니버스에서 통과.
   **fvg 는 900일 창 전 코호트 기각**(마모 플래그 일치, 별도 판정 필요). 전 종목 확대는 근거 없음(81위 이하
-  무통과, 틱 4배). 제안 N=80(무기한 30일 거래대금, 토큰화 자산 제외, 500봉 이상) — **적용은 사용자 승인 대기**.
+  무통과, 틱 4배). 제안 N=80(무기한 30일 거래대금, 토큰화 자산 제외, 500봉 이상).
+  · **N=80 적용 (2026-09-04, 사용자 결정 "유니버스 80 적용")**: trading_universe 67 → **80**
+    (스캔 #4 순위 1~80). 추가 24(BICO/BCH/ONDO/TAO/CRV/OKB/ORDI/FARTCOIN/JTO/VIRTUAL/LDO/GRASS/
+    TRB/MORPHO/BIO/STRK/MERL/CORE/AR/SUSHI/APE/LPT/SSV/KSM) / 제외 11(ICX/PENDLE/IOST/NEO/GRT/GLM/
+    1INCH/QTUM/CELO/API3/ZRX — 81위 이하, 데이터 문제 아님). HYPE/ENA/KAITO 는 500봉 미만이라 후보 제외.
+    근거·목록은 universe.json `universe_basis_2026_09_04`. 오픈 포지션 ADA(7위)/ARB(11위)/UNI(6위) 전부
+    잔류. 신규 종목 1d/4h/1h CSV 는 다음 oncefull 에서 처음 수집(900/130/40일) — 4h/1h 블록은
+    data/*_4h.csv 존재 종목을 돌므로 자동 편입. **4단계(캐스케이드 1h 재검증)는 미실행** — 새 종목
+    1h 365일 수집 뒤 별도. 분기마다 universe_okx_scan 재실행으로 갱신.
 - **레짐별 분리 게이트** (2026-09-04, 사용자 제안 "레짐 나눠서 테스트해야 맞다"): report_regime_split.md.
   1d 패턴 6종 x 진입레짐 4 x 코호트 3 = 72셀. boot_p 베이스라인을 **같은 레짐·코호트 무작위 진입**으로
   잡아 "상승장이라 오른 것"을 엣지로 오인하지 않게 함(test_regime_split 이 성질 고정).
@@ -354,10 +362,14 @@
     (−1.40/−1.25/−0.96) — 숏은 레짐 문제가 아니라 패턴 문제.
   · 주의: boot_p 베이스라인이 30건 표본이라 n 큰 셀에 보수적 — 표본 수 정합 후속 필요.
     재실행에서 engulfing 숏 altseason 이 bp .045→.055 로 경계 이탈(엣지 +3.59%p 유지).
-  · 라우팅·fvg 배포 변경은 **사용자 결정 대기**. 실거래 무변경.
+  · **bear fvg 숏 OFF (2026-09-04, 사용자 결정 "bear 숏 끄고")**: `direction_switch.ROUTING_OVERRIDES`
+    {(bear, fvg): FLAT}. main() 이 매 실행 regime_switch.json 의 무조건부 n≥20·mean>0 로 표를 다시
+    만들므로(bear fvg 숏 +2.54% 로 여전히 short) JSON 편집은 무효 → 코드에 예외를 둔다. bear fvg 롱
+    (엣지 +1.34%p)은 동결 게이트 미통과라 켜지 않고 FLAT. 현 레짐이 bear 라 즉시 효력 — bear 에서는
+    engulfing 롱만 나간다. 나머지 5셀 유지. test_direction_switch.py(20건) 가 고정.
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
-- 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
+- 유니버스: **80종목** (OKX 무기한 30일 거래대금 상위 80, 2026-09-04. 종전 업비트KRW∩OKX선물 71→67)
 - **패턴별 차등 유니버스** (2026-07-06 사용자 결정, 거래대금 코호트 분석 기반):
   engulfing→top20, fvg→top30 (30일 평균 거래대금 상위, 매 실행 재계산),
   inverted_hammer/marubozu→메이저 7종목 (scheduler.PATTERN_UNIVERSE).
@@ -413,6 +425,8 @@
 - [ ] **UNI(triple_bottom 1w 롱) 처리** — 패턴은 정지, 포지션은 D 규칙대로 유지 중. 수동 청산 여부는 사용자 판단
 - [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
       three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
+- [x] bear fvg 숏 OFF (2026-09-04) / 유니버스 N=80 적용 (2026-09-04)
+- [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
 - [ ] **숏 라우팅 재판정** — 레짐 조건부 engulfing_short(bull_altseason)/fvg_short(bear) 셀을
       동결 게이트(median/boot_p/OOS)로. 통과 못 하면 숏 중단은 사용자 결정
 - [ ] **형성 중인 봉 탐지 재검토** — 기존 배포 패턴은 아직 `rows[-1]`(미완성 봉)에서
@@ -454,7 +468,8 @@
 - test_method_t.py: method_t 로직 검증 (자산곡선이 회전율 차이를 잡는지 포함)
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
-- universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
+- universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
 - registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 + triple_bottom_1w suspended_lookahead → 배포 중

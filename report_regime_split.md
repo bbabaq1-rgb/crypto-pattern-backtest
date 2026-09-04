@@ -111,4 +111,11 @@ bull_altseason 은 라벨이 붙는 시점에 이미 상승이 성숙한 국면�
    avg_cap 오버레이와 겹치는 층이므로 별도 사전등록 필요.
 4. **베이스라인 표본 수 정합**(현재 30건 고정) 후속 수정 뒤 대형 셀 재판정.
 
-실거래 코드 변경 없음. validate_regime_split.py / test_regime_split.py(15건) / _regime_split.json
+## 결정 (2026-09-04, 사용자)
+
+- **제안 1 채택 — bear fvg 숏 OFF (FLAT)**. `direction_switch.ROUTING_OVERRIDES = {("bear","fvg"): "FLAT"}`.
+  fvg 롱으로 뒤집지 않는 이유: bear fvg 롱 엣지 +1.34%p 는 부호만 맞고 동결 게이트(median/boot_p/OOS)를
+  못 넘었다. 현 레짐이 bear 이므로 즉시 적용 — bear 에서는 engulfing 롱만 나간다.
+- 제안 2~4 유지(라우팅 5셀 불변, altseason 롱 축소·베이스라인 표본 정합은 후속).
+
+validate_regime_split.py / test_regime_split.py(15건) / test_direction_switch.py(20건) / _regime_split.json

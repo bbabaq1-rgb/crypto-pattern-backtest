@@ -1,1686 +1,1700 @@
 {
- "patterns": [
-  {
-   "id": "engulfing",
-   "name": "Engulfing",
-   "category": "캔들",
-   "difficulty": 1,
-   "status": "validated",
-   "detector_file": "detector_engulfing.py",
-   "passed_tf": "1d",
-   "regime": {
-    "1d": {
-     "up": {
-      "n": 10,
-      "mean": 0.03058,
-      "median": 0.10138
-     },
-     "down": {
-      "n": 21,
-      "mean": 0.05704,
-      "median": 0.10226
-     },
-     "side": {
-      "n": 22,
-      "mean": -0.00065,
-      "median": -0.0035
-     },
-     "na": {
-      "n": 7,
-      "mean": 0.08079,
-      "median": 0.10453
-     }
-    }
-   },
-   "baseline": {
-    "1d": {
-     "null_mean": 0.00364,
-     "excess_mean": 0.03061,
-     "p_mean": 0.033,
-     "significant": true
-    }
-   },
-   "regime_dependent": false,
-   "precision": {
-    "slip": {
-     "mean": 0.03325,
-     "median": 0.09888,
-     "p_mean": 0.033,
-     "ok": true
+  "patterns": [
+    {
+      "id": "engulfing",
+      "name": "Engulfing",
+      "category": "캔들",
+      "difficulty": 1,
+      "status": "validated",
+      "detector_file": "detector_engulfing.py",
+      "passed_tf": "1d",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 10,
+            "mean": 0.03058,
+            "median": 0.10138
+          },
+          "down": {
+            "n": 21,
+            "mean": 0.05704,
+            "median": 0.10226
+          },
+          "side": {
+            "n": 22,
+            "mean": -0.00065,
+            "median": -0.0035
+          },
+          "na": {
+            "n": 7,
+            "mean": 0.08079,
+            "median": 0.10453
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00364,
+          "excess_mean": 0.03061,
+          "p_mean": 0.033,
+          "significant": true
+        }
+      },
+      "regime_dependent": false,
+      "precision": {
+        "slip": {
+          "mean": 0.03325,
+          "median": 0.09888,
+          "p_mean": 0.033,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 8,
+          "pos": 5,
+          "pos_frac": 0.625,
+          "ok": true
+        },
+        "newsymbols": {
+          "n": 30,
+          "mean": 0.0389,
+          "median": 0.10019,
+          "persym_pos": 3,
+          "ok": true
+        }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": -0.0392,
+        "restored": false,
+        "note": "마모 복원 불가(vol2x/regime/position 전부 실패) - 페이퍼테스트 필요"
+      }
     },
-    "walkforward": {
-     "valid": 8,
-     "pos": 5,
-     "pos_frac": 0.625,
-     "ok": true
+    {
+      "id": "pin_bar",
+      "name": "Pin Bar",
+      "category": "캔들",
+      "difficulty": 1,
+      "status": "rejected",
+      "detector_file": "detector_pin_bar.py",
+      "reject_reason": "기대값 음수"
     },
-    "newsymbols": {
-     "n": 30,
-     "mean": 0.0389,
-     "median": 0.10019,
-     "persym_pos": 3,
-     "ok": true
-    }
-   },
-   "wear": {
-    "cut": "2025-07-01",
-    "base_2025plus_mean": -0.0392,
-    "restored": false,
-    "note": "마모 복원 불가(vol2x/regime/position 전부 실패) - 페이퍼테스트 필요"
-   }
-  },
-  {
-   "id": "pin_bar",
-   "name": "Pin Bar",
-   "category": "캔들",
-   "difficulty": 1,
-   "status": "rejected",
-   "detector_file": "detector_pin_bar.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "nr7",
-   "name": "NR7 (Narrow Range 7)",
-   "category": "변동성",
-   "difficulty": 1,
-   "status": "rejected",
-   "detector_file": "detector_nr7.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "bb_squeeze",
-   "name": "Bollinger Band Squeeze",
-   "category": "변동성",
-   "difficulty": 1,
-   "status": "rejected",
-   "detector_file": "detector_bb_squeeze.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "double_bottom",
-   "name": "Double Bottom",
-   "category": "패턴",
-   "difficulty": 1,
-   "status": "rejected",
-   "detector_file": "detector_double_bottom.py",
-   "regime": {
-    "1d": {
-     "up": {
-      "n": 132,
-      "mean": -0.00165,
-      "median": -0.0239
-     },
-     "down": {
+    {
+      "id": "nr7",
+      "name": "NR7 (Narrow Range 7)",
+      "category": "변동성",
+      "difficulty": 1,
+      "status": "rejected",
+      "detector_file": "detector_nr7.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "bb_squeeze",
+      "name": "Bollinger Band Squeeze",
+      "category": "변동성",
+      "difficulty": 1,
+      "status": "rejected",
+      "detector_file": "detector_bb_squeeze.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "double_bottom",
+      "name": "Double Bottom",
+      "category": "패턴",
+      "difficulty": 1,
+      "status": "rejected",
+      "detector_file": "detector_double_bottom.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 132,
+            "mean": -0.00165,
+            "median": -0.0239
+          },
+          "down": {
+            "n": 161,
+            "mean": 0.00278,
+            "median": -0.01431
+          },
+          "side": {
+            "n": 132,
+            "mean": 0.0128,
+            "median": 0.01724
+          },
+          "na": {
+            "n": 40,
+            "mean": 0.07263,
+            "median": 0.11424
+          }
+        },
+        "1h": {
+          "up": {
+            "n": 351,
+            "mean": 0.01084,
+            "median": 0.0005
+          },
+          "down": {
+            "n": 274,
+            "mean": -0.00413,
+            "median": -0.00366
+          },
+          "side": {
+            "n": 1196,
+            "mean": 0.00512,
+            "median": 0.0023
+          },
+          "na": {
+            "n": 49,
+            "mean": 0.03376,
+            "median": 0.02319
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00373,
+          "excess_mean": 0.00664,
+          "p_mean": 0.144,
+          "significant": false
+        },
+        "1h": {
+          "null_mean": -0.00105,
+          "excess_mean": 0.00664,
+          "p_mean": 0.0,
+          "significant": true
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
+    },
+    {
+      "id": "liquidity_sweep",
+      "name": "Liquidity Sweep",
+      "category": "SMC",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_liquidity_sweep.py",
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 27,
+            "mean": -0.00515,
+            "median": -0.02761
+          },
+          "down": {
+            "n": 33,
+            "mean": 0.02424,
+            "median": 0.01957
+          },
+          "side": {
+            "n": 169,
+            "mean": 0.00169,
+            "median": -0.00077
+          },
+          "na": {
+            "n": 1,
+            "mean": 0.17699,
+            "median": 0.17699
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": 1e-05,
+          "excess_mean": 0.00488,
+          "p_mean": 0.159,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
+    },
+    {
+      "id": "fvg",
+      "name": "Fair Value Gap",
+      "category": "SMC",
+      "difficulty": 2,
+      "status": "passed",
+      "detector_file": "detector_fvg.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 166,
+            "mean": 0.02114,
+            "median": 0.06258
+          },
+          "down": {
+            "n": 164,
+            "mean": 0.02196,
+            "median": 0.071
+          },
+          "side": {
+            "n": 154,
+            "mean": 0.01266,
+            "median": 0.01003
+          },
+          "na": {
+            "n": 50,
+            "mean": 0.11839,
+            "median": 0.12953
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00376,
+          "excess_mean": 0.02429,
+          "p_mean": 0.0,
+          "significant": true
+        }
+      },
+      "passed_tf": "1d",
+      "regime_dependent": false,
+      "precision": {
+        "slip": {
+          "mean": 0.02705,
+          "median": 0.05565,
+          "p_mean": 0.0,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 11,
+          "pos": 6,
+          "pos_frac": 0.545,
+          "ok": false
+        },
+        "newsymbols": {
+          "n": 357,
+          "mean": 0.01746,
+          "median": 0.06189,
+          "persym_pos": 4,
+          "ok": true
+        }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": -0.02776,
+        "restored": false,
+        "note": "마모 징후(2025-07+ 음수)"
+      },
+      "precision_note": "강등: 워크포워드 미통과"
+    },
+    {
+      "id": "inverse_hs",
+      "name": "Inverse Head&Shoulders",
+      "category": "패턴",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_inverse_hs.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 47,
+            "mean": 0.02809,
+            "median": 0.04177
+          },
+          "down": {
+            "n": 68,
+            "mean": 0.00259,
+            "median": -0.01909
+          },
+          "side": {
+            "n": 47,
+            "mean": 0.02333,
+            "median": 0.04912
+          },
+          "na": {
+            "n": 8,
+            "mean": 0.01213,
+            "median": 0.00178
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.00369,
+          "excess_mean": 0.01213,
+          "p_mean": 0.104,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
+    },
+    {
+      "id": "rsi_divergence",
+      "name": "RSI Divergence",
+      "category": "지표",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_rsi_divergence.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "macd_divergence",
+      "name": "MACD Divergence",
+      "category": "지표",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_macd_divergence.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "order_block",
+      "name": "Order Block",
+      "category": "SMC",
+      "difficulty": 3,
+      "status": "rejected",
+      "detector_file": "detector_order_block.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 63,
+            "mean": -0.00379,
+            "median": -0.01122
+          },
+          "down": {
+            "n": 36,
+            "mean": -0.00249,
+            "median": -0.00992
+          },
+          "side": {
+            "n": 42,
+            "mean": 0.0046,
+            "median": -0.00487
+          },
+          "na": {
+            "n": 23,
+            "mean": 0.0879,
+            "median": 0.12621
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": 0.0037,
+          "excess_mean": 0.0078,
+          "p_mean": 0.204,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
+    },
+    {
+      "id": "bos_choch",
+      "name": "BOS / CHoCH",
+      "category": "SMC",
+      "difficulty": 3,
+      "status": "rejected",
+      "detector_file": "detector_bos_choch.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "spring_wyckoff",
+      "name": "Wyckoff Spring",
+      "category": "패턴",
+      "difficulty": 3,
+      "status": "rejected",
+      "detector_file": "detector_spring_wyckoff.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "triple_bottom_desc",
+      "name": "Triple Bottom (descending)",
+      "category": "패턴",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "triple_bottom_volume.py"
+    },
+    {
+      "id": "engulfing_short",
+      "name": "Engulfing (short)",
+      "category": "캔들",
+      "difficulty": 1,
+      "status": "rejected",
+      "detector_file": "detector_engulfing_short.py",
+      "regime": {
+        "1d": {
+          "up": {
+            "n": 29,
+            "mean": 0.00087,
+            "median": 0.04623
+          },
+          "down": {
+            "n": 22,
+            "mean": -0.0213,
+            "median": -0.07864
+          },
+          "side": {
+            "n": 27,
+            "mean": 0.05761,
+            "median": 0.10548
+          },
+          "na": {
+            "n": 9,
+            "mean": -0.01953,
+            "median": -0.11811
+          }
+        }
+      },
+      "baseline": {
+        "1d": {
+          "null_mean": -0.00796,
+          "excess_mean": 0.01872,
+          "p_mean": 0.094,
+          "significant": false
+        }
+      },
+      "reject_reason": "OOS 미통과(과최적화)"
+    },
+    {
+      "id": "fvg_short",
+      "name": "Fair Value Gap (short)",
+      "category": "SMC",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_fvg_short.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "inverse_hs_short",
+      "name": "H&S Top (short)",
+      "category": "패턴",
+      "difficulty": 2,
+      "status": "rejected",
+      "detector_file": "detector_inverse_hs_short.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "order_block_short",
+      "name": "Order Block (short)",
+      "category": "SMC",
+      "difficulty": 3,
+      "status": "rejected",
+      "detector_file": "detector_order_block_short.py",
+      "reject_reason": "기대값 음수"
+    },
+    {
+      "id": "inverted_hammer",
+      "name": "Inverted Hammer",
+      "category": "캔들",
+      "difficulty": 1,
+      "detector_file": "detector_inverted_hammer.py",
+      "status": "passed",
+      "passed_tf": "1d",
+      "precision": {
+        "slip": {
+          "mean": 0.01682,
+          "median": 0.01166,
+          "p_mean": 0.001,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 11,
+          "pos": 6,
+          "pos_frac": 0.545,
+          "ok": false
+        }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": 0.02932,
+        "restored": false,
+        "note": "마모 없음"
+      },
+      "precision_note": "강등유지: 워크포워드 미통과"
+    },
+    {
+      "id": "marubozu",
+      "name": "Marubozu",
+      "category": "캔들",
+      "difficulty": 1,
+      "detector_file": "detector_marubozu.py",
+      "status": "passed",
+      "passed_tf": "1d",
+      "precision": {
+        "slip": {
+          "mean": 0.03098,
+          "median": 0.01724,
+          "p_mean": 0.028,
+          "ok": true
+        },
+        "walkforward": {
+          "valid": 9,
+          "pos": 5,
+          "pos_frac": 0.556,
+          "ok": false
+        }
+      },
+      "wear": {
+        "cut": "2025-07-01",
+        "base_2025plus_mean": 0.05855,
+        "restored": false,
+        "note": "마모 없음"
+      },
+      "precision_note": "강등유지: 워크포워드 미통과"
+    },
+    {
+      "id": "gartley",
+      "name": "Gartley Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "suspended_lookahead",
+      "detector_file": "detector_gartley.py",
+      "ratios": {
+        "ab_xa": "0.618±0.05",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "1.272-1.618",
+        "ad_xa": "0.786±0.05"
+      },
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 10,
+            "mean": 0.03966,
+            "median": 0.01987
+          },
+          "down": {
+            "n": 7,
+            "mean": 0.04055,
+            "median": 0.04745
+          },
+          "side": {
+            "n": 37,
+            "mean": 0.0193,
+            "median": 0.00545
+          },
+          "na": {
+            "n": 2,
+            "mean": 0.09744,
+            "median": 0.09744
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": -0.00183,
+          "excess_mean": 0.03021,
+          "p_mean": 0.008,
+          "significant": true
+        }
+      },
+      "passed_tf": "4h",
+      "regime_dependent": false,
+      "status_before_2026_09_03": "passed",
+      "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+      "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
+    },
+    {
+      "id": "bat",
+      "name": "Bat Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "suspended_lookahead",
+      "detector_file": "detector_bat.py",
+      "ratios": {
+        "ab_xa": "0.382-0.500",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "1.618-2.618",
+        "ad_xa": "0.886±0.05"
+      },
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 15,
+            "mean": 0.0582,
+            "median": 0.09855
+          },
+          "down": {
+            "n": 12,
+            "mean": 0.04965,
+            "median": 0.05828
+          },
+          "side": {
+            "n": 28,
+            "mean": 0.03311,
+            "median": 0.02528
+          },
+          "na": {
+            "n": 2,
+            "mean": 0.00372,
+            "median": 0.00372
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": -0.00184,
+          "excess_mean": 0.04401,
+          "p_mean": 0.0,
+          "significant": true
+        }
+      },
+      "passed_tf": "4h",
+      "regime_dependent": false,
+      "status_before_2026_09_03": "passed",
+      "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+      "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
+    },
+    {
+      "id": "butterfly",
+      "name": "Butterfly Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "suspended_lookahead",
+      "detector_file": "detector_butterfly.py",
+      "ratios": {
+        "ab_xa": "0.786±0.05",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "1.618-2.618",
+        "ad_xa": "1.272±0.05"
+      },
+      "regime": {
+        "4h": {
+          "up": {
+            "n": 9,
+            "mean": 0.0438,
+            "median": 0.03959
+          },
+          "down": {
+            "n": 11,
+            "mean": 0.03704,
+            "median": 0.02979
+          },
+          "side": {
+            "n": 22,
+            "mean": 0.02194,
+            "median": 0.03385
+          }
+        }
+      },
+      "baseline": {
+        "4h": {
+          "null_mean": -0.00162,
+          "excess_mean": 0.0322,
+          "p_mean": 0.007,
+          "significant": true
+        }
+      },
+      "passed_tf": "4h",
+      "regime_dependent": false,
+      "status_before_2026_09_03": "passed",
+      "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+      "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
+    },
+    {
+      "id": "crab",
+      "name": "Crab Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "holding",
+      "detector_file": "detector_crab.py",
+      "ratios": {
+        "ab_xa": "0.382-0.618",
+        "bc_ab": "0.382-0.886",
+        "cd_bc": "2.618-3.618",
+        "ad_xa": "1.618±0.05"
+      }
+    },
+    {
+      "id": "shark",
+      "name": "Shark Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "holding",
+      "detector_file": "detector_shark.py",
+      "ratios": {
+        "ab_xa": "0.382-0.618",
+        "bc_ab": "1.130-1.618",
+        "xd_xc": "0.886±0.05"
+      }
+    },
+    {
+      "id": "cypher",
+      "name": "Cypher Harmonic (Bullish)",
+      "category": "하모닉",
+      "difficulty": 3,
+      "status": "holding",
+      "detector_file": "detector_cypher.py",
+      "ratios": {
+        "ab_xa": "0.382-0.618",
+        "bc_ab": "1.272-1.414",
+        "xd_xc": "0.786±0.05"
+      }
+    },
+    {
+      "id": "three_soldiers_4h",
+      "name": "Three White Soldiers (4h)",
+      "category": "momentum_4h",
+      "difficulty": 2,
+      "status": "passed",
+      "detector_file": "detector_three_soldiers_4h.py",
+      "passed_tf": "4h",
+      "n": 908,
+      "mean": 0.0104,
+      "median": 0.0097,
+      "oos_positive": 3,
+      "oos_quarters": 4,
+      "baseline_p": 0.0001,
+      "baseline_excess_mean": 0.0133,
+      "passed_date": "2026-06-29",
+      "regime_routing": "bull_btc/bull_altseason -> long; bear/sideways -> skip",
+      "note": "4h 전용 모멘텀. Q4(2025-26 bear) 음수, 레짐 필터 필수."
+    },
+    {
+      "id": "bat_1h",
+      "name": "Bullish Bat (1h)",
+      "category": "harmonic_1h",
+      "status": "suspended_lookahead",
+      "detector_file": "detector_bat.py",
+      "passed_tf": "1h",
+      "n": 108,
+      "mean": 0.0146,
+      "median": 0.0099,
+      "oos_positive": 4,
+      "oos_quarters": 4,
+      "baseline_p": 0.034,
+      "passed_date": "2026-06-29",
+      "regime_routing": "all regimes -> long (OOS Q4도 +2.33%로 레짐 무관 강건)",
+      "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요.",
+      "status_before_2026_09_03": "passed",
+      "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+      "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
+    },
+    {
+      "id": "butterfly_1h",
+      "name": "Bullish Butterfly (1h)",
+      "category": "harmonic_1h",
+      "status": "suspended_lookahead",
+      "detector_file": "detector_butterfly.py",
+      "passed_tf": "1h",
       "n": 161,
-      "mean": 0.00278,
-      "median": -0.01431
-     },
-     "side": {
-      "n": 132,
-      "mean": 0.0128,
-      "median": 0.01724
-     },
-     "na": {
-      "n": 40,
-      "mean": 0.07263,
-      "median": 0.11424
-     }
+      "mean": 0.0159,
+      "median": 0.0117,
+      "oos_positive": 4,
+      "oos_quarters": 4,
+      "baseline_p": 0.024,
+      "passed_date": "2026-06-29",
+      "regime_routing": "all regimes -> long (OOS 4/4 전구간 양수)",
+      "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상.",
+      "status_before_2026_09_03": "passed",
+      "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
+      "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
     },
-    "1h": {
-     "up": {
-      "n": 351,
-      "mean": 0.01084,
-      "median": 0.0005
-     },
-     "down": {
-      "n": 274,
-      "mean": -0.00413,
-      "median": -0.00366
-     },
-     "side": {
-      "n": 1196,
-      "mean": 0.00512,
-      "median": 0.0023
-     },
-     "na": {
+    {
+      "id": "triple_bottom_4h",
+      "name": "Triple Bottom Breakout (4h)",
+      "category": "패턴",
+      "status": "rejected",
+      "detector_file": "detector_triple_bottom.py",
+      "passed_tf": "4h",
+      "n": 269,
+      "mean": 0.01657,
+      "median": 0.01013,
+      "t_p": 0.0009,
+      "baseline_p": 0.035,
+      "oos_positive": 2,
+      "oos_quarters": 4,
+      "passed_date": "2026-08-29",
+      "regime_routing": "all regimes -> long (검증구간 대부분 bear, Q4 bear +5.31%)",
+      "note": "1차(130일, bear 단일 레짐) PASSED였으나 2차 연장(1,100일/3년, n=1875)에서 median -0.30%/boot_p 0.320으로 기각 — 단일 레짐 아티팩트로 판명, 등록 철회(2026-08-29). 사용자 지정 패턴(차트 5장) 데이터화: 스윙저점 3개 + ATR×2.5 깊이 + 넥라인 돌파 + 거래량 1.5배. 15m/1h/1d/1w 및 거울상(triple_top) 전 셀 기각 — 4h 롱만 통과. 1w는 mean +11.1%/boot_p 0.000이나 신호 83%가 단일 분기 집중(OOS 1/4)으로 기각, 데이터 누적 후 재시험 가치. 구 triple_bottom_desc(1d 하강형)와 별개 정의."
+    },
+    {
+      "id": "triple_bottom_1w",
+      "name": "Triple Bottom Breakout (1w)",
+      "category": "패턴",
+      "status": "suspended_lookahead",
+      "detector_file": "detector_triple_bottom.py",
+      "passed_tf": "1w",
+      "n": 141,
+      "mean": 0.07719,
+      "median": 0.10194,
+      "t_p": 0.0028,
+      "baseline_p": 0.023,
+      "oos_positive": 2,
+      "oos_quarters": 4,
+      "passed_date": "2026-08-29",
+      "regime_routing": "all regimes -> long",
+      "note": "2차 연장 검증(1d 5년 리샘플, 주봉 ~260봉/종목)에서 통과. 1차(900일) 기각 사유였던 '단일 분기 집중'은 데이터 부족 탓으로 판명 — 표본 54→141, Q2(2022-12~) 78건 +8.5% / Q3(~2025-05) 55건 +10.1% 두 분위 양수. 신호=주봉 넥라인 돌파, 1d 리샘플로 탐지(detlib).",
+      "note_2026_09_03": "detect 가 L3 미확정 돌파(L3+1·L3+2)를 세고 있었음(룩어헤드). 실거래 신호 집합은 불변(원래 잡히던 것만 잡힘). causal 판으로 재검증해 수치 갱신 예정 — 배포 유지",
+      "status_before_2026_09_03": "passed",
+      "suspended_2026_09_03": "validate_confirm_bar new(인과) REJECTED: n=104 mean +3.07% median -11.36% boot_p 0.164 OOS 2/4 vs old n=142 +7.73% PASSED. 부풀림 +4.65%p — 미확정 돌파 38건이 엣지 전부. 신규 진입 정지, 열린 UNI 포지션은 청산 규칙(D) 그대로(사용자 판단)"
+    },
+    {
+      "id": "cascade_fade_long_1h",
+      "name": "Liquidation Cascade Fade (1h, long)",
+      "category": "intraday",
+      "status": "deployed",
+      "detector_file": "detector_cascade_fade_1h.py",
+      "passed_tf": "1h",
+      "n": 312,
+      "mean": 0.02426,
+      "median": 0.01166,
+      "t_p": 0.0,
+      "baseline_p": 0.0,
+      "oos_positive": 3,
+      "oos_quarters": 4,
+      "passed_date": "2026-08-29",
+      "label_frame": "intraday_lab: ±1.5xATR14 배리어 / 12봉(12h) 보유 / 수수료 0.2%",
+      "entry_rule": "1h봉 하락폭>=2.5xATR14 + 거래량>=20봉평균x3 + 종가가 봉범위 40%+ 회복 → 롱",
+      "robustness": {
+        "top5_share": 0.108,
+        "trimmed_mean_10pct": 0.01874,
+        "sensitivity": "2.0ATR/2.5x/0.3 → n=1278 mean +0.01% (엣지 소멸), 2.5/3.0/0.4(동결) → n=312 +2.43%, 3.0/4.0/0.5 → n=74 +5.04% (단조 — 엄격할수록 강함)"
+      },
+      "note": "1차(365일) n=85 +6.04% OOS 1/4 기각 → 2차 사전등록 재시험에서 무조건부 3년 통과. 고변동성 조건부(H2)는 신호 312건 중 245건이 이미 고변동 국면이라 조건 추가의 실익 없음 — 무조건부로 성립. 최근 분기(Q4) n=27 mean -0.26%는 주의. report_intraday.md",
+      "exit_spec": {
+        "type": "atr_barrier",
+        "tf": "1h",
+        "k_atr": 1.5,
+        "atr_period": 14,
+        "horizon_bars": 12,
+        "fee": 0.002,
+        "source": "intraday_lab.outcome_atr — 검증에 쓴 라벨과 동일 규칙",
+        "execution": "진입 시 OKX OCO 브래킷(손절+익절) 등록 → 스케줄러 지연과 무관하게 배리어 집행. 시간청산(12봉)만 엔진이 담당."
+      },
+      "exit_path_status": "ready (2026-08-30) — paper_executor.eval_I + exchange OCO 브래킷, test_intraday_exit.py",
+      "delay_sensitivity": "1h 이내 진입 필수 (d=0 +2.43% / d=1 +1.88% / d=2 +1.09% 기각). 실측 Actions 지연(중앙 25.1분, 60분내 82%)에서 1h 크론은 d<=1 비율 81% 로 통과, 4h 크론은 12% 로 기각.",
+      "entry_path_status": "ready (2026-09-01) — detector_cascade_fade_1h.py + scheduler exit_spec 연동(ATR 손절 표기). 신호 집합이 validate_cascade 탐지 조건과 완전 일치함을 test_cascade_detector.py 로 고정. **활성화는 universe.json 의 adopted_1h_patterns 에 추가하는 한 줄** — 단 1시간 이내 진입이 보장되기 전에는 추가 금지(검증이 기각한 조건).",
+      "activation_checklist": [
+        "1. [해결] 1시간 이내 진입 — 1h 크론으로 충분함이 실측 재평가로 확인됨 (서버 불필요)",
+        "2. [미해결] 크론 분기 구현 — 매시 실행하되 1d/4h 탐지는 UTC 00/04/08/12/16/20 에만. 기존 배포 패턴의 탐지 시각 집합 불변을 테스트로 고정",
+        "3. [미해결] 사용자 판단 — universe.json adopted_1h_patterns 에 한 줄 추가 (실거래 활성화)",
+        "4. 추가 후 첫 실거래 전 ensure_stop_orders 로 OCO 브래킷 등록 확인",
+        "5. 배포 후 캐스케이드 국면 실제 체결 슬리피지 실측 (내성 한계 왕복 0.4%)"
+      ],
+      "realistic_deploy_check": "cascade_realistic_2026_09 — 1h 크론 PASSED (+1.54%/+0.31%), 마찰 내성 왕복 0.4%",
+      "deployed_date": "2026-09-01",
+      "deploy_basis": "cascade_realistic_2026_09 — 매시 크론 + 실측 Actions 지연 분포에서 mean +1.54% / median +0.31% / boot_p 0.000 / OOS 2/4 PASSED (4h 크론은 median -0.37% REJECTED). 상시 서버 불필요.",
+      "deploy_preconditions": {
+        "hourly_cron": "fast_scheduler.yml cron '7 * * * *' (정시 회피). 메인 daily_scheduler.yml 은 검증된 '0 */4 * * *' 로 복귀(2026-09-02). 매시 정시 크론은 실측 발화율 27%(15틱 중 4)로 기각 — 이 상태에서는 검증 전제(d<=1 비율 81%)가 충족되지 않았다. 오프셋 크론의 발화율은 배포 후 실측해 재확인해야 한다. test_cascade_detector.py 가 크론 형태를 고정한다.",
+        "slow_tf_gating": "워크플로가 --slow/--fast 플래그로 모드를 명시(scheduler._tick_flag). 실행 시각 hour 판정은 큐 지연이 정각을 넘기면(4h 시대 364건 중 27%, 8/05·8/06·8/27 은 6틱 전부) 1d/4h 탐지를 조용히 빠뜨리는 회귀가 있어 폴백으로만 남김. 1d/4h/1w 및 exit_spec 없는 1h(bat/butterfly)는 daily_scheduler(--slow)만, exit_spec 패턴은 fast_scheduler(--fast)만 탐지.",
+        "closed_bar_detection": "scheduler._closed_idx — exit_spec 패턴은 형성 중인 봉이 아니라 **닫힌 봉**에서 탐지. CSV 마지막 행은 거래소가 주는 미완성 봉이고 검증은 닫힌 봉 종가 기준이다.",
+        "fill_anchored_barriers": "paper_executor — 실체결가가 신호봉 종가와 다르면 ±k×ATR 배리어를 **체결가 기준으로 재계산**하고 OCO 를 재등록한다. 검증(outcome_atr)이 배리어를 진입가 기준으로 잡기 때문."
+      },
+      "known_gap": "형성 중인 봉 탐지는 exit_spec 패턴에서만 해소했다. 기존 배포 패턴(1d FOCUS/adopted 1d·4h·1w/하모닉/bat_1h/butterfly_1h)은 여전히 rows[-1](형성 중인 봉)에서 탐지한다 — 종전 동작을 바꾸지 않기 위해 의도적으로 두었다. 별도 과제로 재검토 필요."
+    }
+  ],
+  "rejected_4h": [
+    {
+      "id": "three_crows_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "short",
+      "n": 573,
+      "mean": -0.0119,
+      "note": "mean<0 전체(-1.19%). 레짐 조건부 재검증(2026-06-29): bear+alt n=169 mean=-0.20%, bear전용 mean=+0.36% 유의성없음(boot_p=0.436), altseason 더 나쁨(-2.01%). 최종 기각.",
+      "retest_date": "2026-06-29"
+    },
+    {
+      "id": "breakout_retest_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "long",
+      "n": 25729,
+      "mean": 0.0037,
+      "note": "median<0 (-0.23%), 중앙값 게이트 탈락"
+    },
+    {
+      "id": "equal_highs_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "short",
+      "n": 6962,
+      "mean": -0.0026,
+      "note": "mean<0"
+    },
+    {
+      "id": "equal_lows_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "long",
+      "n": 6618,
+      "mean": -0.0048,
+      "note": "mean<0"
+    },
+    {
+      "id": "vwap_rev_long_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "long",
+      "n": 31005,
+      "mean": -0.0025,
+      "note": "mean<0"
+    },
+    {
+      "id": "vwap_rev_short_4h",
+      "status": "rejected",
+      "tf": "4h",
+      "direction": "short",
+      "n": 28537,
+      "mean": -0.0006,
+      "note": "mean<0"
+    }
+  ],
+  "rejected_1h": [
+    {
+      "id": "three_soldiers_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 2107,
+      "mean": 0.28,
+      "note": "boot_p=0.270 유의성없음"
+    },
+    {
+      "id": "three_crows_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 1623,
+      "mean": 0.38,
+      "note": "median<0, boot_p=0.247"
+    },
+    {
+      "id": "engulfing_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 16791,
+      "mean": -0.23,
+      "note": "mean<0, OOS 0/4"
+    },
+    {
+      "id": "inverted_hammer_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 34061,
+      "mean": -0.08,
+      "note": "mean<0, OOS 0/4"
+    },
+    {
+      "id": "fvg_long_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 56977,
+      "mean": 0.06,
+      "note": "median<0, boot_p=0.372"
+    },
+    {
+      "id": "fvg_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 56977,
+      "mean": -0.46,
+      "note": "mean<0, OOS 0/4"
+    },
+    {
+      "id": "gartley_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 290,
+      "mean": 0.91,
+      "note": "boot_p=0.092 유의성 경계"
+    },
+    {
+      "id": "vwap_rev_long_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 41793,
+      "mean": -0.09,
+      "note": "mean<0, OOS 1/4"
+    },
+    {
+      "id": "vwap_rev_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 38984,
+      "mean": -0.19,
+      "note": "mean<0, OOS 1/4"
+    },
+    {
+      "id": "breakout_retest_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 51316,
+      "mean": -0.05,
+      "note": "median<0, boot_p=0.434"
+    },
+    {
+      "id": "bb_zscore_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 14699,
+      "mean": -0.16,
+      "note": "mean<=0, median<=0, boot_p=0.460, OOS 0/4<2"
+    },
+    {
+      "id": "bb_zscore_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 10217,
+      "mean": -0.05,
+      "note": "mean<=0, median<=0, boot_p=0.424"
+    },
+    {
+      "id": "rsi_extreme_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 4281,
+      "mean": -0.25,
+      "note": "mean<=0, median<=0, boot_p=0.518"
+    },
+    {
+      "id": "rsi_extreme_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 3316,
+      "mean": -0.38,
+      "note": "mean<=0, boot_p=0.602, OOS 0/4<2"
+    }
+  ],
+  "rejected_intraday_2026_08": [
+    {
+      "id": "cs_reversal_1h_long",
+      "tf": "1h",
+      "direction": "long",
+      "n": 52404,
+      "mean_pct": -0.279,
+      "boot_p": 0.52,
+      "oos_pos": 0,
+      "note": "REJECTED"
+    },
+    {
+      "id": "cs_reversal_1h_short",
+      "tf": "1h",
+      "direction": "short",
+      "n": 52404,
+      "mean_pct": -0.083,
+      "boot_p": 0.426,
+      "oos_pos": 0,
+      "note": "REJECTED"
+    },
+    {
+      "id": "cs_reversal_15m_long",
+      "tf": "15m",
+      "direction": "long",
+      "n": 34379,
+      "mean_pct": -0.198,
+      "boot_p": 0.463,
+      "oos_pos": 0,
+      "note": "REJECTED"
+    },
+    {
+      "id": "cs_reversal_15m_short",
+      "tf": "15m",
+      "direction": "short",
+      "n": 34379,
+      "mean_pct": -0.176,
+      "boot_p": 0.438,
+      "oos_pos": 0,
+      "note": "REJECTED"
+    },
+    {
+      "id": "funding_low_long_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 861,
+      "mean_pct": -0.449,
+      "boot_p": 0.728,
+      "oos_pos": 0,
+      "note": "REJECTED"
+    },
+    {
+      "id": "funding_high_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 861,
+      "mean_pct": 0.045,
+      "boot_p": 0.266,
+      "oos_pos": 3,
+      "note": "REJECTED(수수료마진)"
+    },
+    {
+      "id": "cascade_fade_long_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 85,
+      "mean_pct": 6.043,
+      "boot_p": 0.0,
+      "oos_pos": 1,
+      "note": "REJECTED(OOS집중·재시험1순위)"
+    },
+    {
+      "id": "cascade_fade_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 62,
+      "mean_pct": 0.177,
+      "boot_p": 0.151,
+      "oos_pos": 2,
+      "note": "REJECTED"
+    },
+    {
+      "id": "cascade_fade_long_15m",
+      "tf": "15m",
+      "direction": "long",
+      "n": 96,
+      "mean_pct": 0.083,
+      "boot_p": 0.013,
+      "oos_pos": 2,
+      "note": "REJECTED(수수료마진)"
+    },
+    {
+      "id": "cascade_fade_short_15m",
+      "tf": "15m",
+      "direction": "short",
       "n": 49,
-      "mean": 0.03376,
-      "median": 0.02319
-     }
-    }
-   },
-   "baseline": {
-    "1d": {
-     "null_mean": 0.00373,
-     "excess_mean": 0.00664,
-     "p_mean": 0.144,
-     "significant": false
+      "mean_pct": -0.28,
+      "boot_p": 0.773,
+      "oos_pos": 0,
+      "note": "REJECTED"
     },
-    "1h": {
-     "null_mean": -0.00105,
-     "excess_mean": 0.00664,
-     "p_mean": 0.0,
-     "significant": true
-    }
-   },
-   "reject_reason": "OOS 미통과(과최적화)"
-  },
-  {
-   "id": "liquidity_sweep",
-   "name": "Liquidity Sweep",
-   "category": "SMC",
-   "difficulty": 2,
-   "status": "rejected",
-   "detector_file": "detector_liquidity_sweep.py",
-   "regime": {
-    "4h": {
-     "up": {
-      "n": 27,
-      "mean": -0.00515,
-      "median": -0.02761
-     },
-     "down": {
-      "n": 33,
-      "mean": 0.02424,
-      "median": 0.01957
-     },
-     "side": {
-      "n": 169,
-      "mean": 0.00169,
-      "median": -0.00077
-     },
-     "na": {
-      "n": 1,
-      "mean": 0.17699,
-      "median": 0.17699
-     }
-    }
-   },
-   "baseline": {
-    "4h": {
-     "null_mean": 1e-05,
-     "excess_mean": 0.00488,
-     "p_mean": 0.159,
-     "significant": false
-    }
-   },
-   "reject_reason": "OOS 미통과(과최적화)"
-  },
-  {
-   "id": "fvg",
-   "name": "Fair Value Gap",
-   "category": "SMC",
-   "difficulty": 2,
-   "status": "passed",
-   "detector_file": "detector_fvg.py",
-   "regime": {
-    "1d": {
-     "up": {
-      "n": 166,
-      "mean": 0.02114,
-      "median": 0.06258
-     },
-     "down": {
-      "n": 164,
-      "mean": 0.02196,
-      "median": 0.071
-     },
-     "side": {
-      "n": 154,
-      "mean": 0.01266,
-      "median": 0.01003
-     },
-     "na": {
-      "n": 50,
-      "mean": 0.11839,
-      "median": 0.12953
-     }
-    }
-   },
-   "baseline": {
-    "1d": {
-     "null_mean": 0.00376,
-     "excess_mean": 0.02429,
-     "p_mean": 0.0,
-     "significant": true
-    }
-   },
-   "passed_tf": "1d",
-   "regime_dependent": false,
-   "precision": {
-    "slip": {
-     "mean": 0.02705,
-     "median": 0.05565,
-     "p_mean": 0.0,
-     "ok": true
+    {
+      "id": "time_of_day_best_14utc",
+      "tf": "1h",
+      "direction": "long",
+      "n": 24388,
+      "mean_pct": -0.237,
+      "boot_p": 0.471,
+      "oos_pos": 0,
+      "note": "REJECTED"
     },
-    "walkforward": {
-     "valid": 11,
-     "pos": 6,
-     "pos_frac": 0.545,
-     "ok": false
+    {
+      "id": "vol_shock_long_1h",
+      "tf": "1h",
+      "direction": "long",
+      "n": 13275,
+      "mean_pct": -0.271,
+      "boot_p": 0.508,
+      "oos_pos": 0,
+      "note": "REJECTED"
     },
-    "newsymbols": {
-     "n": 357,
-     "mean": 0.01746,
-     "median": 0.06189,
-     "persym_pos": 4,
-     "ok": true
-    }
-   },
-   "wear": {
-    "cut": "2025-07-01",
-    "base_2025plus_mean": -0.02776,
-    "restored": false,
-    "note": "마모 징후(2025-07+ 음수)"
-   },
-   "precision_note": "강등: 워크포워드 미통과"
-  },
-  {
-   "id": "inverse_hs",
-   "name": "Inverse Head&Shoulders",
-   "category": "패턴",
-   "difficulty": 2,
-   "status": "rejected",
-   "detector_file": "detector_inverse_hs.py",
-   "regime": {
-    "1d": {
-     "up": {
-      "n": 47,
-      "mean": 0.02809,
-      "median": 0.04177
-     },
-     "down": {
-      "n": 68,
-      "mean": 0.00259,
-      "median": -0.01909
-     },
-     "side": {
-      "n": 47,
-      "mean": 0.02333,
-      "median": 0.04912
-     },
-     "na": {
-      "n": 8,
-      "mean": 0.01213,
-      "median": 0.00178
-     }
-    }
-   },
-   "baseline": {
-    "1d": {
-     "null_mean": 0.00369,
-     "excess_mean": 0.01213,
-     "p_mean": 0.104,
-     "significant": false
-    }
-   },
-   "reject_reason": "OOS 미통과(과최적화)"
-  },
-  {
-   "id": "rsi_divergence",
-   "name": "RSI Divergence",
-   "category": "지표",
-   "difficulty": 2,
-   "status": "rejected",
-   "detector_file": "detector_rsi_divergence.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "macd_divergence",
-   "name": "MACD Divergence",
-   "category": "지표",
-   "difficulty": 2,
-   "status": "rejected",
-   "detector_file": "detector_macd_divergence.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "order_block",
-   "name": "Order Block",
-   "category": "SMC",
-   "difficulty": 3,
-   "status": "rejected",
-   "detector_file": "detector_order_block.py",
-   "regime": {
-    "1d": {
-     "up": {
-      "n": 63,
-      "mean": -0.00379,
-      "median": -0.01122
-     },
-     "down": {
-      "n": 36,
-      "mean": -0.00249,
-      "median": -0.00992
-     },
-     "side": {
-      "n": 42,
-      "mean": 0.0046,
-      "median": -0.00487
-     },
-     "na": {
-      "n": 23,
-      "mean": 0.0879,
-      "median": 0.12621
-     }
-    }
-   },
-   "baseline": {
-    "1d": {
-     "null_mean": 0.0037,
-     "excess_mean": 0.0078,
-     "p_mean": 0.204,
-     "significant": false
-    }
-   },
-   "reject_reason": "OOS 미통과(과최적화)"
-  },
-  {
-   "id": "bos_choch",
-   "name": "BOS / CHoCH",
-   "category": "SMC",
-   "difficulty": 3,
-   "status": "rejected",
-   "detector_file": "detector_bos_choch.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "spring_wyckoff",
-   "name": "Wyckoff Spring",
-   "category": "패턴",
-   "difficulty": 3,
-   "status": "rejected",
-   "detector_file": "detector_spring_wyckoff.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "triple_bottom_desc",
-   "name": "Triple Bottom (descending)",
-   "category": "패턴",
-   "difficulty": 2,
-   "status": "rejected",
-   "detector_file": "triple_bottom_volume.py"
-  },
-  {
-   "id": "engulfing_short",
-   "name": "Engulfing (short)",
-   "category": "캔들",
-   "difficulty": 1,
-   "status": "rejected",
-   "detector_file": "detector_engulfing_short.py",
-   "regime": {
-    "1d": {
-     "up": {
-      "n": 29,
-      "mean": 0.00087,
-      "median": 0.04623
-     },
-     "down": {
-      "n": 22,
-      "mean": -0.0213,
-      "median": -0.07864
-     },
-     "side": {
-      "n": 27,
-      "mean": 0.05761,
-      "median": 0.10548
-     },
-     "na": {
-      "n": 9,
-      "mean": -0.01953,
-      "median": -0.11811
-     }
-    }
-   },
-   "baseline": {
-    "1d": {
-     "null_mean": -0.00796,
-     "excess_mean": 0.01872,
-     "p_mean": 0.094,
-     "significant": false
-    }
-   },
-   "reject_reason": "OOS 미통과(과최적화)"
-  },
-  {
-   "id": "fvg_short",
-   "name": "Fair Value Gap (short)",
-   "category": "SMC",
-   "difficulty": 2,
-   "status": "rejected",
-   "detector_file": "detector_fvg_short.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "inverse_hs_short",
-   "name": "H&S Top (short)",
-   "category": "패턴",
-   "difficulty": 2,
-   "status": "rejected",
-   "detector_file": "detector_inverse_hs_short.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "order_block_short",
-   "name": "Order Block (short)",
-   "category": "SMC",
-   "difficulty": 3,
-   "status": "rejected",
-   "detector_file": "detector_order_block_short.py",
-   "reject_reason": "기대값 음수"
-  },
-  {
-   "id": "inverted_hammer",
-   "name": "Inverted Hammer",
-   "category": "캔들",
-   "difficulty": 1,
-   "detector_file": "detector_inverted_hammer.py",
-   "status": "passed",
-   "passed_tf": "1d",
-   "precision": {
-    "slip": {
-     "mean": 0.01682,
-     "median": 0.01166,
-     "p_mean": 0.001,
-     "ok": true
+    {
+      "id": "vol_shock_short_1h",
+      "tf": "1h",
+      "direction": "short",
+      "n": 14368,
+      "mean_pct": -0.174,
+      "boot_p": 0.532,
+      "oos_pos": 0,
+      "note": "REJECTED"
     },
-    "walkforward": {
-     "valid": 11,
-     "pos": 6,
-     "pos_frac": 0.545,
-     "ok": false
-    }
-   },
-   "wear": {
-    "cut": "2025-07-01",
-    "base_2025plus_mean": 0.02932,
-    "restored": false,
-    "note": "마모 없음"
-   },
-   "precision_note": "강등유지: 워크포워드 미통과"
-  },
-  {
-   "id": "marubozu",
-   "name": "Marubozu",
-   "category": "캔들",
-   "difficulty": 1,
-   "detector_file": "detector_marubozu.py",
-   "status": "passed",
-   "passed_tf": "1d",
-   "precision": {
-    "slip": {
-     "mean": 0.03098,
-     "median": 0.01724,
-     "p_mean": 0.028,
-     "ok": true
+    {
+      "id": "vol_shock_long_15m",
+      "tf": "15m",
+      "direction": "long",
+      "n": 9407,
+      "mean_pct": -0.236,
+      "boot_p": 0.596,
+      "oos_pos": 0,
+      "note": "REJECTED"
     },
-    "walkforward": {
-     "valid": 9,
-     "pos": 5,
-     "pos_frac": 0.556,
-     "ok": false
+    {
+      "id": "vol_shock_short_15m",
+      "tf": "15m",
+      "direction": "short",
+      "n": 9711,
+      "mean_pct": -0.237,
+      "boot_p": 0.646,
+      "oos_pos": 0,
+      "note": "REJECTED"
     }
-   },
-   "wear": {
-    "cut": "2025-07-01",
-    "base_2025plus_mean": 0.05855,
-    "restored": false,
-    "note": "마모 없음"
-   },
-   "precision_note": "강등유지: 워크포워드 미통과"
-  },
-  {
-   "id": "gartley",
-   "name": "Gartley Harmonic (Bullish)",
-   "category": "하모닉",
-   "difficulty": 3,
-   "status": "suspended_lookahead",
-   "detector_file": "detector_gartley.py",
-   "ratios": {
-    "ab_xa": "0.618±0.05",
-    "bc_ab": "0.382-0.886",
-    "cd_bc": "1.272-1.618",
-    "ad_xa": "0.786±0.05"
-   },
-   "regime": {
-    "4h": {
-     "up": {
-      "n": 10,
-      "mean": 0.03966,
-      "median": 0.01987
-     },
-     "down": {
-      "n": 7,
-      "mean": 0.04055,
-      "median": 0.04745
-     },
-     "side": {
-      "n": 37,
-      "mean": 0.0193,
-      "median": 0.00545
-     },
-     "na": {
-      "n": 2,
-      "mean": 0.09744,
-      "median": 0.09744
-     }
-    }
-   },
-   "baseline": {
-    "4h": {
-     "null_mean": -0.00183,
-     "excess_mean": 0.03021,
-     "p_mean": 0.008,
-     "significant": true
-    }
-   },
-   "passed_tf": "4h",
-   "regime_dependent": false,
-   "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
-   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
-  },
-  {
-   "id": "bat",
-   "name": "Bat Harmonic (Bullish)",
-   "category": "하모닉",
-   "difficulty": 3,
-   "status": "suspended_lookahead",
-   "detector_file": "detector_bat.py",
-   "ratios": {
-    "ab_xa": "0.382-0.500",
-    "bc_ab": "0.382-0.886",
-    "cd_bc": "1.618-2.618",
-    "ad_xa": "0.886±0.05"
-   },
-   "regime": {
-    "4h": {
-     "up": {
-      "n": 15,
-      "mean": 0.0582,
-      "median": 0.09855
-     },
-     "down": {
-      "n": 12,
-      "mean": 0.04965,
-      "median": 0.05828
-     },
-     "side": {
-      "n": 28,
-      "mean": 0.03311,
-      "median": 0.02528
-     },
-     "na": {
-      "n": 2,
-      "mean": 0.00372,
-      "median": 0.00372
-     }
-    }
-   },
-   "baseline": {
-    "4h": {
-     "null_mean": -0.00184,
-     "excess_mean": 0.04401,
-     "p_mean": 0.0,
-     "significant": true
-    }
-   },
-   "passed_tf": "4h",
-   "regime_dependent": false,
-   "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
-   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
-  },
-  {
-   "id": "butterfly",
-   "name": "Butterfly Harmonic (Bullish)",
-   "category": "하모닉",
-   "difficulty": 3,
-   "status": "suspended_lookahead",
-   "detector_file": "detector_butterfly.py",
-   "ratios": {
-    "ab_xa": "0.786±0.05",
-    "bc_ab": "0.382-0.886",
-    "cd_bc": "1.618-2.618",
-    "ad_xa": "1.272±0.05"
-   },
-   "regime": {
-    "4h": {
-     "up": {
-      "n": 9,
-      "mean": 0.0438,
-      "median": 0.03959
-     },
-     "down": {
-      "n": 11,
-      "mean": 0.03704,
-      "median": 0.02979
-     },
-     "side": {
-      "n": 22,
-      "mean": 0.02194,
-      "median": 0.03385
-     }
-    }
-   },
-   "baseline": {
-    "4h": {
-     "null_mean": -0.00162,
-     "excess_mean": 0.0322,
-     "p_mean": 0.007,
-     "significant": true
-    }
-   },
-   "passed_tf": "4h",
-   "regime_dependent": false,
-   "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
-   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
-  },
-  {
-   "id": "crab",
-   "name": "Crab Harmonic (Bullish)",
-   "category": "하모닉",
-   "difficulty": 3,
-   "status": "holding",
-   "detector_file": "detector_crab.py",
-   "ratios": {
-    "ab_xa": "0.382-0.618",
-    "bc_ab": "0.382-0.886",
-    "cd_bc": "2.618-3.618",
-    "ad_xa": "1.618±0.05"
-   }
-  },
-  {
-   "id": "shark",
-   "name": "Shark Harmonic (Bullish)",
-   "category": "하모닉",
-   "difficulty": 3,
-   "status": "holding",
-   "detector_file": "detector_shark.py",
-   "ratios": {
-    "ab_xa": "0.382-0.618",
-    "bc_ab": "1.130-1.618",
-    "xd_xc": "0.886±0.05"
-   }
-  },
-  {
-   "id": "cypher",
-   "name": "Cypher Harmonic (Bullish)",
-   "category": "하모닉",
-   "difficulty": 3,
-   "status": "holding",
-   "detector_file": "detector_cypher.py",
-   "ratios": {
-    "ab_xa": "0.382-0.618",
-    "bc_ab": "1.272-1.414",
-    "xd_xc": "0.786±0.05"
-   }
-  },
-  {
-   "id": "three_soldiers_4h",
-   "name": "Three White Soldiers (4h)",
-   "category": "momentum_4h",
-   "difficulty": 2,
-   "status": "passed",
-   "detector_file": "detector_three_soldiers_4h.py",
-   "passed_tf": "4h",
-   "n": 908,
-   "mean": 0.0104,
-   "median": 0.0097,
-   "oos_positive": 3,
-   "oos_quarters": 4,
-   "baseline_p": 0.0001,
-   "baseline_excess_mean": 0.0133,
-   "passed_date": "2026-06-29",
-   "regime_routing": "bull_btc/bull_altseason -> long; bear/sideways -> skip",
-   "note": "4h 전용 모멘텀. Q4(2025-26 bear) 음수, 레짐 필터 필수."
-  },
-  {
-   "id": "bat_1h",
-   "name": "Bullish Bat (1h)",
-   "category": "harmonic_1h",
-   "status": "suspended_lookahead",
-   "detector_file": "detector_bat.py",
-   "passed_tf": "1h",
-   "n": 108,
-   "mean": 0.0146,
-   "median": 0.0099,
-   "oos_positive": 4,
-   "oos_quarters": 4,
-   "baseline_p": 0.034,
-   "passed_date": "2026-06-29",
-   "regime_routing": "all regimes -> long (OOS Q4도 +2.33%로 레짐 무관 강건)",
-   "note": "4h Bat과 동일 비율, 1h에서 표본 108, OOS 4/4 완전통과. 레짐 필터 불필요.",
-   "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
-   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
-  },
-  {
-   "id": "butterfly_1h",
-   "name": "Bullish Butterfly (1h)",
-   "category": "harmonic_1h",
-   "status": "suspended_lookahead",
-   "detector_file": "detector_butterfly.py",
-   "passed_tf": "1h",
-   "n": 161,
-   "mean": 0.0159,
-   "median": 0.0117,
-   "oos_positive": 4,
-   "oos_quarters": 4,
-   "baseline_p": 0.024,
-   "passed_date": "2026-06-29",
-   "regime_routing": "all regimes -> long (OOS 4/4 전구간 양수)",
-   "note": "1h Butterfly, OOS 4/4 완전통과. 4h 대비 표본 3배 이상.",
-   "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "detect_harmonic 이 D 피벗 봉을 신호로 기록 → 마지막 봉에서 발화 불가(실거래 진입 0건) + 백테스트 룩어헤드(미래 3봉). 확정 봉(D+PIVOT_WINDOW) 기준으로 수정, validate_confirm_bar.py 재검증 통과 전 등재 정지",
-   "confirm_bar_2026_09_03": "new(인과) REJECTED — validate_confirm_bar.py run 33734141728 (아래 audit 항목 표 참조)"
-  },
-  {
-   "id": "triple_bottom_4h",
-   "name": "Triple Bottom Breakout (4h)",
-   "category": "패턴",
-   "status": "rejected",
-   "detector_file": "detector_triple_bottom.py",
-   "passed_tf": "4h",
-   "n": 269,
-   "mean": 0.01657,
-   "median": 0.01013,
-   "t_p": 0.0009,
-   "baseline_p": 0.035,
-   "oos_positive": 2,
-   "oos_quarters": 4,
-   "passed_date": "2026-08-29",
-   "regime_routing": "all regimes -> long (검증구간 대부분 bear, Q4 bear +5.31%)",
-   "note": "1차(130일, bear 단일 레짐) PASSED였으나 2차 연장(1,100일/3년, n=1875)에서 median -0.30%/boot_p 0.320으로 기각 — 단일 레짐 아티팩트로 판명, 등록 철회(2026-08-29). 사용자 지정 패턴(차트 5장) 데이터화: 스윙저점 3개 + ATR×2.5 깊이 + 넥라인 돌파 + 거래량 1.5배. 15m/1h/1d/1w 및 거울상(triple_top) 전 셀 기각 — 4h 롱만 통과. 1w는 mean +11.1%/boot_p 0.000이나 신호 83%가 단일 분기 집중(OOS 1/4)으로 기각, 데이터 누적 후 재시험 가치. 구 triple_bottom_desc(1d 하강형)와 별개 정의."
-  },
-  {
-   "id": "triple_bottom_1w",
-   "name": "Triple Bottom Breakout (1w)",
-   "category": "패턴",
-   "status": "suspended_lookahead",
-   "detector_file": "detector_triple_bottom.py",
-   "passed_tf": "1w",
-   "n": 141,
-   "mean": 0.07719,
-   "median": 0.10194,
-   "t_p": 0.0028,
-   "baseline_p": 0.023,
-   "oos_positive": 2,
-   "oos_quarters": 4,
-   "passed_date": "2026-08-29",
-   "regime_routing": "all regimes -> long",
-   "note": "2차 연장 검증(1d 5년 리샘플, 주봉 ~260봉/종목)에서 통과. 1차(900일) 기각 사유였던 '단일 분기 집중'은 데이터 부족 탓으로 판명 — 표본 54→141, Q2(2022-12~) 78건 +8.5% / Q3(~2025-05) 55건 +10.1% 두 분위 양수. 신호=주봉 넥라인 돌파, 1d 리샘플로 탐지(detlib).",
-   "note_2026_09_03": "detect 가 L3 미확정 돌파(L3+1·L3+2)를 세고 있었음(룩어헤드). 실거래 신호 집합은 불변(원래 잡히던 것만 잡힘). causal 판으로 재검증해 수치 갱신 예정 — 배포 유지",
-   "status_before_2026_09_03": "passed",
-   "suspended_2026_09_03": "validate_confirm_bar new(인과) REJECTED: n=104 mean +3.07% median -11.36% boot_p 0.164 OOS 2/4 vs old n=142 +7.73% PASSED. 부풀림 +4.65%p — 미확정 돌파 38건이 엣지 전부. 신규 진입 정지, 열린 UNI 포지션은 청산 규칙(D) 그대로(사용자 판단)"
-  },
-  {
-   "id": "cascade_fade_long_1h",
-   "name": "Liquidation Cascade Fade (1h, long)",
-   "category": "intraday",
-   "status": "deployed",
-   "detector_file": "detector_cascade_fade_1h.py",
-   "passed_tf": "1h",
-   "n": 312,
-   "mean": 0.02426,
-   "median": 0.01166,
-   "t_p": 0.0,
-   "baseline_p": 0.0,
-   "oos_positive": 3,
-   "oos_quarters": 4,
-   "passed_date": "2026-08-29",
-   "label_frame": "intraday_lab: ±1.5xATR14 배리어 / 12봉(12h) 보유 / 수수료 0.2%",
-   "entry_rule": "1h봉 하락폭>=2.5xATR14 + 거래량>=20봉평균x3 + 종가가 봉범위 40%+ 회복 → 롱",
-   "robustness": {
-    "top5_share": 0.108,
-    "trimmed_mean_10pct": 0.01874,
-    "sensitivity": "2.0ATR/2.5x/0.3 → n=1278 mean +0.01% (엣지 소멸), 2.5/3.0/0.4(동결) → n=312 +2.43%, 3.0/4.0/0.5 → n=74 +5.04% (단조 — 엄격할수록 강함)"
-   },
-   "note": "1차(365일) n=85 +6.04% OOS 1/4 기각 → 2차 사전등록 재시험에서 무조건부 3년 통과. 고변동성 조건부(H2)는 신호 312건 중 245건이 이미 고변동 국면이라 조건 추가의 실익 없음 — 무조건부로 성립. 최근 분기(Q4) n=27 mean -0.26%는 주의. report_intraday.md",
-   "exit_spec": {
-    "type": "atr_barrier",
-    "tf": "1h",
-    "k_atr": 1.5,
-    "atr_period": 14,
-    "horizon_bars": 12,
-    "fee": 0.002,
-    "source": "intraday_lab.outcome_atr — 검증에 쓴 라벨과 동일 규칙",
-    "execution": "진입 시 OKX OCO 브래킷(손절+익절) 등록 → 스케줄러 지연과 무관하게 배리어 집행. 시간청산(12봉)만 엔진이 담당."
-   },
-   "exit_path_status": "ready (2026-08-30) — paper_executor.eval_I + exchange OCO 브래킷, test_intraday_exit.py",
-   "delay_sensitivity": "1h 이내 진입 필수 (d=0 +2.43% / d=1 +1.88% / d=2 +1.09% 기각). 실측 Actions 지연(중앙 25.1분, 60분내 82%)에서 1h 크론은 d<=1 비율 81% 로 통과, 4h 크론은 12% 로 기각.",
-   "entry_path_status": "ready (2026-09-01) — detector_cascade_fade_1h.py + scheduler exit_spec 연동(ATR 손절 표기). 신호 집합이 validate_cascade 탐지 조건과 완전 일치함을 test_cascade_detector.py 로 고정. **활성화는 universe.json 의 adopted_1h_patterns 에 추가하는 한 줄** — 단 1시간 이내 진입이 보장되기 전에는 추가 금지(검증이 기각한 조건).",
-   "activation_checklist": [
-    "1. [해결] 1시간 이내 진입 — 1h 크론으로 충분함이 실측 재평가로 확인됨 (서버 불필요)",
-    "2. [미해결] 크론 분기 구현 — 매시 실행하되 1d/4h 탐지는 UTC 00/04/08/12/16/20 에만. 기존 배포 패턴의 탐지 시각 집합 불변을 테스트로 고정",
-    "3. [미해결] 사용자 판단 — universe.json adopted_1h_patterns 에 한 줄 추가 (실거래 활성화)",
-    "4. 추가 후 첫 실거래 전 ensure_stop_orders 로 OCO 브래킷 등록 확인",
-    "5. 배포 후 캐스케이드 국면 실제 체결 슬리피지 실측 (내성 한계 왕복 0.4%)"
-   ],
-   "realistic_deploy_check": "cascade_realistic_2026_09 — 1h 크론 PASSED (+1.54%/+0.31%), 마찰 내성 왕복 0.4%",
-   "deployed_date": "2026-09-01",
-   "deploy_basis": "cascade_realistic_2026_09 — 매시 크론 + 실측 Actions 지연 분포에서 mean +1.54% / median +0.31% / boot_p 0.000 / OOS 2/4 PASSED (4h 크론은 median -0.37% REJECTED). 상시 서버 불필요.",
-   "deploy_preconditions": {
-    "hourly_cron": "fast_scheduler.yml cron '7 * * * *' (정시 회피). 메인 daily_scheduler.yml 은 검증된 '0 */4 * * *' 로 복귀(2026-09-02). 매시 정시 크론은 실측 발화율 27%(15틱 중 4)로 기각 — 이 상태에서는 검증 전제(d<=1 비율 81%)가 충족되지 않았다. 오프셋 크론의 발화율은 배포 후 실측해 재확인해야 한다. test_cascade_detector.py 가 크론 형태를 고정한다.",
-    "slow_tf_gating": "워크플로가 --slow/--fast 플래그로 모드를 명시(scheduler._tick_flag). 실행 시각 hour 판정은 큐 지연이 정각을 넘기면(4h 시대 364건 중 27%, 8/05·8/06·8/27 은 6틱 전부) 1d/4h 탐지를 조용히 빠뜨리는 회귀가 있어 폴백으로만 남김. 1d/4h/1w 및 exit_spec 없는 1h(bat/butterfly)는 daily_scheduler(--slow)만, exit_spec 패턴은 fast_scheduler(--fast)만 탐지.",
-    "closed_bar_detection": "scheduler._closed_idx — exit_spec 패턴은 형성 중인 봉이 아니라 **닫힌 봉**에서 탐지. CSV 마지막 행은 거래소가 주는 미완성 봉이고 검증은 닫힌 봉 종가 기준이다.",
-    "fill_anchored_barriers": "paper_executor — 실체결가가 신호봉 종가와 다르면 ±k×ATR 배리어를 **체결가 기준으로 재계산**하고 OCO 를 재등록한다. 검증(outcome_atr)이 배리어를 진입가 기준으로 잡기 때문."
-   },
-   "known_gap": "형성 중인 봉 탐지는 exit_spec 패턴에서만 해소했다. 기존 배포 패턴(1d FOCUS/adopted 1d·4h·1w/하모닉/bat_1h/butterfly_1h)은 여전히 rows[-1](형성 중인 봉)에서 탐지한다 — 종전 동작을 바꾸지 않기 위해 의도적으로 두었다. 별도 과제로 재검토 필요."
-  }
- ],
- "rejected_4h": [
-  {
-   "id": "three_crows_4h",
-   "status": "rejected",
-   "tf": "4h",
-   "direction": "short",
-   "n": 573,
-   "mean": -0.0119,
-   "note": "mean<0 전체(-1.19%). 레짐 조건부 재검증(2026-06-29): bear+alt n=169 mean=-0.20%, bear전용 mean=+0.36% 유의성없음(boot_p=0.436), altseason 더 나쁨(-2.01%). 최종 기각.",
-   "retest_date": "2026-06-29"
-  },
-  {
-   "id": "breakout_retest_4h",
-   "status": "rejected",
-   "tf": "4h",
-   "direction": "long",
-   "n": 25729,
-   "mean": 0.0037,
-   "note": "median<0 (-0.23%), 중앙값 게이트 탈락"
-  },
-  {
-   "id": "equal_highs_4h",
-   "status": "rejected",
-   "tf": "4h",
-   "direction": "short",
-   "n": 6962,
-   "mean": -0.0026,
-   "note": "mean<0"
-  },
-  {
-   "id": "equal_lows_4h",
-   "status": "rejected",
-   "tf": "4h",
-   "direction": "long",
-   "n": 6618,
-   "mean": -0.0048,
-   "note": "mean<0"
-  },
-  {
-   "id": "vwap_rev_long_4h",
-   "status": "rejected",
-   "tf": "4h",
-   "direction": "long",
-   "n": 31005,
-   "mean": -0.0025,
-   "note": "mean<0"
-  },
-  {
-   "id": "vwap_rev_short_4h",
-   "status": "rejected",
-   "tf": "4h",
-   "direction": "short",
-   "n": 28537,
-   "mean": -0.0006,
-   "note": "mean<0"
-  }
- ],
- "rejected_1h": [
-  {
-   "id": "three_soldiers_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 2107,
-   "mean": 0.28,
-   "note": "boot_p=0.270 유의성없음"
-  },
-  {
-   "id": "three_crows_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 1623,
-   "mean": 0.38,
-   "note": "median<0, boot_p=0.247"
-  },
-  {
-   "id": "engulfing_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 16791,
-   "mean": -0.23,
-   "note": "mean<0, OOS 0/4"
-  },
-  {
-   "id": "inverted_hammer_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 34061,
-   "mean": -0.08,
-   "note": "mean<0, OOS 0/4"
-  },
-  {
-   "id": "fvg_long_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 56977,
-   "mean": 0.06,
-   "note": "median<0, boot_p=0.372"
-  },
-  {
-   "id": "fvg_short_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 56977,
-   "mean": -0.46,
-   "note": "mean<0, OOS 0/4"
-  },
-  {
-   "id": "gartley_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 290,
-   "mean": 0.91,
-   "note": "boot_p=0.092 유의성 경계"
-  },
-  {
-   "id": "vwap_rev_long_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 41793,
-   "mean": -0.09,
-   "note": "mean<0, OOS 1/4"
-  },
-  {
-   "id": "vwap_rev_short_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 38984,
-   "mean": -0.19,
-   "note": "mean<0, OOS 1/4"
-  },
-  {
-   "id": "breakout_retest_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 51316,
-   "mean": -0.05,
-   "note": "median<0, boot_p=0.434"
-  },
-  {
-   "id": "bb_zscore_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 14699,
-   "mean": -0.16,
-   "note": "mean<=0, median<=0, boot_p=0.460, OOS 0/4<2"
-  },
-  {
-   "id": "bb_zscore_short_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 10217,
-   "mean": -0.05,
-   "note": "mean<=0, median<=0, boot_p=0.424"
-  },
-  {
-   "id": "rsi_extreme_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 4281,
-   "mean": -0.25,
-   "note": "mean<=0, median<=0, boot_p=0.518"
-  },
-  {
-   "id": "rsi_extreme_short_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 3316,
-   "mean": -0.38,
-   "note": "mean<=0, boot_p=0.602, OOS 0/4<2"
-  }
- ],
- "rejected_intraday_2026_08": [
-  {
-   "id": "cs_reversal_1h_long",
-   "tf": "1h",
-   "direction": "long",
-   "n": 52404,
-   "mean_pct": -0.279,
-   "boot_p": 0.52,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "cs_reversal_1h_short",
-   "tf": "1h",
-   "direction": "short",
-   "n": 52404,
-   "mean_pct": -0.083,
-   "boot_p": 0.426,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "cs_reversal_15m_long",
-   "tf": "15m",
-   "direction": "long",
-   "n": 34379,
-   "mean_pct": -0.198,
-   "boot_p": 0.463,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "cs_reversal_15m_short",
-   "tf": "15m",
-   "direction": "short",
-   "n": 34379,
-   "mean_pct": -0.176,
-   "boot_p": 0.438,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "funding_low_long_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 861,
-   "mean_pct": -0.449,
-   "boot_p": 0.728,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "funding_high_short_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 861,
-   "mean_pct": 0.045,
-   "boot_p": 0.266,
-   "oos_pos": 3,
-   "note": "REJECTED(수수료마진)"
-  },
-  {
-   "id": "cascade_fade_long_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 85,
-   "mean_pct": 6.043,
-   "boot_p": 0.0,
-   "oos_pos": 1,
-   "note": "REJECTED(OOS집중·재시험1순위)"
-  },
-  {
-   "id": "cascade_fade_short_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 62,
-   "mean_pct": 0.177,
-   "boot_p": 0.151,
-   "oos_pos": 2,
-   "note": "REJECTED"
-  },
-  {
-   "id": "cascade_fade_long_15m",
-   "tf": "15m",
-   "direction": "long",
-   "n": 96,
-   "mean_pct": 0.083,
-   "boot_p": 0.013,
-   "oos_pos": 2,
-   "note": "REJECTED(수수료마진)"
-  },
-  {
-   "id": "cascade_fade_short_15m",
-   "tf": "15m",
-   "direction": "short",
-   "n": 49,
-   "mean_pct": -0.28,
-   "boot_p": 0.773,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "time_of_day_best_14utc",
-   "tf": "1h",
-   "direction": "long",
-   "n": 24388,
-   "mean_pct": -0.237,
-   "boot_p": 0.471,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "vol_shock_long_1h",
-   "tf": "1h",
-   "direction": "long",
-   "n": 13275,
-   "mean_pct": -0.271,
-   "boot_p": 0.508,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "vol_shock_short_1h",
-   "tf": "1h",
-   "direction": "short",
-   "n": 14368,
-   "mean_pct": -0.174,
-   "boot_p": 0.532,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "vol_shock_long_15m",
-   "tf": "15m",
-   "direction": "long",
-   "n": 9407,
-   "mean_pct": -0.236,
-   "boot_p": 0.596,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  },
-  {
-   "id": "vol_shock_short_15m",
-   "tf": "15m",
-   "direction": "short",
-   "n": 9711,
-   "mean_pct": -0.237,
-   "boot_p": 0.646,
-   "oos_pos": 0,
-   "note": "REJECTED"
-  }
- ],
- "rejected_intraday_note": "2026-08-29 ≤1h 단타 5축(횡단면반전/펀딩극단/청산캐스케이드/시간대/거래량쇼크) 15셀 전수 기각. ATR 배리어 라벨 + 수수료마진 게이트(intraday_lab.py) 적용. 베이스라인(무작위 롱 진입) 자체가 -0.25%라 대부분 셀이 무작위와 구분 불가. 유일 실마리: cascade_fade_long_1h (mean +6.04%, boot_p 0.000이나 85건 중 56건이 Q1 집중 → 고변동성 국면 조건부로 추정, 데이터 연장 후 재시험 1순위). report_intraday.md",
- "rejected_exit_tp_2026_09": {
-  "study": "고정 익절 arm — 방식D vs 방식T(k), k=10/15/20/25/30%",
-  "date": "2026-09-01",
-  "script": "method_t.py",
-  "report": "report_take_profit.md",
-  "data": "1d 1800일 x 7종목(BNB는 900봉 폴백), 패턴 7종 x arm 6개 = 35셀",
-  "method": "같은 신호에 두 규칙을 동시 적용하는 짝지음(paired) 비교 + 실사이징 자산곡선(CAGR/MDD/Calmar)",
-  "verdict": "REJECTED — 5수준 전부",
-  "key_evidence": "최대표본 fvg(n=446)에서 전 수준 t=-3.4~-4.2 로 강하게 유의한 열세. 회전율이 2배 빨라졌는데도(10.5봉→5.3봉) CAGR 27.0%→10.0%. 복리 이득이 잘라낸 큰 승자를 보상하지 못함.",
-  "summary": {
-   "T10": "짝지음우위 1/7, CAGR우위 1/7, t>2 0/7",
-   "T15": "짝지음우위 1/7, CAGR우위 1/7, t>2 0/7",
-   "T20": "짝지음우위 1/7, CAGR우위 0/7, t>2 0/7",
-   "T25": "짝지음우위 2/7, CAGR우위 3/7, t>2 1/7 — 최선이나 5/7 패턴에서 열세",
-   "T30": "짝지음우위 2/7, CAGR우위 1/7, t>2 1/7"
-  },
-  "mechanism": "익절은 승률·중앙값을 올리지만 평균을 낮춘다(engulfing 승률 44%→56%, 중앙 -5.30%→+9.80%, 평균 +4.64%→+2.16%). 분포 오른쪽 꼬리를 잘라내면 기대값이 죽는 전형적 구조.",
-  "retest_candidates": [
-   "fvg_short 한정 T25/T30 — n=372, 짝지음 +0.59%/+0.71%, t=2.12/2.79. 유일한 유의 우위지만 다중검정(35셀) 미보정이라 Bonferroni 문턱 t≈3.2 미달. 독립 재시험 필요.",
-   "inverted_hammer 한정 T10 — Calmar 0.10→0.46(CAGR 4.3%→11.2%, MDD -41.7%→-24.4%)이나 짝지음 t=0.17 로 건당 차이는 없음. 단조성도 없어 잡음 가능성. 기존 '방식G inverted_hammer 한정 2/3 우위'와 같은 방향이라 함께 볼 것."
   ],
-  "note": "익절 규칙은 E·F·G·H 에 이어 다섯 번째 기각. 다섯 번 모두 같은 결론이라는 것 자체가 정보 — 이 패턴군의 수익은 소수의 큰 승자에서 나오고, 가격 기준으로 미리 자르는 규칙은 형태를 막론하고 기대값을 깎는다. 실거래 청산 규칙 변경 없음(방식D 유지)."
- },
- "cascade_delay_2026_09": {
-  "study": "cascade_fade_long_1h 진입 지연 민감도 (배포 선결조건)",
-  "date": "2026-09-01",
-  "script": "validate_cascade_delay.py",
-  "report": "report_followup_2026_09.md",
-  "verdict": "DELAY_SENSITIVE — 엣지는 실재하나 1시간 내 진입에서만 게이트 통과",
-  "consistency": "d=0 이 1차 검증(n=312, +2.43%)을 정확히 재현 — 비교 정합성 확인",
-  "fixed_delay": {
-   "d0_즉시": "n=312 mean +2.43% boot_p 0.000 OOS 3/4 → PASSED (기준 100%)",
-   "d1_1h": "mean +1.88% boot_p 0.000 → PASSED (77%)",
-   "d2_2h": "mean +1.09% → REJECTED (45%)",
-   "d3_3h": "mean +0.07% boot_p 0.179 수수료마진 미달 → REJECTED (3%)",
-   "d4_4h": "mean +0.57% boot_p 0.008 → REJECTED (24%)",
-   "d6_6h": "mean +0.23% boot_p 0.086 → REJECTED (9%)",
-   "d12_12h": "mean -1.53% boot_p 1.000 OOS 0/4 → REJECTED (-63%, 부호 역전)"
+  "rejected_intraday_note": "2026-08-29 ≤1h 단타 5축(횡단면반전/펀딩극단/청산캐스케이드/시간대/거래량쇼크) 15셀 전수 기각. ATR 배리어 라벨 + 수수료마진 게이트(intraday_lab.py) 적용. 베이스라인(무작위 롱 진입) 자체가 -0.25%라 대부분 셀이 무작위와 구분 불가. 유일 실마리: cascade_fade_long_1h (mean +6.04%, boot_p 0.000이나 85건 중 56건이 Q1 집중 → 고변동성 국면 조건부로 추정, 데이터 연장 후 재시험 1순위). report_intraday.md",
+  "rejected_exit_tp_2026_09": {
+    "study": "고정 익절 arm — 방식D vs 방식T(k), k=10/15/20/25/30%",
+    "date": "2026-09-01",
+    "script": "method_t.py",
+    "report": "report_take_profit.md",
+    "data": "1d 1800일 x 7종목(BNB는 900봉 폴백), 패턴 7종 x arm 6개 = 35셀",
+    "method": "같은 신호에 두 규칙을 동시 적용하는 짝지음(paired) 비교 + 실사이징 자산곡선(CAGR/MDD/Calmar)",
+    "verdict": "REJECTED — 5수준 전부",
+    "key_evidence": "최대표본 fvg(n=446)에서 전 수준 t=-3.4~-4.2 로 강하게 유의한 열세. 회전율이 2배 빨라졌는데도(10.5봉→5.3봉) CAGR 27.0%→10.0%. 복리 이득이 잘라낸 큰 승자를 보상하지 못함.",
+    "summary": {
+      "T10": "짝지음우위 1/7, CAGR우위 1/7, t>2 0/7",
+      "T15": "짝지음우위 1/7, CAGR우위 1/7, t>2 0/7",
+      "T20": "짝지음우위 1/7, CAGR우위 0/7, t>2 0/7",
+      "T25": "짝지음우위 2/7, CAGR우위 3/7, t>2 1/7 — 최선이나 5/7 패턴에서 열세",
+      "T30": "짝지음우위 2/7, CAGR우위 1/7, t>2 1/7"
+    },
+    "mechanism": "익절은 승률·중앙값을 올리지만 평균을 낮춘다(engulfing 승률 44%→56%, 중앙 -5.30%→+9.80%, 평균 +4.64%→+2.16%). 분포 오른쪽 꼬리를 잘라내면 기대값이 죽는 전형적 구조.",
+    "retest_candidates": [
+      "fvg_short 한정 T25/T30 — n=372, 짝지음 +0.59%/+0.71%, t=2.12/2.79. 유일한 유의 우위지만 다중검정(35셀) 미보정이라 Bonferroni 문턱 t≈3.2 미달. 독립 재시험 필요.",
+      "inverted_hammer 한정 T10 — Calmar 0.10→0.46(CAGR 4.3%→11.2%, MDD -41.7%→-24.4%)이나 짝지음 t=0.17 로 건당 차이는 없음. 단조성도 없어 잡음 가능성. 기존 '방식G inverted_hammer 한정 2/3 우위'와 같은 방향이라 함께 볼 것."
+    ],
+    "note": "익절 규칙은 E·F·G·H 에 이어 다섯 번째 기각. 다섯 번 모두 같은 결론이라는 것 자체가 정보 — 이 패턴군의 수익은 소수의 큰 승자에서 나오고, 가격 기준으로 미리 자르는 규칙은 형태를 막론하고 기대값을 깎는다. 실거래 청산 규칙 변경 없음(방식D 유지)."
   },
-  "real_env": "Actions 4h cron + 큐지연 10/30/60/90분 → 평균 지연 2.6~3.6h. 전부 REJECTED. mean +0.59~0.78% 로 boot_p 는 0.001~0.007(여전히 유의)이나 **중앙값이 -0.24~-0.37% 로 음수**라 동결 게이트 미달 — 지연되면 소수 대박 의존 형태로 변질된다(1차의 '상위5거래 기여 10.8%' 건전 분포가 무너짐).",
-  "decay": "엣지가 시간당 약 25% 감쇠, 2시간이면 게이트 아래. 전반 감쇠 추세는 분명하나 완전 단조는 아님(+3h가 +4h보다 나쁨) — n=312 규모의 잡음 폭으로 본다.",
-  "implication": "배포 조건이 '상시 서버'에서 '1시간 이내 진입이 보장되는 상시 서버'로 구체화됐다. 다만 d=1 자체가 이미 23% 감쇠값이라 여유가 크지 않다. 이제 기술 문제가 아니라 투자 판단."
- },
- "rejected_ih_exit_2026_09": {
-  "study": "inverted_hammer 한정 청산 규칙(G/T10) 재시험 — 선택 편향 통제",
-  "date": "2026-09-01",
-  "script": "validate_ih_exit.py",
-  "report": "report_followup_2026_09.md",
-  "motivation": "서로 다른 두 규칙(방식G 2026-07-06, 방식T10 2026-09-01)이 IH 에서만 방식D를 이겨 우연치고는 반복적으로 보였다. 사후 선택된 셀이라 같은 데이터 재확인은 증거가 못 되므로 '특별하다'를 반증하려 시도했다.",
-  "verdict": "NOISE — T10 1/3, G 0/3. 추격 중단",
-  "n": 125,
-  "falsification": {
-   "1_시간분할": "T10 전반 -0.33%/후반 +0.72%, G 전반 +2.39%/후반 -1.00% — 둘 다 한쪽에서 부호 역전(재현 실패)",
-   "2_부트스트랩CI": "T10 [-2.19%,+2.34%] P(d<=0)=0.425, G [-1.99%,+4.03%] P=0.344 — 둘 다 0을 넉넉히 포함, 방향조차 불확실",
-   "3_대조군": "T10 IH 1/7위지만 +0.2%로 2위(-0.2%)와 사실상 동률. G 는 triple_bottom(+18.3%)이 IH(+0.7%)를 압도해 IH 는 2위 — 극단값 아님"
+  "cascade_delay_2026_09": {
+    "study": "cascade_fade_long_1h 진입 지연 민감도 (배포 선결조건)",
+    "date": "2026-09-01",
+    "script": "validate_cascade_delay.py",
+    "report": "report_followup_2026_09.md",
+    "verdict": "DELAY_SENSITIVE — 엣지는 실재하나 1시간 내 진입에서만 게이트 통과",
+    "consistency": "d=0 이 1차 검증(n=312, +2.43%)을 정확히 재현 — 비교 정합성 확인",
+    "fixed_delay": {
+      "d0_즉시": "n=312 mean +2.43% boot_p 0.000 OOS 3/4 → PASSED (기준 100%)",
+      "d1_1h": "mean +1.88% boot_p 0.000 → PASSED (77%)",
+      "d2_2h": "mean +1.09% → REJECTED (45%)",
+      "d3_3h": "mean +0.07% boot_p 0.179 수수료마진 미달 → REJECTED (3%)",
+      "d4_4h": "mean +0.57% boot_p 0.008 → REJECTED (24%)",
+      "d6_6h": "mean +0.23% boot_p 0.086 → REJECTED (9%)",
+      "d12_12h": "mean -1.53% boot_p 1.000 OOS 0/4 → REJECTED (-63%, 부호 역전)"
+    },
+    "real_env": "Actions 4h cron + 큐지연 10/30/60/90분 → 평균 지연 2.6~3.6h. 전부 REJECTED. mean +0.59~0.78% 로 boot_p 는 0.001~0.007(여전히 유의)이나 **중앙값이 -0.24~-0.37% 로 음수**라 동결 게이트 미달 — 지연되면 소수 대박 의존 형태로 변질된다(1차의 '상위5거래 기여 10.8%' 건전 분포가 무너짐).",
+    "decay": "엣지가 시간당 약 25% 감쇠, 2시간이면 게이트 아래. 전반 감쇠 추세는 분명하나 완전 단조는 아님(+3h가 +4h보다 나쁨) — n=312 규모의 잡음 폭으로 본다.",
+    "implication": "배포 조건이 '상시 서버'에서 '1시간 이내 진입이 보장되는 상시 서버'로 구체화됐다. 다만 d=1 자체가 이미 23% 감쇠값이라 여유가 크지 않다. 이제 기술 문제가 아니라 투자 판단."
   },
-  "note": "짝지음으로 재면 IH 우위가 +0.20~0.68%p 에 불과하다. 2026-07-06 기록의 'G +8.32% vs D +4.04%'는 현재 데이터·프레임에서 재현되지 않는다(데이터 창이 다르고 당시엔 짝지음 비교가 아니었다). '두 규칙이 같은 패턴에서 신호를 냈다'는 관찰 자체가 착시. 실거래 변경 없음."
- },
- "cascade_realistic_2026_09": {
-  "study": "캐스케이드 배포 가능성 — 실측 Actions 지연 분포 + 마찰 민감도",
-  "date": "2026-09-01",
-  "script": "validate_cascade_realistic.py",
-  "report": "report_cascade_deployment.md",
-  "verdict": "1시간 크론으로 게이트 통과 — 상시 서버 불필요",
-  "motivation": "1차 지연 시험(cascade_delay_2026_09)은 지연을 고정값으로 넣었다. 실제 Actions 큐 지연은 꼬리가 두꺼운 분포라 평균을 전 신호에 씌우는 것과 혼합을 씌우는 것이 다른 실험이다.",
-  "measured_delay_min": {
-   "n": 100,
-   "source": "daily_scheduler.yml event=schedule 실행 100건, 2026-09-01 실측",
-   "median": 25.1,
-   "mean": 40.7,
-   "p75": 37.5,
-   "p90": 91.5,
-   "p95": 188.3,
-   "max": 231.5,
-   "within_60min": 0.82,
-   "correction": "2026-09-01 세션 중 median 16.0 / p90 172.9 로 잘못 보고했던 값을 실행 로그에서 재계산해 정정. 결론은 불변이나 꼬리가 보고했던 것보다 얇다."
+  "rejected_ih_exit_2026_09": {
+    "study": "inverted_hammer 한정 청산 규칙(G/T10) 재시험 — 선택 편향 통제",
+    "date": "2026-09-01",
+    "script": "validate_ih_exit.py",
+    "report": "report_followup_2026_09.md",
+    "motivation": "서로 다른 두 규칙(방식G 2026-07-06, 방식T10 2026-09-01)이 IH 에서만 방식D를 이겨 우연치고는 반복적으로 보였다. 사후 선택된 셀이라 같은 데이터 재확인은 증거가 못 되므로 '특별하다'를 반증하려 시도했다.",
+    "verdict": "NOISE — T10 1/3, G 0/3. 추격 중단",
+    "n": 125,
+    "falsification": {
+      "1_시간분할": "T10 전반 -0.33%/후반 +0.72%, G 전반 +2.39%/후반 -1.00% — 둘 다 한쪽에서 부호 역전(재현 실패)",
+      "2_부트스트랩CI": "T10 [-2.19%,+2.34%] P(d<=0)=0.425, G [-1.99%,+4.03%] P=0.344 — 둘 다 0을 넉넉히 포함, 방향조차 불확실",
+      "3_대조군": "T10 IH 1/7위지만 +0.2%로 2위(-0.2%)와 사실상 동률. G 는 triple_bottom(+18.3%)이 IH(+0.7%)를 압도해 IH 는 2위 — 극단값 아님"
+    },
+    "note": "짝지음으로 재면 IH 우위가 +0.20~0.68%p 에 불과하다. 2026-07-06 기록의 'G +8.32% vs D +4.04%'는 현재 데이터·프레임에서 재현되지 않는다(데이터 창이 다르고 당시엔 짝지음 비교가 아니었다). '두 규칙이 같은 패턴에서 신호를 냈다'는 관찰 자체가 착시. 실거래 변경 없음."
   },
-  "results_A_cron": {
-   "ideal_d0": {
-    "n": 312,
-    "mean": 0.02426,
-    "median": 0.01166,
-    "boot_p": 0.0,
-    "oos": 3,
-    "avg_delay_bars": 0.0,
-    "d_le_1": 1.0,
-    "verdict": "PASSED",
-    "note": "1차 검증 조건 = 서버의 상한"
-   },
-   "ideal_d1": {
-    "n": 312,
-    "mean": 0.01881,
-    "median": 0.00458,
-    "boot_p": 0.0,
-    "oos": 2,
-    "avg_delay_bars": 1.0,
-    "d_le_1": 1.0,
-    "verdict": "PASSED",
-    "note": "60분 내 모든 지연의 하한"
-   },
-   "grid_4h_measured": {
-    "n": 312,
-    "mean": 0.00576,
-    "median": -0.00366,
-    "boot_p": 0.005,
-    "oos": 3,
-    "avg_delay_bars": 2.91,
-    "d_le_1": 0.12,
-    "verdict": "REJECTED",
-    "note": "현행 — 중앙값 음수"
-   },
-   "grid_1h_measured": {
-    "n": 312,
-    "mean": 0.01536,
-    "median": 0.00307,
-    "boot_p": 0.0,
-    "oos": 2,
-    "avg_delay_bars": 1.34,
-    "d_le_1": 0.81,
-    "verdict": "PASSED",
-    "note": "제안 — 결정적 차이는 d<=1 비율 12%->81%"
-   },
-   "grid_1h_server": {
-    "n": 312,
-    "mean": 0.01881,
-    "median": 0.00458,
-    "boot_p": 0.0,
-    "oos": 2,
-    "avg_delay_bars": 1.0,
-    "d_le_1": 1.0,
-    "verdict": "PASSED",
-    "note": "ideal_d1 과 수치 동일 — 프레임이 1h 미만을 분해 못함"
-   }
+  "cascade_realistic_2026_09": {
+    "study": "캐스케이드 배포 가능성 — 실측 Actions 지연 분포 + 마찰 민감도",
+    "date": "2026-09-01",
+    "script": "validate_cascade_realistic.py",
+    "report": "report_cascade_deployment.md",
+    "verdict": "1시간 크론으로 게이트 통과 — 상시 서버 불필요",
+    "motivation": "1차 지연 시험(cascade_delay_2026_09)은 지연을 고정값으로 넣었다. 실제 Actions 큐 지연은 꼬리가 두꺼운 분포라 평균을 전 신호에 씌우는 것과 혼합을 씌우는 것이 다른 실험이다.",
+    "measured_delay_min": {
+      "n": 100,
+      "source": "daily_scheduler.yml event=schedule 실행 100건, 2026-09-01 실측",
+      "median": 25.1,
+      "mean": 40.7,
+      "p75": 37.5,
+      "p90": 91.5,
+      "p95": 188.3,
+      "max": 231.5,
+      "within_60min": 0.82,
+      "correction": "2026-09-01 세션 중 median 16.0 / p90 172.9 로 잘못 보고했던 값을 실행 로그에서 재계산해 정정. 결론은 불변이나 꼬리가 보고했던 것보다 얇다."
+    },
+    "results_A_cron": {
+      "ideal_d0": {
+        "n": 312,
+        "mean": 0.02426,
+        "median": 0.01166,
+        "boot_p": 0.0,
+        "oos": 3,
+        "avg_delay_bars": 0.0,
+        "d_le_1": 1.0,
+        "verdict": "PASSED",
+        "note": "1차 검증 조건 = 서버의 상한"
+      },
+      "ideal_d1": {
+        "n": 312,
+        "mean": 0.01881,
+        "median": 0.00458,
+        "boot_p": 0.0,
+        "oos": 2,
+        "avg_delay_bars": 1.0,
+        "d_le_1": 1.0,
+        "verdict": "PASSED",
+        "note": "60분 내 모든 지연의 하한"
+      },
+      "grid_4h_measured": {
+        "n": 312,
+        "mean": 0.00576,
+        "median": -0.00366,
+        "boot_p": 0.005,
+        "oos": 3,
+        "avg_delay_bars": 2.91,
+        "d_le_1": 0.12,
+        "verdict": "REJECTED",
+        "note": "현행 — 중앙값 음수"
+      },
+      "grid_1h_measured": {
+        "n": 312,
+        "mean": 0.01536,
+        "median": 0.00307,
+        "boot_p": 0.0,
+        "oos": 2,
+        "avg_delay_bars": 1.34,
+        "d_le_1": 0.81,
+        "verdict": "PASSED",
+        "note": "제안 — 결정적 차이는 d<=1 비율 12%->81%"
+      },
+      "grid_1h_server": {
+        "n": 312,
+        "mean": 0.01881,
+        "median": 0.00458,
+        "boot_p": 0.0,
+        "oos": 2,
+        "avg_delay_bars": 1.0,
+        "d_le_1": 1.0,
+        "verdict": "PASSED",
+        "note": "ideal_d1 과 수치 동일 — 프레임이 1h 미만을 분해 못함"
+      }
+    },
+    "frame_resolution_caveat": "동결 라벨은 1h 봉보다 잘게 볼 수 없어 지연 1분과 59분이 똑같이 d=1 이다. 따라서 이 시험은 '한 시간 안쪽에서 서버가 얼마나 빠른가'를 측정하지 못한다. 측정 가능한 서버 기여분은 꼬리 제거분(+1.54%->+1.88%, 건당 +0.34%p)뿐이며, 상한(d=0)까지 보면 서버 가치는 건당 +0.34~+0.89%p 구간. 다만 크론만으로 게이트를 넘으므로 배포에 서버는 불필요.",
+    "results_B_friction": {
+      "gate_note": "lab.evaluate 의 fee_ok 는 동결 FEE(0.2%) 고정 잣대라, 스윕 arm 은 '그 수수료를 내고도 남는가'로 verdict_at_fee 를 따로 계산",
+      "0.002": {
+        "d0_mean": 0.0243,
+        "d0_median": 0.0117,
+        "d0": "PASSED",
+        "h1_mean": 0.0154,
+        "h1_median": 0.0031,
+        "h1": "PASSED"
+      },
+      "0.003": {
+        "d0_mean": 0.0233,
+        "d0_median": 0.0107,
+        "d0": "PASSED",
+        "h1_mean": 0.0144,
+        "h1_median": 0.0021,
+        "h1": "PASSED"
+      },
+      "0.004": {
+        "d0_mean": 0.0223,
+        "d0_median": 0.0097,
+        "d0": "PASSED",
+        "h1_mean": 0.0134,
+        "h1_median": 0.0011,
+        "h1": "PASSED"
+      },
+      "0.006": {
+        "d0_mean": 0.0203,
+        "d0_median": 0.0077,
+        "d0": "PASSED",
+        "h1_mean": 0.0114,
+        "h1_median": -0.0009,
+        "h1": "REJECTED"
+      },
+      "0.008": {
+        "d0_mean": 0.0183,
+        "d0_median": 0.0057,
+        "d0": "PASSED",
+        "h1_mean": 0.0094,
+        "h1_median": -0.0029,
+        "h1": "REJECTED"
+      },
+      "max_survivable_fee": 0.004,
+      "mechanism": "무너지는 것은 항상 중앙값. 평균은 0.8%에서도 +0.94% 양수 — 마찰이 커지면 소수 대박 의존 형태로 변질되고 게이트가 이를 잡는다."
+    },
+    "residual_risks": [
+      "중앙값 +0.31% — 문턱에서 0.31%p 위, d=0(+1.17%) 대비 27% 수준",
+      "OOS 2/4 — 통과 최소 기준에 정확히 걸침 (d=0 은 3/4)",
+      "마찰 여유 0.4%까지이나 캐스케이드 국면 실제 슬리피지는 미측정",
+      "1차 검증과 같은 데이터라 Q4 약세(n=27 mean -0.26%)를 공유",
+      "지연 분포는 과거 100건 — Actions 큐가 앞으로도 같다는 보장 없음"
+    ],
+    "blocker_cron_split": "크론을 '0 * * * *' 로 바꾸는 것만으로는 안 된다. scheduler.py 는 rows[last](형성 중인 봉)에서 탐지하고 중복 방어 키가 날짜 단위라, 시간당 실행은 1d/4h 배포 패턴의 탐지 기회를 6->24회로 늘려 '하루 1회 진입'이 더 이른 시각·덜 형성된 봉에서 잡히게 만든다. 이미 배포된 engulfing/fvg/inverted_hammer/marubozu/하모닉4h/bat_1h/butterfly_1h 의 진입 신호 분포가 검증 당시와 달라진다. 권장 방안(A): 크론은 매시로 바꾸되 scheduler 가 UTC 00/04/08/12/16/20 이 아니면 1d/4h 탐지 블록을 스킵 — 기존 탐지 시각 집합이 그대로임을 테스트로 고정. 청산·ensure_stop_orders 는 매시 돌아 오히려 개선."
   },
-  "frame_resolution_caveat": "동결 라벨은 1h 봉보다 잘게 볼 수 없어 지연 1분과 59분이 똑같이 d=1 이다. 따라서 이 시험은 '한 시간 안쪽에서 서버가 얼마나 빠른가'를 측정하지 못한다. 측정 가능한 서버 기여분은 꼬리 제거분(+1.54%->+1.88%, 건당 +0.34%p)뿐이며, 상한(d=0)까지 보면 서버 가치는 건당 +0.34~+0.89%p 구간. 다만 크론만으로 게이트를 넘으므로 배포에 서버는 불필요.",
-  "results_B_friction": {
-   "gate_note": "lab.evaluate 의 fee_ok 는 동결 FEE(0.2%) 고정 잣대라, 스윕 arm 은 '그 수수료를 내고도 남는가'로 verdict_at_fee 를 따로 계산",
-   "0.002": {
-    "d0_mean": 0.0243,
-    "d0_median": 0.0117,
-    "d0": "PASSED",
-    "h1_mean": 0.0154,
-    "h1_median": 0.0031,
-    "h1": "PASSED"
-   },
-   "0.003": {
-    "d0_mean": 0.0233,
-    "d0_median": 0.0107,
-    "d0": "PASSED",
-    "h1_mean": 0.0144,
-    "h1_median": 0.0021,
-    "h1": "PASSED"
-   },
-   "0.004": {
-    "d0_mean": 0.0223,
-    "d0_median": 0.0097,
-    "d0": "PASSED",
-    "h1_mean": 0.0134,
-    "h1_median": 0.0011,
-    "h1": "PASSED"
-   },
-   "0.006": {
-    "d0_mean": 0.0203,
-    "d0_median": 0.0077,
-    "d0": "PASSED",
-    "h1_mean": 0.0114,
-    "h1_median": -0.0009,
-    "h1": "REJECTED"
-   },
-   "0.008": {
-    "d0_mean": 0.0183,
-    "d0_median": 0.0057,
-    "d0": "PASSED",
-    "h1_mean": 0.0094,
-    "h1_median": -0.0029,
-    "h1": "REJECTED"
-   },
-   "max_survivable_fee": 0.004,
-   "mechanism": "무너지는 것은 항상 중앙값. 평균은 0.8%에서도 +0.94% 양수 — 마찰이 커지면 소수 대박 의존 형태로 변질되고 게이트가 이를 잡는다."
+  "scheduler_reliability_2026_09": {
+    "date": "2026-09-02",
+    "source": "daily_scheduler.yml schedule 실행 428건 전수 (6/25~9/02)",
+    "fire_rate": {
+      "hourly_0629_0702": {
+        "expected": 67,
+        "ran": 54,
+        "fire": 0.81,
+        "delay_med_min": 31,
+        "delay_p90_min": 50
+      },
+      "4h_0702_0901": {
+        "expected": 367,
+        "ran": 364,
+        "fire": 0.99,
+        "delay_med_min": 36,
+        "delay_p90_min": 81,
+        "missed": [
+          "08-06 20:00",
+          "08-28 12:00",
+          "09-01 04:00"
+        ]
+      },
+      "hourly_0901_0902": {
+        "expected": 15,
+        "ran": 4,
+        "fire": 0.27,
+        "delay_med_min": 27,
+        "delay_p90_min": 53,
+        "ran_at": [
+          "09-01 15:24",
+          "09-01 19:16",
+          "09-01 22:27",
+          "09-02 00:52"
+        ]
+      }
+    },
+    "finding": "정시 매시 크론은 이 레포에서 반복적으로 불안정(19%/73% 누락). GitHub 문서: 매 정시는 부하 피크. 4h 정시 크론은 99%. 캐스케이드 검증(실측 지연 100건)은 발화된 실행만 표본이라 누락을 반영하지 않았다.",
+    "regression_found": "scheduler.is_slow_tick(now.hour) 는 큐 지연이 정각을 넘기면 느린틱을 놓친다 — 4h 시대 27% 실행, 3일은 6틱 전부. 머지 후 9/1 오후 1d/4h 탐지가 4회 기대 대비 1회만 돌았다.",
+    "fix": "워크플로 분리: daily_scheduler(4h, --slow) + fast_scheduler(매시 :07, --fast). 시간 판정은 폴백으로 격하.",
+    "open_question": "(해소 2026-09-02) 오프셋 매시 크론 :07 은 5틱 0/5, 워크플로 수정 후 4h 크론 04:00 틱도 미발화 → external_trigger_2026_09 로 전환.",
+    "offset_cron_result": {
+      "fast_0207_0607": {
+        "expected": 5,
+        "ran": 0
+      },
+      "daily_0400": "미발화 (06:46 기준 166분 경과 — 4h 시대 368건 지연 분포의 p99 가 188분이라 사실상 유실) — 05:40 수동 dispatch 로 대체"
+    }
   },
-  "residual_risks": [
-   "중앙값 +0.31% — 문턱에서 0.31%p 위, d=0(+1.17%) 대비 27% 수준",
-   "OOS 2/4 — 통과 최소 기준에 정확히 걸침 (d=0 은 3/4)",
-   "마찰 여유 0.4%까지이나 캐스케이드 국면 실제 슬리피지는 미측정",
-   "1차 검증과 같은 데이터라 Q4 약세(n=27 mean -0.26%)를 공유",
-   "지연 분포는 과거 100건 — Actions 큐가 앞으로도 같다는 보장 없음"
-  ],
-  "blocker_cron_split": "크론을 '0 * * * *' 로 바꾸는 것만으로는 안 된다. scheduler.py 는 rows[last](형성 중인 봉)에서 탐지하고 중복 방어 키가 날짜 단위라, 시간당 실행은 1d/4h 배포 패턴의 탐지 기회를 6->24회로 늘려 '하루 1회 진입'이 더 이른 시각·덜 형성된 봉에서 잡히게 만든다. 이미 배포된 engulfing/fvg/inverted_hammer/marubozu/하모닉4h/bat_1h/butterfly_1h 의 진입 신호 분포가 검증 당시와 달라진다. 권장 방안(A): 크론은 매시로 바꾸되 scheduler 가 UTC 00/04/08/12/16/20 이 아니면 1d/4h 탐지 블록을 스킵 — 기존 탐지 시각 집합이 그대로임을 테스트로 고정. 청산·ensure_stop_orders 는 매시 돌아 오히려 개선."
- },
- "scheduler_reliability_2026_09": {
-  "date": "2026-09-02",
-  "source": "daily_scheduler.yml schedule 실행 428건 전수 (6/25~9/02)",
-  "fire_rate": {
-   "hourly_0629_0702": {
-    "expected": 67,
-    "ran": 54,
-    "fire": 0.81,
-    "delay_med_min": 31,
-    "delay_p90_min": 50
-   },
-   "4h_0702_0901": {
-    "expected": 367,
-    "ran": 364,
-    "fire": 0.99,
-    "delay_med_min": 36,
-    "delay_p90_min": 81,
-    "missed": [
-     "08-06 20:00",
-     "08-28 12:00",
-     "09-01 04:00"
-    ]
-   },
-   "hourly_0901_0902": {
-    "expected": 15,
-    "ran": 4,
-    "fire": 0.27,
-    "delay_med_min": 27,
-    "delay_p90_min": 53,
-    "ran_at": [
-     "09-01 15:24",
-     "09-01 19:16",
-     "09-01 22:27",
-     "09-02 00:52"
-    ]
-   }
+  "external_trigger_2026_09": {
+    "date": "2026-09-02",
+    "decision": "사용자 결정 ① — GitHub schedule 대신 Supabase pg_cron 이 workflow_dispatch API 로 러너를 깨운다. 캐스케이드 배포 철회(②) 대신 선택.",
+    "file": "supabase_external_trigger.sql (Supabase SQL Editor 에서 실행, 멱등)",
+    "jobs": {
+      "gh_fast_scheduler": "3 * * * * → fast_scheduler.yml (inputs 없음)",
+      "gh_daily_oncefull": "0 0 * * * → daily_scheduler.yml mode=oncefull",
+      "gh_daily_oncequick": "0 4,8,12,16,20 * * * → daily_scheduler.yml mode=oncequick",
+      "gh_dispatch_collect": "*/10 * * * * → pg_net 응답코드를 gh_dispatch_log 에 수집"
+    },
+    "invariants": "발화 시각 집합 = SLOW_TICK_HOURS(daily) + 매시(fast) — GitHub 크론과 동일. GitHub schedule 은 폴백 유지: 겹치면 concurrency 그룹(cancel-in-progress false)에서 직렬 대기, 진입 중복은 날짜 dedup. public 레포라 Actions 분 무료.",
+    "secret": "fine-grained PAT, repo 한정, Actions: Read and write 만. Vault 'github_pat_dispatch'. 만료 1년 — 만료 시 gh_dispatch_log.status_code 401 로 드러나며 크론이 조용히 멈춘다.",
+    "measurement_note": "이후 발화율·지연 실측은 schedule 이벤트만 세면 0 으로 보인다 — workflow_dispatch 이벤트를 포함해야 한다. gh_dispatch_log.fired_at vs run.created_at 차이가 곧 큐 지연.",
+    "risks": [
+      "PAT 만료(401) — 알림 없음, 로그로만 확인",
+      "Supabase 무료 플랜 비활성 일시정지 — 러너가 매 실행 DB 를 쓰므로 활성 유지되나, 러너가 멈추면 순환 정지",
+      "GitHub 폴백이 되살아나면 시간당 2회 실행 — 무해(직렬 대기 + dedup), 분만 소모"
+    ],
+    "test": "test_external_trigger.py 31건 — 워크플로명 존재·dispatch 수신·mode 값·시각=SLOW_TICK_HOURS·토큰 리터럴 없음·anon 차단",
+    "verified_2026_09_02": "fast 09:03/10:03/11:03/12:03 전부 :03:01 정시 발화(러너 지연 0초). daily 12:00:01 발화 + 로그 '실행 모드: oncequick --slow' — mode 입력 정상 전달, 느린TF 블록 수행.",
+    "fast_fallback_removed": {
+      "date": "2026-09-02",
+      "what": "fast_scheduler.yml 의 GitHub schedule('7 * * * *') 제거. 발화는 외부 트리거 전용.",
+      "why": "같은 concurrency 그룹에 새 실행이 큐에 들어오면 GitHub 이 먼저 대기 중이던 실행을 취소한다(cancel-in-progress: false 여도 pending 은 취소). 실측: 12:03 외부 트리거 실행이 12:04:30 폴백 진입으로 cancelled(폴백이 대신 돌아 손실 없음). 거울상으로 daily 가 pending 인 사이 fast 가 큐에 들면 daily 가 취소되어 느린TF 탐지를 4시간 잃는다.",
+      "kept": "daily 폴백은 유지 — 4h 간격이라 겹칠 창이 좁고 두 달 99% 발화 실적.",
+      "new_risk": "fast 는 폴백이 없다. 외부 트리거가 멈추면(PAT 401 등) 캐스케이드 진입·하위TF 청산이 daily 6틱에만 의존 → 진입 지연 전제 위반. gh_dispatch_log 401 감시가 중요.",
+      "tests": "test_cron_split(schedule 없음+dispatch 수신), test_cascade_detector(매시 근거를 SQL 쪽에서 확인), test_external_trigger(daily 만 폴백 유지)"
+    }
   },
-  "finding": "정시 매시 크론은 이 레포에서 반복적으로 불안정(19%/73% 누락). GitHub 문서: 매 정시는 부하 피크. 4h 정시 크론은 99%. 캐스케이드 검증(실측 지연 100건)은 발화된 실행만 표본이라 누락을 반영하지 않았다.",
-  "regression_found": "scheduler.is_slow_tick(now.hour) 는 큐 지연이 정각을 넘기면 느린틱을 놓친다 — 4h 시대 27% 실행, 3일은 6틱 전부. 머지 후 9/1 오후 1d/4h 탐지가 4회 기대 대비 1회만 돌았다.",
-  "fix": "워크플로 분리: daily_scheduler(4h, --slow) + fast_scheduler(매시 :07, --fast). 시간 판정은 폴백으로 격하.",
-  "open_question": "(해소 2026-09-02) 오프셋 매시 크론 :07 은 5틱 0/5, 워크플로 수정 후 4h 크론 04:00 틱도 미발화 → external_trigger_2026_09 로 전환.",
-  "offset_cron_result": {
-   "fast_0207_0607": {
-    "expected": 5,
-    "ran": 0
-   },
-   "daily_0400": "미발화 (06:46 기준 166분 경과 — 4h 시대 368건 지연 분포의 p99 가 188분이라 사실상 유실) — 05:40 수동 dispatch 로 대체"
+  "live_account_notes_2026_09_02": {
+    "audit": "audit_okx.yml run #13, 2026-09-02T01:09Z (읽기 전용)",
+    "equity_drop_explained": "equity $502.76(8/31) → $271.31(9/2) 은 **사용자 자금 이동**으로 확인됨(2026-09-02). 매매 손익 아님 — 같은 기간 실현 -$2.81, 미실현 +$23.97. 이상징후로 재조사하지 말 것. 다만 사이징(가용잔고 20%)과 킬스위치 하한($100, EQUITY_FLOOR)이 이 잔고 기준으로 동작한다.",
+    "pol_half_close_explained": "POL 숏 절반이 2026-09-01 10:31 청산된 것은 **사용자 수동 청산**으로 확인됨. 엔진 청산 아님(해당 시각 스케줄러 실행 없음, 손절가 미도달). 실현 -$2.81.",
+    "stop_size_mismatch": "수동 청산 결과 POL 손절 algo 는 원래 수량(sz=213)으로 남고 실포지션은 107 이다. **위험하지 않음**: 해당 주문은 reduceOnly=True 로 등록됐고(8/31 16:15 진입 로그에 'reduceOnly 거부 → 폴백' 경고 없음) OKX 가 reduceOnly 주문을 포지션 크기로 제한하므로 반대 포지션 신규 진입이 되지 않는다. 2026-08-29 고아주문 사고와는 다른 상황. **남은 갭**: ensure_stop_orders 는 손절 주문의 '존재'만 보고(inst in covered) 수량을 비교하지 않는다. 수동 개입으로 포지션이 줄면 장부 수량과 어긋난 채 유지된다 — 체결 위험은 없으나 기록 정확도 문제. 별도 과제.",
+    "db_schema_gap": "positions: entry_ts/live_mode/target 컬럼 없음. trades: live_mode/pnl_usd 없음. entry_ts 만 미방어(PR #9 가드로 임시 차단), 나머지는 폴백 존재. trades.pnl_usd 부재 → 복원 시 size $200 가정으로 재구성되어 daily_summary 누적%가 왜곡된다."
+  },
+  "sizing_study_2026_09": {
+    "date": "2026-09-02",
+    "script": "sizing_study.py",
+    "report": "report_sizing.md",
+    "n_trades": 1093,
+    "patterns": 7,
+    "boot_n": 300,
+    "criteria": "boot MDD중앙 >= -35% AND P(ruin) < 5% 중 Calmar중앙 최대 (사전 고정)",
+    "legacy": {
+      "rule": "free x20%, 2x",
+      "cagr": 0.393,
+      "mdd": -0.558,
+      "boot_mdd_med": -0.599,
+      "boot_mdd_p10": -0.771,
+      "calmar_med": 2.75,
+      "p_ruin": 0.003
+    },
+    "recommended": {
+      "rule": "risk 0.5% / lev 2",
+      "cagr": 0.236,
+      "mdd": -0.327,
+      "boot_mdd_med": -0.239,
+      "boot_mdd_p10": -0.363,
+      "calmar_med": 2.08,
+      "p_ruin": 0.0
+    },
+    "leverage_finding": "같은 위험 2%에서 2/3/5x: CAGR 43/39/36%, MDD -67/-76/-76%, P(ruin) 0.7/2.0/3.0%. 위험 1%에서는 2x=3x 완전 동일(증거금 비제약). 레버리지는 명목가를 바꾸지 않고 동시 노출만 키운다.",
+    "verdict": "'포지션·레버리지가 작다'는 전제 기각. 현행은 사전 기준 밖(MDD -60%). 권고 규칙은 equity < $320 에서 최소주문 미달로 스킵 — 현 계좌($271)는 위험 0.5% 관리엔 작다.",
+    "status": "SIZING_MODE=legacy 유지. 전환은 사용자 판단 (report_sizing.md 선택지 4개).",
+    "decision_2026_09_02": {
+      "choice": "③ risk 1%/2x — 사용자 결정, 실거래 반영",
+      "config": "paper_executor.SIZING_MODE=\"risk\", sizing.RISK_FRAC=0.01, LEV_CAP=2",
+      "why_not_recommended_0_5": "문턱 equity $320(C등급 $457) — 현 계좌 $285 에서 최소증거금 미달로 주문 자체가 안 나간다. 실사용 불가.",
+      "effect": "legacy 대비 CAGR +39.3%→+38.8%(사실상 동일), boot MDD중앙 -59.9%→-43.1%, p10 -77.1%→-60.7%",
+      "caveat": "사전 기준(MDD중앙>=-35%)은 1% 도 미충족 — '기준 통과'가 아니라 '현 계좌에서 가능한 가장 큰 개선'. equity>$320 되면 0.5% 하향 재검토.",
+      "mechanism": "낙폭 축소는 '항상 더 작아짐'이 아니라 진입 순서 의존성 제거. legacy 는 free x20% 라 첫 진입이 크고 뒤로 갈수록 쪼개진다($95.96→$76.83→$31.45); risk 는 equity 기준이라 순서 무관. 잘리는 건 초기 대형 진입이고, free 가 낮으면 risk 가 오히려 크다(현 계좌 실측 risk $17.83 > legacy $14.73).",
+      "scope": "기존 오픈 포지션 21건 무영향, 신규 진입부터 적용. 롤백은 SIZING_MODE='legacy'"
+    }
+  },
+  "regime_exit_2026_09": {
+    "date": "2026-09-03",
+    "question": "eval_D 레짐 청산이 방향을 안 봐서 bear 진입 롱이 bull 전환에 청산된다(사용자 관찰). '불리 국면 진입 시에만 청산'(방식R)이 더 나은가",
+    "design": "method_t 틀. 같은 신호에 D/R1/R2 짝지음. R1 롱불리={bear} 숏불리={bull_*} sideways 중립, R2 sideways 도 불리. 손절/반대신호/30봉 동일. 사전기준 ①합산 t>2 or boot_p<.05 ②CAGR우위>=4/7 ③t<-2 패턴 없음 ④분기거래 R승률>50%",
+    "result": {
+      "pooled": "n=1091 짝지음 +0.597%p t=1.58 boot_p(패턴재표본)=0.006 짝지음우위 6/7 CAGR우위 4/7 분기 285건 R 125승/157패(44%)",
+      "verdict": "REJECT — ④ 탈락(분기 승률 44%). ①②③ 통과",
+      "by_pattern": {
+        "engulfing": "+2.22%p t1.88 bp.011 분기8 R75% CAGR 11.2→16.3",
+        "fvg": "+0.43%p t.70 분기161 R45% CAGR 22.9→12.3 (보유 10.5→14.5봉, stop 206→244)",
+        "engulfing_short": "+0.31%p 중립",
+        "fvg_short": "+0.09%p 분기50 R36% CAGR 7.7→6.1",
+        "inverted_hammer": "+0.38%p 중립 CAGR 4.1→7.7",
+        "marubozu": "-1.85%p 분기11 R27% (n=27)",
+        "triple_bottom_1w": "+21.33%p bp.092 CAGR 25→62 (n=15 보류)"
+      },
+      "user_scenario_subset": {
+        "fvg_long_bear_entry": "n=134 D+2.39→R+5.29 (+2.90%p t1.89 bp.006 21/16) — 직관 맞음",
+        "fvg_short_bull_entry": "n=188 D-2.05→R-2.58 (-0.53%p t-1.89 bp.975 12/32) — 대칭 적용은 손해",
+        "engulfing_long_bear_entry": "n=16 +1.67%p bp.104",
+        "inverted_hammer_bear_entry": "n=51 +0.02%p 무차이"
+      },
+      "R1_vs_R2": "전 패턴 동일 — 표본에 sideways 전환 0건"
+    },
+    "mechanism": "롱은 맞고 숏은 틀림(비대칭). 건당 상승에도 CAGR 하락은 회전율(보유 +38%) + 진입가 고정 손절로 유리국면에서 번 걸 반납(트레일링 부재).",
+    "followups_post_hoc": [
+      "R-롱한정(숏은 D)",
+      "R + 유리 전환 시 손절 본전 이동",
+      "둘 결합"
+    ],
+    "live_impact": "없음. eval_D 무변경(test_method_r 소스 고정)",
+    "files": "method_r.py / test_method_r.py / method_r.yml / report_regime_exit.md",
+    "round2_2026_09_03": {
+      "arms": {
+        "RL": "롱만 R1, 숏 D",
+        "RB": "R1 + 유리 전환 시 손절 본전 이동(수익 중만, 1회)",
+        "RLB": "롱만 (R1+본전), 숏 D"
+      },
+      "criteria_added": "⑤ 진입일 중앙값 전반/후반 합산 짝지음 차이 둘 다 > 0 (사후 선택 방어)",
+      "pooled": {
+        "R1": "+0.597%p t1.58 bp.006 짝지음우위6/7 CAGR우위4/7 분기125/157(44%) 전반+1.24 후반-0.04 → REJECT ④⑤",
+        "RL": "+0.548%p t1.48 bp.019 짝지음우위4/7 CAGR우위3/7 분기98/116(46%) 전반+0.96 후반+0.14 → REJECT ②④",
+        "RB": "+0.536%p t1.42 bp.009 짝지음우위6/7 CAGR우위4/7 분기120/162(43%) 전반+1.19 후반-0.11 → REJECT ④⑤",
+        "RLB": "+0.490%p t1.33 bp.025 짝지음우위4/7 CAGR우위3/7 분기95/119(44%) 전반+0.90 후반+0.08 → REJECT ②④"
+      },
+      "breakeven_fired": "stop_be 12/1091 (fvg5 fvg_short3 IH2 engulfing_short1 triple_bottom1). R1 대비 fvg +0.43→+0.32, IH +0.38→+0.21 미세 악화. triple_bottom +21.33→+21.87 (n=15)",
+      "mechanism_corrected": "fvg 롱 분기 161 = bear진입 37(R 21/16 +2.9%p) + bull진입 ≈124(R ≈50/71). bull 진입분은 D 가 bull_btc↔bull_altseason 라벨 전환에서 청산 → R 은 유리→유리로 버티다 -8% 손절. D 의 라벨전환 청산이 bull 진입 알트 롱의 조기출구였음. 본전이동은 '유리로 들어가는' 순간만 발동해 bull 진입 거래엔 무효 — 문제 지점에 닿지 않는 도구.",
+      "robust_finding": "bear 진입 롱을 bull 전환에 청산하지 않는 것은 옳다 — fvg n=134 +2.9%p bp.006, engulfing n=16 +1.67%p, 4 arm 모두 동일",
+      "round3_hypothesis_not_run": "adverse(long) = {bear} ∪ {bull_altseason→bull_btc 전환}. 같은 데이터 3번째 검정이라 사전등록 + 마지막 1년 홀드아웃 필수",
+      "verdict": "4 arm 전부 REJECT. 실거래 무변경."
+    },
+    "round3_2026_09_03": {
+      "arms": {
+        "RL": "롱만 R1, 숏 D (비교군)",
+        "RA": "RL + bull_altseason→bull_btc 전환을 롱 불리로"
+      },
+      "holdout": "마지막 365일 진입(cutoff 2025-09-03, n=233, 6패턴 — triple_bottom 0건) 판정 제외. train n=858. 기준 ⑥ 홀드아웃 합산>0 ⑦ 홀드아웃 분기승률>50% 추가, 7개 전부여야 PASS",
+      "train": {
+        "RL": "+0.744%p t1.59 bp.017 짝지음우위4/7 CAGR우위3/7 분기98/109(47%) 전반+1.19 후반+0.30 → ②④ 탈락",
+        "RA": "+0.387%p t1.29 bp.148 짝지음우위2/7 CAGR우위2/7 분기72/106(40%) 전반+0.45 후반+0.33 → ①②④ 탈락"
+      },
+      "holdout_result": {
+        "RL": "-0.176%p t-2.24 분기 7건 0승7패(fvg6 IH1) → ⑥⑦ 탈락",
+        "RA": "D 와 분기 0건 — 홀드아웃(bear 지배)에 bear→bull 전환이 열린 포지션 창에 없어 발동 상황 부재 → ⑥⑦ 탈락(무결과)"
+      },
+      "ra_vs_rl": "altseason→btc 불리 추가가 손해: fvg +0.63→+0.88 개선이나 triple_bottom +21.33→-0.98, IH +0.60→-0.13. R1/RL 의 triple_bottom 대박은 정확히 그 전환을 버텨서 난 것. 2차 해석은 fvg 한 패턴에서만 성립",
+      "invariant": "bear 진입 롱의 bull 전환 유지는 3라운드 모두 재현 — train fvg n=73 D+6.29→+11.6~11.8% (bp .001~.004), engulfing n=12 +2.2%p",
+      "why_no_rule_passes": "규칙화하면 부작용이 상쇄. 분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%) — 갈라질 때마다 지는 쪽이 많고 소수 대승이 평균을 끌어올림. method_t 의 거울상",
+      "decision": "3라운드로 종료. 같은 데이터 4번째 변형은 과적합. 남은 경로: 실거래 병행 기록(A/D 처럼 R-롱한정 3번째 장부, 주문은 D 그대로) — 사용자 승인 사항",
+      "verdict": "RL·RA 모두 REJECT. 실거래 무변경."
+    },
+    "audit_2026_09_03": {
+      "trigger": "사용자 지시 — 전체 로직 점검 후 최적 형태로 수정",
+      "fixed": {
+        "lookahead": "detect_harmonic 신호=D+PIVOT_WINDOW(확정 봉), triple_bottom causal. 하모닉 5종 suspended_lookahead, 재검증 validate_confirm_bar.py",
+        "executor": "8자리 가격+0 방어 / 복원 tf universe 기준 / reconcile d_closed 스킵 / 킬스위치 fail-closed / 종목·방향 중복 진입 방어 / fetch_order 체결가 / ensure_stop_orders(replace=) / pnl_live_usd",
+        "sizing": "실주문 grade_mult=1.0 (등급·TF확증은 페이퍼 전용). 레짐 오버레이 유지",
+        "regime": "닫힌 봉만 + 오늘 forward-fill / positions.entry_regime 우선 / BTC.D 만료 캐시 우선 / 온체인 조정 표시 전용",
+        "db": "supabase_schema_patch_2026_09.sql (사용자 실행)"
+      },
+      "deferred": [
+        "숏 라우팅 게이트 재판정",
+        "방식D 비-1d TF 검증",
+        "기존 패턴 형성 봉 탐지",
+        "유니버스 드리프트",
+        "워크포워드 실패 플래그 정리"
+      ],
+      "tests": "test_confirm_bar / test_executor_safety / test_regime_determinism",
+      "report": "report_audit_2026_09.md"
+    },
+    "shadow_ledger_2026_09_03": {
+      "status": "deployed_record_only",
+      "approved_by_user": "2026-09-03",
+      "rule": "paper_executor.eval_R = RL arm (롱: 손절/반대신호/bear 진입 전환/30봉, 숏: D). test_shadow_r 가 method_r.outcome_r('RL') 과 400 시나리오 일치 고정",
+      "scope": "R_SHADOW_SINCE=2026-09-03 이후 진입 방식D 롱 거래. exit_spec 패턴 제외, 숏 미기록(RL≡D)",
+      "mechanics": "포지션이 아니라 D 거래 기록에서 매 실행 재평가(롱에서 R 청산 >= D 청산 봉). 해소 시 method='R' live_mode=False 행 추가. 주문·포지션 수명·live 집계·daily_summary 무변경",
+      "decision_point": "분기 거래 n>=50 에서 짝지음/분기승률/CAGR 재판정. 그 전 규칙 변경 없음",
+      "files": "paper_executor.py(eval_R, shadow_r_records, _pattern_tf) / test_shadow_r.py(26건)"
+    }
+  },
+  "confirm_bar_2026_09_03": {
+    "run": "revalidate_confirm_bar.yml #1 (33734141728), 라벨 ±10%/20봉, 유니버스 67, 부트스트랩 1000",
+    "cells": {
+      "gartley_4h": "new n=44  +1.48% med +0.05% bp .109 OOS 2/4 REJECT | old +4.58% PASSED | 부풀림 +3.10%p",
+      "bat_4h": "new n=49  -0.26% med -0.37% bp .522 OOS 1/4 REJECT | old +2.27% PASSED | +2.53%p",
+      "butterfly_4h": "new n=45  -0.33% med -0.32% bp .540 OOS 1/4 REJECT | old +2.09% REJECT(bp .057) | +2.42%p",
+      "gartley_1h": "new n=107 +0.45% med -0.01% bp .119 OOS 4/4 REJECT | old +1.35% PASSED | +0.91%p",
+      "bat_1h": "new n=40  -0.82% med -1.22% bp .743 OOS 1/4 REJECT | old +0.32% REJECT | +1.15%p",
+      "butterfly_1h": "new n=71  -0.36% med -0.60% bp .482 OOS 2/4 REJECT | old +0.76% REJECT | +1.12%p",
+      "triple_bottom_1w": "new n=104 +3.07% med -11.36% bp .164 OOS 2/4 REJECT | old n=142 +7.73% PASSED | +4.65%p"
+    },
+    "verdict": "7셀 전부 인과 판 REJECT. 하모닉 5종 정지 유지 + triple_bottom_1w 추가 정지. 복귀 후보 없음",
+    "note": "old 의 n/mean 이 registry 등재 수치와 일치(bat_1h 는 검증 창이 달라 n 108→40) — 재현 확인. 종전 4h 창(1100일)은 4h 패턴 등재 당시(3년)와 같음"
+  },
+  "regime_scale_2026_09": {
+    "date": "2026-09-03",
+    "question": "레짐이 일봉 한 스케일이라 기각된 규칙(특히 방식R)이 레짐 스케일 문제였나. 주단위(slow 1w)/시간단위(fast 4h) 레짐을 진입 필터·청산 소스로",
+    "design": "regime_multi.py 3-신호 동일 구조, 임계값 lookback 비례, 봉 닫힘 시각부터 유효. arm D/D_slow/D_fast/RL/RL_slow/RL_fast/F_slow/F_fast 짝지음, 기준 ①~⑦ method_r 동일 + ⑧ 레짐별·연도별 층화 진단. 공통지지(세 스케일 라벨 존재) 신호만",
+    "runs": {
+      "5y (1d 1800/4h 1100)": "n=470 train. D_slow -2.42%p t-2.05 | D_fast -6.64%p t-4.75 | RL +1.66%p t2.04 bp.012 CAGR3/7 분기52% | RL_slow +0.97%p bp.138 | RL_fast +0.63%p bp.093 | F_slow -2.79%p | F_fast -0.28%p — 7 arm REJECT",
+      "max (1d 3000/4h 2200, 일봉 레짐 2019~)": "n=570 train. D_slow -2.69%p t-2.99 | D_fast -4.94%p t-4.35 | RL +0.95%p t1.88 bp.032 CAGR4/7 분기53% train 통과·holdout -0.18 탈락 | RL_slow +0.19%p | RL_fast +0.55%p | F_slow -2.20%p(분기승률63%지만 합산 음수) | F_fast -0.35%p — 7 arm REJECT"
+    },
+    "strata": "D_slow/RL_slow 는 bear 진입에서만 양수(단일 레짐 의존), bull_btc 진입에서 -3.9/-0.2%p. 2024년(bull)에 slow/fast 계열 전부 크게 음수(-9.3/-12.6%p). RL(daily)만 레짐별 전부 >= 0",
+    "answer": "아니오 — 스케일을 바꾸면 더 나빠진다. 주봉 레짐은 전환이 늦어 이익을 반납하고, 4h 레짐은 너무 자주 바뀌어 조기 청산. 진입 필터는 bear 진입 롱(가장 수익 좋은 부분집합)을 막아 손해. 방식R 은 일봉 스케일에서 가장 좋았고 그 결론(train 통과·holdout 탈락)은 method_r 과 동일. 창 확장(2019~)해도 결론 불변",
+    "live_impact": "없음",
+    "files": "regime_multi.py / method_m.py / test_method_m.py / method_m.yml / report_regime_scale.md"
+  },
+  "universe_okx_scan_2026_09_04": {
+    "trigger": "사용자 — 업비트 교집합 대신 OKX 선물 전 종목/거래대금 상위 확대 검토",
+    "scan": "OKX USDT 무기한 활성 452, 24h 상위150 중 후보 113, 1d>=500봉 101(현67+신규34), 부족 77(토큰화 주식·원자재·신규상장). 무기한 캔들 30일 거래대금 순위. fetch 중앙 1.2s/종목",
+    "rank_change": "무기한 기준 top20 신규 HYPE/ENA/BICO/BCH/ONDO/TAO, 퇴출 DOT/TRX/ZRO/ETC/STX/OP",
+    "cohort": {
+      "engulfing": "rank1-20 PASS +3.65% med+9.86% bp.041 (cur_top20 +3.52% PASS, new_top20 +3.65% PASS); 21위 이하 전부 REJECT",
+      "engulfing_short": "31-50 PASS +5.81% bp.009 / 51-80 PASS / 81-101 PASS / current_universe PASS +3.85% bp.012; top20·신규후보 REJECT",
+      "fvg": "롱·숏 전 코호트 REJECT (900일 창) — 마모 플래그와 일치, 별도 판정 필요",
+      "inverted_hammer": "전 코호트 REJECT",
+      "marubozu": "무기한 top20 PASS n=38 +5.04% bp.011 (사후 발견, 사전등록 전 미채택)"
+    },
+    "proposal_step3": "유니버스 = OKX 무기한, 스테이블·토큰화자산 제외, 500봉 이상, 30일 거래대금 상위 N=80. 전 종목 확대 안 함(81위 이하 무통과, 틱 4배). 패턴별 차등(top20/top30/메이저7) 유지, 순위 산출은 무기한 캔들. 적용은 사용자 승인",
+    "runs": "universe_scan.yml #1(정렬 오류) #2(현물/선물 혼용) #3(확정)",
+    "files": "universe_okx_scan.py / report_universe_okx.md",
+    "applied_2026_09_04": {
+      "user": "유니버스 80 적용",
+      "trading_universe": "67 → 80 (스캔 #4 순위 1~80)",
+      "added": 24,
+      "removed": 11,
+      "detail": "universe.json universe_basis_2026_09_04",
+      "pending": "4단계 캐스케이드 1h 재검증(새 종목 1h 수집 후)"
+    }
+  },
+  "regime_split_2026_09_04": {
+    "trigger": "사용자 제안 — 같은 패턴도 레짐별 수익이 다르니 레짐으로 나눠 테스트해야 한다",
+    "design": "배포 1d 패턴 6종 x 진입레짐 4 x 코호트 3 = 72셀, 셀별 동결 게이트. boot_p 베이스라인 = 같은 레짐·코호트의 무작위 진입(레짐 자체 방향성 제거). 1,580일(2022-01~2026-09)",
+    "passed_cells": {
+      "engulfing_long_top20_bull_btc": "n=52 +4.84% med+10.14% bp.049 OOS3/4",
+      "engulfing_short_top30_bull_altseason": "n=75 +5.70% med+10.28% bp.045 OOS4/4"
+    },
+    "regime_spread": "같은 패턴 레짐 간 최대 13%p 차(engulfing 롱 bull_btc +1.78% vs bull_altseason -6.97%). 전체 기간 하나로 재면 상쇄돼 전부 REJECT 로 보임 — 사용자 가설 확인",
+    "routing_mismatch": "fvg 2셀 부호 반대 — bull_altseason 롱(-2.12%, 숏이 +1.39%), bear 숏(-0.72%, 롱이 +0.70%). 2026-06-24 표는 n>=20·mean>0 만 보고 만든 것",
+    "fvg_verdict": "전 레짐 사망이 아님. bull_btc 에서 n=1837 +2.23% med +9.89%(top30 +2.79% OOS4/4)로 살아 있고 boot_p(.135~.178)만 못 넘음 = 상승장 무작위 롱을 못 이김. 죽은 곳은 bull_altseason(-2.12%)과 2026 bear. 900일 창이 bear 비중이 커서 '마모'로 보였던 것",
+    "caveat": "boot_p 베이스라인이 30건 표본 평균 분포라 n 큰 셀에 보수적 — 베이스라인 표본 수를 셀 n 에 맞추는 후속 수정 필요",
+    "live_impact": "없음(연구). 라우팅·fvg 배포 변경은 사용자 결정",
+    "files": "validate_regime_split.py / test_regime_split.py(11) / validate_regime_split.yml / report_regime_split.md",
+    "rerun_2026_09_04_baseline": {
+      "trigger": "사용자 의문 — bull_altseason 에서 fvg 롱이 마이너스인 게 말이 되나, 시험 오류 아닌가",
+      "added": "셀별 (a) 같은 레짐·코호트 무작위 진입 평균(레짐 자체 수익) (b) 엣지=패턴평균−레짐평균 (c) 연도별 분해",
+      "regime_baseline_20bar_long": {
+        "bull_btc": "-0.17% (top20 +0.41%)",
+        "bull_altseason": "-3.04% (top20 -2.26%) — 라벨이 후행이라 국면 끝자락에 몰림",
+        "bear": "-0.64% (top20 -0.01%)"
+      },
+      "correction": "첫 보고의 '라우팅 부호 반대 2건' 중 bull_altseason fvg 롱은 오진 — 철회. 그 셀 엣지는 +0.92~+1.95%p 로 양수이며 절대 수익이 음수인 것은 레짐 자체(-3.04%) 때문",
+      "edge_by_cell": {
+        "fvg_long": "세 레짐 모두 엣지 양수 (+2.39 bull_btc / +0.92 altseason / +1.34 bear)",
+        "fvg_short": "세 레짐 모두 엣지 음수 (-1.40 / -1.25 / -0.96) — 레짐 문제가 아니라 패턴 문제",
+        "engulfing_long": "bull_btc +1.94~+3.34, bear +1.03~+2.75, altseason -3.92",
+        "engulfing_short": "altseason +3.49~+3.59, bear +1.06~+1.26, bull_btc -1.00~-1.21"
+      },
+      "routing_verdict": "6셀 중 5셀 엣지 기준 일치. 유일한 불일치는 bear 의 fvg 숏(롱 엣지 +1.34 vs 숏 -0.96)",
+      "passed_cells_rerun": "engulfing 롱 top20 bull_btc (n=52 +4.84% 레짐 +0.41% 엣지 +4.44%p bp.043 OOS3/4). engulfing 숏 top30 altseason 은 bp .045→.055 로 경계 이탈(엣지 +3.59%p 유지, 경계 셀 기록)",
+      "proposal": "bear fvg 숏만 FLAT 후보. 나머지 5셀 유지. altseason 롱 축소는 별도 사전등록"
+    },
+    "decision_2026_09_04": {
+      "user": "bear 숏 끄고",
+      "applied": "direction_switch.ROUTING_OVERRIDES {(bear,fvg): FLAT} — bear fvg 롱은 게이트 미통과라 켜지 않음",
+      "live_impact": "현 레짐 bear → fvg 신호 0, engulfing 롱만. 나머지 5셀 불변",
+      "test": "test_direction_switch.py (20)"
+    }
   }
- },
- "external_trigger_2026_09": {
-  "date": "2026-09-02",
-  "decision": "사용자 결정 ① — GitHub schedule 대신 Supabase pg_cron 이 workflow_dispatch API 로 러너를 깨운다. 캐스케이드 배포 철회(②) 대신 선택.",
-  "file": "supabase_external_trigger.sql (Supabase SQL Editor 에서 실행, 멱등)",
-  "jobs": {
-   "gh_fast_scheduler": "3 * * * * → fast_scheduler.yml (inputs 없음)",
-   "gh_daily_oncefull": "0 0 * * * → daily_scheduler.yml mode=oncefull",
-   "gh_daily_oncequick": "0 4,8,12,16,20 * * * → daily_scheduler.yml mode=oncequick",
-   "gh_dispatch_collect": "*/10 * * * * → pg_net 응답코드를 gh_dispatch_log 에 수집"
-  },
-  "invariants": "발화 시각 집합 = SLOW_TICK_HOURS(daily) + 매시(fast) — GitHub 크론과 동일. GitHub schedule 은 폴백 유지: 겹치면 concurrency 그룹(cancel-in-progress false)에서 직렬 대기, 진입 중복은 날짜 dedup. public 레포라 Actions 분 무료.",
-  "secret": "fine-grained PAT, repo 한정, Actions: Read and write 만. Vault 'github_pat_dispatch'. 만료 1년 — 만료 시 gh_dispatch_log.status_code 401 로 드러나며 크론이 조용히 멈춘다.",
-  "measurement_note": "이후 발화율·지연 실측은 schedule 이벤트만 세면 0 으로 보인다 — workflow_dispatch 이벤트를 포함해야 한다. gh_dispatch_log.fired_at vs run.created_at 차이가 곧 큐 지연.",
-  "risks": [
-   "PAT 만료(401) — 알림 없음, 로그로만 확인",
-   "Supabase 무료 플랜 비활성 일시정지 — 러너가 매 실행 DB 를 쓰므로 활성 유지되나, 러너가 멈추면 순환 정지",
-   "GitHub 폴백이 되살아나면 시간당 2회 실행 — 무해(직렬 대기 + dedup), 분만 소모"
-  ],
-  "test": "test_external_trigger.py 31건 — 워크플로명 존재·dispatch 수신·mode 값·시각=SLOW_TICK_HOURS·토큰 리터럴 없음·anon 차단",
-  "verified_2026_09_02": "fast 09:03/10:03/11:03/12:03 전부 :03:01 정시 발화(러너 지연 0초). daily 12:00:01 발화 + 로그 '실행 모드: oncequick --slow' — mode 입력 정상 전달, 느린TF 블록 수행.",
-  "fast_fallback_removed": {
-   "date": "2026-09-02",
-   "what": "fast_scheduler.yml 의 GitHub schedule('7 * * * *') 제거. 발화는 외부 트리거 전용.",
-   "why": "같은 concurrency 그룹에 새 실행이 큐에 들어오면 GitHub 이 먼저 대기 중이던 실행을 취소한다(cancel-in-progress: false 여도 pending 은 취소). 실측: 12:03 외부 트리거 실행이 12:04:30 폴백 진입으로 cancelled(폴백이 대신 돌아 손실 없음). 거울상으로 daily 가 pending 인 사이 fast 가 큐에 들면 daily 가 취소되어 느린TF 탐지를 4시간 잃는다.",
-   "kept": "daily 폴백은 유지 — 4h 간격이라 겹칠 창이 좁고 두 달 99% 발화 실적.",
-   "new_risk": "fast 는 폴백이 없다. 외부 트리거가 멈추면(PAT 401 등) 캐스케이드 진입·하위TF 청산이 daily 6틱에만 의존 → 진입 지연 전제 위반. gh_dispatch_log 401 감시가 중요.",
-   "tests": "test_cron_split(schedule 없음+dispatch 수신), test_cascade_detector(매시 근거를 SQL 쪽에서 확인), test_external_trigger(daily 만 폴백 유지)"
-  }
- },
- "live_account_notes_2026_09_02": {
-  "audit": "audit_okx.yml run #13, 2026-09-02T01:09Z (읽기 전용)",
-  "equity_drop_explained": "equity $502.76(8/31) → $271.31(9/2) 은 **사용자 자금 이동**으로 확인됨(2026-09-02). 매매 손익 아님 — 같은 기간 실현 -$2.81, 미실현 +$23.97. 이상징후로 재조사하지 말 것. 다만 사이징(가용잔고 20%)과 킬스위치 하한($100, EQUITY_FLOOR)이 이 잔고 기준으로 동작한다.",
-  "pol_half_close_explained": "POL 숏 절반이 2026-09-01 10:31 청산된 것은 **사용자 수동 청산**으로 확인됨. 엔진 청산 아님(해당 시각 스케줄러 실행 없음, 손절가 미도달). 실현 -$2.81.",
-  "stop_size_mismatch": "수동 청산 결과 POL 손절 algo 는 원래 수량(sz=213)으로 남고 실포지션은 107 이다. **위험하지 않음**: 해당 주문은 reduceOnly=True 로 등록됐고(8/31 16:15 진입 로그에 'reduceOnly 거부 → 폴백' 경고 없음) OKX 가 reduceOnly 주문을 포지션 크기로 제한하므로 반대 포지션 신규 진입이 되지 않는다. 2026-08-29 고아주문 사고와는 다른 상황. **남은 갭**: ensure_stop_orders 는 손절 주문의 '존재'만 보고(inst in covered) 수량을 비교하지 않는다. 수동 개입으로 포지션이 줄면 장부 수량과 어긋난 채 유지된다 — 체결 위험은 없으나 기록 정확도 문제. 별도 과제.",
-  "db_schema_gap": "positions: entry_ts/live_mode/target 컬럼 없음. trades: live_mode/pnl_usd 없음. entry_ts 만 미방어(PR #9 가드로 임시 차단), 나머지는 폴백 존재. trades.pnl_usd 부재 → 복원 시 size $200 가정으로 재구성되어 daily_summary 누적%가 왜곡된다."
- },
- "sizing_study_2026_09": {
-  "date": "2026-09-02",
-  "script": "sizing_study.py",
-  "report": "report_sizing.md",
-  "n_trades": 1093,
-  "patterns": 7,
-  "boot_n": 300,
-  "criteria": "boot MDD중앙 >= -35% AND P(ruin) < 5% 중 Calmar중앙 최대 (사전 고정)",
-  "legacy": {
-   "rule": "free x20%, 2x",
-   "cagr": 0.393,
-   "mdd": -0.558,
-   "boot_mdd_med": -0.599,
-   "boot_mdd_p10": -0.771,
-   "calmar_med": 2.75,
-   "p_ruin": 0.003
-  },
-  "recommended": {
-   "rule": "risk 0.5% / lev 2",
-   "cagr": 0.236,
-   "mdd": -0.327,
-   "boot_mdd_med": -0.239,
-   "boot_mdd_p10": -0.363,
-   "calmar_med": 2.08,
-   "p_ruin": 0.0
-  },
-  "leverage_finding": "같은 위험 2%에서 2/3/5x: CAGR 43/39/36%, MDD -67/-76/-76%, P(ruin) 0.7/2.0/3.0%. 위험 1%에서는 2x=3x 완전 동일(증거금 비제약). 레버리지는 명목가를 바꾸지 않고 동시 노출만 키운다.",
-  "verdict": "'포지션·레버리지가 작다'는 전제 기각. 현행은 사전 기준 밖(MDD -60%). 권고 규칙은 equity < $320 에서 최소주문 미달로 스킵 — 현 계좌($271)는 위험 0.5% 관리엔 작다.",
-  "status": "SIZING_MODE=legacy 유지. 전환은 사용자 판단 (report_sizing.md 선택지 4개).",
-  "decision_2026_09_02": {
-   "choice": "③ risk 1%/2x — 사용자 결정, 실거래 반영",
-   "config": "paper_executor.SIZING_MODE=\"risk\", sizing.RISK_FRAC=0.01, LEV_CAP=2",
-   "why_not_recommended_0_5": "문턱 equity $320(C등급 $457) — 현 계좌 $285 에서 최소증거금 미달로 주문 자체가 안 나간다. 실사용 불가.",
-   "effect": "legacy 대비 CAGR +39.3%→+38.8%(사실상 동일), boot MDD중앙 -59.9%→-43.1%, p10 -77.1%→-60.7%",
-   "caveat": "사전 기준(MDD중앙>=-35%)은 1% 도 미충족 — '기준 통과'가 아니라 '현 계좌에서 가능한 가장 큰 개선'. equity>$320 되면 0.5% 하향 재검토.",
-   "mechanism": "낙폭 축소는 '항상 더 작아짐'이 아니라 진입 순서 의존성 제거. legacy 는 free x20% 라 첫 진입이 크고 뒤로 갈수록 쪼개진다($95.96→$76.83→$31.45); risk 는 equity 기준이라 순서 무관. 잘리는 건 초기 대형 진입이고, free 가 낮으면 risk 가 오히려 크다(현 계좌 실측 risk $17.83 > legacy $14.73).",
-   "scope": "기존 오픈 포지션 21건 무영향, 신규 진입부터 적용. 롤백은 SIZING_MODE='legacy'"
-  }
- },
- "regime_exit_2026_09": {
-  "date": "2026-09-03",
-  "question": "eval_D 레짐 청산이 방향을 안 봐서 bear 진입 롱이 bull 전환에 청산된다(사용자 관찰). '불리 국면 진입 시에만 청산'(방식R)이 더 나은가",
-  "design": "method_t 틀. 같은 신호에 D/R1/R2 짝지음. R1 롱불리={bear} 숏불리={bull_*} sideways 중립, R2 sideways 도 불리. 손절/반대신호/30봉 동일. 사전기준 ①합산 t>2 or boot_p<.05 ②CAGR우위>=4/7 ③t<-2 패턴 없음 ④분기거래 R승률>50%",
-  "result": {
-   "pooled": "n=1091 짝지음 +0.597%p t=1.58 boot_p(패턴재표본)=0.006 짝지음우위 6/7 CAGR우위 4/7 분기 285건 R 125승/157패(44%)",
-   "verdict": "REJECT — ④ 탈락(분기 승률 44%). ①②③ 통과",
-   "by_pattern": {
-    "engulfing": "+2.22%p t1.88 bp.011 분기8 R75% CAGR 11.2→16.3",
-    "fvg": "+0.43%p t.70 분기161 R45% CAGR 22.9→12.3 (보유 10.5→14.5봉, stop 206→244)",
-    "engulfing_short": "+0.31%p 중립",
-    "fvg_short": "+0.09%p 분기50 R36% CAGR 7.7→6.1",
-    "inverted_hammer": "+0.38%p 중립 CAGR 4.1→7.7",
-    "marubozu": "-1.85%p 분기11 R27% (n=27)",
-    "triple_bottom_1w": "+21.33%p bp.092 CAGR 25→62 (n=15 보류)"
-   },
-   "user_scenario_subset": {
-    "fvg_long_bear_entry": "n=134 D+2.39→R+5.29 (+2.90%p t1.89 bp.006 21/16) — 직관 맞음",
-    "fvg_short_bull_entry": "n=188 D-2.05→R-2.58 (-0.53%p t-1.89 bp.975 12/32) — 대칭 적용은 손해",
-    "engulfing_long_bear_entry": "n=16 +1.67%p bp.104",
-    "inverted_hammer_bear_entry": "n=51 +0.02%p 무차이"
-   },
-   "R1_vs_R2": "전 패턴 동일 — 표본에 sideways 전환 0건"
-  },
-  "mechanism": "롱은 맞고 숏은 틀림(비대칭). 건당 상승에도 CAGR 하락은 회전율(보유 +38%) + 진입가 고정 손절로 유리국면에서 번 걸 반납(트레일링 부재).",
-  "followups_post_hoc": [
-   "R-롱한정(숏은 D)",
-   "R + 유리 전환 시 손절 본전 이동",
-   "둘 결합"
-  ],
-  "live_impact": "없음. eval_D 무변경(test_method_r 소스 고정)",
-  "files": "method_r.py / test_method_r.py / method_r.yml / report_regime_exit.md",
-  "round2_2026_09_03": {
-   "arms": {
-    "RL": "롱만 R1, 숏 D",
-    "RB": "R1 + 유리 전환 시 손절 본전 이동(수익 중만, 1회)",
-    "RLB": "롱만 (R1+본전), 숏 D"
-   },
-   "criteria_added": "⑤ 진입일 중앙값 전반/후반 합산 짝지음 차이 둘 다 > 0 (사후 선택 방어)",
-   "pooled": {
-    "R1": "+0.597%p t1.58 bp.006 짝지음우위6/7 CAGR우위4/7 분기125/157(44%) 전반+1.24 후반-0.04 → REJECT ④⑤",
-    "RL": "+0.548%p t1.48 bp.019 짝지음우위4/7 CAGR우위3/7 분기98/116(46%) 전반+0.96 후반+0.14 → REJECT ②④",
-    "RB": "+0.536%p t1.42 bp.009 짝지음우위6/7 CAGR우위4/7 분기120/162(43%) 전반+1.19 후반-0.11 → REJECT ④⑤",
-    "RLB": "+0.490%p t1.33 bp.025 짝지음우위4/7 CAGR우위3/7 분기95/119(44%) 전반+0.90 후반+0.08 → REJECT ②④"
-   },
-   "breakeven_fired": "stop_be 12/1091 (fvg5 fvg_short3 IH2 engulfing_short1 triple_bottom1). R1 대비 fvg +0.43→+0.32, IH +0.38→+0.21 미세 악화. triple_bottom +21.33→+21.87 (n=15)",
-   "mechanism_corrected": "fvg 롱 분기 161 = bear진입 37(R 21/16 +2.9%p) + bull진입 ≈124(R ≈50/71). bull 진입분은 D 가 bull_btc↔bull_altseason 라벨 전환에서 청산 → R 은 유리→유리로 버티다 -8% 손절. D 의 라벨전환 청산이 bull 진입 알트 롱의 조기출구였음. 본전이동은 '유리로 들어가는' 순간만 발동해 bull 진입 거래엔 무효 — 문제 지점에 닿지 않는 도구.",
-   "robust_finding": "bear 진입 롱을 bull 전환에 청산하지 않는 것은 옳다 — fvg n=134 +2.9%p bp.006, engulfing n=16 +1.67%p, 4 arm 모두 동일",
-   "round3_hypothesis_not_run": "adverse(long) = {bear} ∪ {bull_altseason→bull_btc 전환}. 같은 데이터 3번째 검정이라 사전등록 + 마지막 1년 홀드아웃 필수",
-   "verdict": "4 arm 전부 REJECT. 실거래 무변경."
-  },
-  "round3_2026_09_03": {
-   "arms": {
-    "RL": "롱만 R1, 숏 D (비교군)",
-    "RA": "RL + bull_altseason→bull_btc 전환을 롱 불리로"
-   },
-   "holdout": "마지막 365일 진입(cutoff 2025-09-03, n=233, 6패턴 — triple_bottom 0건) 판정 제외. train n=858. 기준 ⑥ 홀드아웃 합산>0 ⑦ 홀드아웃 분기승률>50% 추가, 7개 전부여야 PASS",
-   "train": {
-    "RL": "+0.744%p t1.59 bp.017 짝지음우위4/7 CAGR우위3/7 분기98/109(47%) 전반+1.19 후반+0.30 → ②④ 탈락",
-    "RA": "+0.387%p t1.29 bp.148 짝지음우위2/7 CAGR우위2/7 분기72/106(40%) 전반+0.45 후반+0.33 → ①②④ 탈락"
-   },
-   "holdout_result": {
-    "RL": "-0.176%p t-2.24 분기 7건 0승7패(fvg6 IH1) → ⑥⑦ 탈락",
-    "RA": "D 와 분기 0건 — 홀드아웃(bear 지배)에 bear→bull 전환이 열린 포지션 창에 없어 발동 상황 부재 → ⑥⑦ 탈락(무결과)"
-   },
-   "ra_vs_rl": "altseason→btc 불리 추가가 손해: fvg +0.63→+0.88 개선이나 triple_bottom +21.33→-0.98, IH +0.60→-0.13. R1/RL 의 triple_bottom 대박은 정확히 그 전환을 버텨서 난 것. 2차 해석은 fvg 한 패턴에서만 성립",
-   "invariant": "bear 진입 롱의 bull 전환 유지는 3라운드 모두 재현 — train fvg n=73 D+6.29→+11.6~11.8% (bp .001~.004), engulfing n=12 +2.2%p",
-   "why_no_rule_passes": "규칙화하면 부작용이 상쇄. 분기 거래 승률이 한 번도 50% 를 못 넘음(44/46/43/44/47/40%) — 갈라질 때마다 지는 쪽이 많고 소수 대승이 평균을 끌어올림. method_t 의 거울상",
-   "decision": "3라운드로 종료. 같은 데이터 4번째 변형은 과적합. 남은 경로: 실거래 병행 기록(A/D 처럼 R-롱한정 3번째 장부, 주문은 D 그대로) — 사용자 승인 사항",
-   "verdict": "RL·RA 모두 REJECT. 실거래 무변경."
-  },
-  "audit_2026_09_03": {
-   "trigger": "사용자 지시 — 전체 로직 점검 후 최적 형태로 수정",
-   "fixed": {
-    "lookahead": "detect_harmonic 신호=D+PIVOT_WINDOW(확정 봉), triple_bottom causal. 하모닉 5종 suspended_lookahead, 재검증 validate_confirm_bar.py",
-    "executor": "8자리 가격+0 방어 / 복원 tf universe 기준 / reconcile d_closed 스킵 / 킬스위치 fail-closed / 종목·방향 중복 진입 방어 / fetch_order 체결가 / ensure_stop_orders(replace=) / pnl_live_usd",
-    "sizing": "실주문 grade_mult=1.0 (등급·TF확증은 페이퍼 전용). 레짐 오버레이 유지",
-    "regime": "닫힌 봉만 + 오늘 forward-fill / positions.entry_regime 우선 / BTC.D 만료 캐시 우선 / 온체인 조정 표시 전용",
-    "db": "supabase_schema_patch_2026_09.sql (사용자 실행)"
-   },
-   "deferred": [
-    "숏 라우팅 게이트 재판정",
-    "방식D 비-1d TF 검증",
-    "기존 패턴 형성 봉 탐지",
-    "유니버스 드리프트",
-    "워크포워드 실패 플래그 정리"
-   ],
-   "tests": "test_confirm_bar / test_executor_safety / test_regime_determinism",
-   "report": "report_audit_2026_09.md"
-  },
-  "shadow_ledger_2026_09_03": {
-   "status": "deployed_record_only",
-   "approved_by_user": "2026-09-03",
-   "rule": "paper_executor.eval_R = RL arm (롱: 손절/반대신호/bear 진입 전환/30봉, 숏: D). test_shadow_r 가 method_r.outcome_r('RL') 과 400 시나리오 일치 고정",
-   "scope": "R_SHADOW_SINCE=2026-09-03 이후 진입 방식D 롱 거래. exit_spec 패턴 제외, 숏 미기록(RL≡D)",
-   "mechanics": "포지션이 아니라 D 거래 기록에서 매 실행 재평가(롱에서 R 청산 >= D 청산 봉). 해소 시 method='R' live_mode=False 행 추가. 주문·포지션 수명·live 집계·daily_summary 무변경",
-   "decision_point": "분기 거래 n>=50 에서 짝지음/분기승률/CAGR 재판정. 그 전 규칙 변경 없음",
-   "files": "paper_executor.py(eval_R, shadow_r_records, _pattern_tf) / test_shadow_r.py(26건)"
-  }
- },
- "confirm_bar_2026_09_03": {
-  "run": "revalidate_confirm_bar.yml #1 (33734141728), 라벨 ±10%/20봉, 유니버스 67, 부트스트랩 1000",
-  "cells": {
-   "gartley_4h": "new n=44  +1.48% med +0.05% bp .109 OOS 2/4 REJECT | old +4.58% PASSED | 부풀림 +3.10%p",
-   "bat_4h": "new n=49  -0.26% med -0.37% bp .522 OOS 1/4 REJECT | old +2.27% PASSED | +2.53%p",
-   "butterfly_4h": "new n=45  -0.33% med -0.32% bp .540 OOS 1/4 REJECT | old +2.09% REJECT(bp .057) | +2.42%p",
-   "gartley_1h": "new n=107 +0.45% med -0.01% bp .119 OOS 4/4 REJECT | old +1.35% PASSED | +0.91%p",
-   "bat_1h": "new n=40  -0.82% med -1.22% bp .743 OOS 1/4 REJECT | old +0.32% REJECT | +1.15%p",
-   "butterfly_1h": "new n=71  -0.36% med -0.60% bp .482 OOS 2/4 REJECT | old +0.76% REJECT | +1.12%p",
-   "triple_bottom_1w": "new n=104 +3.07% med -11.36% bp .164 OOS 2/4 REJECT | old n=142 +7.73% PASSED | +4.65%p"
-  },
-  "verdict": "7셀 전부 인과 판 REJECT. 하모닉 5종 정지 유지 + triple_bottom_1w 추가 정지. 복귀 후보 없음",
-  "note": "old 의 n/mean 이 registry 등재 수치와 일치(bat_1h 는 검증 창이 달라 n 108→40) — 재현 확인. 종전 4h 창(1100일)은 4h 패턴 등재 당시(3년)와 같음"
- },
- "regime_scale_2026_09": {
-  "date": "2026-09-03",
-  "question": "레짐이 일봉 한 스케일이라 기각된 규칙(특히 방식R)이 레짐 스케일 문제였나. 주단위(slow 1w)/시간단위(fast 4h) 레짐을 진입 필터·청산 소스로",
-  "design": "regime_multi.py 3-신호 동일 구조, 임계값 lookback 비례, 봉 닫힘 시각부터 유효. arm D/D_slow/D_fast/RL/RL_slow/RL_fast/F_slow/F_fast 짝지음, 기준 ①~⑦ method_r 동일 + ⑧ 레짐별·연도별 층화 진단. 공통지지(세 스케일 라벨 존재) 신호만",
-  "runs": {
-   "5y (1d 1800/4h 1100)": "n=470 train. D_slow -2.42%p t-2.05 | D_fast -6.64%p t-4.75 | RL +1.66%p t2.04 bp.012 CAGR3/7 분기52% | RL_slow +0.97%p bp.138 | RL_fast +0.63%p bp.093 | F_slow -2.79%p | F_fast -0.28%p — 7 arm REJECT",
-   "max (1d 3000/4h 2200, 일봉 레짐 2019~)": "n=570 train. D_slow -2.69%p t-2.99 | D_fast -4.94%p t-4.35 | RL +0.95%p t1.88 bp.032 CAGR4/7 분기53% train 통과·holdout -0.18 탈락 | RL_slow +0.19%p | RL_fast +0.55%p | F_slow -2.20%p(분기승률63%지만 합산 음수) | F_fast -0.35%p — 7 arm REJECT"
-  },
-  "strata": "D_slow/RL_slow 는 bear 진입에서만 양수(단일 레짐 의존), bull_btc 진입에서 -3.9/-0.2%p. 2024년(bull)에 slow/fast 계열 전부 크게 음수(-9.3/-12.6%p). RL(daily)만 레짐별 전부 >= 0",
-  "answer": "아니오 — 스케일을 바꾸면 더 나빠진다. 주봉 레짐은 전환이 늦어 이익을 반납하고, 4h 레짐은 너무 자주 바뀌어 조기 청산. 진입 필터는 bear 진입 롱(가장 수익 좋은 부분집합)을 막아 손해. 방식R 은 일봉 스케일에서 가장 좋았고 그 결론(train 통과·holdout 탈락)은 method_r 과 동일. 창 확장(2019~)해도 결론 불변",
-  "live_impact": "없음",
-  "files": "regime_multi.py / method_m.py / test_method_m.py / method_m.yml / report_regime_scale.md"
- },
- "universe_okx_scan_2026_09_04": {
-  "trigger": "사용자 — 업비트 교집합 대신 OKX 선물 전 종목/거래대금 상위 확대 검토",
-  "scan": "OKX USDT 무기한 활성 452, 24h 상위150 중 후보 113, 1d>=500봉 101(현67+신규34), 부족 77(토큰화 주식·원자재·신규상장). 무기한 캔들 30일 거래대금 순위. fetch 중앙 1.2s/종목",
-  "rank_change": "무기한 기준 top20 신규 HYPE/ENA/BICO/BCH/ONDO/TAO, 퇴출 DOT/TRX/ZRO/ETC/STX/OP",
-  "cohort": {
-   "engulfing": "rank1-20 PASS +3.65% med+9.86% bp.041 (cur_top20 +3.52% PASS, new_top20 +3.65% PASS); 21위 이하 전부 REJECT",
-   "engulfing_short": "31-50 PASS +5.81% bp.009 / 51-80 PASS / 81-101 PASS / current_universe PASS +3.85% bp.012; top20·신규후보 REJECT",
-   "fvg": "롱·숏 전 코호트 REJECT (900일 창) — 마모 플래그와 일치, 별도 판정 필요",
-   "inverted_hammer": "전 코호트 REJECT",
-   "marubozu": "무기한 top20 PASS n=38 +5.04% bp.011 (사후 발견, 사전등록 전 미채택)"
-  },
-  "proposal_step3": "유니버스 = OKX 무기한, 스테이블·토큰화자산 제외, 500봉 이상, 30일 거래대금 상위 N=80. 전 종목 확대 안 함(81위 이하 무통과, 틱 4배). 패턴별 차등(top20/top30/메이저7) 유지, 순위 산출은 무기한 캔들. 적용은 사용자 승인",
-  "runs": "universe_scan.yml #1(정렬 오류) #2(현물/선물 혼용) #3(확정)",
-  "files": "universe_okx_scan.py / report_universe_okx.md"
- },
- "regime_split_2026_09_04": {
-  "trigger": "사용자 제안 — 같은 패턴도 레짐별 수익이 다르니 레짐으로 나눠 테스트해야 한다",
-  "design": "배포 1d 패턴 6종 x 진입레짐 4 x 코호트 3 = 72셀, 셀별 동결 게이트. boot_p 베이스라인 = 같은 레짐·코호트의 무작위 진입(레짐 자체 방향성 제거). 1,580일(2022-01~2026-09)",
-  "passed_cells": {
-   "engulfing_long_top20_bull_btc": "n=52 +4.84% med+10.14% bp.049 OOS3/4",
-   "engulfing_short_top30_bull_altseason": "n=75 +5.70% med+10.28% bp.045 OOS4/4"
-  },
-  "regime_spread": "같은 패턴 레짐 간 최대 13%p 차(engulfing 롱 bull_btc +1.78% vs bull_altseason -6.97%). 전체 기간 하나로 재면 상쇄돼 전부 REJECT 로 보임 — 사용자 가설 확인",
-  "routing_mismatch": "fvg 2셀 부호 반대 — bull_altseason 롱(-2.12%, 숏이 +1.39%), bear 숏(-0.72%, 롱이 +0.70%). 2026-06-24 표는 n>=20·mean>0 만 보고 만든 것",
-  "fvg_verdict": "전 레짐 사망이 아님. bull_btc 에서 n=1837 +2.23% med +9.89%(top30 +2.79% OOS4/4)로 살아 있고 boot_p(.135~.178)만 못 넘음 = 상승장 무작위 롱을 못 이김. 죽은 곳은 bull_altseason(-2.12%)과 2026 bear. 900일 창이 bear 비중이 커서 '마모'로 보였던 것",
-  "caveat": "boot_p 베이스라인이 30건 표본 평균 분포라 n 큰 셀에 보수적 — 베이스라인 표본 수를 셀 n 에 맞추는 후속 수정 필요",
-  "live_impact": "없음(연구). 라우팅·fvg 배포 변경은 사용자 결정",
-  "files": "validate_regime_split.py / test_regime_split.py(11) / validate_regime_split.yml / report_regime_split.md",
-  "rerun_2026_09_04_baseline": {
-   "trigger": "사용자 의문 — bull_altseason 에서 fvg 롱이 마이너스인 게 말이 되나, 시험 오류 아닌가",
-   "added": "셀별 (a) 같은 레짐·코호트 무작위 진입 평균(레짐 자체 수익) (b) 엣지=패턴평균−레짐평균 (c) 연도별 분해",
-   "regime_baseline_20bar_long": {
-    "bull_btc": "-0.17% (top20 +0.41%)",
-    "bull_altseason": "-3.04% (top20 -2.26%) — 라벨이 후행이라 국면 끝자락에 몰림",
-    "bear": "-0.64% (top20 -0.01%)"
-   },
-   "correction": "첫 보고의 '라우팅 부호 반대 2건' 중 bull_altseason fvg 롱은 오진 — 철회. 그 셀 엣지는 +0.92~+1.95%p 로 양수이며 절대 수익이 음수인 것은 레짐 자체(-3.04%) 때문",
-   "edge_by_cell": {
-    "fvg_long": "세 레짐 모두 엣지 양수 (+2.39 bull_btc / +0.92 altseason / +1.34 bear)",
-    "fvg_short": "세 레짐 모두 엣지 음수 (-1.40 / -1.25 / -0.96) — 레짐 문제가 아니라 패턴 문제",
-    "engulfing_long": "bull_btc +1.94~+3.34, bear +1.03~+2.75, altseason -3.92",
-    "engulfing_short": "altseason +3.49~+3.59, bear +1.06~+1.26, bull_btc -1.00~-1.21"
-   },
-   "routing_verdict": "6셀 중 5셀 엣지 기준 일치. 유일한 불일치는 bear 의 fvg 숏(롱 엣지 +1.34 vs 숏 -0.96)",
-   "passed_cells_rerun": "engulfing 롱 top20 bull_btc (n=52 +4.84% 레짐 +0.41% 엣지 +4.44%p bp.043 OOS3/4). engulfing 숏 top30 altseason 은 bp .045→.055 로 경계 이탈(엣지 +3.59%p 유지, 경계 셀 기록)",
-   "proposal": "bear fvg 숏만 FLAT 후보. 나머지 5셀 유지. altseason 롱 축소는 별도 사전등록"
-  }
- }
 }

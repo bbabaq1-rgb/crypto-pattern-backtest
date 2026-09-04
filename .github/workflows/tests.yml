@@ -50,7 +50,8 @@ jobs:
                    test_executor_safety.py \
                    test_regime_determinism.py \
                    test_method_m.py \
-                   test_regime_split.py; do
+                   test_regime_split.py \
+                   test_direction_switch.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
             echo "::endgroup::"
