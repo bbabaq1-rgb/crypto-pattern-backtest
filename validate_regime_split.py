@@ -77,16 +77,20 @@ def gate_cell(label, sigs, pool, verbose=True):
     if n >= 2 and st.stdev(rets) > 0:
         t = mean / (st.stdev(rets) / sqrt(n)); p = _pval(t, n - 1)
     boot_p = 1.0
+    base_mean = base_med = None
     if pool and n:
         rng = random.Random(SEED)
         k = min(max(10, min(30, n)), len(pool))
         direction = sigs[0][2] if len(sigs[0]) > 2 else "long"
-        ge = 0
+        ge, means = 0, []
         for _ in range(BOOT_N):
             smp = rng.choices(pool, k=k)
             bm = st.mean(detlib.outcome(r, i, direction)[1] for r, i in smp)
+            means.append(bm)
             ge += bm >= mean
         boot_p = ge / BOOT_N
+        base_mean = st.mean(means)
+        base_med = st.median(means)
     oos = []
     if n >= 20:
         dates = sorted(d for d, *_ in sigs)
@@ -104,11 +108,23 @@ def gate_cell(label, sigs, pool, verbose=True):
     if med <= 0: fails.append("median<=0")
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if n >= 20 and oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
+    # 연도별 분해 — 한 해에 몰린 결과인지 본다
+    by_year = {}
+    for d, r, *_ in sigs:
+        by_year.setdefault(d[:4], []).append(r)
+    years = {y: dict(n=len(v), mean=st.mean(v)) for y, v in sorted(by_year.items())}
     rec = dict(n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p, oos_pos=oos_pos,
-               verdict="PASSED" if ok else "REJECTED", reason=", ".join(fails))
+               base_mean=base_mean, base_median=base_med,
+               edge_vs_regime=(mean - base_mean) if base_mean is not None else None,
+               by_year=years, verdict="PASSED" if ok else "REJECTED", reason=", ".join(fails))
     if verbose:
+        bm = f"{base_mean*100:+6.2f}%" if base_mean is not None else "   n/a"
+        ed = f"{(mean-base_mean)*100:+6.2f}%p" if base_mean is not None else "     n/a"
+        yr = " ".join(f"{y}:{v['mean']*100:+.1f}%(n{v['n']})" for y, v in years.items())
         print(f"  {label:<44} n={n:>5} mean={mean*100:+6.2f}% med={med*100:+6.2f}% "
-              f"boot_p={boot_p:.3f} OOS={oos_pos}/4 -> {rec['verdict']} {rec['reason']}")
+              f"| 레짐평균 {bm} 엣지 {ed} | boot_p={boot_p:.3f} OOS={oos_pos}/4 -> {rec['verdict']} {rec['reason']}")
+        if years:
+            print(f"  {'':<44} 연도별 {yr}")
     return rec
 
 

@@ -57,6 +57,13 @@ best = sorted(range(len(pool)), key=lambda i: -detlib.outcome(up, i, "long")[1])
 edge = [(up[i]["date"], detlib.outcome(up, i, "long")[1], "long") for i in sorted(best)]
 rec_edge = v.gate_cell("edge", edge, pool, verbose=False)
 check("실제 엣지가 있으면 boot_p 작아짐", rec_edge["boot_p"] < rec_naive["boot_p"], (rec_edge["boot_p"], rec_naive["boot_p"]))
+# 레짐 자체 수익(베이스라인 평균)과 패턴 엣지(차이)를 분리해 보고하는가
+check("베이스라인 평균 보고", rec_naive["base_mean"] is not None and rec_naive["base_mean"] > 0, rec_naive["base_mean"])
+check("무작위 진입의 엣지는 0 근처", abs(rec_naive["edge_vs_regime"]) < abs(rec_naive["mean"]), 
+      (rec_naive["edge_vs_regime"], rec_naive["mean"]))
+check("실제 엣지 셀은 엣지가 크게 양수", rec_edge["edge_vs_regime"] > rec_naive["edge_vs_regime"],
+      (rec_edge["edge_vs_regime"], rec_naive["edge_vs_regime"]))
+check("연도별 분해 존재", isinstance(rec_naive.get("by_year"), dict) and rec_naive["by_year"], rec_naive.get("by_year"))
 
 # ── 3. turnover_rank ────────────────────────────────────────────────────────
 r = v.turnover_rank({"A": rows_of(60, 2, px0=10.0), "B": rows_of(60, 3, px0=1000.0), "C": rows_of(20, 4)})
