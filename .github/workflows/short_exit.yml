@@ -1,0 +1,41 @@
+name: Short-side regime exit re-test (research)
+
+# 연구 전용 — method_s 홀드아웃에서 관찰된 '숏은 레짐 청산을 빼는 게 낫다'를 반증 시도.
+# 사후 선택된 셀이므로 시간분할·부트CI·대조군(롱)·레짐층화 4종으로 검증한다.
+# 매매/DB 접근 없음. 실거래 청산 규칙 무변경 — 채택은 사용자 결정.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_short_exit.py"
+      - ".github/workflows/short_exit.yml"
+
+jobs:
+  retest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_short_exit.py
+      - name: Short-side regime exit re-test
+        run: python validate_short_exit.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: short-exit-${{ github.run_number }}
+          path: _short_exit.json
+          if-no-files-found: ignore
