@@ -1812,5 +1812,18 @@
       "test_short_exit.py",
       "short_exit.yml"
     ]
+  },
+  "elliott_status_2026_09_04": {
+    "trigger": "사용자 — 엘리엇 하위구조 문서 검토 후 정리",
+    "finding": "elliott_detect.py / terminal_detect.py 는 실재하나 미검증·미등재. registry/universe/scheduler 미참조, tests.yml CI 대상 아님",
+    "not_dead_code": "zigzag/Signal/Pivot 을 triple_bottom_volume(triple_bottom_desc, rejected)·breakout_indicators·reversal_patterns 가 import — 삭제 금지",
+    "substructures_already_tested": {
+      "확장플랫→가짜돌파반전": "liquidity_sweep rejected",
+      "수렴삼각형→변동성수축돌파": "bb_squeeze rejected, nr7 rejected",
+      "엔딩다이애고널→모멘텀약화": "rsi_divergence rejected, macd_divergence rejected"
+    },
+    "untested_remaining": "ATR 백분위 수축 돌파 / 쐐기 기하 / 추세 중 되돌림 재개 — 전부 B-~C 이고 같은 계열이 2회 이상 기각. 추가 시험 권고하지 않음(시도 횟수 비용)",
+    "action": "파일 상단에 [상태: 미검증·실거래 미등재] 주석 고정. 코드 동작 무변경",
+    "correction": "세션 중 '엘리엇 디텍터 없음'·'아무도 import 안 함' 두 발언 모두 오류였음 — 파일 실재하고 4개 모듈이 import"
   }
 }

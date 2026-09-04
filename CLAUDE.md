@@ -552,6 +552,12 @@
 - test_cron_split.py: 매시 크론이 배포 패턴 동작을 바꾸지 않음을 고정 (게이팅/닫힌봉/재정렬)
 - supabase_external_trigger.sql: GitHub 크론 누락 대체 — Supabase pg_cron 이 매시/4h
   `workflow_dispatch` 호출. Vault PAT, gh_dispatch_log. test_external_trigger.py 가 레포와 정합 고정
+- elliott_detect.py / terminal_detect.py: **미검증·실거래 미등재** (2026-09-04 파일 상단 주석으로 고정).
+  게이트를 통과한 적이 없고 registry/universe/scheduler 어디에도 없다. 다만 죽은 코드는 아니다 —
+  zigzag/Signal/Pivot 을 triple_bottom_volume(=triple_bottom_desc, rejected) · breakout_indicators ·
+  reversal_patterns 가 import 한다. 엘리엇 하위구조(지그재그·플랫·다이애고널·삼각형)의 환원 개념은
+  이미 별도 디텍터로 전부 시험해 기각(liquidity_sweep=가짜돌파반전, bb_squeeze·nr7=변동성수축돌파,
+  rsi_divergence·macd_divergence=모멘텀 약화). **신규 검증 대상 아님.** 배포 목록 출처는 registry.json
 - research_log.csv: 106건 시험 기록
 - detector_three_soldiers_4h.py: 3연속 장대 양봉 (4h, PASSED)
 - detector_three_soldiers_1h.py / detector_three_crows_1h.py: 1h 버전 (검증용)
