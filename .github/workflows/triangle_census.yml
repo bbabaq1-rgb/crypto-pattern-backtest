@@ -1,0 +1,29 @@
+name: Triangle census (feasibility count only)
+
+# 검토 단계 실현가능성 조사 — '3파 후 4파 삼각수렴' 후보가 동결 게이트 n>=20 을
+# 채울 수 있는지 **개수만** 센다. 전략 구현 아님. 라벨·수익률 계산 없음.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["claude/7day-trading-signals-2bk3yq"]
+    paths: ["triangle_census.py", ".github/workflows/triangle_census.yml"]
+
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: mkdir -p data
+      - name: 삼각형 후보 개수 조사 (1d/4h/1h x zigzag 3 x 터치 2 x 폭 2)
+        run: python triangle_census.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: triangle-census-${{ github.run_number }}
+          path: triangle_census.json
+          if-no-files-found: ignore
