@@ -369,6 +369,23 @@
     베이스라인으로 재면 bull_btc 셀 bp .165(ALL +0.52% bp .284), 원 등재는 무조건부 베이스라인. 배포
     유지 근거 약화, 별도 판정 필요. 1h 셀은 1년치(bear 77%)라 '기각 유지'로만 읽을 것.
     validate_regime_split_all.py / test_regime_split_all.py(34건)
+  · **레짐 청산 소거 시험 — 레짐 청산 유지 확정 (2026-09-04, 사용자 질문 "레짐이 방향도 모르는데
+    그걸 근거로 청산하는 게 이상하지 않나")**: report_regime_exit_ablation.md. **모순 아님** —
+    라벨 품질은 라벨의 **수준**을 예측기로 쟀고(적중 <50%), eval_D 는 라벨의 **변화**만 본다.
+    다만 레짐 청산을 아예 뺀 판은 한 번도 재본 적이 없었다(method_d 묶음비교/method_r 좁힘/
+    method_m·q 소스교체). 4 arm 짝지음(메이저 7종목, 2,780일, train n=729, 홀드아웃 365일):
+    · **D_shuffle 19/20 패배 (합산 −2.58%p, t −3.40)** — 라벨별 일수·런 길이·**전환 수까지 정확히
+      보존**하고 정렬만 파괴한 라벨이 20 draw 중 19 개에서 D 에 짐(중앙 −0.72%, 유일 예외 +0.018%p
+      로 사실상 동률). **청산 시점에 정보가 실재.**
+    · **D_time −3.62%p (t −4.80, CAGR우위 1/7)** — D 의 실측 평균 보유를 그대로 상한으로 줘도
+      무너짐. '레짐 청산은 그냥 시계'라는 해석 기각.
+    · **D_norg −0.045%p (t −0.14)** — 아예 빼도 건당은 D 와 **구분 불가**. 즉 알파의 원천이
+      아니라 잘 맞춰진 출구다(제때 나가면 이득, 엉뚱하게 나가면 손해, 안 나가면 중립).
+    · 청산 사유에서 레짐 전환은 fvg 의 약 1/3(134/366)을 담당하는 주 출구. 빼면 손절·만기가 대체.
+    · 방법 정정: 1차 무제약 셔플은 전환 수가 97→43~61 로 줄어(같은 라벨 런 병합) 청산이 절반이
+      되며 D_norg 쪽으로 끌려갔다 → `_sequence_no_adjacent` 로 전환 수 정확 보존(2차). 편향이
+      결론에 불리하게 작용했음이 확인 — 격차가 −0.98%p(1차) → −2.58%p(2차) 로 벌어짐.
+    · **판정 A_상태정보_실재. 실거래 무변경(방식D 유지).** method_s.py / test_method_s.py(41건) / method_s.yml
   · **레짐 라벨러 강화 연구 REJECT (2026-09-04, 사용자 지시 "레짐 정확도를 올릴 변수 추가")**: report_regime_quality.md.
     breadth/vol/funding 신호로 라벨러 6후보(fast_slope/breadth_price/vote4/vol_side/funding_cap/breadth_only) —
     1단계 라벨 품질(분리폭·적중·지연·flips, 사전 규칙 4개) **후보 0**, 2단계 짝지음 19 arm **전부 REJECT**.
@@ -447,6 +464,7 @@
 - [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
       three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
 - [x] bear fvg 숏 OFF (2026-09-04) / 유니버스 N=80 적용 (2026-09-04)
+- [ ] 레짐 청산 소거 시험을 **유니버스 80종목**으로 재확인 (현재 메이저 7종목, 기존 연구 표본 정합용)
 - [ ] **three_soldiers_4h 재판정** — 레짐 베이스라인(같은 레짐 무작위 진입)으로 bull_btc 셀 bp .165. 원 프레임과 병기해 배포 유지 여부 판단
 - [ ] triple_bottom top30 코호트 사전 등록 재시험 (데이터 누적 후, 현재 n=35 bp .078)
 - [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
@@ -492,6 +510,7 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py

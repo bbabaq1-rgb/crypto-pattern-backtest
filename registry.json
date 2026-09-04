@@ -1747,5 +1747,30 @@
     ],
     "horizon_diag": "run #2: current hit 49/49/47/47% (20/40/60/90d), sep +0.81/−2.20/−1.48/+3.88%p. breadth 90d −18.7%p 역행. 방향 정보 없음 확정",
     "retest_path": "validate_regime_split(_all).py --labeler <name> — 라벨러 채택 시 셀 재정의 재시험"
+  },
+  "regime_exit_ablation_2026_09_04": {
+    "trigger": "사용자 — 레짐이 방향도 모르는데 그걸 근거로 청산하는 게 이상하지 않나",
+    "design": "같은 신호 4 arm 짝지음: D(현행) / D_norg(레짐청산 제거) / D_time(D 실측 평균보유 상한으로 대체) / D_shuffle(라벨 런 재배열, 일수·런길이·전환수 정확 보존, 정렬만 파괴 x20 draw)",
+    "data": "메이저 7종목 2,780일(2019~2026), train n=729, 홀드아웃 365일(cutoff 2025-09-04)",
+    "prereg": "A 상태정보실재 / B 레짐은시계 / C 레짐청산해로움 / D 정보있으나 시계로대체가능 / INCONCLUSIVE",
+    "result": {
+      "verdict": "A_상태정보_실재",
+      "D_shuffle": "19/20 draw 패배(95%), 합산 −2.581%p t −3.40 boot_p .996, 중앙 −0.72%p, 범위 −4.274~+0.018%p",
+      "D_time": "−3.617%p t −4.80 CAGR우위 1/7 — 시계 해석 기각",
+      "D_norg": "−0.045%p t −0.14 — D 와 구분 불가(순기여 작음)"
+    },
+    "reading": "제때 나가면 이득, 엉뚱하게 나가면 손해, 안 나가면 중립. 알파 원천이 아니라 잘 맞춰진 출구",
+    "method_fix": "1차 무제약 셔플 전환수 97→43~61 (런 병합, D_norg 쪽으로 끌림) → _sequence_no_adjacent 로 정확 보존. 격차 −0.98%p(1차)→−2.58%p(2차), 결론 동일·2차가 더 강함",
+    "live_impact": "없음 — 방식D 유지",
+    "files": [
+      "method_s.py",
+      "test_method_s.py",
+      "report_regime_exit_ablation.md",
+      "method_s.yml"
+    ],
+    "runs": {
+      "run1": "33838717310 (무제약 셔플)",
+      "run2": "33839080833 (제약 셔플, 채택)"
+    }
   }
 }
