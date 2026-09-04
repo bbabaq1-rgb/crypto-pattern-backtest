@@ -103,7 +103,11 @@ DETMOD = {("engulfing", "long"): "detector_engulfing",
 #   "majors"=검증 7종목 / "topN"=30일 평균 거래대금 상위 N(매 실행 재계산) / "all"=전체.
 MAJORS = list(detlib.SYMBOLS)   # BTC SOL ETH BNB XRP ADA AVAX
 PATTERN_UNIVERSE = {
-    "engulfing":       "top20",
+    # engulfing: 검증이 통과한 셀은 거래대금 1~20위(무기한 기준 2026-09-04 스캔 +3.65% PASS,
+    # 21~30위는 median -4.5%/boot_p .141 REJECT). **top30 은 사용자 강제(2026-09-04)** —
+    # "ARB 가 기준 변경으로 빠질까 봐"(실제 ARB 는 무기한 기준 13위로 top20 안). 21~30위
+    # 구간의 진입은 검증되지 않은 셀에서 나가는 것임을 기록해 둔다. 되돌리려면 "top20".
+    "engulfing":       "top30",
     "fvg":             "top30",
     "inverted_hammer": "majors",
     "marubozu":        "majors",

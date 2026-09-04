@@ -1,4 +1,30 @@
 """
+[상태: 미검증 · 실거래 미등재]  (2026-09-04 확인)
+
+이 파일의 **엘리엇 파동 라벨링(detect)** 은 동결 게이트(n>=20 / mean>0 / median>0 /
+boot_p<0.05 / OOS)를 한 번도 통과한 적이 없고, registry.json · universe.json ·
+scheduler.py 어디에도 등재돼 있지 않다. 실거래·페이퍼 경로는 이 모듈의 detect 를
+호출하지 않는다(backtest.py 하니스만 호출하며, 그 하니스도 스케줄러가 쓰지 않는다).
+tests.yml CI 대상도 아니다.
+
+**다만 이 파일은 죽은 코드가 아니다.** zigzag / Signal / Pivot 은 공용 유틸로
+아래 세 모듈이 import 한다 — 지우면 그쪽이 깨진다.
+  - triple_bottom_volume.py  (registry: triple_bottom_desc, status=rejected)
+  - breakout_indicators.py
+  - reversal_patterns.py
+
+배경(2026-09-04 검토, report 없음 — 카탈로그·하위구조 문서 대조 결과):
+  엘리엇은 조정파 문법의 표현력이 너무 커서 어떤 가격 경로에도 사후 라벨이 붙는다
+  (= 반증 불가). 게다가 zigzag(threshold) 임계값 하나가 파동 카운트를 통째로 바꾸는
+  숨은 자유도다. 하위구조를 환원한 개념들은 이미 별도 디텍터로 시험해 전부 기각됐다
+  (liquidity_sweep=가짜돌파반전, bb_squeeze·nr7=변동성수축돌파,
+   rsi_divergence·macd_divergence=모멘텀 약화). **신규 검증 대상이 아니다.**
+
+경고: 이 모듈을 '게이트 통과 패턴'으로 오인하지 말 것. 배포 패턴 목록은 registry.json 이
+       유일한 출처다.
+"""
+
+"""
 결정론적 엘리엇 파동 라벨링 — detect() 구현 예시
 
 설계 원칙

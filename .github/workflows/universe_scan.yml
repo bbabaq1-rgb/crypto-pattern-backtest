@@ -1,0 +1,38 @@
+name: Universe OKX scan (research)
+
+# 연구 전용 — OKX 무기한 거래대금 상위 종목 스캔 + 코호트별 패턴 게이트.
+# 매매/DB 접근 없음(공개 시세만). 결과는 로그 + 아티팩트. 유니버스 변경은 사용자 결정.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "universe_okx_scan.py"
+      - ".github/workflows/universe_scan.yml"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Scan + cohort gate
+        run: python universe_okx_scan.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: okx-scan-${{ github.run_number }}
+          path: _okx_scan.json
+          if-no-files-found: ignore

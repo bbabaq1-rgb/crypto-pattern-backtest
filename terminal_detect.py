@@ -1,4 +1,18 @@
 """
+[상태: 미검증 · 실거래 미등재]  (2026-09-04 확인)
+
+엔딩 다이애고널(터미널) 검출기. 동결 게이트를 통과한 적이 없고 registry.json ·
+universe.json · scheduler.py 어디에도 등재돼 있지 않다. backtest.py 하니스만
+import 하며 그 하니스도 실거래·페이퍼 경로가 쓰지 않는다. tests.yml CI 대상도 아니다.
+
+환원하면 '수렴 쐐기 + 모멘텀 약화'인데, 모멘텀 약화 쪽은 rsi_divergence ·
+macd_divergence 로 이미 시험해 둘 다 기각됐다. **신규 검증 대상이 아니다.**
+
+경고: 이 모듈을 '게이트 통과 패턴'으로 오인하지 말 것. 배포 패턴 목록은 registry.json 이
+       유일한 출처다.
+"""
+
+"""
 터미널(Terminal) / 엔딩 다이애고널 detector — detect_terminal()
 
 elliott_detect.py 와 같은 폴더에 두고 사용한다 (zigzag/Signal 재사용).

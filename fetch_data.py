@@ -85,9 +85,20 @@ def update_csv(symbol, timeframe, out_path, window_days=None, quiet=True):
             since = (last_ts + tf_ms) if last_ts is not None else default_since
             if since >= now_ms and last_ts is not None:
                 return 0, len(old_rows)          # 이미 최신
-            new_rows, ex_used = fetch_ohlcv_all(ex_id, symbol, timeframe, since,
-                                                limit=300, max_retries=1, exchange=ex,
-                                                quiet=quiet)
+            # 2026-09-04: OKX 는 **무기한(X/USDT:USDT) 캔들을 우선** 받는다. 매매는 무기한이고
+            # 거래대금 순위(scheduler._volume_ranked)도 그 시장 기준이어야 한다. 종전 현물
+            # 캔들은 선물 전용 상장(HYPE/ENA 등)을 못 받았고 현물 거래대금으로 순위를 매겼다.
+            # 무기한이 없으면 현물로 폴백. 다른 거래소는 종전대로 현물.
+            tries = [symbol]
+            if ex_id == "okx" and ":" not in symbol and symbol.endswith("/USDT"):
+                tries = [symbol + ":USDT", symbol]
+            new_rows, ex_used = [], ex_id
+            for sym_try in tries:
+                new_rows, ex_used = fetch_ohlcv_all(ex_id, sym_try, timeframe, since,
+                                                    limit=300, max_retries=1, exchange=ex,
+                                                    quiet=quiet)
+                if new_rows:
+                    break
             if not new_rows and last_ts is None:
                 continue                          # 신규 수집인데 0봉 → 다음 거래소
             merged = old_rows + [r for r in new_rows if not old_rows or r[0] > old_rows[-1][0]]

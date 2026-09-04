@@ -11,6 +11,7 @@
   - bull_btc/bull_altseason → 롱 전용, bear/sideways 스킵
   - 나머지 6종 기각 (three_crows/breakout_retest/equal_highs_lows/vwap_rev)
 - **신규 1h 패턴**: bat_1h PASSED (n=108, mean=+1.46%, OOS 4/4, boot_p=0.034)
+- **triple_bottom_1w 등재 정지 (2026-09-03, 룩어헤드 재검증 REJECT)** — 아래 '전체 점검' 참조. 종전 기록:
 - **신규 1w 패턴**: triple_bottom_1w PASSED (2026-08-29 2차 연장검증, n=141,
   mean=+7.72%, median=+10.19%, boot_p=0.023, OOS 2/4) — 사용자 지정 패턴
   (차트 5장) 데이터화. 1d 5년 리샘플, 레짐 무관 롱, detlib가 1w/1M 리샘플 지원.
@@ -169,6 +170,8 @@
       포지션 크기로 제한). 단 `ensure_stop_orders` 는 손절 '존재'만 보고 **수량을 비교하지
       않는다** — 수동 개입 시 장부 수량이 어긋난 채 유지된다(기록 정확도 갭, 별도 과제).
       trades 테이블에도 live_mode/pnl_usd 컬럼 없음(pnl $200 가정 재구성 → daily_summary 왜곡).
+    · **2026-09-03 22:04~23:03 KST equity $318→$262·free $107→$55 급감은 사용자 출금으로 확인**
+      (2026-09-04 확인. OKX 감사: 포지션 3건·손절 4건 불변, 청산 이력 없음 — 이상징후 아님).
   · **entry_ts 유실 — 배포 직후 실측으로 발견(2026-09-01)**: Supabase `positions` 에
     `entry_ts`/`target`/`live_mode` 컬럼이 없어 insert 시 `insert_tolerant` 가 자동
     제외한다(실행 로그 '스키마 미존재 컬럼 제외'). 러너는 파일시스템이 매번 비어
@@ -304,15 +307,184 @@
     시 raw 레짐을 positions.entry_regime 에 기록해 청산 판정이 맵 재조회에 의존하지 않게. BTC.D
     fetch 실패 시 만료 캐시 우선(프록시 전환 금지). 온체인 레짐 조정은 미검증이라 표시 전용.
     test_regime_determinism.py
+  · **재검증 결과(2026-09-03, validate_confirm_bar #1)**: 인과 판 **7셀 전부 REJECT**. gartley_4h +1.48%
+    bp.109 / bat_4h −0.26% / butterfly_4h −0.33% / gartley_1h +0.45% med −0.01% / bat_1h −0.82% /
+    butterfly_1h −0.36% / **triple_bottom_1w +3.07% med −11.36% bp.164**. old(룩어헤드) 판은 등재 수치를
+    재현(부풀림 +0.9~+4.7%p). triple_bottom 은 L3 미확정 돌파 38건(평균 ≈+20%)이 엣지 전부였고 실거래가
+    잡을 수 있는 104건은 게이트 미달 → **triple_bottom_1w 도 suspended_lookahead**(신규 진입 정지, 열린 UNI
+    는 D 규칙대로). 복귀 후보 없음. `_pattern_tf` 는 suspended 목록도 읽어 UNI 청산 tf(1w) 유지.
+    후속 가설(미검증): 미확정 돌파 셋업을 L3+3 에서 '지각 진입' — 별도 사전등록 필요.
   · **DB 스키마 패치 필요(사용자 실행)**: supabase_schema_patch_2026_09.sql — positions.entry_ts/
     target/live_mode/tf/regime/entry_regime, trades.live_mode/pnl_usd/pnl_live_usd/regime/
     entry_regime. 실행 전까지 해당 값은 복원 시 유실(코드는 폴백으로 동작).
   · **손대지 않은 것(판단 보류·후속)**: 숏 라우팅(위 레짐 스위치 항목) · 방식D 가 1d engulfing/fvg
     외 TF 에서 미검증(ih/marubozu/three_soldiers/1h/1w 는 ±10%/20봉 라벨로만 통과) · 기존 패턴
     형성 중인 봉 탐지(별도 과제 유지) · 유니버스 드리프트 · fvg/ih/marubozu 워크포워드 실패 플래그
+- **레짐 스케일 연구 기각** (2026-09-03, 사용자 가설 "기각된 규칙이 레짐 문제일 수도"): 현행 일봉 레짐
+  (200일선 20일 기울기)에 주봉(slow: 30주선 4주) / 4h(fast: 200봉 20봉) 스케일을 같은 3-신호 구조로
+  만들어 청산 소스 교체(D_slow/D_fast, RL_slow/RL_fast)와 진입 필터(F_slow/F_fast)로 짝지음 시험.
+  5년 창(n=470)과 최대 창(1d 2019~, n=570) **둘 다 7 arm 전부 REJECT**, 결론 불변.
+  · 주봉 레짐 청산 D_slow −2.4~−2.7%p(t −2~−3): 전환이 늦어 번 걸 반납. 4h 레짐 D_fast −5~−6.6%p
+    (t −4.4~−4.8, CAGR 우위 0/7): 너무 자주 바뀌어 조기 청산. 진입 필터 F_slow −2.2~−2.8%p: **bear
+    진입 롱이 가장 수익 좋은 부분집합**이라 막으면 손해(방식R 불변 사실과 일치). F_fast −0.3%p.
+  · 방식R 은 **일봉 스케일에서 가장 좋다**(RL +0.95~+1.66%p, max 창 train 통과 · holdout −0.18 탈락 —
+    method_r 결론 그대로). RL_slow/RL_fast 는 RL 보다 나쁨. 층화: slow 계열은 bear 진입에서만 양수
+    (단일 레짐 의존), 2024 상승장에서 slow/fast 전부 크게 음수. **레짐 스케일은 원인이 아니다.**
+  · regime_multi.py / method_m.py / test_method_m.py(20건) / method_m.yml / report_regime_scale.md
+- **유니버스 확대 검토 — OKX 무기한 거래대금 기준** (2026-09-04, 사용자 지시): report_universe_okx.md.
+  OKX 무기한 452 중 500봉 이상 101(현 67 + 신규 34). **롱 엣지는 거래대금 1~20위에만**(engulfing top20 PASS
+  +3.65%, 21위 이하 전부 기각 — 7월 코호트와 동일). 확대의 실효는 '순위 기준을 무기한 캔들로' 바꾸는 것
+  (top20 의 6/20 교체: HYPE/ENA/BICO/BCH/ONDO/TAO 진입). engulfing 숏은 31~101위·현 유니버스에서 통과.
+  **fvg 는 900일 창 전 코호트 기각**(마모 플래그 일치, 별도 판정 필요). 전 종목 확대는 근거 없음(81위 이하
+  무통과, 틱 4배). 제안 N=80(무기한 30일 거래대금, 토큰화 자산 제외, 500봉 이상).
+  · **N=80 적용 (2026-09-04, 사용자 결정 "유니버스 80 적용")**: trading_universe 67 → **80**
+    (스캔 #4 순위 1~80). 추가 24(BICO/BCH/ONDO/TAO/CRV/OKB/ORDI/FARTCOIN/JTO/VIRTUAL/LDO/GRASS/
+    TRB/MORPHO/BIO/STRK/MERL/CORE/AR/SUSHI/APE/LPT/SSV/KSM) / 제외 11(ICX/PENDLE/IOST/NEO/GRT/GLM/
+    1INCH/QTUM/CELO/API3/ZRX — 81위 이하, 데이터 문제 아님). HYPE/ENA/KAITO 는 500봉 미만이라 후보 제외.
+    근거·목록은 universe.json `universe_basis_2026_09_04`. 오픈 포지션 ADA(7위)/ARB(11위)/UNI(6위) 전부
+    잔류. 신규 종목 1d/4h/1h CSV 는 다음 oncefull 에서 처음 수집(900/130/40일) — 4h/1h 블록은
+    data/*_4h.csv 존재 종목을 돌므로 자동 편입. **4단계(캐스케이드 1h 재검증)는 미실행** — 새 종목
+    1h 365일 수집 뒤 별도. 분기마다 universe_okx_scan 재실행으로 갱신.
+- **레짐별 분리 게이트** (2026-09-04, 사용자 제안 "레짐 나눠서 테스트해야 맞다"): report_regime_split.md.
+  1d 패턴 6종 x 진입레짐 4 x 코호트 3 = 72셀. boot_p 베이스라인을 **같은 레짐·코호트 무작위 진입**으로
+  잡아 "상승장이라 오른 것"을 엣지로 오인하지 않게 함(test_regime_split 이 성질 고정).
+  · **통과 2셀**: engulfing 롱 top20 **bull_btc**(n=52 +4.84% med+10.14% bp.049) /
+    engulfing 숏 top30 **bull_altseason**(n=75 +5.70% med+10.28% bp.045 OOS4/4).
+  · **사용자 가설 확인** — 같은 패턴 레짐 간 최대 13%p 차(engulfing 롱 bull_btc +1.78% vs
+    altseason −6.97%). 전체 기간 하나로 재면 상쇄돼 전부 기각으로 보인다.
+  · **레짐 자체 수익 vs 패턴 엣지 분리 (재실행, 사용자 의문 제기 후)**: 셀마다 같은 레짐·코호트
+    무작위 진입 평균을 함께 출력. **bull_altseason 의 무작위 롱은 20봉 −3.04%** — 라벨이 후행
+    지표라 국면 끝자락에 몰리기 때문. 5년 중 173일뿐인 짧은 국면.
+  · **첫 보고의 '라우팅 부호 반대 2건' 중 altseason fvg 롱은 오진 — 철회.** 그 셀 엣지는
+    **+0.92~+1.95%p 양수**이고 절대 수익이 음수인 것은 레짐 탓이다. 엣지 기준으로 보면
+    **현재 라우팅 6셀 중 5셀이 맞다.** 유일한 불일치는 **bear 의 fvg 숏**(롱 엣지 +1.34 vs 숏 −0.96).
+  · **fvg 롱은 세 레짐 모두 엣지 양수**(+2.39/+0.92/+1.34), **fvg 숏은 세 레짐 모두 엣지 음수**
+    (−1.40/−1.25/−0.96) — 숏은 레짐 문제가 아니라 패턴 문제.
+  · 주의: boot_p 베이스라인이 30건 표본이라 n 큰 셀에 보수적 — 표본 수 정합 후속 필요.
+    재실행에서 engulfing 숏 altseason 이 bp .045→.055 로 경계 이탈(엣지 +3.59%p 유지).
+  · **기각·정지 55종 전수 레짐 재시험 (2026-09-04)**: report_regime_split_all.md. 440셀 **PASSED 0 / STRICT 0**
+    (우연 기대 22). 레짐을 나눠도 기각 패턴은 살아나지 않음 — 재시험 종료. 가까운 셀은 boot_p .06~.13
+    (order_block_short altseason n=39, triple_bottom_4h altseason, triple_bottom_1w top30 n=35 +6.2%).
+    후속 후보 하나: **triple_bottom top30** 데이터 누적 후 사전 등록. **three_soldiers_4h 주의** — 레짐
+    베이스라인으로 재면 bull_btc 셀 bp .165(ALL +0.52% bp .284), 원 등재는 무조건부 베이스라인. 배포
+    유지 근거 약화, 별도 판정 필요. 1h 셀은 1년치(bear 77%)라 '기각 유지'로만 읽을 것.
+    validate_regime_split_all.py / test_regime_split_all.py(34건)
+  · **레짐 청산 소거 시험 — 레짐 청산 유지 확정 (2026-09-04, 사용자 질문 "레짐이 방향도 모르는데
+    그걸 근거로 청산하는 게 이상하지 않나")**: report_regime_exit_ablation.md. **모순 아님** —
+    라벨 품질은 라벨의 **수준**을 예측기로 쟀고(적중 <50%), eval_D 는 라벨의 **변화**만 본다.
+    다만 레짐 청산을 아예 뺀 판은 한 번도 재본 적이 없었다(method_d 묶음비교/method_r 좁힘/
+    method_m·q 소스교체). 4 arm 짝지음(메이저 7종목, 2,780일, train n=729, 홀드아웃 365일):
+    · **D_shuffle 19/20 패배 (합산 −2.58%p, t −3.40)** — 라벨별 일수·런 길이·**전환 수까지 정확히
+      보존**하고 정렬만 파괴한 라벨이 20 draw 중 19 개에서 D 에 짐(중앙 −0.72%, 유일 예외 +0.018%p
+      로 사실상 동률). **청산 시점에 정보가 실재.**
+    · **D_time −3.62%p (t −4.80, CAGR우위 1/7)** — D 의 실측 평균 보유를 그대로 상한으로 줘도
+      무너짐. '레짐 청산은 그냥 시계'라는 해석 기각.
+    · **D_norg — 메이저 −0.045%p(t −0.14, 구분 불가) 이나 유니버스 80 에서 −1.788%p(t −12.83)**.
+      **정정: '순기여가 작다'는 표본 부족 탓이었다.** 80종목 train n=4,136 에서 분기 거래 1,126건
+      중 D 가 76% 승리, 패턴별 승률 21~24% 로 일관. 즉 제때 나가면 이득, 엉뚱하게 나가면 손해,
+      **안 나가면 손해**.
+    · **유니버스 80 재확인 (2026-09-04, 사용자 지시)**: 판정 A 동일, 모든 지표가 더 강함 —
+      셔플 20/20(중앙 −1.70%p, 20 draw 전부 음수), D_time −3.30%p, D_shuffle −3.15%p.
+      **홀드아웃(2025-09~2026-09)은 판별력 없음** — 2026 이 bear 247일 단일이라 레짐 전환이
+      거의 없어 arm 이 안 갈라진다(D_norg 분기 1,126→약 96건). 숏 2셀만 홀드아웃에서 D_norg
+      우세(engulfing_short +0.93%p t2.19, fvg_short +0.26%p t3.19) — 방식R 의 '롱·숏 비대칭'과
+      같은 방향, n 작아 후속 과제. 주의: --universe 는 모든 패턴을 80종목에 돌려 실거래 라우팅
+      (engulfing→top30 등)의 복제가 아니라 표본 크기 강건성 확인.
+    · 청산 사유에서 레짐 전환은 fvg 의 약 1/3(134/366)을 담당하는 주 출구. 빼면 손절·만기가 대체.
+    · 방법 정정: 1차 무제약 셔플은 전환 수가 97→43~61 로 줄어(같은 라벨 런 병합) 청산이 절반이
+      되며 D_norg 쪽으로 끌려갔다 → `_sequence_no_adjacent` 로 전환 수 정확 보존(2차). 편향이
+      결론에 불리하게 작용했음이 확인 — 격차가 −0.98%p(1차) → −2.58%p(2차) 로 벌어짐.
+    · **판정 A_상태정보_실재. 실거래 무변경(방식D 유지).** method_s.py / test_method_s.py(41건) / method_s.yml
+  · **퀀트 카탈로그 1차 묶음 (2026-09-04, 사용자 지시)**: report_quant_batch1.md. 학술 A등급 중
+    레포 미시험 2건을 사전 등록해 시험.
+    · **변동성 타겟팅 사이징 — 채택·실거래 반영 완료(2026-09-04 사용자 결정).** 현행은 risk 1%/손절 8%
+      고정이라 명목가가 자산 변동성과 무관한데, 진입 시점 20봉 실현변동성이 중앙 연율 86%·10~90분위
+      49~144% 로 3배 차이. arm risk/vol_raw/vol_matched(노출 정합, 주 판정), 거래 6,640건 부트 300회.
+      **4조건 전부 통과** — boot Calmar 0.18 vs −0.00 / boot MDD −73.0% vs −81.8% /
+      **P(ruin) 14.3% vs 37.7%** / 노출 0.98배. 가장 큰 변화는 수익이 아니라 파산 확률.
+      유보: 6,640건 중 5,227건이 슬롯·증거금 스킵. 반영하려면 sizing.risk_based_size 에 σ 스케일
+      인자 + 진입 시점 변동성 전달 경로 필요.
+      · **실거래 라우팅 복제 판 (2026-09-04 사용자 지시, `--routing`)**: 스케줄러 진입 조건 세 겹
+        (패턴별 유니버스 / 레짐→방향 라우팅 — FOCUS 한정, ih·marubozu 는 무게이트 / 정지 패턴 제외)을
+        그대로 걸어 재측정. 표본 6,640 → **991건**(fvg_short 는 bear OFF + bull 롱 라우팅이라 **0건**).
+        **판정 동일 — 4조건 전부 통과**: boot Calmar **1.06 vs 0.65** / boot MDD −45.4% vs −51.8% /
+        P(ruin) 0.3% vs 3.7% / 노출 0.96배.
+        **정정 성격의 발견 — 라우팅 자체가 큰 개선이다.** 현행(risk) arm 만 봐도 boot Calmar
+        −0.00 → 0.65, P(ruin) 37.7% → 3.7%. 전 표본 판에서 '현행 사이징이 취약'해 보인 상당 부분은
+        라우팅이 걸러내는 셀까지 넣고 잰 탓이다. 그 위에서도 vol_matched 가 이기지만 **개선의 근거는
+        P(ruin)이 아니라 Calmar·MDD** 로 옮겨간다(0.3%는 이미 낮은 값에서의 감소).
+        유보: 현재 라우팅 표를 과거에 소급 적용한 판이라 절대 수준은 낙관적(세 arm 이 같은 신호
+        집합이라 arm 비교는 상쇄). 표본이 1/7 이라 부트 변동 큼. 출력 sizing_vol_routing.json.
+      · **실거래 반영 (2026-09-04)**: `s_raw = clip(0.80/σ, 0.5, 2.0)`, `vol_scale = s_raw/1.1094`,
+        `risk_usd = equity x 1% x regime_mult x vol_scale`. **배율 0.45~1.80배, 손절가·레버리지 불변 —
+        바뀌는 건 명목가뿐.** 1.1094 는 라우팅 표본의 s_raw 평균(s_norm); 연구의 인과적 확장평균이
+        수렴하는 값이라 '앞으로 나갈 거래'에는 상수가 충실한 구현이다. sizing_vol 이 매 실행 이
+        상수와 대조해 0.02 이상 벌어지면 경고.
+        · **sizing.py 가 원본** — realized_vol/vol_scale_raw 가 여기 있고 sizing_vol(연구)이 import.
+          연구와 실거래가 다른 구현을 쓰면 검증한 규칙과 주문이 조용히 갈라진다(test 가 `is` 로 고정).
+          risk_based_size(..., vol_scale=) 추가(연구의 risk_frac 스케일과 수식상 동치, 테스트로 확인).
+          폴백 3종(타겟팅 off / 상수 미설정 / σ 산출 불가)에서 1.0 = 채택 전과 완전 동일.
+        · **부작용 ① 건당 달러 위험이 1% 고정이 아니다** — 손절 8% 고정 + 명목가만 이동이라
+          risk_usd 는 약 0.45~1.80%. 일정해지는 건 달러 위험이 아니라 변동성 기여(명목가 x σ)이고
+          검증에서 개선된 것도 그쪽. 종전 '위험 1% 고정' 표현과 어긋나므로 명시.
+        · **부작용 ② 현 계좌에서 고변동 신호는 주문이 안 나간다** — 명목가가 줄면 증거금이 최소
+          주문($10) 미달로 스킵. 문턱 equity = 160/vol_scale: 1.80→$89 / 1.00→$160 /
+          **0.58→$276(현 계좌, σ 약 124%/yr)** / 0.45→$355. **실측 스킵 비율(라우팅 991건)**:
+          equity $200 **37.1%** / $250 20.3% / **$276 약 12~15%** / $300 8.4% / **$400 이상 0%**
+          (최저 배율 0.45 아래로는 잘릴 신호가 없다). 즉 **$400 넘으면 부작용 소멸, 계좌가 작아지면
+          급격히 악화** — 채택 전에는 equity>=$160 이면 스킵 0% 였으므로 이 구간은 거래 기회를
+          실제로 잃는 교환이다. sizing_vol 이 계좌 규모별 스킵 비율을 표로 찍고,
+          실거래 스킵 로그에도 필요 equity 를 남긴다. **레버리지 상향으로 해소 가능하나 안 했다** —
+          sizing_study 에서 상향은 동시 노출만 키워 MDD 악화(2→5x, CAGR 43→36%/MDD −67→−76%).
+        · 되돌리기: `sizing.VOL_TARGETING = False` 한 줄. sizing_vol_live 테스트가 그 성질을 고정.
+    · **횡단면 모멘텀 — 전 셀 기각(5/5).** 주간 리밸런스·상위10·skip-1·L={7,14,28,56,84}.
+      mean −0.57~−1.08%, 엣지 +0.02~+0.51%p, boot_p .41~.49. **프레임 탓 기각 아님** — 추세 60봉
+      진단도 전부 음수(−5.4~−7.8%). 포트폴리오는 상위10 −88% vs 유니버스 −81% 로 **더 나쁨**.
+      RS 필터 기각(2026-07-08)과 같은 방향 — 상대강도는 필터로도 단독 규칙으로도 작동 안 함.
+      **관측 창 2024~2026(2.4년) 한계** — 유니버스 80 은 대부분 900봉이라 2024 이전은 20종목이
+      동시에 이력을 갖지 못한다. --min-bars 1800 확장 시도했으나 해당 종목이 3개뿐이라 신호 0건.
+      코드 문제가 아니라 데이터 현실. 이력 누적 후(6개월~1년) 재시험 가능.
+    · **방법 정정(run #1→#2)**: 노출 지표를 달러 명목가로 재 1.94배로 오독 — 성과 좋은 arm 이 자본을
+      키워 명목가도 커지므로 레버리지와 수익이 뒤섞인다. **진입 시점 레버리지(명목가/equity)** 로
+      교체하니 0.98배. 판정에 (d) 노출 정합 가드 추가.
+    sizing_vol.py / validate_xsec_momentum.py / test_sizing_vol.py(35) / test_xsec_momentum.py(28) / quant_batch1.yml
+  · **숏 레짐 청산 재검토 REJECT (2026-09-04, 사용자 지시)**: report_regime_exit_ablation.md.
+    method_s 홀드아웃에서 숏 두 셀만 D_norg 우세였던 것(사후 선택 셀)을 반증 시도. 유니버스 80
+    전 구간. arm: S_norg(숏 레짐청산 제거) / **S_adv(숏은 불리 국면 진입 전환에만 청산 — method_r
+    RL 의 거울상, 최초 시험)**. 반증 4종 중 **둘 다 1/4 NOISE**.
+    · ④ 레짐층화가 결정타: bear 만 −0.39/+0.00%p, bull_btc −0.05, **bull_altseason −2.67%p** —
+      홀드아웃(2026 bear 단일) 관찰은 국면 아티팩트. ① 전후반 양쪽 음수, ② 부트 CI 가 0 을
+      배제하되 **음수 쪽**(D 가 유의하게 우위).
+    · **③ 대조군 통과는 무의미** — 사전 규칙을 '숏>롱'으로만 두고 부호를 안 걸어, 숏 −0.45%p /
+      롱 −1.54%p 로 둘 다 D 보다 나쁜데 통과로 집계됐다. '숏>롱 **이고** 숏>0' 이었다면 0/4.
+      다음 대조군 설계 시 부호 조건 필수(기록).
+    · 부수: 롱 대조군 −1.21~−1.54%p 가 method_s D_norg·method_r RL 기각을 독립 재현.
+      S_adv 가 S_norg 보다 일관되게 덜 나쁨(방향 인지가 낫지만 D 에는 못 미침).
+    · **실효 범위**: 라우팅상 숏이 나가는 셀은 bull_altseason engulfing_short 뿐이고 bear fvg 숏은
+      이미 OFF — 그 유일한 셀이 층화 최악 구간이라 바꿨으면 손해. 실거래 무변경.
+    validate_short_exit.py / test_short_exit.py(36건) / short_exit.yml
+  · **레짐 라벨러 강화 연구 REJECT (2026-09-04, 사용자 지시 "레짐 정확도를 올릴 변수 추가")**: report_regime_quality.md.
+    breadth/vol/funding 신호로 라벨러 6후보(fast_slope/breadth_price/vote4/vol_side/funding_cap/breadth_only) —
+    1단계 라벨 품질(분리폭·적중·지연·flips, 사전 규칙 4개) **후보 0**, 2단계 짝지음 19 arm **전부 REJECT**.
+    **핵심 발견: 현행 레짐은 20일 지평 방향 예측력 ≈0** — 적중 49%, bear 라벨 날 선행수익 +0.04%, bull 3년
+    연도별 분리폭 음수(−20.9/−7.2/−4.3), 전환 지연 평균 50일·중앙 72일(28회 중 13회 90일 내 미포착).
+    라벨을 빠르게 하면(D_*) D 의 레짐 전환 청산이 잦아져 전부 악화 — 레짐의 기여는 예측이 아니라 청산
+    트리거·셀 분리. **'레짐을 예측기로 쓰지 말 것'**이 결론. D_vote4 train t 2.54 이나 holdout 분기 0건,
+    F_*(bear 롱 차단)는 train 손해·holdout(bear 해) +1%p 단일국면. funding 은 OKX 이력 94일뿐(미검증).
+    **지평 진단(run #2)**: 20/40/60/90일 전부 적중률 47~49%, 40·60일 분리폭 음수 — 느려서가 아니라 신호 집합에
+    방향 정보가 없다. 폭 라벨은 긴 지평에서 강한 역행(90일 −18.7%p). **레짐은 상태 분류기로만 유지.**
+    라벨러 채택 시 재검증 경로: `validate_regime_split(_all).py --labeler <name>` (셀 재정의) + 라우팅 재생성 +
+    method_d 청산 재검증 — 세 곳 모두 라벨에 의존(사용자 질문 2026-09-04 "레짐 바뀌면 패턴 재테스트?" → 예, 단
+    지금은 채택된 라벨러가 없어 대상 없음).
+    regime_alt.py / regime_quality.py / method_q.py / test_regime_quality.py(43건) / regime_quality.yml
+  · **bear fvg 숏 OFF (2026-09-04, 사용자 결정 "bear 숏 끄고")**: `direction_switch.ROUTING_OVERRIDES`
+    {(bear, fvg): FLAT}. main() 이 매 실행 regime_switch.json 의 무조건부 n≥20·mean>0 로 표를 다시
+    만들므로(bear fvg 숏 +2.54% 로 여전히 short) JSON 편집은 무효 → 코드에 예외를 둔다. bear fvg 롱
+    (엣지 +1.34%p)은 동결 게이트 미통과라 켜지 않고 FLAT. 현 레짐이 bear 라 즉시 효력 — bear 에서는
+    engulfing 롱만 나간다. 나머지 5셀 유지. test_direction_switch.py(20건) 가 고정.
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
-- 유니버스: **71종목** (업비트KRW∩OKX선물, 2026-06-29)
+- 유니버스: **80종목** (OKX 무기한 30일 거래대금 상위 80, 2026-09-04. 종전 업비트KRW∩OKX선물 71→67)
 - **패턴별 차등 유니버스** (2026-07-06 사용자 결정, 거래대금 코호트 분석 기반):
   engulfing→top20, fvg→top30 (30일 평균 거래대금 상위, 매 실행 재계산),
   inverted_hammer/marubozu→메이저 7종목 (scheduler.PATTERN_UNIVERSE).
@@ -352,6 +524,13 @@
 - [x] 멀티 TF 확증 필터 (1d 신호 → 4h 3봉 확증, 비확증 size 50%)
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
+- [x] **변동성 타겟팅 사이징 채택 + 실거래 반영** (2026-09-04 사용자 결정) — 두 판 모두 4조건 통과.
+      sizing.vol_scale / risk_based_size(vol_scale=) / paper_executor 진입 경로. **되돌리기는
+      VOL_TARGETING=False 한 줄**
+- [ ] **고변동 신호 스킵 관찰** — 현 계좌 $276 에서 실측 약 12~15% 스킵(σ>약 124%/yr). **equity
+      $400 을 넘으면 0% 로 소멸**하므로 기본 해법은 계좌 성장 대기. 실제 스킵 로그를 누적해
+      예상과 맞는지 확인 (레버리지 상향은 sizing_study 상 MDD 악화라 기본 아님)
+- [ ] 횡단면 모멘텀 재시험 (이력 누적 후 6개월~1년, 현재는 2024 이전 표본 자체가 없음)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [x] cascade_fade_long_1h **청산 경로** (ATR 배리어 + 거래소 OCO 브래킷, 2026-08-30)
 - [x] cascade_fade_long_1h **진입 경로** (2026-09-01) — detector_cascade_fade_1h.py +
@@ -364,10 +543,16 @@
 - [x] 캐스케이드 adopted_1h_patterns 등재 (2026-09-01, 사용자 승인) — registry deployed
 - [ ] **supabase_schema_patch_2026_09.sql 실행** (사용자, SQL Editor) — 실행 전까지 entry_ts/tf/
       entry_regime 등이 복원 시 유실
-- [ ] **하모닉 5종 재검증 결과 판독** — revalidate_confirm_bar.yml 아티팩트(_confirm_bar.json).
-      new(인과) PASSED 셀만 복귀 후보. triple_bottom_1w 수치 갱신
+- [x] **하모닉 5종 재검증 결과 판독** (2026-09-03) — 7셀 전부 인과 판 REJECT, triple_bottom_1w 도 정지
+- [ ] **UNI(triple_bottom 1w 롱) 처리** — 패턴은 정지, 포지션은 D 규칙대로 유지 중. 수동 청산 여부는 사용자 판단
 - [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
       three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
+- [x] bear fvg 숏 OFF (2026-09-04) / 유니버스 N=80 적용 (2026-09-04)
+- [x] 레짐 청산 소거 시험 유니버스 80종목 재확인 (2026-09-04) — 판정 A 동일, D_norg 결론 정정
+- [x] **숏의 레짐 청산 재검토 (2026-09-04) — NOISE, 추격 중단.** 반증 4종 중 1개만 통과(그 1개도 부호 미요구 규칙 탓 무의미). bear 에서만 중립(+0.00%p)이고 bull_btc −0.05 / bull_altseason −2.67%p — 홀드아웃 관찰은 bear 국면 아티팩트. 숏 청산도 방식D 유지
+- [ ] **three_soldiers_4h 재판정** — 레짐 베이스라인(같은 레짐 무작위 진입)으로 bull_btc 셀 bp .165. 원 프레임과 병기해 배포 유지 여부 판단
+- [ ] triple_bottom top30 코호트 사전 등록 재시험 (데이터 누적 후, 현재 n=35 bp .078)
+- [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
 - [ ] **숏 라우팅 재판정** — 레짐 조건부 engulfing_short(bull_altseason)/fvg_short(bear) 셀을
       동결 게이트(median/boot_p/OOS)로. 통과 못 하면 숏 중단은 사용자 결정
 - [ ] **형성 중인 봉 탐지 재검토** — 기존 배포 패턴은 아직 `rows[-1]`(미완성 봉)에서
@@ -409,11 +594,24 @@
 - test_method_t.py: method_t 로직 검증 (자산곡선이 회전율 차이를 잡는지 포함)
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
-- universe.json: 71종목 유니버스 (trading_universe), data_short 75종목, rejected 20종목
+- universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- sizing.py: 실거래 사이징 원본 — risk_based_size(vol_scale=) + realized_vol/vol_scale(변동성 타겟팅,
+  2026-09-04 채택) + min_equity_for(스킵 문턱). 연구 모듈이 이 함수들을 import 한다
+- sizing_vol.py: 변동성 타겟팅 사이징 시험 (risk/vol_raw/vol_matched, 노출 정합 가드). `--routing` 은
+  실거래 라우팅 복제 판(sizing_vol_routing.json) + s_norm·계좌규모별 스킵 비율 출력 — report_quant_batch1.md
+- test_sizing_vol_live.py: 채택분 고정 — 연구/실거래 구현 동일성(`is`), 배율이 명목가에만 걸리는지,
+  폴백 3종, 문턱 함수가 실제 스킵 경계와 일치, 동결 파라미터·상수
+- validate_xsec_momentum.py: 횡단면 모멘텀 단독 진입 (동결 게이트 + 추세·포트폴리오 진단). 기각 기록용
+- validate_short_exit.py: 숏 레짐 청산 반증 4종(시간분할/부트CI/롱 대조군/레짐층화). 기각 기록용
+- method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
+- regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
+- validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
+- direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
-- registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 suspended_lookahead → 배포 중 1d×4 + 4h×1 +
-  1w×1 + 1h×1 cascade)
+- registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 + triple_bottom_1w suspended_lookahead → 배포 중
+  1d×4(engulfing/fvg/ih/marubozu) + 4h×1(three_soldiers) + 1h×1(cascade))
+- regime_multi.py / method_m.py: 레짐 스케일(주봉/4h) 연구 — 기각 기록용. report_regime_scale.md
 - validate_confirm_bar.py / test_confirm_bar.py / revalidate_confirm_bar.yml: 룩어헤드 제거 재검증
 - test_executor_safety.py / test_regime_determinism.py: 2026-09-03 점검 수정분 고정
 - supabase_schema_patch_2026_09.sql: 매매 DB 컬럼 보강(사용자 실행)
@@ -421,6 +619,12 @@
 - test_cron_split.py: 매시 크론이 배포 패턴 동작을 바꾸지 않음을 고정 (게이팅/닫힌봉/재정렬)
 - supabase_external_trigger.sql: GitHub 크론 누락 대체 — Supabase pg_cron 이 매시/4h
   `workflow_dispatch` 호출. Vault PAT, gh_dispatch_log. test_external_trigger.py 가 레포와 정합 고정
+- elliott_detect.py / terminal_detect.py: **미검증·실거래 미등재** (2026-09-04 파일 상단 주석으로 고정).
+  게이트를 통과한 적이 없고 registry/universe/scheduler 어디에도 없다. 다만 죽은 코드는 아니다 —
+  zigzag/Signal/Pivot 을 triple_bottom_volume(=triple_bottom_desc, rejected) · breakout_indicators ·
+  reversal_patterns 가 import 한다. 엘리엇 하위구조(지그재그·플랫·다이애고널·삼각형)의 환원 개념은
+  이미 별도 디텍터로 전부 시험해 기각(liquidity_sweep=가짜돌파반전, bb_squeeze·nr7=변동성수축돌파,
+  rsi_divergence·macd_divergence=모멘텀 약화). **신규 검증 대상 아님.** 배포 목록 출처는 registry.json
 - research_log.csv: 106건 시험 기록
 - detector_three_soldiers_4h.py: 3연속 장대 양봉 (4h, PASSED)
 - detector_three_soldiers_1h.py / detector_three_crows_1h.py: 1h 버전 (검증용)

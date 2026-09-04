@@ -420,7 +420,10 @@ def _pattern_tf(pattern, path="universe.json"):
         m = {}
         try:
             u = json.load(open(path, encoding="utf-8"))
-            for key in ("adopted_patterns", "adopted_4h_patterns", "adopted_1h_patterns"):
+            # suspended_* 도 본다 — 등재 정지된 패턴의 열린 포지션(예: triple_bottom UNI)은
+            # 여전히 검증 tf(1w)로 청산 평가해야 한다.
+            for key in ("adopted_patterns", "adopted_4h_patterns", "adopted_1h_patterns",
+                        "suspended_patterns", "suspended_1h_patterns"):
                 for p in u.get(key, []) or []:
                     if p.get("pattern") and p.get("tf"):
                         m[p["pattern"]] = p["tf"]
@@ -911,18 +914,30 @@ def run(stamp=None):
                 # 0.5~0.7% 였다. 사이징 연구(sizing_study)도 등급 없이 돌렸다. 등급·확증은
                 # 페이퍼 장부(size_for_pos)와 알림 표기에만 남긴다. 레짐 오버레이(avg_cap)는
                 # 검증된 축소 규칙이라 유지.
+                # 변동성 타겟팅(2026-09-04 채택, sizing_vol.py): 진입 봉까지만 본 20봉
+                # 실현변동성으로 명목가를 조정한다. 계산도 상수도 sizing.py 가 원본이라
+                # 검증 프레임(sizing_vol)과 같은 함수를 탄다. 타겟팅 off / σ 산출 불가 /
+                # 상수 미설정이면 1.0 이 나와 채택 전과 완전히 같은 크기가 된다.
+                vscale = sizing.vol_scale(rows, ei, s.get("tf", "1d"))
+                vol_ann = sizing.realized_vol(rows, ei, tf=s.get("tf", "1d"))
                 sz_ = sizing.risk_based_size(
                     eq_now, usdt_free, stop_pct, grade_mult=1.0,
                     regime_mult=(REGIME_CAP_MULT if regime_cut else 1.0),
-                    open_notional=open_notional)
+                    vol_scale=vscale, open_notional=open_notional)
                 if sz_ is None:
+                    # 스케일이 작으면(고변동) 명목가가 줄어 최소 증거금에 못 미칠 수 있다.
+                    # '왜 스킵됐는지'가 로그만 보고 판별되도록 문턱을 함께 찍는다.
+                    need = sizing.min_equity_for(vscale, stop_pct)
                     print(f"  [live 사이징] {s['symbol']} risk-based 스킵 (equity ${eq_now:.2f}, "
-                          f"free ${usdt_free:.2f}, stop {stop_pct:.2%})")
+                          f"free ${usdt_free:.2f}, stop {stop_pct:.2%}, vol_scale {vscale:.2f} "
+                          f"— 이 스케일에서 주문이 나가려면 equity >= ${need:.0f})")
                     continue
                 live_size_usd, live_lev = sz_["margin_usd"], sz_["leverage"]
+                vtag = ("" if abs(vscale - 1.0) < 1e-9 else
+                        f" | vol σ={vol_ann*100:.0f}%/yr → x{vscale:.2f}")
                 print(f"  [live 사이징] {s['symbol']} risk={sz_['risk_usd']} notional=${sz_['notional']} "
                       f"lev={live_lev}x margin=${live_size_usd} ({sz_['capped_by']}) "
-                      f"| equity ${eq_now:.2f} stop {stop_pct:.2%} (등급 {grade} 는 페이퍼만)")
+                      f"| equity ${eq_now:.2f} stop {stop_pct:.2%}{vtag} (등급 {grade} 는 페이퍼만)")
             else:
                 # legacy: 첫 주문 $20 고정 / 이후 잔고 20% / complacent 롱 x0.6
                 sz_ = sizing.legacy_size(usdt_free, live_filled_count,

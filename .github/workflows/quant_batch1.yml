@@ -1,0 +1,58 @@
+name: Quant catalog batch 1 — vol targeting + xsec momentum (research)
+
+# 연구 전용 — 학술 카탈로그 A등급 미시험 2건.
+#   1) sizing_vol.py     변동성 타겟팅 사이징 (디텍터 아님, 배포 전 패턴에 걸리는 층)
+#   2) validate_xsec_momentum.py  횡단면 모멘텀 단독 진입 (RS 필터 기각과 다른 물음)
+# 매매/DB 접근 없음. 실거래 규칙 무변경 — 채택은 사용자 결정.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "sizing_vol.py"
+      - "validate_xsec_momentum.py"
+      - ".github/workflows/quant_batch1.yml"
+
+jobs:
+  batch1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_sizing_vol.py
+          python test_xsec_momentum.py
+      - name: 1) Volatility targeting sizing (전 패턴 x 80종목 — 강건성 표본)
+        run: python sizing_vol.py
+      - name: 1b) Volatility targeting sizing (실거래 라우팅 복제 — 실주문 기준 판정)
+        run: python sizing_vol.py --no-fetch --routing
+      - name: 1c) 위험·레버리지 격자 (실거래 라우팅 + 변동성 타겟팅)
+        run: python sizing_vol.py --no-fetch --routing --grid
+      - name: 2) Cross-sectional momentum (유니버스 80)
+        run: python validate_xsec_momentum.py --no-fetch
+      - name: 2b) Cross-sectional momentum (긴 이력 종목만 — 관측 창 확대)
+        run: python validate_xsec_momentum.py --no-fetch --min-bars 1800
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quant-batch1-${{ github.run_number }}
+          path: |
+            sizing_vol.json
+            sizing_vol_routing.json
+            sizing_grid.json
+            _xsec_momentum.json
+            _xsec_momentum_long.json
+          if-no-files-found: ignore

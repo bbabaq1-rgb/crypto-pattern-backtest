@@ -76,18 +76,19 @@ REGMAP = {}
 
 
 # ── 데이터 ──────────────────────────────────────────────────────────────────
-def ensure_data():
+def ensure_data(days=None):
+    days = days or FETCH_DAYS
     ok = new = 0
     for s in detlib.SYMBOLS:
         try:
             n_new, total = fetch_data.update_csv(
-                f"{s}/USDT", "1d", detlib.CSV(s, "1d"), window_days=FETCH_DAYS)
+                f"{s}/USDT", "1d", detlib.CSV(s, "1d"), window_days=days)
             if total:
                 ok += 1
                 new += n_new
         except Exception as e:
             print(f"  [fetch] {s} 실패: {str(e)[:60]}")
-    print(f"[fetch] 1d {FETCH_DAYS}일: {ok}/{len(detlib.SYMBOLS)}종목 (+{new}봉)")
+    print(f"[fetch] 1d {days}일: {ok}/{len(detlib.SYMBOLS)}종목 (+{new}봉)")
 
 
 # ── 청산 규칙 ───────────────────────────────────────────────────────────────

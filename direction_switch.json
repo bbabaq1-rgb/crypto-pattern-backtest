@@ -10,19 +10,22 @@
     },
     "bear": {
       "engulfing": "long",
-      "fvg": "short"
+      "fvg": "FLAT"
     },
     "sideways": {
       "engulfing": "FLAT",
       "fvg": "FLAT"
     }
   },
+  "overrides": {
+    "bear/fvg": "FLAT"
+  },
   "current": {
     "date": "2026-06-24",
     "regime": "bear",
     "action": {
       "engulfing": "long",
-      "fvg": "short"
+      "fvg": "FLAT"
     }
   }
 }
