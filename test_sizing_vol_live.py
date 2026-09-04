@@ -135,7 +135,8 @@ check("명목가 x σ 가 클립 구간 안에서 일정 (변동성 기여 균�
 # ── 9. 채택 상태 고정 (2026-09-04 사용자 채택) ─────────────────────────────
 # 이 절이 깨지면 '채택했다고 기록해 뒀는데 실제로는 안 걸려 있다'는 뜻이다.
 check("변동성 타겟팅이 켜져 있다", sz.VOL_TARGETING is True)
-check("채택 위험 수준 고정: RISK_FRAC 1.5% (사용자 결정 2026-09-04)", sz.RISK_FRAC == 0.015)
+check("채택 위험 수준 고정: RISK_FRAC 1.5% / LEV_CAP 3 (사용자 결정 2026-09-04)",
+      sz.RISK_FRAC == 0.015 and sz.LEV_CAP == 3)
 check("정규화 상수가 설정돼 있다 (라우팅 표본 s_norm)",
       sz.VOL_S_NORM is not None and abs(sz.VOL_S_NORM - 1.1094) < 1e-9, str(sz.VOL_S_NORM))
 check("실제 배율 범위가 클립/정규화에서 유도한 값과 일치",
@@ -154,11 +155,17 @@ check("문턱 위에서는 최고변동 신호도 주문이 나간다",
       sz.risk_based_size(eq_all_pass * 1.01, 1e9, 0.08, vol_scale=FLOOR_SCALE) is not None)
 check("문턱 아래에서는 최고변동 신호가 스킵된다",
       sz.risk_based_size(eq_all_pass * 0.99, 1e9, 0.08, vol_scale=FLOOR_SCALE) is None)
-check("risk 1.5% 상향으로 문턱이 $237 로 내려왔다 (1% 때는 $355)",
-      abs(eq_all_pass - 236.7) < 1.0, f"{eq_all_pass:.1f}")
+# 문턱은 risk 에 반비례하고 레버리지에 비례한다:
+#   risk 1% /lev2 $355  →  risk 1.5%/lev2 $237  →  risk 1.5%/lev3 $355 (원위치)
+check("현재 파라미터(risk 1.5% / lev 3)의 전신호 통과 문턱은 $355",
+      abs(eq_all_pass - 355.0) < 1.0, f"{eq_all_pass:.1f}")
 check("현 계좌 규모($400)에서는 어떤 변동성이든 스킵되지 않는다",
       all(sz.risk_based_size(400, 1e9, 0.08, vol_scale=v) is not None
           for v in (FLOOR_SCALE, 1.0, sz.VOL_HI / sz.VOL_S_NORM)))
+# 경계가 가까워졌다는 사실 자체를 고정한다 — equity 가 $355 밑으로 내려가면 고변동부터 잘린다.
+check("equity 가 문턱 아래로 내려가면 최고변동 신호부터 스킵된다",
+      sz.risk_based_size(340, 1e9, 0.08, vol_scale=FLOOR_SCALE) is None
+      and sz.risk_based_size(340, 1e9, 0.08, vol_scale=1.0) is not None)
 
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)
