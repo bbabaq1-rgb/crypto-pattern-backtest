@@ -395,6 +395,26 @@
       되며 D_norg 쪽으로 끌려갔다 → `_sequence_no_adjacent` 로 전환 수 정확 보존(2차). 편향이
       결론에 불리하게 작용했음이 확인 — 격차가 −0.98%p(1차) → −2.58%p(2차) 로 벌어짐.
     · **판정 A_상태정보_실재. 실거래 무변경(방식D 유지).** method_s.py / test_method_s.py(41건) / method_s.yml
+  · **퀀트 카탈로그 1차 묶음 (2026-09-04, 사용자 지시)**: report_quant_batch1.md. 학술 A등급 중
+    레포 미시험 2건을 사전 등록해 시험.
+    · **변동성 타겟팅 사이징 — ADOPT 후보(사용자 결정 대기), 실거래 미반영.** 현행은 risk 1%/손절 8%
+      고정이라 명목가가 자산 변동성과 무관한데, 진입 시점 20봉 실현변동성이 중앙 연율 86%·10~90분위
+      49~144% 로 3배 차이. arm risk/vol_raw/vol_matched(노출 정합, 주 판정), 거래 6,640건 부트 300회.
+      **4조건 전부 통과** — boot Calmar 0.18 vs −0.00 / boot MDD −73.0% vs −81.8% /
+      **P(ruin) 14.3% vs 37.7%** / 노출 0.98배. 가장 큰 변화는 수익이 아니라 파산 확률.
+      유보: 모든 패턴을 80종목에 돌린 표본(실거래 라우팅 복제 아님), 6,640건 중 5,227건이 슬롯·증거금
+      스킵. 반영하려면 sizing.risk_based_size 에 σ 스케일 인자 + 진입 시점 변동성 전달 경로 필요.
+    · **횡단면 모멘텀 — 전 셀 기각(5/5).** 주간 리밸런스·상위10·skip-1·L={7,14,28,56,84}.
+      mean −0.57~−1.08%, 엣지 +0.02~+0.51%p, boot_p .41~.49. **프레임 탓 기각 아님** — 추세 60봉
+      진단도 전부 음수(−5.4~−7.8%). 포트폴리오는 상위10 −88% vs 유니버스 −81% 로 **더 나쁨**.
+      RS 필터 기각(2026-07-08)과 같은 방향 — 상대강도는 필터로도 단독 규칙으로도 작동 안 함.
+      **관측 창 2024~2026(2.4년) 한계** — 유니버스 80 은 대부분 900봉이라 2024 이전은 20종목이
+      동시에 이력을 갖지 못한다. --min-bars 1800 확장 시도했으나 해당 종목이 3개뿐이라 신호 0건.
+      코드 문제가 아니라 데이터 현실. 이력 누적 후(6개월~1년) 재시험 가능.
+    · **방법 정정(run #1→#2)**: 노출 지표를 달러 명목가로 재 1.94배로 오독 — 성과 좋은 arm 이 자본을
+      키워 명목가도 커지므로 레버리지와 수익이 뒤섞인다. **진입 시점 레버리지(명목가/equity)** 로
+      교체하니 0.98배. 판정에 (d) 노출 정합 가드 추가.
+    sizing_vol.py / validate_xsec_momentum.py / test_sizing_vol.py(35) / test_xsec_momentum.py(28) / quant_batch1.yml
   · **숏 레짐 청산 재검토 REJECT (2026-09-04, 사용자 지시)**: report_regime_exit_ablation.md.
     method_s 홀드아웃에서 숏 두 셀만 D_norg 우세였던 것(사후 선택 셀)을 반증 시도. 유니버스 80
     전 구간. arm: S_norg(숏 레짐청산 제거) / **S_adv(숏은 불리 국면 진입 전환에만 청산 — method_r
@@ -471,6 +491,8 @@
 - [x] 멀티 TF 확증 필터 (1d 신호 → 4h 3봉 확증, 비확증 size 50%)
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
+- [ ] **변동성 타겟팅 사이징 채택 여부 결정** (사용자) — 4조건 통과, P(ruin) 37.7%→14.3%. 반영 시 sizing.risk_based_size σ 스케일 + 진입 변동성 전달 경로 필요
+- [ ] 횡단면 모멘텀 재시험 (이력 누적 후 6개월~1년, 현재는 2024 이전 표본 자체가 없음)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [x] cascade_fade_long_1h **청산 경로** (ATR 배리어 + 거래소 OCO 브래킷, 2026-08-30)
 - [x] cascade_fade_long_1h **진입 경로** (2026-09-01) — detector_cascade_fade_1h.py +
@@ -535,6 +557,8 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- sizing_vol.py: 변동성 타겟팅 사이징 시험 (risk/vol_raw/vol_matched, 노출 정합 가드). ADOPT 후보 — report_quant_batch1.md
+- validate_xsec_momentum.py: 횡단면 모멘텀 단독 진입 (동결 게이트 + 추세·포트폴리오 진단). 기각 기록용
 - validate_short_exit.py: 숏 레짐 청산 반증 4종(시간분할/부트CI/롱 대조군/레짐층화). 기각 기록용
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
