@@ -96,18 +96,46 @@ def runs_of(regmap):
     return out
 
 
-def shuffle_regmap(regmap, seed):
+def _sequence_no_adjacent(runs, rng):
     """
-    런 순서만 섞어 같은 날짜 축에 다시 깐다. 런 길이 다중집합과 라벨별 일수는 **정확히 보존**,
-    시장과의 정렬만 파괴. (셔플 후 같은 라벨 런이 인접하면 전환 수가 조금 줄 수 있어
-    실제 전환 수를 함께 보고한다.)
+    런을 '인접 런의 라벨이 서로 다르도록' 재배열. 남은 개수가 가장 많은 라벨을 먼저 놓는
+    표준 구성법(동수는 무작위) — 가능하면 항상 성공하고, 불가능하면 None.
+    이렇게 해야 전환 수(= 런 수 − 1)가 원본과 **정확히** 같아진다.
+    """
+    by = {}
+    for lab, n in runs:
+        by.setdefault(lab, []).append(n)
+    for lab in by:
+        rng.shuffle(by[lab])
+    out, prev = [], None
+    for _ in range(len(runs)):
+        cands = [l for l in by if by[l] and l != prev]
+        if not cands:
+            return None
+        mx = max(len(by[l]) for l in cands)
+        lab = rng.choice([l for l in cands if len(by[l]) == mx])
+        out.append((lab, by[lab].pop()))
+        prev = lab
+    return out
+
+
+def shuffle_regmap(regmap, seed, preserve_flips=True):
+    """
+    런 순서만 섞어 같은 날짜 축에 다시 깐다. 라벨별 일수와 런 길이 다중집합을 **정확히 보존**,
+    시장과의 정렬만 파괴.
+
+    preserve_flips=True 면 인접 런의 라벨이 겹치지 않게 재배열해 **전환 수까지 정확히 보존**한다.
+    단순 무작위 셔플은 같은 라벨 런이 인접해 병합되면서 전환 수가 실측 40% 가까이 줄어(97 -> 43~61)
+    '같은 빈도, 틀린 정렬' 이라는 대조군 정의를 못 지켰다 — 그래서 제약 셔플을 기본으로 한다.
     """
     dates = sorted(regmap)
     rr = runs_of(regmap)
     rng = random.Random(seed)
-    rng.shuffle(rr)
+    order = _sequence_no_adjacent(rr, rng) if preserve_flips else None
+    if order is None:
+        order = list(rr); rng.shuffle(order)
     out, i = {}, 0
-    for lab, n in rr:
+    for lab, n in order:
         for _ in range(n):
             out[dates[i]] = lab; i += 1
     return out
@@ -170,8 +198,10 @@ def main(argv=None):
     print("[regime] 연도별: " + "  ".join(f"{y}:{v}" for y, v in sorted(ymix.items())))
     shufs = [shuffle_regmap(regmap, SHUFFLE_SEED0 + s) for s in range(n_shuf)]
     fl = [flips(m) for m in shufs]
-    print(f"[shuffle] {n_shuf} draw | 전환 수 {min(fl)}~{max(fl)} (원본 {flips(regmap)}) "
-          f"| 라벨 일수 보존 {all(mr._count(m.values()) == mr._count(regmap.values()) for m in shufs)}")
+    ok_days = all(mr._count(m.values()) == mr._count(regmap.values()) for m in shufs)
+    ok_flips = all(f == flips(regmap) for f in fl)
+    print(f"[shuffle] {n_shuf} draw | 전환 수 {min(fl)}~{max(fl)} (원본 {flips(regmap)}, 정확 보존 {ok_flips}) "
+          f"| 라벨 일수 보존 {ok_days}")
     mm.ARMS, mm.ARM_RULE = ARMS, ARM_RULE
     print("=" * 130)
     print("레짐 청산 소거 시험 — D(현행) vs D_norg(제거) vs D_time(보유상한 대체) vs D_shuffle(정렬 파괴)")

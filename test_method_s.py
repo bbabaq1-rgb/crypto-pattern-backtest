@@ -119,9 +119,16 @@ check("셔플: 라벨별 일수 정확히 보존", mr._count(sh.values()) == mr.
 check("셔플: 런 길이 다중집합 보존",
       sorted(n for _, n in ms.runs_of(sh)) != [] and
       sum(n for _, n in ms.runs_of(sh)) == len(regmap))
-check("셔플: 전환 수가 원본 이하이고 크게 줄지 않음",
-      ms.flips(regmap) * 0.7 <= ms.flips(sh) <= ms.flips(regmap),
+check("셔플: 전환 수를 **정확히** 보존 (제약 셔플)", ms.flips(sh) == ms.flips(regmap),
       f"{ms.flips(sh)} vs {ms.flips(regmap)}")
+check("셔플: 인접 런 라벨이 겹치지 않음", all(a[0] != b[0] for a, b in zip(ms.runs_of(sh), ms.runs_of(sh)[1:])))
+check("셔플: 런 개수 보존", len(ms.runs_of(sh)) == len(ms.runs_of(regmap)))
+check("셔플: 라벨별 런 길이 다중집합 보존",
+      {lb: sorted(n for l, n in ms.runs_of(sh) if l == lb) for lb in set(regmap.values())} ==
+      {lb: sorted(n for l, n in ms.runs_of(regmap) if l == lb) for lb in set(regmap.values())})
+_plain = ms.shuffle_regmap(regmap, 42, preserve_flips=False)
+check("무제약 셔플은 전환 수가 줄어든다(제약 셔플이 필요한 이유)",
+      ms.flips(_plain) < ms.flips(regmap), f"{ms.flips(_plain)} vs {ms.flips(regmap)}")
 diff_days = sum(1 for d in regmap if sh[d] != regmap[d])
 check("셔플: 정렬이 실제로 파괴됨(상당수 날짜의 라벨이 바뀜)", diff_days > len(regmap) * 0.2,
       f"{diff_days}/{len(regmap)}")
