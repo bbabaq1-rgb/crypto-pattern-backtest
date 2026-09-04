@@ -402,8 +402,19 @@
       49~144% 로 3배 차이. arm risk/vol_raw/vol_matched(노출 정합, 주 판정), 거래 6,640건 부트 300회.
       **4조건 전부 통과** — boot Calmar 0.18 vs −0.00 / boot MDD −73.0% vs −81.8% /
       **P(ruin) 14.3% vs 37.7%** / 노출 0.98배. 가장 큰 변화는 수익이 아니라 파산 확률.
-      유보: 모든 패턴을 80종목에 돌린 표본(실거래 라우팅 복제 아님), 6,640건 중 5,227건이 슬롯·증거금
-      스킵. 반영하려면 sizing.risk_based_size 에 σ 스케일 인자 + 진입 시점 변동성 전달 경로 필요.
+      유보: 6,640건 중 5,227건이 슬롯·증거금 스킵. 반영하려면 sizing.risk_based_size 에 σ 스케일
+      인자 + 진입 시점 변동성 전달 경로 필요.
+      · **실거래 라우팅 복제 판 (2026-09-04 사용자 지시, `--routing`)**: 스케줄러 진입 조건 세 겹
+        (패턴별 유니버스 / 레짐→방향 라우팅 — FOCUS 한정, ih·marubozu 는 무게이트 / 정지 패턴 제외)을
+        그대로 걸어 재측정. 표본 6,640 → **991건**(fvg_short 는 bear OFF + bull 롱 라우팅이라 **0건**).
+        **판정 동일 — 4조건 전부 통과**: boot Calmar **1.06 vs 0.65** / boot MDD −45.4% vs −51.8% /
+        P(ruin) 0.3% vs 3.7% / 노출 0.96배.
+        **정정 성격의 발견 — 라우팅 자체가 큰 개선이다.** 현행(risk) arm 만 봐도 boot Calmar
+        −0.00 → 0.65, P(ruin) 37.7% → 3.7%. 전 표본 판에서 '현행 사이징이 취약'해 보인 상당 부분은
+        라우팅이 걸러내는 셀까지 넣고 잰 탓이다. 그 위에서도 vol_matched 가 이기지만 **개선의 근거는
+        P(ruin)이 아니라 Calmar·MDD** 로 옮겨간다(0.3%는 이미 낮은 값에서의 감소).
+        유보: 현재 라우팅 표를 과거에 소급 적용한 판이라 절대 수준은 낙관적(세 arm 이 같은 신호
+        집합이라 arm 비교는 상쇄). 표본이 1/7 이라 부트 변동 큼. 출력 sizing_vol_routing.json.
     · **횡단면 모멘텀 — 전 셀 기각(5/5).** 주간 리밸런스·상위10·skip-1·L={7,14,28,56,84}.
       mean −0.57~−1.08%, 엣지 +0.02~+0.51%p, boot_p .41~.49. **프레임 탓 기각 아님** — 추세 60봉
       진단도 전부 음수(−5.4~−7.8%). 포트폴리오는 상위10 −88% vs 유니버스 −81% 로 **더 나쁨**.
@@ -491,7 +502,9 @@
 - [x] 멀티 TF 확증 필터 (1d 신호 → 4h 3봉 확증, 비확증 size 50%)
 - [x] 4h 전용 패턴 발굴 (7종 테스트, three_soldiers_4h 통과)
 - [x] 1h 전용 패턴 발굴 (12종 테스트, bat_1h/butterfly_1h 통과)
-- [ ] **변동성 타겟팅 사이징 채택 여부 결정** (사용자) — 4조건 통과, P(ruin) 37.7%→14.3%. 반영 시 sizing.risk_based_size σ 스케일 + 진입 변동성 전달 경로 필요
+- [ ] **변동성 타겟팅 사이징 채택 여부 결정** (사용자) — 전 표본·라우팅 복제 **두 판 모두 4조건 통과**
+      (전 표본 P(ruin) 37.7%→14.3% / 라우팅 복제 boot Calmar 0.65→1.06). 반영 시 sizing.risk_based_size
+      σ 스케일 + 진입 변동성 전달 경로 필요
 - [ ] 횡단면 모멘텀 재시험 (이력 누적 후 6개월~1년, 현재는 2024 이전 표본 자체가 없음)
 - [ ] Streamlit 대시보드 (실거래 데이터 한 달 후)
 - [x] cascade_fade_long_1h **청산 경로** (ATR 배리어 + 거래소 OCO 브래킷, 2026-08-30)
@@ -557,7 +570,8 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
-- sizing_vol.py: 변동성 타겟팅 사이징 시험 (risk/vol_raw/vol_matched, 노출 정합 가드). ADOPT 후보 — report_quant_batch1.md
+- sizing_vol.py: 변동성 타겟팅 사이징 시험 (risk/vol_raw/vol_matched, 노출 정합 가드). `--routing` 은
+  실거래 라우팅 복제 판(sizing_vol_routing.json). 두 판 모두 ADOPT 후보 — report_quant_batch1.md
 - validate_xsec_momentum.py: 횡단면 모멘텀 단독 진입 (동결 게이트 + 추세·포트폴리오 진단). 기각 기록용
 - validate_short_exit.py: 숏 레짐 청산 반증 4종(시간분할/부트CI/롱 대조군/레짐층화). 기각 기록용
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
