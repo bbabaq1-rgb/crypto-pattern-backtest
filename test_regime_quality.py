@@ -180,6 +180,8 @@ with tempfile.TemporaryDirectory() as td:
 check("e2e quality: 7 라벨러 결과", set(q["results"]) == set(ra.LABELERS), str(set(q["results"])))
 check("e2e quality: verdicts 에 current 제외 6", sum(1 for v in q["verdicts"].values() if v) == 6)
 check("e2e quality: candidates 는 리스트", isinstance(q["candidates"], list))
+check("e2e quality: 지평별 진단 20/40/60/90", all(set(r["by_horizon"]) == {"20", "40", "60", "90"} for r in q["results"].values()))
+check("e2e quality: 20일 지평 분리폭 == 주 지표", all(abs(r["by_horizon"]["20"]["separation"] - r["separation"]) < 1e-12 for r in q["results"].values()))
 check("e2e method_q: 패턴 결과 + _verdicts", "_verdicts" in m and any(not k.startswith("_") for k in m))
 check("e2e method_q: 1단계 미통과 라벨러 arm 은 adopt=False",
       all(not v["adopt"] for a, v in m["_verdicts"].items() if "_" in a and a.split("_", 1)[1] not in q["candidates"]))

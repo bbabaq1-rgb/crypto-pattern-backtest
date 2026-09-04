@@ -30,6 +30,7 @@ import fetch_data
 import regime_alt as ra
 
 FWD, TRUTH_FWD, TRUTH_THR = 20, 40, 0.05
+HORIZONS = [20, 40, 60, 90]      # 진단용 — 판정은 FWD=20 하나로 고정(사전 등록), 나머지는 '느린 라벨이 긴 지평에서는 분리하는가' 확인
 LAG_CAP, MIN_RUN = 90, 10
 FETCH_DAYS = 1800
 BULL = {"bull_btc", "bull_altseason"}
@@ -108,7 +109,19 @@ def lag_stats(labels, trans, dates_sorted, cap=LAG_CAP):
                 capped=sum(1 for x in lags if x >= cap))
 
 
-def evaluate_labeler(name, labels, fwd_uni, fwd_btc, trans):
+def separation_at(labels, fwd):
+    """지평별 진단: (분리폭, 적중률, n) — bull∪altseason 평균 − bear 평균 / 방향 적중."""
+    ds = [d for d in labels if d in fwd]
+    if not ds:
+        return None
+    bull = [fwd[d] for d in ds if labels[d] in BULL]
+    bear = [fwd[d] for d in ds if labels[d] == "bear"]
+    sep = (st.mean(bull) if bull else 0.0) - (st.mean(bear) if bear else 0.0)
+    hit = sum((fwd[d] > 0) if labels[d] in BULL else (fwd[d] < 0) if labels[d] == "bear" else (abs(fwd[d]) < 0.05) for d in ds)
+    return dict(separation=sep, hit_rate=hit / len(ds), n=len(ds))
+
+
+def evaluate_labeler(name, labels, fwd_uni, fwd_btc, trans, fwd_by_h=None):
     dates = sorted(d for d in labels if d in fwd_uni)
     if not dates:
         return None
@@ -144,9 +157,10 @@ def evaluate_labeler(name, labels, fwd_uni, fwd_btc, trans):
     all_dates = sorted(labels)
     flips = sum(1 for a, b in zip(all_dates, all_dates[1:]) if labels[a] != labels[b])
     yrs = max(1e-9, len(all_dates) / 365.25)
+    by_h = {str(h): separation_at(labels, f) for h, f in (fwd_by_h or {}).items()}
     return dict(name=name, n_days=len(dates), separation=sep, hit_rate=hit / len(dates),
                 lag=lag_stats(labels, trans, all_dates), flips_per_year=flips / yrs,
-                per_label=per, by_year=years)
+                per_label=per, by_year=years, by_horizon=by_h)
 
 
 def beats_current(c, cur):
@@ -169,13 +183,14 @@ def main(argv=None):
     rows_by, btc = ctx["rows_by"], ctx["btc"]
     fwd_uni = forward_returns(rows_by)
     fwd_btc = forward_returns({"BTC": btc})
+    fwd_by_h = {h: (fwd_uni if h == FWD else forward_returns(rows_by, fwd=h)) for h in HORIZONS}
     truth = truth_series(btc)
     trans = transitions(truth)
     print(f"[data] 종목 {len(rows_by)} | 선행수익 {len(fwd_uni)}일 | 진실 전환 {len(trans)}회 | 펀딩 {ctx['funding_days']}일")
     print(f"[signals] breadth {len(ctx['signals']['breadth'])}일 | vol {len(ctx['signals']['vol'])}일")
     res = {}
     for name, labels in ctx["labels"].items():
-        r = evaluate_labeler(name, labels, fwd_uni, fwd_btc, trans)
+        r = evaluate_labeler(name, labels, fwd_uni, fwd_btc, trans, fwd_by_h)
         if r:
             res[name] = r
     cur = res["current"]
@@ -197,10 +212,18 @@ def main(argv=None):
     print("\n[라벨별 선행 20일 유니버스 평균] (라벨이 방향을 아는지 직접 본다)")
     for name, r in res.items():
         print(f"  {name:<14}" + "  ".join(f"{k}:{v['uni_mean']*100:+.2f}%(n{v['n']})" for k, v in r["per_label"].items()))
+    print("\n[지평별 분리폭 / 적중률] (진단 — 판정은 20일 고정. 느린 라벨이 긴 지평에서는 방향을 아는가)")
+    print(f"  {'labeler':<14}" + "".join(f"{'sep'+str(h)+'d':>9}{'hit':>6}" for h in HORIZONS))
+    for name, r in res.items():
+        cells = []
+        for h in HORIZONS:
+            x = r["by_horizon"].get(str(h))
+            cells.append(f"{x['separation']*100:>+8.2f}%{x['hit_rate']*100:>5.0f}%" if x else f"{'n/a':>9}{'':>6}")
+        print(f"  {name:<14}" + "".join(cells))
     cands = [n for n, v in verdicts.items() if v and v["pass_"]]
     json.dump(dict(rule=dict(fwd=FWD, truth_fwd=TRUTH_FWD, truth_thr=TRUTH_THR, lag_cap=LAG_CAP,
                              beats="sep>current & years>=3/4 pos & lag<=current & flips<=1.5x"),
-                   results=res, verdicts=verdicts, candidates=cands, funding_days=ctx["funding_days"]),
+                   horizons=HORIZONS, results=res, verdicts=verdicts, candidates=cands, funding_days=ctx["funding_days"]),
               open("_regime_quality.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"\n[후보] current 를 이긴 라벨러: {cands or '없음'}")
     print("RESULT_JSON: " + json.dumps(dict(candidates=cands,
