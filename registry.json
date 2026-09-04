@@ -1696,5 +1696,30 @@
       "live_impact": "현 레짐 bear → fvg 신호 0, engulfing 롱만. 나머지 5셀 불변",
       "test": "test_direction_switch.py (20)"
     }
+  },
+  "regime_split_all_2026_09_04": {
+    "trigger": "사용자 질문 — 레짐 구분 없이 기각한 패턴 전수 재시험",
+    "design": "55패턴 x 레짐(4+ALL) x 코호트(all/top30) = 440셀. 1d/1w/4h ±10%/20봉, 1h ±1.5ATR/12봉. 하모닉·triple_bottom 인과판. 레짐 매칭 베이스라인. STRICT=두 코호트 PASSED+bp<.01+양수해>=2",
+    "run": "validate_regime_split_all.yml #1 (33824677271), 2026-09-04 10:09~10:35 KST",
+    "result": "PASSED 0 / STRICT 0 (우연 기대 22). 복귀 후보 없음",
+    "near_miss": {
+      "order_block_short_1d:all:bull_altseason": "n39 +5.69% med+11.28% bp.060",
+      "triple_bottom_4h:all:bull_altseason": "n167 +2.02% bp.063",
+      "triple_bottom_1w:top30:ALL": "n35 +6.20% med+3.82% bp.078",
+      "bat_1h:all:ALL": "n50 +0.23% bp.081"
+    },
+    "sanity": {
+      "three_soldiers_4h": "ALL n360 +0.52% bp.284 / bull_btc n194 +1.57% bp.165 — 원 등재(무조건부 베이스라인 n908 +1.04%)보다 약함, 재판정 필요",
+      "triple_bottom_1w": "ALL n98 +3.46% med-11.66% — 9/3 재검증 일치"
+    },
+    "followup": [
+      "triple_bottom top30 사전등록 재시험(데이터 누적 후)",
+      "three_soldiers_4h 레짐 베이스라인 재판정"
+    ],
+    "files": [
+      "validate_regime_split_all.py",
+      "test_regime_split_all.py",
+      "report_regime_split_all.md"
+    ]
   }
 }

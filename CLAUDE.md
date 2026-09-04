@@ -362,6 +362,13 @@
     (−1.40/−1.25/−0.96) — 숏은 레짐 문제가 아니라 패턴 문제.
   · 주의: boot_p 베이스라인이 30건 표본이라 n 큰 셀에 보수적 — 표본 수 정합 후속 필요.
     재실행에서 engulfing 숏 altseason 이 bp .045→.055 로 경계 이탈(엣지 +3.59%p 유지).
+  · **기각·정지 55종 전수 레짐 재시험 (2026-09-04)**: report_regime_split_all.md. 440셀 **PASSED 0 / STRICT 0**
+    (우연 기대 22). 레짐을 나눠도 기각 패턴은 살아나지 않음 — 재시험 종료. 가까운 셀은 boot_p .06~.13
+    (order_block_short altseason n=39, triple_bottom_4h altseason, triple_bottom_1w top30 n=35 +6.2%).
+    후속 후보 하나: **triple_bottom top30** 데이터 누적 후 사전 등록. **three_soldiers_4h 주의** — 레짐
+    베이스라인으로 재면 bull_btc 셀 bp .165(ALL +0.52% bp .284), 원 등재는 무조건부 베이스라인. 배포
+    유지 근거 약화, 별도 판정 필요. 1h 셀은 1년치(bear 77%)라 '기각 유지'로만 읽을 것.
+    validate_regime_split_all.py / test_regime_split_all.py(34건)
   · **bear fvg 숏 OFF (2026-09-04, 사용자 결정 "bear 숏 끄고")**: `direction_switch.ROUTING_OVERRIDES`
     {(bear, fvg): FLAT}. main() 이 매 실행 regime_switch.json 의 무조건부 n≥20·mean>0 로 표를 다시
     만들므로(bear fvg 숏 +2.54% 로 여전히 short) JSON 편집은 무효 → 코드에 예외를 둔다. bear fvg 롱
@@ -426,6 +433,8 @@
 - [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
       three_soldiers_4h/triple_bottom_1w 는 ±10%/20봉 라벨로만 통과
 - [x] bear fvg 숏 OFF (2026-09-04) / 유니버스 N=80 적용 (2026-09-04)
+- [ ] **three_soldiers_4h 재판정** — 레짐 베이스라인(같은 레짐 무작위 진입)으로 bull_btc 셀 bp .165. 원 프레임과 병기해 배포 유지 여부 판단
+- [ ] triple_bottom top30 코호트 사전 등록 재시험 (데이터 누적 후, 현재 n=35 bp .078)
 - [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
 - [ ] **숏 라우팅 재판정** — 레짐 조건부 engulfing_short(bull_altseason)/fvg_short(bear) 셀을
       동결 게이트(median/boot_p/OOS)로. 통과 못 하면 숏 중단은 사용자 결정
@@ -469,6 +478,7 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
