@@ -369,6 +369,15 @@
     베이스라인으로 재면 bull_btc 셀 bp .165(ALL +0.52% bp .284), 원 등재는 무조건부 베이스라인. 배포
     유지 근거 약화, 별도 판정 필요. 1h 셀은 1년치(bear 77%)라 '기각 유지'로만 읽을 것.
     validate_regime_split_all.py / test_regime_split_all.py(34건)
+  · **레짐 라벨러 강화 연구 REJECT (2026-09-04, 사용자 지시 "레짐 정확도를 올릴 변수 추가")**: report_regime_quality.md.
+    breadth/vol/funding 신호로 라벨러 6후보(fast_slope/breadth_price/vote4/vol_side/funding_cap/breadth_only) —
+    1단계 라벨 품질(분리폭·적중·지연·flips, 사전 규칙 4개) **후보 0**, 2단계 짝지음 19 arm **전부 REJECT**.
+    **핵심 발견: 현행 레짐은 20일 지평 방향 예측력 ≈0** — 적중 49%, bear 라벨 날 선행수익 +0.04%, bull 3년
+    연도별 분리폭 음수(−20.9/−7.2/−4.3), 전환 지연 평균 50일·중앙 72일(28회 중 13회 90일 내 미포착).
+    라벨을 빠르게 하면(D_*) D 의 레짐 전환 청산이 잦아져 전부 악화 — 레짐의 기여는 예측이 아니라 청산
+    트리거·셀 분리. **'레짐을 예측기로 쓰지 말 것'**이 결론. D_vote4 train t 2.54 이나 holdout 분기 0건,
+    F_*(bear 롱 차단)는 train 손해·holdout(bear 해) +1%p 단일국면. funding 은 OKX 이력 94일뿐(미검증).
+    regime_alt.py / regime_quality.py / method_q.py / test_regime_quality.py(43건) / regime_quality.yml
   · **bear fvg 숏 OFF (2026-09-04, 사용자 결정 "bear 숏 끄고")**: `direction_switch.ROUTING_OVERRIDES`
     {(bear, fvg): FLAT}. main() 이 매 실행 regime_switch.json 의 무조건부 n≥20·mean>0 로 표를 다시
     만들므로(bear fvg 숏 +2.54% 로 여전히 short) JSON 편집은 무효 → 코드에 예외를 둔다. bear fvg 롱
@@ -478,6 +487,7 @@
 - detector_harmonic_base.py: 하모닉 공통 라이브러리 (find_pivots, check_ratios, make_detect)
 - detector_gartley/bat/butterfly/crab/shark/cypher.py: 하모닉 6종 디텍터
 - universe.json: 80종목 유니버스 (trading_universe, 2026-09-04 무기한 거래대금 기준, universe_basis_2026_09_04), data_short 75종목, rejected 20종목
+- regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)

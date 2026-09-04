@@ -1721,5 +1721,29 @@
       "test_regime_split_all.py",
       "report_regime_split_all.md"
     ]
+  },
+  "regime_labeler_2026_09_04": {
+    "trigger": "사용자 — 레짐 정확도를 올릴 변수 추가",
+    "signals": "breadth(200일선 상회 비율) / vol(20일 실현변동성 백분위) / funding(BTC 펀딩 30일 백분위, OKX 이력 94일뿐)",
+    "labelers": [
+      "current",
+      "fast_slope",
+      "breadth_price",
+      "vote4",
+      "vol_side",
+      "funding_cap",
+      "breadth_only"
+    ],
+    "stage1": "후보 0. current: 분리폭 +0.81%p 적중 49% 지연 50.2/72.5일 flips 10.9. fast_slope 분리폭 +2.15 최선이나 연도 2/5 양수",
+    "stage2": "19 arm 전부 REJECT. D_* 전부 악화(빠른 라벨→레짐 청산 잦음). D_vote4 train t2.54 holdout 분기 0. F_* holdout +1%p 단일국면",
+    "key_finding": "현행 레짐 20일 방향 예측력 ≈0, bull 3년 분리폭 음수(후행). 레짐은 예측기가 아니라 청산 트리거·셀 분리 역할",
+    "run": "regime_quality.yml #1 (33826378727) 10:36~10:41 KST, #2 지평 진단",
+    "files": [
+      "regime_alt.py",
+      "regime_quality.py",
+      "method_q.py",
+      "test_regime_quality.py",
+      "report_regime_quality.md"
+    ]
   }
 }
