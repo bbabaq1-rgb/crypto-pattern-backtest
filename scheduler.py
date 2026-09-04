@@ -551,6 +551,18 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
     print(f"    현재 레짐(primary): {regime} ({latest})")
 
     print("[2.5] 온체인 보조 신호 수집 (표시 전용)...")
+    # 펀딩비 일별 이력 적재 (2026-09-04) — **매매 무관, 데이터 축적 전용**.
+    # OKX 이력이 94일뿐이라 '펀딩비 극단 청산'을 지금 시험할 수 없다. 6개월 뒤 시험이
+    # 가능하도록 지금부터 쌓아 둔다. 어떤 실패도 매매를 막지 않는다(모듈이 예외를 삼킨다).
+    try:
+        import funding_accrual as _fa
+        _n, _msg = _fa.accrue(quiet=True)
+        if _n:
+            print(f"    [funding 적재] {_n}일 (시험용 축적, 매매 미사용)")
+        elif "테이블 없음" in _msg:
+            print(f"    [funding 적재] 건너뜀 — {_msg}")
+    except Exception as _e:
+        print(f"    [funding 적재] 건너뜀 ({str(_e)[:50]})")
     # 2026-09-03: 온체인 조정(bear/bull_btc → sideways)은 어떤 검증도 거치지 않은 실거래
     # 전용 필터였다(orchestrator/method_* 미참조). 라우팅·게이팅은 raw 레짐만 쓰고,
     # 조정값은 로그·대시보드 표시로만 남긴다(RS 필터 폐기 2026-07-08 과 같은 원칙).
