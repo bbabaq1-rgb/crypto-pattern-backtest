@@ -1662,6 +1662,25 @@
   "fvg_verdict": "전 레짐 사망이 아님. bull_btc 에서 n=1837 +2.23% med +9.89%(top30 +2.79% OOS4/4)로 살아 있고 boot_p(.135~.178)만 못 넘음 = 상승장 무작위 롱을 못 이김. 죽은 곳은 bull_altseason(-2.12%)과 2026 bear. 900일 창이 bear 비중이 커서 '마모'로 보였던 것",
   "caveat": "boot_p 베이스라인이 30건 표본 평균 분포라 n 큰 셀에 보수적 — 베이스라인 표본 수를 셀 n 에 맞추는 후속 수정 필요",
   "live_impact": "없음(연구). 라우팅·fvg 배포 변경은 사용자 결정",
-  "files": "validate_regime_split.py / test_regime_split.py(11) / validate_regime_split.yml / report_regime_split.md"
+  "files": "validate_regime_split.py / test_regime_split.py(11) / validate_regime_split.yml / report_regime_split.md",
+  "rerun_2026_09_04_baseline": {
+   "trigger": "사용자 의문 — bull_altseason 에서 fvg 롱이 마이너스인 게 말이 되나, 시험 오류 아닌가",
+   "added": "셀별 (a) 같은 레짐·코호트 무작위 진입 평균(레짐 자체 수익) (b) 엣지=패턴평균−레짐평균 (c) 연도별 분해",
+   "regime_baseline_20bar_long": {
+    "bull_btc": "-0.17% (top20 +0.41%)",
+    "bull_altseason": "-3.04% (top20 -2.26%) — 라벨이 후행이라 국면 끝자락에 몰림",
+    "bear": "-0.64% (top20 -0.01%)"
+   },
+   "correction": "첫 보고의 '라우팅 부호 반대 2건' 중 bull_altseason fvg 롱은 오진 — 철회. 그 셀 엣지는 +0.92~+1.95%p 로 양수이며 절대 수익이 음수인 것은 레짐 자체(-3.04%) 때문",
+   "edge_by_cell": {
+    "fvg_long": "세 레짐 모두 엣지 양수 (+2.39 bull_btc / +0.92 altseason / +1.34 bear)",
+    "fvg_short": "세 레짐 모두 엣지 음수 (-1.40 / -1.25 / -0.96) — 레짐 문제가 아니라 패턴 문제",
+    "engulfing_long": "bull_btc +1.94~+3.34, bear +1.03~+2.75, altseason -3.92",
+    "engulfing_short": "altseason +3.49~+3.59, bear +1.06~+1.26, bull_btc -1.00~-1.21"
+   },
+   "routing_verdict": "6셀 중 5셀 엣지 기준 일치. 유일한 불일치는 bear 의 fvg 숏(롱 엣지 +1.34 vs 숏 -0.96)",
+   "passed_cells_rerun": "engulfing 롱 top20 bull_btc (n=52 +4.84% 레짐 +0.41% 엣지 +4.44%p bp.043 OOS3/4). engulfing 숏 top30 altseason 은 bp .045→.055 로 경계 이탈(엣지 +3.59%p 유지, 경계 셀 기록)",
+   "proposal": "bear fvg 숏만 FLAT 후보. 나머지 5셀 유지. altseason 롱 축소는 별도 사전등록"
+  }
  }
 }
