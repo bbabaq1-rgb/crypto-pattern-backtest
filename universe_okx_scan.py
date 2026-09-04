@@ -172,6 +172,9 @@ def main():
     json.dump(out, open("_okx_scan.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     summary = {p: {g: dict(v=r["verdict"], n=r["n"], mean=round(r["mean"] * 100, 2), med=round(r["median"] * 100, 2))
                    for g, r in gs.items()} for p, gs in results.items()}
+    print("RANKED_JSON: " + json.dumps(dict(ranked=ranked, bars={s: info[s]["bars"] for s in ranked},
+                                             turnover_musd={s: round(ok[s]["turnover"] / 1e6, 2) for s in ranked},
+                                             short=short, fail=fail), separators=(",", ":")))
     print("\nRESULT_JSON: " + json.dumps(dict(new_top20=[s for s in new_top20 if s not in cur],
                                               new_top30=[s for s in new_top30 if s not in cur],
                                               candidates=len(cands), ok=len(ok), short=len(short),
