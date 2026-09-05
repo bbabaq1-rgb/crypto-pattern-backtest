@@ -713,8 +713,9 @@
 - [ ] **확인 시험 C2 보강** — train 자체 게이트 통과 또는 train n ≥ holdout n/2 요구. vwap_rev_short_4h 가
       표본 92% holdout 으로 통과한 사례. 다음 validate_revival 설계부터
 - [x] **게이트 v2 재실행 + 배포** (2026-09-05) — triple_bottom_4h(ALL·top30)·equal_lows_4h(bear·top30) adopted_4h_patterns 등재
-- [ ] **breakout_retest_4h·ALL / vol_awakening_4h·ALL 확인 시험 판독** — v2 재실행에서 새로 STRICT. CANDIDATES 추가됨,
-      다음 revival 실행 결과 판독 후 전부 통과 시 배포
+- [x] **breakout_retest_4h·ALL / vol_awakening_4h·ALL 확인 시험** (2026-09-05, run 33957277149) — **둘 다 기각**.
+      breakout_retest holdout −0.41%(C2), vol_awakening 자산곡선 CAGR −6.3%(C3). n≈5천의 얇은 엣지 신호는 슬롯을 채우며
+      자산곡선을 끌어내린다. 배포 집합 불변
 - [ ] **신규 4h 패턴 첫 실거래 관찰** — triple_bottom_4h 첫 진입 시 `[live 사이징]`·손절 algo·닫힌 봉 신호(rows[-2]) 확인.
       신호봉 종가 vs 체결가 슬리피지 기록
 - [ ] **vwap_rev_short_4h · bear 경계 통과분** — 사용자가 켜라고 하면 켤 수 있음(regimes=["bear"], short,
