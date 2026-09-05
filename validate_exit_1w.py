@@ -289,6 +289,11 @@ def main(argv=None):
                   f"Calmar {eq.get('calmar', 0) or 0:.2f} {cf['c3']} | 보유 {cf['gate']['hold_bars']:.1f}주 슬롯 {cf['slot_weeks_per_year']:.0f}주/년 "
                   f"| 청산 {cf['gate']['reasons']} truncated {cf['gate']['truncated']}"
                   + (f" | vs D {pv['mean_diff']*100:+.2f}%p t={pv['t']:.2f} 우위 {pv['win_share']*100:.0f}%" if pv and pv.get("n") else ""))
+            g = cf["gate"]
+            yr = " ".join(f"{y}:{v['mean']*100:+.1f}%(n{v['n']})" for y, v in g["by_year"].items())
+            oo = " ".join(f"Q{o['q']}:{o['mean']*100:+.1f}%(n{o['n']})" for o in g["oos"])
+            rg = " ".join(f"{k}:{v['mean']*100:+.1f}%(n{v['n']})" for k, v in cf["by_regime"].items())
+            print(f"       연도별 {yr} | OOS {oo} | 레짐 {rg}")
             results[e][arm] = cf
     # top30 참고(주 셀만)
     top = set(cohorts["top30"])
