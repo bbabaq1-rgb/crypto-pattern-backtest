@@ -1,0 +1,40 @@
+name: MA breakout shooting study (research)
+
+# 연구 전용 — 매매/DB 접근 없음, 실거래 규칙 무변경.
+# 일봉 장기 이평선(180/200/250) 상향 돌파 뒤 슈팅(MFE) 이벤트 스터디. 탐색적 분석 — 배포 판정 아님.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "study_ma_breakout.py"
+      - ".github/workflows/ma_breakout.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_ma_breakout.py
+      - name: Study
+        run: python study_ma_breakout.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ma-breakout-${{ github.run_number }}
+          path: _ma_breakout.json
+          if-no-files-found: ignore
