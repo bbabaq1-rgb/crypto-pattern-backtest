@@ -869,6 +869,46 @@
     "fill_anchored_barriers": "paper_executor — 실체결가가 신호봉 종가와 다르면 ±k×ATR 배리어를 **체결가 기준으로 재계산**하고 OCO 를 재등록한다. 검증(outcome_atr)이 배리어를 진입가 기준으로 잡기 때문."
    },
    "known_gap": "형성 중인 봉 탐지는 exit_spec 패턴에서만 해소했다. 기존 배포 패턴(1d FOCUS/adopted 1d·4h·1w/하모닉/bat_1h/butterfly_1h)은 여전히 rows[-1](형성 중인 봉)에서 탐지한다 — 종전 동작을 바꾸지 않기 위해 의도적으로 두었다. 별도 과제로 재검토 필요."
+  },
+  {
+   "id": "ibs_low",
+   "description": "IBS<0.2 하락봉 다음날 롱 (1d 평균회귀)",
+   "detector_file": "detector_ibs_low.py",
+   "direction": "long",
+   "tf": "1d",
+   "status": "rejected",
+   "rejected_date": "2026-09-05",
+   "reason": "validate_revival --new: 5레짐 x 2코호트 전 셀 median<0 (방식D 손절 -8.20%), holdout 음수. report_revival.md"
+  },
+  {
+   "id": "rsi2_low",
+   "description": "RSI(2)<10 롱 (1d 평균회귀)",
+   "detector_file": "detector_rsi2_low.py",
+   "direction": "long",
+   "tf": "1d",
+   "status": "rejected",
+   "rejected_date": "2026-09-05",
+   "reason": "validate_revival --new: 5레짐 x 2코호트 전 셀 median<0 (방식D 손절 -8.20%), holdout 음수. report_revival.md"
+  },
+  {
+   "id": "down_streak3",
+   "description": "3연속 하락+10일 신저가 롱",
+   "detector_file": "detector_down_streak3.py",
+   "direction": "long",
+   "tf": "1d",
+   "status": "rejected",
+   "rejected_date": "2026-09-05",
+   "reason": "validate_revival --new: 5레짐 x 2코호트 전 셀 median<0 (방식D 손절 -8.20%), holdout 음수. report_revival.md"
+  },
+  {
+   "id": "donchian20",
+   "description": "20일 고가 첫 돌파 롱 (추세추종)",
+   "detector_file": "detector_donchian20.py",
+   "direction": "long",
+   "tf": "1d",
+   "status": "rejected",
+   "rejected_date": "2026-09-05",
+   "reason": "validate_revival --new: 5레짐 x 2코호트 전 셀 median<0 (방식D 손절 -8.20%), holdout 음수. report_revival.md"
   }
  ],
  "rejected_4h": [
@@ -2040,6 +2080,56 @@
   "method_fix": "equity_curve 가 CAGR 을 arm 자신의 거래 간격으로 연율화해 arm 마다 분모가 달랐다. 1차에서 gated holdout 이 MDD -36.6% 인데 CAGR -92.2%. equity_curve(trades, span_days=None) 추가(기본값은 종전 동작 = method_x 수치 불변), 분할 공통 창으로 통일. 수정 후 -35.7% 로 기준 7 이 뒤집혔으나 판정 불변. 전반/후반 mid 도 arm 별 중앙값 -> 달력 중점",
   "design_limit": "기준 3(분기 셀)은 엉뚱한 이유로 통과 — uncond 의 분기 우위가 전부 bear fvg 롱 538건에서 나왔고 정작 altseason engulfing 셀에서는 크게 졌다. 분기 표본을 셀 구분 없이 합친 한계. 사후 기준 변경은 사전등록 위반이라 판정은 유지하고, 다음 설계에 '분기 평균은 셀별 부호 요구'를 넣는다",
   "correction": "시험 전 진단 '동결 게이트에서 기각된 숏이 게이트 없는 표로 켜진다' 는 무조건부 게이트 기준으로는 맞았으나, 베이스라인을 고친 레짐 분리 게이트에서는 bull_altseason 숏 셀이 통과한다. 문제는 규칙이 아니라 측정이었다",
-  "files": "validate_routing.py / test_routing.py(47) / routing_gate.yml / report_routing_gate.md / validate_regime_split(_all).py / method_x.py(span_days)"
+  "files": "validate_routing.py / test_routing.py(47) / routing_gate.yml / report_routing_gate.md / validate_regime_split(_all).py / method_x.py(span_days)",
+  "route_bfl_2026_09_05": {
+   "arm": "route 와 (bear,fvg) 한 셀만 FLAT->long. 분기 셀 하나 — 기준 3 은 셀별 부호 규칙(PER_CELL_ARMS)",
+   "verdict": "REJECT — 현행 유지. 7기준 중 c3 만 통과 (셀 자체 n=538 +1.63%)",
+   "train": "CAGR +89.5% (route +103.2%) / Calmar 1.77 (2.29) / MDD -50.4% (-45.2%)",
+   "holdout": "CAGR -65.5% (route -43.2%) — 2026 bear 단일 해에 추가 거래 273건이 몰림. uncond 와 동일",
+   "boot_win": 0.31,
+   "mechanism": "건당 +1.63% 거래가 슬롯·증거금을 차지해 건당 +7.3% 거래 자리를 빼앗는다",
+   "note": "2026-09-04 bear fvg FLAT 결정 옳음. 후속 과제 제거"
+  }
+ },
+ "revival_2026_09_05": {
+  "date": "2026-09-05",
+  "trigger": "사용자: 베이스라인 버그로 기각했던 것 중 살릴 만한 것 / 스스로 찾아서 실거래에서 통과될 것",
+  "screen": "validate_regime_split_all run 33947910532 (k=n 베이스라인): 440셀 PASSED 31 / STRICT 8 (종전 0/0, 우연 ≈22)",
+  "confirm_frame": "방식D 청산(1d/4h) · ATR 배리어(1h) · 레짐 조건부 진입 · 같은 청산 규칙의 레짐 베이스라인 k=n · 실거래 사이징 자산곡선",
+  "criteria": "G1~G5 동결 게이트 + C1 두 코호트 + C2 holdout 365일 n>=10 mean>0 + C3 자산곡선 CAGR>0 Calmar>0",
+  "verdict": "STRICT 8 중 7 REJECT / 1 passed_boundary_not_deployed. 신규 4종 40셀 0 확인. 실거래 반영 없음",
+  "key_finding": "1d 후보 전 셀 중앙값 -8.20%(= -8% 손절 + 수수료). 방식D 에서 거래 절반 이상이 손절 — 선별 라벨(±10% 대칭)은 이 성질을 못 본다. 동결 게이트 median>0 이 정확히 이걸 거른다",
+  "cells": {
+   "triple_bottom_1d|bull_btc": "top30 n=125 +8.22% med -8.20% bp.011 손절62% holdout n=5 Calmar 1.18 → REJECT(median). 가장 강한 기각 — 평균은 최고, 복권형",
+   "double_bottom_1d|bull_btc": "top30 n=711 +6.85% med -8.20% bp.000 손절53% holdout -7.96% → REJECT",
+   "vol_awakening_4h|bull_btc": "top30 n=3091 +1.85% med -0.84% holdout -2.66% Calmar -0.23 → REJECT",
+   "breakout_retest_4h|bull_btc": "top30 n=2948 +1.20% med -0.68% holdout -1.57% Calmar 0.07 → REJECT",
+   "triple_bottom_4h|ALL": "top30 n=646 +1.79% med -0.52% holdout +1.62% Calmar 4.83 → REJECT(median). 가장 가까운 기각(레짐 무관·holdout 양수)",
+   "equal_lows_4h|bear": "top30 n=469 +0.97% med -0.01% bp.013 → REJECT(median)",
+   "vwap_rev_short_4h|bear": "top30 n=1443 +0.76% med +0.55% bp.001 OOS3/4 holdout n=1325 +0.82% CAGR +1.65% MDD -29.4% Calmar 0.06 → C1~C3 문자상 통과. **미반영**: Calmar 0.06 경계값, 표본 92% 가 holdout 창(train n≈118), 2025 -0.9%, 2026 bear 단일 해 아티팩트 위험. 자율 반영 조항의 '경계값 제외' 적용. 사용자 결정으로 켤 수 있음",
+   "fvg_short_1h|bull_altseason": "top30 n=307 +0.10% med +0.29% → C1·C2 통과, C3 자산곡선 계산 불가(1h 프레임) → not confirmed",
+   "three_soldiers_4h|bull_btc": "배포 중 재판정: top30 n=84 +2.92% med +0.98% bp.011 PASSED / all n=194 med -0.49% REJECTED / holdout n=8. 배포 유지(원 프레임 근거 불변). 후속: top30 축소 사전 등록"
+  },
+  "new_patterns_rejected": {
+   "ibs_low_1d": "40셀 중 0. bull_btc 엣지 -1.58%p boot_p 1.000 — 상승장에서 역신호",
+   "rsi2_low_1d": "최선 bull_altseason top30 n=438 +3.06% med -1.36% holdout n=8 → REJECT",
+   "down_streak3_1d": "최선 bull_altseason top30 n=267 +5.06% med -0.51% holdout n=7 → REJECT",
+   "donchian20_1d": "최선 bull_btc top30 n=721 +5.85% med -8.20% holdout -7.84% → REJECT. 추세추종도 방식D 손절에 죽는다",
+   "note": "일봉 평균회귀 지표 가족(IBS/RSI2/연속하락)·Donchian 추세추종 — 캔들 가족에 이어 방식D 프레임에서 닫힘. 자산곡선 MDD -85~-92%"
+  },
+  "beta_slope_vs_avg_cap": {
+   "pearson": 0.139,
+   "spearman": 0.089,
+   "n_days": 1739,
+   "within_cap_tercile_spread": {
+    "cap_low": "+5.89%p p.000",
+    "cap_mid": "+8.43%p p.000",
+    "cap_high": "-1.35%p p.129"
+   },
+   "verdict": "독립 축 (사전 규칙: |corr|<0.5 and >=2/3 같은 부호 유의). 2단계 method_b 사전 등록 대상"
+  },
+  "design_defect": "C2 는 holdout n>=10 만 요구해 train 이 거의 비어도 통과 — vwap_rev_short_4h 가 그 사례. 다음 설계: train 자체 게이트 통과 또는 train n >= holdout n/2. 사후 변경 금지로 이번 판정엔 미적용(적용해도 '미반영' 동일)",
+  "deploy_path": "scheduler.adopted_regime_ok — adopted 항목별 regimes 필드(없음=종전, 'all', [레짐]). 현 배포 3항목 동작 불변(test_adopted_regimes)",
+  "files": "validate_revival.py / test_revival.py(46) / test_adopted_regimes.py(14) / revival.yml / report_revival.md"
  }
 }
