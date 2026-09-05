@@ -2257,5 +2257,32 @@
       "RA": "train ① +0.272%p bp .047 / ② 3/7 False / ④ 71/98=42% True / ⑤ True → 탈락 | holdout ⑥ -0.000%p False / ⑦ 1/4 False",
       "reading": "승률 문턱을 35% 로 내리면 ④는 통과하지만 ②(자산곡선 CAGR 우위 3/7)와 홀드아웃(⑥⑦ — 마지막 1년 bear 에서 RL 이 D 보다 유의하게 나쁨, 분기 1승 11패)이 남는다. 승률이 문제가 아니었다. 실거래 청산 규칙 변경 없음(방식D 유지)"
     }
+  },
+  "late_entry_prereg_2026_09_05": {
+    "test": "triple_bottom_1w 지각 진입(L3+3봉) 사전 등록 시험",
+    "requested_by": "사용자 2026-09-05 (\"triple_bottom 1w 지각 진입(L3+3봉) 사전 등록해서 돌려줘\")",
+    "hypothesis": "9/3 룩어헤드 점검에서 엣지 전부를 담당했던 L3 미확정 돌파 38건(평균 약 +20%)을, 실거래가 처음 알 수 있는 봉인 L3+3(스윙 저점 확정 봉)에 뒤늦게 진입해도 엣지의 상당 부분이 남는다",
+    "arms": {
+      "late": "주 판정. 미확정 돌파 셋업만, 신호=L3+3, 그 봉 종가>넥라인. 인과(테스트 고정)",
+      "late_nohold": "진단. 종가 조건 없음",
+      "causal": "참고. 9/3 REJECT 집합 재현",
+      "early_ceiling": "참고. 같은 셋업을 돌파봉에서(실거래 불가 상한)",
+      "union_live": "진단. late ∪ causal"
+    },
+    "criteria_frozen": {
+      "stage1": "동결 라벨 ±10%/20봉 · 게이트 v2(n>=20, mean>0, 승률>=35%, boot_p<0.05 k=n 1w 무작위 진입 베이스라인 1000회 시드42, OOS 4분위 양구간>=2)",
+      "stage2_C1": "실거래 코호트 all(1w 스케줄러는 유니버스 전체)에서 방식D(−8%/레짐전환/30봉) 청산·k=n 베이스라인 게이트 v2 PASSED",
+      "stage2_C2": "holdout 마지막 365일 n>=10 이고 mean>0. n<10 → INCONCLUSIVE(배포 불가·기각 아님). 데이터 끝 미결 거래는 마지막 봉 시가 평가(truncated 표시)",
+      "stage2_C3": "train 자산곡선(실거래 사이징 risk 1.5%/lev3/vol targeting/MAX_POS16) CAGR>0 이고 Calmar>0",
+      "final": "1단계 PASSED ∧ C1 ∧ C2 ∧ C3 → PASSED(자율 반영: adopted_patterns 1w 항목 mode=late). 1단계 PASSED·C2 표본부족 → INCONCLUSIVE. 그 외 REJECTED. 판정은 late 한 arm 만 — 참고·진단 arm 은 통과해도 미반영"
+    },
+    "data": "유니버스 80 · 1d 1800일 → 1w 리샘플(종전 등재·9/3 재검증과 같은 창)",
+    "files": [
+      "validate_late_entry.py",
+      "detector_triple_bottom.py (mode=late/late_nohold, breakout 기본값 불변)",
+      "test_late_entry.py",
+      ".github/workflows/late_entry.yml"
+    ],
+    "status": "registered — 실행 대기 (결과는 result 키에 추가)"
   }
 }

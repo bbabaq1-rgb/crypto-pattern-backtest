@@ -54,7 +54,10 @@ def _swing_pivots(rows, key, cmp_min=True):
     return out
 
 
-def detect(rows, causal=True):
+MODES = ("breakout", "late", "late_nohold")
+
+
+def detect(rows, causal=True, mode="breakout"):
     """
     causal=True(기본, 2026-09-03 수정): 첫 돌파 봉이 L3 의 스윙 저점 **확정 전**
     (L3 + PIVOT_HALF 이전)이면 그 셋업을 버린다. L3 확정에는 이후 PIVOT_HALF 봉의 저가가 필요하므로
@@ -62,7 +65,23 @@ def detect(rows, causal=True):
     백테스트는 미래 저가를 보고 세고 있었다(합성 신호의 약 21%). 실거래 신호 집합은
     이 수정으로 바뀌지 않는다(원래 잡히던 것만 잡힌다) — 백테스트 수치만 정직해진다.
     causal=False: 종전 동작(룩어헤드 크기 비교용).
+
+    mode (2026-09-05 사전 등록, validate_late_entry.py):
+      "breakout"    — 종전 그대로. 신호 = 돌파봉.
+      "late"        — **지각 진입**: 돌파가 L3 확정 전(L3+1·L3+2)에 난 셋업만 대상으로,
+                      L3 가 확정되는 첫 봉(L3+PIVOT_HALF)을 신호로 찍는다. 그 봉 종가가 여전히
+                      넥라인 위여야 한다(돌파가 유지 중). 돌파봉 거래량 조건은 그대로.
+                      breakout(causal) 신호와 셋업이 겹치지 않는다 — 서로 다른 셋업 집합.
+      "late_nohold" — 진단용. 신호봉 종가 조건 없이 L3+PIVOT_HALF 를 찍는다.
+    late 계열은 인과적이다: L3+PIVOT_HALF 시점에 L3 확정·돌파·거래량·종가가 모두 알려진다.
     """
+    return [d["sig"] for d in detect_detail(rows, causal=causal, mode=mode)]
+
+
+def detect_detail(rows, causal=True, mode="breakout"):
+    """detect 와 같은 순회. 각 신호의 셋업(L1,L2,L3,neck,brk,sig)을 돌려준다(검증·테스트용)."""
+    if mode not in MODES:
+        raise ValueError(f"mode {mode!r} not in {MODES}")
     n = len(rows)
     if n < MAX_SPAN // 2:
         return []
@@ -114,19 +133,38 @@ def detect(rows, causal=True):
                 break
         if brk is None or brk in used_brk:
             continue
-        # causal: 첫 돌파가 L3 확정(L3+PIVOT_HALF) 전이면 그 셋업은 버린다.
-        # (L3+PIVOT_HALF 에서 뒤늦게 진입하는 '지각 진입'을 만들지 않는다 — 그건 검증된 적
-        #  없는 새 신호 집합이다. 종전 실거래가 잡을 수 있던 집합과 정확히 같게 유지.)
-        if causal and brk < L3 + PIVOT_HALF:
-            used_brk.add(brk)
-            continue
+        early = brk < L3 + PIVOT_HALF          # L3 확정 전 돌파(실거래 발화 불가)
+        if mode == "breakout":
+            # causal: 첫 돌파가 L3 확정(L3+PIVOT_HALF) 전이면 그 셋업은 버린다.
+            # (breakout 모드는 '지각 진입'을 만들지 않는다 — 그건 별도 신호 집합으로 mode="late"
+            #  에서 사전 등록·검증한다. 종전 실거래가 잡을 수 있던 집합과 정확히 같게 유지.)
+            if causal and early:
+                used_brk.add(brk)
+                continue
+            entry = brk
+        else:
+            # late: 미확정 돌파 셋업만. 신호봉 = L3 확정 봉(L3+PIVOT_HALF). 데이터가 거기까지 없으면 불가.
+            if not early:
+                used_brk.add(brk)
+                continue
+            entry = L3 + PIVOT_HALF
+            if entry >= n:
+                used_brk.add(brk)
+                continue
+            if mode == "late" and cl[entry] <= neck:
+                used_brk.add(brk)
+                continue
         # 거래량 확인: 돌파봉 >= 형성구간 평균 x 배수
         form_avg = sum(vo[L1:L3 + 1]) / max(1, L3 + 1 - L1)
         if form_avg > 0 and vo[brk] < form_avg * VOL_BREAK_MULT:
             continue
         used_brk.add(brk)
-        sig.append(brk)
-    return sorted(set(sig))
+        sig.append(dict(sig=entry, L1=L1, L2=L2, L3=L3, neck=neck, brk=brk))
+    seen, out = set(), []
+    for d in sorted(sig, key=lambda d: d["sig"]):
+        if d["sig"] not in seen:
+            seen.add(d["sig"]); out.append(d)
+    return out
 
 
 evaluate = detlib.make_evaluate(detect, "long")

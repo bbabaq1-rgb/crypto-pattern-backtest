@@ -687,6 +687,13 @@
     스킵). **사용자가 supabase_schema_funding.sql 실행해야 쌓인다.** OI 는 수집 코드 자체가 없음.
   · method_x.py / regime_axis.py / triangle_census.py / test_method_x(38) / test_regime_axis(28) /
     funding_accrual.py / exit_regime_axis.yml / triangle_census.yml
+- **triple_bottom 1w 지각 진입(L3+3봉) 사전 등록 (2026-09-05 저녁, 사용자 지시)**: 9/3 룩어헤드 점검에서 엣지 전부였던
+  'L3 미확정 돌파 38건(평균 약 +20%)'을 실거래가 처음 알 수 있는 봉(L3+3, 스윙 저점 확정 봉)에서 뒤늦게 진입하는 인과 규칙.
+  `detector_triple_bottom.detect(mode="late")` — 미확정 돌파 셋업만, 신호=L3+3, 그 봉 종가>넥라인. **기본 mode="breakout" 은
+  종전과 바이트 단위로 동일**(test_late_entry 가 detail 일치·인과성·시나리오로 고정, 스케줄러는 mode 를 넘기지 않음).
+  기준(사전 등록, validate_late_entry.py 상단): 1단계 동결 라벨 게이트 v2(k=n 베이스라인) → 2단계 실거래 프레임 C1(코호트 all =
+  1w 스케줄러 범위, 방식D) · C2 holdout 365일 n≥10 & mean>0(n<10 은 INCONCLUSIVE) · C3 자산곡선 Calmar>0. **판정은 late 한 arm 만**,
+  late_nohold/causal/early_ceiling/union_live 는 진단. PASSED 면 자율 반영(adopted 1w 항목 mode=late). late_entry.yml.
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
   시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
   같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도

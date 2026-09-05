@@ -1,0 +1,44 @@
+name: Late entry — triple_bottom 1w L3+3 (research, pre-registered)
+
+# 연구 전용 — 매매/DB 접근 없음, 실거래 규칙 무변경.
+# triple_bottom 1w '지각 진입(L3+3봉)' 사전 등록 시험. 기준은 validate_late_entry.py 상단에 고정.
+# 결과 판정이 PASSED 인 경우에만 adopted 1w 항목(mode=late) 등재가 자율 반영 대상.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_late_entry.py"
+      - "detector_triple_bottom.py"
+      - ".github/workflows/late_entry.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_late_entry.py
+          python test_confirm_bar.py
+      - name: Pre-registered test
+        run: python validate_late_entry.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: late-entry-${{ github.run_number }}
+          path: _late_entry.json
+          if-no-files-found: ignore
