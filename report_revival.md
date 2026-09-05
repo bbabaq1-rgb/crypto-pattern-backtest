@@ -212,3 +212,9 @@ routing_gate(배포 6종 통과 18셀)·intraday(15셀) 판정은 v2 로 바뀌�
 둘 다 G1~G5 는 통과하고 2023~2024 는 양수인데 2025~2026 에서 죽는다(breakout −0.1/+0.2%, vol_awakening −0.9/+0.7%).
 n 이 5천에 가까운 '자주 나오는 신호'는 건당 엣지가 얇아(+0.7~1.2%) 슬롯을 채우면서 자산곡선을 끌어내린다 —
 Calmar 4.83 의 triple_bottom_4h 와 정반대 성질. 게이트를 v2 로 바꿔도 holdout·자산곡선이 이런 셀을 거른다.
+
+**후속 2 (run 33960053517) — 선별 문턱 완화(한 코호트라도 v2 PASSED) 1d/4h 14셀 확인**: **0 CONFIRMED.** 가까운 셀은
+inverse_hs_1d · bull_btc(top30 n=254 +5.57% 승률 46% bp .016 OOS 4/4, Calmar 2.89)이지만 holdout n=12 가 전부 손절(−8.20%),
+bos_choch_1d · bull_btc 도 holdout −8.09%. equal_lows_4h · ALL 은 C1·C2 통과인데 자산곡선 CAGR −24.9%/MDD −52.9% —
+bear 셀만 배포한 판단이 맞았다. three_soldiers_4h · ALL 은 bp .110·holdout −0.82% 로 전 레짐 확대 근거 없음(bull 전용 유지).
+결론: STRICT 문턱을 풀어도 1d 후보는 **최근 1년 holdout**에서 죽는다 — 2025~2026 의 1d 반전형은 방식D 에서 손절 비율이 높다.

@@ -2170,7 +2170,8 @@
       "regime_split_all 33955072518": "440셀 PASSED 31→39 / STRICT 8→10. 신규 STRICT: breakout_retest_4h|ALL, vol_awakening_4h|ALL, triple_bottom_4h|bull_btc(배포 ALL 셀의 부분집합) — 앞 둘은 CANDIDATES 에 추가해 확인 시험 후속",
       "routing_gate 33955072569": "배포 6종 통과 셀 18 → 18 동일(v2 영향 없음). 라우팅 arm 판정 불변(현행 유지)",
       "intraday 33955072559": "15셀 판정 불변(cascade 1h PASSED, 나머지 mean 음수라 승률 조건과 무관)",
-      "revival 33957277149 (후속 STRICT 2셀)": "breakout_retest_4h|ALL: top30 n=4922 +0.73% 승률 44% bp .000 PASSED 이나 C2 holdout n=1528 -0.41% → REJECT. vol_awakening_4h|ALL: top30 n=4992 +1.21% 승률 44% bp .000 PASSED 이나 C3 자산곡선 CAGR -6.32% Calmar -0.24 → REJECT. 둘 다 2025~2026 음수(-0.1/-0.9, +0.2/+0.7 혼조) — 게이트 통과와 최근 1년 수익은 별개. CONFIRMED 집합 불변(3), 배포 불변(2)"
+      "revival 33957277149 (후속 STRICT 2셀)": "breakout_retest_4h|ALL: top30 n=4922 +0.73% 승률 44% bp .000 PASSED 이나 C2 holdout n=1528 -0.41% → REJECT. vol_awakening_4h|ALL: top30 n=4992 +1.21% 승률 44% bp .000 PASSED 이나 C3 자산곡선 CAGR -6.32% Calmar -0.24 → REJECT. 둘 다 2025~2026 음수(-0.1/-0.9, +0.2/+0.7 혼조) — 게이트 통과와 최근 1년 수익은 별개. CONFIRMED 집합 불변(3), 배포 불변(2)",
+      "revival 33960053517 (선별 완화: 한 코호트 PASSED 1d/4h 14셀)": "0 CONFIRMED (CONFIRMED 3 불변). C1 통과·C2 탈락: inverse_hs_1d|bull_btc(top30 n=254 +5.57% 승률46% bp.016 Calmar 2.89, holdout n=12 -8.20%), bos_choch_1d|bull_btc(n=1061 +5.22% 승률36%, holdout n=50 -8.09%), double_bottom_1d(재확인, holdout -7.96%). C1·C2 통과·C3 탈락: equal_lows_4h|ALL(n=1086 +0.67% holdout +0.70% 이나 CAGR -24.9% MDD -52.9% — bear 셀만 배포한 것이 맞음). C1 탈락(승률<35% 또는 boot_p): triple_bottom_1d ALL/bear(승률 29%/23%), inverse_hs_1d ALL(34%), order_block_1d(bp.072), marubozu_short_1d(n=19), order_block_short_1d(top30 n=13 음수), vwap_rev_long/short_4h·vol_awakening_4h 다른 레짐(평균 음수 또는 OOS 1/4), three_soldiers_4h ALL(bp.110, holdout -0.82% — 전 레짐 확대 근거 없음, bull 전용 유지)"
     },
     "deployed": [
       {
