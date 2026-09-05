@@ -29,13 +29,14 @@ def rows_from(closes, vol=100.0):
 # ── 1. sma · 돌파 정의 ────────────────────────────────────────────────────────
 check("sma: 초기 None, 값 정확", sm.sma([1, 2, 3, 4, 5], 3) == [None, None, 2.0, 3.0, 4.0])
 
-# 200봉 100 flat 뒤 60봉 90(아래) 뒤 돌파 110
-closes = [100.0] * 200 + [90.0] * 60 + [110.0] * 30
+# 200봉 완만 상승(종가 > MA) 뒤 60봉 90(아래) 뒤 돌파 130
+up = [100.0 + 0.1 * i for i in range(200)]
+closes = up + [90.0] * 60 + [130.0] * 30
 rows = rows_from(closes)
 cr, ma = sm.crosses(rows, 180)
 check("fresh 돌파 1건, 위치 260", cr == [(260, "fresh")], cr)
 # 짧게(5봉) 아래였다가 재돌파 → rebreak
-closes2 = [100.0] * 200 + [90.0] * 5 + [110.0] * 30
+closes2 = up + [90.0] * 5 + [130.0] * 30
 cr2, _ = sm.crosses(rows_from(closes2), 180)
 check("BELOW_MIN 미만 아래 → rebreak", cr2 == [(205, "rebreak")], cr2)
 # 인과성: 돌파 시점까지의 데이터만으로 같은 신호
@@ -46,8 +47,8 @@ check("교차 없으면 신호 없음", sm.crosses(rows_from([100.0] * 300), 180
 # ── 2. 필터 ─────────────────────────────────────────────────────────────────
 i = 260
 check("raw 항상 통과", sm.passes("raw", rows, i, ma))
-check("decisive: 110 >= MA×1.02 통과", sm.passes("decisive", rows, i, ma))
-rows_w = rows_from([100.0] * 200 + [90.0] * 60 + [97.5] * 30)      # MA≈96.7 근처 → 1.02 미달
+check("decisive: 130 >= MA×1.02 통과", sm.passes("decisive", rows, i, ma))
+rows_w = rows_from(up + [90.0] * 60 + [107.0] * 30)      # MA≈106 → 돌파는 되지만 ×1.02(108.1) 미달
 cr_w, ma_w = sm.crosses(rows_w, 180)
 check("decisive: 약한 돌파 탈락", cr_w and not sm.passes("decisive", rows_w, cr_w[0][0], ma_w))
 rows_v = rows_from(closes); rows_v[260]["v"] = 400.0
@@ -57,14 +58,14 @@ check("slope: 하락 중인 MA(90 구간 반영) 는 탈락", not sm.passes("slo
 rows_up = rows_from([80.0] * 200 + [100.0] * 40 + [95.0] * 25 + [105.0] * 10)
 cr_u, ma_u = sm.crosses(rows_up, 180)
 check("slope: 상승 중인 MA 통과", cr_u and sm.passes("slope", rows_up, cr_u[-1][0], ma_u), cr_u)
-check("deep: 직전 60봉 최저 종가가 MA 대비 −20% 이하", sm.passes("deep", rows_from([100.0] * 200 + [70.0] * 60 + [110.0] * 30), 260,
-                                                              sm.crosses(rows_from([100.0] * 200 + [70.0] * 60 + [110.0] * 30), 180)[1]))
+rows_d = rows_from(up + [70.0] * 60 + [130.0] * 30)
+check("deep: 직전 60봉 최저 종가가 MA 대비 −20% 이하", sm.passes("deep", rows_d, 260, sm.crosses(rows_d, 180)[1]))
 check("deep: 얕은 조정은 탈락", not sm.passes("deep", rows, 260, ma))
 
 # ── 3. forward · summarize ──────────────────────────────────────────────────
 r = rows_from([100.0] * 70)
 r[10]["c"] = 100.0
-for j in range(11, 71):
+for j in range(11, 70):
     r[j].update(c=100.0 + (j - 10) * 0.5, h=100.0 + (j - 10) * 0.5 + 30 * (j == 30), l=99.0)
 f = sm.forward(r, 10)
 check("forward: +20봉 수익 = 110/100−1", abs(f["r20"] - 0.10) < 1e-9, f["r20"])
