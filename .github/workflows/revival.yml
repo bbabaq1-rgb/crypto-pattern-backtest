@@ -1,0 +1,60 @@
+name: Revival — STRICT candidates in live frame + new entry candidates (research)
+
+# 연구 전용 — 매매/DB 접근 없음, 실거래 규칙 무변경.
+#
+#   1) validate_revival.py            베이스라인 수정 후 살아난 STRICT 8 + three_soldiers_4h 재판정을
+#                                      실거래 프레임(방식D / ATR 배리어, 레짐 조건부, 실거래 사이징)으로 확인
+#   2) validate_revival.py --new      신규 진입 후보 4종(ibs_low/rsi2_low/down_streak3/donchian20) 전 셀
+#   3) regime_axis.py --corr          beta_slope vs avg_cap 상관·조건부 스프레드 (2단계 선결)
+#
+# 1)·2) 는 같은 봉 CSV 를 쓴다(--no-fetch 재사용). 3) 은 1d 만 쓴다.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_revival.py"
+      - "detector_ibs_low.py"
+      - "detector_rsi2_low.py"
+      - "detector_down_streak3.py"
+      - "detector_donchian20.py"
+      - "regime_axis.py"
+      - ".github/workflows/revival.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_revival.py
+          python test_regime_axis.py
+      - name: 1) STRICT 후보 실거래 프레임 확인
+        run: python validate_revival.py
+      - name: 2) 신규 진입 후보 4종 전 셀
+        run: python validate_revival.py --new --no-fetch --tf 1d
+      - name: 3) beta_slope vs avg_cap 상관 (유니버스 80)
+        run: python regime_axis.py --no-fetch --universe --corr
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: revival-${{ github.run_number }}
+          path: |
+            _revival.json
+            _revival_new.json
+            regime_axis.json
+          if-no-files-found: ignore

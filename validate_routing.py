@@ -26,6 +26,16 @@ validate_routing.py — 진입 **방향** 라우팅 규칙 시험 (2026-09-05, �
           engulfing 롱, fvg 롱. (숏 디텍터는 무조건부 표본에서 rejected 이므로 쓰지 않는다.)
   gated   레짐 라우팅이되 **레짐 분리 게이트를 통과한 셀만** 켠다. 통과 셀이 없으면 FLAT.
           _regime_split.json 을 읽는다(없으면 이 arm 은 건너뛴다). 3단계 제안의 미리보기.
+  route_bfl  (2026-09-05 추가, 사용자 지시) route 와 **(bear, fvg) 한 셀만** FLAT→long 으로 다르다.
+          1차 시험의 uncond 분기에서 bear fvg 롱이 n=538 +1.63% 로 나왔으나, 4셀을 한꺼번에 바꾸는
+          uncond 로는 이 셀만의 기여를 분리할 수 없었다. 분기 셀이 정확히 하나라 기준 3) 이 깨끗하다.
+
+## 기준 3) 의 셀별 부호 규칙 (1차 시험 후 추가 — 새 arm 에만 적용)
+
+1차 시험에서 uncond 의 분기 우위(+1.54% vs +0.32%)가 전부 bear fvg 538건에서 나오고 정작 문제의
+altseason engulfing 셀에서는 크게 진 것을 봤다. 분기 표본을 셀 구분 없이 합친 설계 한계다.
+**이미 판정한 uncond·gated 에 사후 적용하면 사전등록 위반**이므로 그 둘은 종전 규칙(합산)을 유지하고,
+그 뒤에 추가된 arm(PER_CELL_ARMS)에는 '분기 셀 **각각**이 n>=30, 평균 양수, route 보다 높다'를 요구한다.
 
 ## 편향을 어느 쪽으로 뒀는지 — 중요
 
@@ -85,8 +95,9 @@ BLOCK_DAYS = 30
 MIN_DIVERGENCE_N = 30          # 기준 3) 판정 가능 최소 분기 표본
 MDD_TOLERANCE = 0.05           # 기준 5) 허용 악화폭
 
-ARMS = ["route", "uncond", "gated"]
+ARMS = ["route", "uncond", "gated", "route_bfl"]
 BASELINE = "route"
+PER_CELL_ARMS = {"route_bfl"}   # 기준 3) 을 셀별 부호로 판정하는 arm (1차 이후 추가분)
 # (기본패턴, 롱 디텍터, 숏 디텍터, 실거래 코호트) — 코호트는 scheduler.PATTERN_UNIVERSE 복제
 BASE_PATTERNS = [("engulfing", "detector_engulfing", "detector_engulfing_short", "top20"),
                  ("fvg", "detector_fvg", "detector_fvg_short", "top30")]
@@ -141,6 +152,10 @@ def build_tables():
     g = gated_table(cohort_of)
     if g is not None:
         tabs["gated"] = g
+    # route 와 한 셀만 다르다 — bear fvg FLAT → long. 다른 7셀은 route 그대로 복사.
+    bfl = dict(tabs["route"])
+    bfl[("bear", "fvg")] = "long"
+    tabs["route_bfl"] = bfl
     return tabs
 
 
@@ -317,8 +332,15 @@ def verdict(arm, res, boot_win):
     c1 = tr_x["cagr"] > tr_b["cagr"]
     c2 = tr_x["calmar"] > tr_b["calmar"]
     dv = x["divergence"]
-    c3 = (dv["b_n"] >= MIN_DIVERGENCE_N and dv["b_mean"] is not None
-          and (dv["a_mean"] is None or dv["b_mean"] > dv["a_mean"]) and dv["b_mean"] > 0)
+    if arm in PER_CELL_ARMS:
+        # 셀별 부호: 분기 셀 각각이 n>=30 · 평균 양수 · route 보다 높아야 한다. 셀이 없으면 실패.
+        cells = dv.get("cells", [])
+        c3 = bool(cells) and all(
+            c["b_n"] >= MIN_DIVERGENCE_N and c["b_mean"] is not None and c["b_mean"] > 0
+            and (c["a_mean"] is None or c["b_mean"] > c["a_mean"]) for c in cells)
+    else:
+        c3 = (dv["b_n"] >= MIN_DIVERGENCE_N and dv["b_mean"] is not None
+              and (dv["a_mean"] is None or dv["b_mean"] > dv["a_mean"]) and dv["b_mean"] > 0)
     h = x["halves"]
     c4 = bool(h) and all(h[k]["arm"] > h[k]["base"] for k in ("first", "second") if h.get(k))
     c4 = c4 and all(h.get(k) for k in ("first", "second"))

@@ -45,6 +45,14 @@ else:
 check("ROUTING_OVERRIDES 가 반영된다 (bear fvg FLAT)",
       tabs["route"][("bear", "fvg")] == "FLAT", tabs["route"][("bear", "fvg")])
 
+# route_bfl — route 와 정확히 한 셀만 다르다
+diff = [k for k in tabs["route"] if tabs["route"][k] != tabs["route_bfl"].get(k)]
+check("route_bfl 은 route 와 (bear, fvg) 한 셀만 다르다", diff == [("bear", "fvg")], diff)
+check("route_bfl 의 그 셀은 long", tabs["route_bfl"][("bear", "fvg")] == "long")
+check("route_bfl 은 셀별 부호 arm 으로 등록", "route_bfl" in vr.PER_CELL_ARMS)
+check("uncond/gated 는 종전 합산 규칙 유지(사후 변경 금지)",
+      not ({"uncond", "gated"} & vr.PER_CELL_ARMS))
+
 
 # ── 2. gated 표 ──────────────────────────────────────────────────────────────
 TMP = "_test_split.json"
@@ -187,6 +195,27 @@ check("MDD 가 허용폭 안이면 통과 유지",
       vr.verdict("X", res_for(arm_mdd=-0.40 - vr.MDD_TOLERANCE + 0.01), 0.7)["pass_"])
 check("부트 우위 60% 미만이면 탈락", not vr.verdict("X", res_for(), 0.59)["pass_"])
 check("holdout 열세면 탈락", not vr.verdict("X", res_for(ho=(0.3, 0.2)), 0.7)["pass_"])
+# 셀별 부호 규칙: 합산 분기 평균이 양수라도 어느 한 셀이 음수면 탈락 (1차 시험의 uncond 사례)
+def res_cells(cells, **kw):
+    r = res_for(**kw)
+    r["X"]["divergence"]["cells"] = cells
+    return r
+
+
+good_cells = [dict(pattern="fvg", regime="bear", a_dir="FLAT", b_dir="long", a_n=0, b_n=100, a_mean=None, b_mean=0.02)]
+bad_cells = good_cells + [dict(pattern="engulfing", regime="bull_altseason", a_dir="short", b_dir="long",
+                               a_n=50, b_n=40, a_mean=0.003, b_mean=-0.03)]
+_saved = set(vr.PER_CELL_ARMS); vr.PER_CELL_ARMS.add("X")
+check("셀별 부호: 모든 분기 셀이 양수·우위면 통과", vr.verdict("X", res_cells(good_cells), 0.7)["pass_"])
+check("셀별 부호: 한 셀이 음수면 합산이 양수라도 탈락",
+      not vr.verdict("X", res_cells(bad_cells), 0.7)["pass_"])
+check("셀별 부호: 셀 n<30 이면 탈락",
+      not vr.verdict("X", res_cells([dict(good_cells[0], b_n=10)]), 0.7)["pass_"])
+check("셀별 부호: 분기 셀이 없으면 탈락", not vr.verdict("X", res_cells([]), 0.7)["pass_"])
+vr.PER_CELL_ARMS.clear(); vr.PER_CELL_ARMS.update(_saved)
+check("합산 규칙 arm 은 셀 하나가 음수여도 합산으로 판정(종전 동작 불변)",
+      vr.verdict("X", res_cells(bad_cells), 0.7)["pass_"])
+
 check("train 표본 없으면 탈락",
       not vr.verdict("X", {"route": dict(train=None, holdout=None, divergence={}, halves={}),
                            "X": dict(train=None, holdout=None, divergence={}, halves={})}, 0.9)["pass_"])
