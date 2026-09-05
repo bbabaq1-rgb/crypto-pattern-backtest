@@ -144,11 +144,18 @@ def outcome_x(rows, si, direction, opp_set, arm, stop):
 
 
 # ── 자산곡선 — 실거래 사이징 (arm 의 stop_pct 를 그대로 넘긴다) ─────────────
-def equity_curve(trades):
+def equity_curve(trades, span_days=None):
     """
     trades: [(entry_date, exit_date, ret, hold, reason, stop_pct, vol)] 시간순 무관.
     sizing.risk_based_size 로 실거래와 같은 규칙(RISK_FRAC/LEV_CAP/변동성 타겟팅)을 쓴다.
     **손절폭이 arm 마다 다른 것이 명목가에 반영되는 것이 이 시험의 핵심**이다.
+
+    span_days: CAGR 을 연율화할 기간(일). 기본 None 이면 **그 arm 자신의 첫~마지막 거래
+    간격**을 쓴다 — method_x 처럼 arm 마다 거래 집합이 사실상 같은 시험에서는 문제가 없다.
+    그러나 arm 이 서로 다른 신호를 잡는 시험(validate_routing)에서는 arm 마다 간격이 달라져
+    **연율화 분모가 달라진다**: 거래가 짧은 구간에 몰린 arm 은 같은 손실이 훨씬 큰 CAGR 로
+    부풀려진다(실측: holdout 41건 arm 이 MDD -36.6% 인데 CAGR -92.2%). 그런 비교에서는
+    공통 창을 넘겨 분모를 맞춘다.
     """
     if not trades:
         return None
@@ -187,7 +194,8 @@ def equity_curve(trades):
             free -= r["margin_usd"]
             open_pos[idx] = (r["margin_usd"], r["notional"])
             taken += 1
-    days = max(1, evs[-1][0] - evs[0][0]) if evs else 1
+    days = span_days if span_days else (max(1, evs[-1][0] - evs[0][0]) if evs else 1)
+    days = max(1, days)
     yrs = days / 365.25
     cagr = (equity / START_EQ) ** (1 / yrs) - 1 if equity > 0 else -1.0
     return dict(final=equity, cagr=cagr, mdd=mdd,

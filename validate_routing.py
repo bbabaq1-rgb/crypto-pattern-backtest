@@ -211,11 +211,16 @@ def as_tuples(trades):
             for t in trades]
 
 
-def perf(trades):
+def perf(trades, span_days=None):
+    """
+    span_days: 그 분할(train/holdout)의 **공통 기간**. arm 마다 거래 집합이 다르므로 각자의
+    첫~마지막 간격으로 연율화하면 분모가 달라져 CAGR 이 비교 불가능해진다 — 거래가 짧은
+    구간에 몰린 arm 이 같은 손실로 훨씬 나쁜 CAGR 을 받는다. 분할 창으로 통일한다.
+    """
     if not trades:
         return None
     rets = [t["ret"] for t in trades]
-    eq = mx.equity_curve(as_tuples(trades))
+    eq = mx.equity_curve(as_tuples(trades), span_days=span_days)
     return dict(n=len(rets), mean=st.mean(rets), median=st.median(rets),
                 win=sum(1 for r in rets if r > 0) / len(rets),
                 hold=st.mean(t["hold"] for t in trades),
@@ -291,7 +296,7 @@ def paired_block_boot(arm_trades_map, rng, n_boot=BOOT_N, block=BLOCK_DAYS):
                     tup.append((date.fromordinal(e).isoformat(), date.fromordinal(max(x, e)).isoformat(),
                                 t["ret"], t["hold"], t["reason"], t["stop_pct"], t["vol"]))
             tup.sort()
-            eq = mx.equity_curve(tup)
+            eq = mx.equity_curve(tup, span_days=n_blocks * block)
             # **draw 마다 arm 별로 정확히 한 값을 넣는다.** 판정 기준 6) 은 arm 간 draw 를
             # zip 으로 짝지으므로, 거래가 없는 draw 를 건너뛰면 i 번째 값이 서로 다른 draw 가
             # 되어 짝지음이 조용히 어긋난다. 거래 0건인 draw 는 '아무것도 안 한 것' —
@@ -368,6 +373,14 @@ def main(argv=None):
     cutoff = date.fromordinal(_dnum(all_dates[-1]) - HOLDOUT_DAYS).isoformat()
     print(f"[분할] train < {cutoff} <= holdout (마지막 {HOLDOUT_DAYS}일)")
 
+    # 분할별 공통 창(일). arm 이 아니라 **분할**이 분모를 정한다.
+    d_lo, d_hi = _dnum(all_dates[0]), _dnum(all_dates[-1])
+    d_cut = _dnum(cutoff)
+    span_all = max(1, d_hi - d_lo)
+    span_train = max(1, d_cut - d_lo)
+    mid = date.fromordinal(d_lo + span_train // 2).isoformat()
+    span_h1 = span_h2 = max(1, span_train // 2)
+
     res, tr_map = {}, {}
     for a in ARMS:
         if a not in tabs:
@@ -375,10 +388,10 @@ def main(argv=None):
         tr = arm_trades(cands, tabs[a])
         tr_map[a] = tr
         train, hold = split_by_date(tr, cutoff)
-        mid = train[len(train) // 2]["date"] if train else cutoff
         first, second = split_by_date(train, mid)
-        res[a] = dict(all=perf(tr), train=perf(train), holdout=perf(hold),
-                      _first=perf(first), _second=perf(second))
+        res[a] = dict(all=perf(tr, span_all), train=perf(train, span_train),
+                      holdout=perf(hold, HOLDOUT_DAYS),
+                      _first=perf(first, span_h1), _second=perf(second, span_h2))
 
     for a in res:
         if a == BASELINE:

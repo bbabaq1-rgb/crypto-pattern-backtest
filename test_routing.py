@@ -121,6 +121,20 @@ check("perf 가 n·CAGR·MDD·Calmar 를 낸다",
       p and p["n"] == len(tb) and "cagr" in p and "mdd" in p and "calmar" in p, p)
 check("perf: 거래 없으면 None", vr.perf([]) is None)
 
+# 연율화 분모: arm 마다 거래 간격이 다르면 CAGR 이 비교 불가능해진다.
+# (실측 회귀: holdout 41건 arm 이 MDD -36.6% 인데 CAGR -92.2% 로 찍혔다.)
+short_span = [t for t in tb if t["date"] < "2024-02-15"]
+p_own = vr.perf(short_span)                      # 자기 간격으로 연율화
+p_common = vr.perf(short_span, span_days=1000)   # 공통 창으로 연율화
+check("공통 창을 주면 연율화 분모가 바뀐다", p_own["cagr"] != p_common["cagr"],
+      (p_own["cagr"], p_common["cagr"]))
+check("같은 거래면 MDD 는 분모와 무관", abs(p_own["mdd"] - p_common["mdd"]) < 1e-12,
+      (p_own["mdd"], p_common["mdd"]))
+check("긴 창으로 늘리면 손익이 희석된다(절대값 감소)",
+      abs(p_common["cagr"]) < abs(p_own["cagr"]), (p_own["cagr"], p_common["cagr"]))
+check("method_x.equity_curve 기본값은 종전과 같다(자기 간격)",
+      mx.equity_curve(vr.as_tuples(short_span))["cagr"] == p_own["cagr"])
+
 
 # ── 5. 짝지음 블록 부트스트랩 ───────────────────────────────────────────────
 b1 = vr.paired_block_boot({"route": ta, "uncond": tb}, random.Random(vr.SEED), n_boot=12)
