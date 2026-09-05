@@ -345,6 +345,41 @@
     잔류. 신규 종목 1d/4h/1h CSV 는 다음 oncefull 에서 처음 수집(900/130/40일) — 4h/1h 블록은
     data/*_4h.csv 존재 종목을 돌므로 자동 편입. **4단계(캐스케이드 1h 재검증)는 미실행** — 새 종목
     1h 365일 수집 뒤 별도. 분기마다 universe_okx_scan 재실행으로 갱신.
+- **라우팅 게이트 — boot_p 베이스라인 버그 수정 + 진입 방향 arm 시험 (2026-09-05, 사용자 지시
+  "레짐이 매매를 막을 수도 있는 것 아닌가")**: report_routing_gate.md. **실거래 무변경.**
+  · **`gate_cell` 베이스라인이 30 표본에 묶여 있었다** — `k = min(max(10, min(30,n)), len(pool))`.
+    셀이 n=75 여도 베이스라인은 30 개만 뽑아 평균의 표준오차가 sqrt(30) 에 고정되고, 분포가
+    넓어진 만큼 **boot_p 가 부풀려졌다(보수적)**. engulfing 숏 altseason 의 `.045 ↔ .055` 진동은
+    데이터가 아니라 이 추정량 탓이었다. **k=n 으로 수정 — 게이트 문턱은 불변**이고 한쪽으로
+    느슨해지는 변경도 아니다(엣지 양수 셀은 내려가고 음수 셀은 올라간다, 테스트가 양방향 고정).
+    validate_regime_split_all.py:166 의 복사본도 함께.
+  · **재실행: 통과 셀 2개 → 18개.** engulfing 롱 bull_btc(3코호트)+ALL(2) / **engulfing_short
+    bull_altseason 3코호트 전부** / fvg 롱 bull_btc(3) / fvg_short top20:bear / IH bear(3)+ALL(2) /
+    marubozu all:ALL. **종전 "72셀 중 2셀 통과"는 상당 부분 측정 결함이었다.**
+  · **진입 방향 arm 시험 (validate_routing.py, 사전 등록 7기준)** — 청산은 세 arm 모두 방식D 동일,
+    다른 건 진입 방향뿐. route(현행 복제) / uncond(레짐 미사용, 둘 다 롱) / gated(분리 게이트 통과
+    셀만). **uncond·gated 둘 다 현행 유지.** train CAGR route +103.2% / uncond +82.3% / gated +71.0%,
+    Calmar 2.29 / 1.63 / 1.65, 부트 Calmar 우위 uncond 31% · gated 7%.
+  · **사용자 질문 직답 — bull_altseason engulfing: route 숏 n=53 +0.32% vs uncond 롱 n=11 −2.77%.**
+    그 레짐의 롱은 11건뿐이고 음수다. 숏이 낫고, 레짐 분리 게이트도 그 숏 셀을 통과시킨다.
+  · **3단계 제안(라우팅에 동결 게이트 적용)은 시험했고 기각** — gated arm 이 정확히 그것이었다.
+    꺼지는 셀이 bear engulfing 롱(n=47 **+2.41%**)과 altseason fvg 롱(n=146 +0.02%)인데 앞의 것이
+    수익 셀이다. **레짐별로 쪼갠 셀은 표본이 작아 게이트를 못 넘을 뿐 엣지가 없다는 뜻이 아니다** —
+    게이트를 라우팅 계층에 옮기면 '표본 부족'을 '엣지 없음'으로 오독한다.
+  · route 와 gated 는 8셀 중 **6셀이 동일**하고, 방향을 두고 충돌하는 셀은 **하나도 없다**
+    (다른 2셀은 게이트가 아무것도 통과 못 시킨 자리에서 route 가 거래하는 경우).
+  · **방법 결함 자체 발견·수정**: equity_curve 가 CAGR 을 **arm 자신의 거래 간격**으로 연율화해
+    arm 마다 분모가 달랐다. 1차에서 gated holdout 이 **MDD −36.6% 인데 CAGR −92.2%** 로 찍혔다.
+    `equity_curve(trades, span_days=None)` 추가(기본값은 종전 동작 = method_x 수치 불변), 분할
+    공통 창으로 통일. 수정 후 −35.7% 로 기준 ⑦ 이 뒤집혔으나 **판정은 불변**. 전반/후반 mid 도
+    arm 별 중앙값 → 달력 중점으로 통일.
+  · **기준 ③은 엉뚱한 이유로 통과** — uncond 분기 우위(+1.54% vs +0.32%)가 전부 bear fvg 롱
+    538건에서 나왔고 정작 altseason engulfing 셀에서는 크게 졌다. 분기 표본을 셀 구분 없이 합친
+    설계 한계. **사후 기준 변경은 사전등록 위반이라 판정은 그대로 두고**, 다음 설계에 '분기 평균은
+    셀별 부호 요구'를 넣는다(validate_short_exit 대조군의 부호 조건 누락과 같은 종류).
+  · **종전 리포트 boot_p 는 전부 보수 편향분** — report_regime_split(_all).md 재해석 대상,
+    `_all` 의 "440셀 PASSED 0" 도 재실행 필요.
+  validate_routing.py / test_routing.py(47건) / routing_gate.yml / report_routing_gate.md
 - **레짐별 분리 게이트** (2026-09-04, 사용자 제안 "레짐 나눠서 테스트해야 맞다"): report_regime_split.md.
   1d 패턴 6종 x 진입레짐 4 x 코호트 3 = 72셀. boot_p 베이스라인을 **같은 레짐·코호트 무작위 진입**으로
   잡아 "상승장이라 오른 것"을 엣지로 오인하지 않게 함(test_regime_split 이 성질 고정).
@@ -614,6 +649,12 @@
       12슬롯 증거금 $450→$300, 청산거리 32.3%(손절의 4.0배)
 - [ ] **equity $355 하한 주시** — lev 3 에서 전 신호 통과 문턱이 $355 다. 계좌가 그 밑으로 내려가면
       고변동 신호부터 주문이 안 나간다(현 $400, 여유 $45). 스킵 로그에 필요 equity 가 찍힌다
+- [ ] **bear fvg 롱 단일 셀 사전 등록 시험** (2026-09-05 신규) — 라우팅 arm 시험의 분기 셀에서
+      n=538 · **+1.63%** 로 나왔다. 어제 결정으로 FLAT 이고 레짐 분리 게이트도 엣지 +1.34%p 로
+      부호는 맞다. 다만 그걸 켠 uncond arm 은 포트폴리오 CAGR·MDD 가 오히려 나빠졌다(슬롯·증거금
+      경합). **4셀을 한꺼번에 바꾸는 arm 으로는 이 셀만의 기여를 분리할 수 없다** — 단일 셀 arm 필요
+- [ ] **종전 boot_p 재해석** (2026-09-05 신규) — report_regime_split(_all).md 의 boot_p 는 전부
+      베이스라인 30표본 보수 편향분이다. `_all` 의 "440셀 PASSED 0" 은 재실행 대상
 - [ ] **beta_slope vs avg_cap 상관 확인** — 레짐 축 진단에서 beta_slope 만 생존했으나 현행 avg_cap 이
       더 강하다(스프레드 +4.48 vs −4.73%p). 부호가 반대인 두 알트강세 축이 상충인지 상보인지 먼저.
       상관 높으면 재포장일 뿐 → 2단계 arm 제작 전 선결
@@ -701,6 +742,9 @@
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
+- validate_routing.py: 진입 **방향** 라우팅 arm 시험 (route/uncond/gated). 청산은 세 arm 모두 방식D 동일.
+  arm 마다 신호 집합이 달라 짝지음이 안 되므로 **같은 시간 블록을 재표집**해 비교(paired_block_boot).
+  자산곡선은 method_x.equity_curve 를 공통 창(span_days)으로 호출. report_routing_gate.md
 - direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트

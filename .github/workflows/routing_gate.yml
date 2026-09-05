@@ -1,0 +1,54 @@
+name: Routing gate (research)
+
+# 연구 전용 — 매매/DB 접근 없음, 실거래 규칙 무변경.
+#
+#   1) validate_regime_split.py  베이스라인 표본 정합(k=30 -> k=n) 후 **재실행**.
+#      종전 boot_p 는 n 이 큰 셀에서 부풀려져 있었다(engulfing 숏 altseason .045 <-> .055
+#      경계 진동의 원인). 판정이 바뀐 셀을 확인하는 것이 이 단계의 목적이다.
+#   2) validate_routing.py       진입 방향 라우팅 arm 시험 (route / uncond / gated).
+#      gated arm 은 1) 이 만든 _regime_split.json 을 읽으므로 **순서가 중요**하다.
+#
+# 두 단계가 같은 잡에서 도는 이유: 1) 이 받아 둔 봉 CSV 를 2) 가 그대로 쓴다(--no-fetch).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_routing.py"
+      - "validate_regime_split.py"
+      - ".github/workflows/routing_gate.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_regime_split.py
+          python test_routing.py
+      - name: 1) 레짐 분리 게이트 재실행 (베이스라인 표본 정합 후)
+        run: python validate_regime_split.py
+      - name: 2) 라우팅 arm 시험
+        run: python validate_routing.py --no-fetch
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routing-gate-${{ github.run_number }}
+          path: |
+            _regime_split.json
+            _routing.json
+          if-no-files-found: ignore

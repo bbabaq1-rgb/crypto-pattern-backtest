@@ -65,6 +65,46 @@ check("실제 엣지 셀은 엣지가 크게 양수", rec_edge["edge_vs_regime"]
       (rec_edge["edge_vs_regime"], rec_naive["edge_vs_regime"]))
 check("연도별 분해 존재", isinstance(rec_naive.get("by_year"), dict) and rec_naive["by_year"], rec_naive.get("by_year"))
 
+# ── 2b. 베이스라인 표본 수 정합 (k = n) ─────────────────────────────────────
+# 종전 k = min(max(10, min(30, n)), len(pool)) 은 n 이 30 을 넘는 셀에서 베이스라인 평균의
+# 표준오차를 sqrt(30) 에 묶었다. 베이스라인 분포가 실제보다 넓어지면 그만큼 더 많은 draw 가
+# 셀 평균을 넘어서고 boot_p 가 부풀려진다(보수적) — 문턱이 아니라 추정량의 버그였다.
+big = [(up[i]["date"], detlib.outcome(up, i, "long")[1], "long") for i in sorted(rng.sample(range(len(pool)), 120))]
+rec_big = v.gate_cell("big", big, pool, verbose=False)
+check("베이스라인 표본 수가 셀 표본 수와 같다(k=n)", rec_big["base_k"] == rec_big["n"] == 120,
+      (rec_big["base_k"], rec_big["n"]))
+check("풀 크기를 함께 기록한다", rec_big["pool_n"] == len(pool), rec_big["pool_n"])
+check("k=n 은 셀이 커도 30 에 묶이지 않는다", rec_big["base_k"] > 30, rec_big["base_k"])
+
+
+def _baseline_sd(k, pool_rets, seed=v.SEED, boots=400):
+    """같은 풀에서 표본 수 k 로 뽑은 베이스라인 평균의 표준편차."""
+    import statistics as _st
+    r = random.Random(seed)
+    return _st.stdev([_st.mean(r.choices(pool_rets, k=k)) for _ in range(boots)])
+
+
+pool_rets = [detlib.outcome(r_, i_, "long")[1] for r_, i_ in pool]
+sd30, sd120 = _baseline_sd(30, pool_rets), _baseline_sd(120, pool_rets)
+check("표본 수를 키우면 베이스라인 분포가 좁아진다(보수 편향의 기전)", sd120 < sd30, (sd30, sd120))
+
+# 엣지가 실재하는 큰 셀에서, 종전 k=30 판정보다 k=n 판정이 더 낮은 boot_p 를 준다.
+# (엣지가 음수인 셀에서는 반대로 올라간다 — 한쪽으로 느슨해지는 변경이 아니다.)
+edge_big = [(up[i]["date"], detlib.outcome(up, i, "long")[1], "long")
+            for i in sorted(sorted(range(len(pool)), key=lambda i: -detlib.outcome(up, i, "long")[1])[:120])]
+rec_eb = v.gate_cell("edge_big", edge_big, pool, verbose=False)
+
+
+def _boot_p_at_k(cell_mean, k, pool_rets, seed=v.SEED, boots=v.BOOT_N):
+    import statistics as _st
+    r = random.Random(seed)
+    return sum(_st.mean(r.choices(pool_rets, k=k)) >= cell_mean for _ in range(boots)) / boots
+
+
+check("양의 엣지 큰 셀: k=n 이 k=30 보다 boot_p 가 작거나 같다",
+      rec_eb["boot_p"] <= _boot_p_at_k(rec_eb["mean"], 30, pool_rets),
+      (rec_eb["boot_p"], _boot_p_at_k(rec_eb["mean"], 30, pool_rets)))
+
 # ── 3. turnover_rank ────────────────────────────────────────────────────────
 r = v.turnover_rank({"A": rows_of(60, 2, px0=10.0), "B": rows_of(60, 3, px0=1000.0), "C": rows_of(20, 4)})
 check("거래대금 내림차순, 35봉 미만 제외", r == ["B", "A"], r)
