@@ -1,0 +1,49 @@
+name: Exit variants + regime axis (research)
+
+# 연구 전용 — 사용자 제공 카탈로그(quant_exit_catalog / regime_factor_catalog) 중
+# 레포에서 아직 시험하지 않은 항목만. 매매/DB 접근 없음, 실거래 규칙 무변경.
+#   1) method_x.py     청산 변형 — ATR 배수 손절 / 조건부 시간 손절 / 구조적 손절
+#   2) regime_axis.py  레짐 추가 축 1단계 진단 — ADX·효율비·변동성·알트폭·횡단면 베타
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "method_x.py"
+      - "regime_axis.py"
+      - ".github/workflows/exit_regime_axis.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_method_x.py
+          python test_regime_axis.py
+      - name: 1) 청산 변형 (유니버스 80)
+        run: python method_x.py --universe
+      - name: 2) 레짐 추가 축 진단 (유니버스 80)
+        run: python regime_axis.py --no-fetch --universe
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exit-regime-axis-${{ github.run_number }}
+          path: |
+            method_x.json
+            regime_axis.json
+          if-no-files-found: ignore

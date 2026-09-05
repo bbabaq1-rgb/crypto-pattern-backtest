@@ -530,6 +530,39 @@
     만들므로(bear fvg 숏 +2.54% 로 여전히 short) JSON 편집은 무효 → 코드에 예외를 둔다. bear fvg 롱
     (엣지 +1.34%p)은 동결 게이트 미통과라 켜지 않고 FLAT. 현 레짐이 bear 라 즉시 효력 — bear 에서는
     engulfing 롱만 나간다. 나머지 5셀 유지. test_direction_switch.py(20건) 가 고정.
+- **청산 변형 3종 기각 + 레짐 추가 축 5종 중 1종만 생존 + 삼각수렴 비권장** (2026-09-04, 사용자
+  제공 카탈로그 2종 + 사용자 제안): report_exit_regime_axis.md
+  · **청산 5 arm 전부 REJECT** (train n=7,752 짝지음): ATR 배수 손절 A20/A25/A30 은 **건당 평균을
+    올리지만(+0.70~0.98%p, t 3.7~4.8) CAGR 우위가 2/7**. 위험기준 사이징에서 **손절을 넓히면
+    명목가가 그만큼 줄어**(명목가=위험/손절폭) 건당 수익률 개선이 복리로 안 붙는다. 분기 승률
+    26~28%(드물게 크게 이기고 자주 작게 짐), 전반 음수·후반만 양수, 패턴 재표본 boot_p .24~.28.
+    · **이 발견은 자산곡선을 바꿔서 나왔다** — method_t.equity_curve 는 가용잔고 x20% 고정이라
+      stop_pct 를 안 본다. 그대로 썼으면 ATR 손절이 순수 승리로 보였을 것. method_x 는 실거래와
+      같은 sizing.risk_based_size 에 arm 의 손절폭·변동성 배율을 넘긴다.
+    · **T(조건부 시간손절) 는 유의하게 악화** −0.325%p t=−3.31. 카탈로그 §6-3 조언("이익 중인
+      포지션을 시간 때문에 자르지 마라")이 이 데이터에서는 반대로 작동 — 수익은 초기에 집중되고
+      그 뒤엔 평균회귀가 이긴다(method_t/e 기각과 같은 방향). S(구조적) +0.515%p 이나 boot_p .31.
+  · **레짐 축 1단계 진단 — ADX·효율비는 방향이 예상과 반대**: 저ADX(횡보) +2.97% vs 고ADX +0.43%,
+    효율비 +3.10% vs +0.15%. 카탈로그는 '횡보 셀에 손실 집중'을 예측했으나 **반전형 눌림목 매수라
+    추세가 죽은 구간에서 더 번다**(cap_score 역효과와 같은 기전). 단조(B)는 만족하나 **어느 분위도
+    음수가 아니라 C 탈락 — 걸러낼 구간이 없다.** volpct/alt_breadth 도 비단조로 기각.
+    · **생존 1종 = beta_slope**(횡단면 베타 팩터 수익률, 사용자 제안 5번). 하위 −0.80% → 상위
+      +3.67%, 스프레드 +4.48%p. **단 현행 avg_cap 이 −4.73%p 로 더 강하다.** 두 축은 부호가 반대인데
+      둘 다 알트 강세 계열 — **상충인지 상보인지(상관) 확인이 2단계의 첫 물음**이고 그 전엔 arm 미제작.
+    · **사용자 제안 β⁺−β⁻ 는 이미 시험됨** — relative_strength.compute_capture 의 cap_score 와 같은
+      정보. 2026-07-08 종목 필터 기각·시장평균(avg_cap) 채택되어 실거래에 이미 돈다. 제안 3번은
+      up_capture 분자와 동일, 1번(롤링 베타)은 RS 와 상관 높고 RS 는 레짐 통제 후 소멸.
+  · **4파 삼각수렴 비권장 (표본 없음)**: triangle_census 36셀 중 **n>=20 은 4셀뿐**(전부 1d·터치4·
+    zz<=0.05, 최대 48건 = 80종목 5년 전체). **4h·1h 전 셀 미달**(최대 9건). **터치 4→5 에서 48→2건
+    (−96%)**, zigzag ±40% 에 2.7배 차이(48/38/18) — zz 0.07 은 n=18 이라 '세 임계값 동시 통과'
+    요건 자체가 적용 불가. 환원형(bb_squeeze/nr7/breakout_retest 4h·1h/equal_highs·lows_4h)이 이미
+    6번 기각. 진입 A(하단선 터치)는 봉 내 사건이라 시장가 엔진에서 실행 불가. 재검토 조건:
+    1d 이력 2배 누적 후 터치4·zz0.05 셀 n>=60.
+  · **펀딩비 적재 시작** — 시험이 아니라 데이터 확보. OKX 이력 94일뿐이라 '펀딩 극단 청산'은 지금
+    시험 불가. funding_accrual.py 가 매 느린틱 Supabase 업서트(매매 무관, try/except, 테이블 없으면
+    스킵). **사용자가 supabase_schema_funding.sql 실행해야 쌓인다.** OI 는 수집 코드 자체가 없음.
+  · method_x.py / regime_axis.py / triangle_census.py / test_method_x(38) / test_regime_axis(28) /
+    funding_accrual.py / exit_regime_axis.yml / triangle_census.yml
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **80종목** (OKX 무기한 30일 거래대금 상위 80, 2026-09-04. 종전 업비트KRW∩OKX선물 71→67)
@@ -581,6 +614,10 @@
       12슬롯 증거금 $450→$300, 청산거리 32.3%(손절의 4.0배)
 - [ ] **equity $355 하한 주시** — lev 3 에서 전 신호 통과 문턱이 $355 다. 계좌가 그 밑으로 내려가면
       고변동 신호부터 주문이 안 나간다(현 $400, 여유 $45). 스킵 로그에 필요 equity 가 찍힌다
+- [ ] **beta_slope vs avg_cap 상관 확인** — 레짐 축 진단에서 beta_slope 만 생존했으나 현행 avg_cap 이
+      더 강하다(스프레드 +4.48 vs −4.73%p). 부호가 반대인 두 알트강세 축이 상충인지 상보인지 먼저.
+      상관 높으면 재포장일 뿐 → 2단계 arm 제작 전 선결
+- [ ] **supabase_schema_funding.sql 실행** (사용자) — 실행 전까지 펀딩 이력이 안 쌓인다(6개월 뒤 시험)
 - [ ] MAX_POS(12) 상향 시험 사전 등록 — 이 표본에서 진입을 막는 건 증거금이 아니라 슬롯(391건).
       단 동시 노출을 직접 키우므로 격자와 별개 시험
 - [ ] **고변동 신호 스킵 관찰** — 현 계좌 $276 에서 실측 약 12~15% 스킵(σ>약 124%/yr). **equity
@@ -683,6 +720,14 @@
   reversal_patterns 가 import 한다. 엘리엇 하위구조(지그재그·플랫·다이애고널·삼각형)의 환원 개념은
   이미 별도 디텍터로 전부 시험해 기각(liquidity_sweep=가짜돌파반전, bb_squeeze·nr7=변동성수축돌파,
   rsi_divergence·macd_divergence=모멘텀 약화). **신규 검증 대상 아님.** 배포 목록 출처는 registry.json
+- method_x.py: 청산 변형 시험 (ATR 손절/조건부 시간손절/구조적 손절). **자산곡선이 arm 의 stop_pct 를
+  사이징에 반영** — method_t.equity_curve 와 달리 실거래 risk_based_size 를 쓴다. 기각 기록용
+- regime_axis.py: 레짐 추가 축 1단계 진단 (adx/er/volpct/alt_breadth/beta_slope + 비교기준 avg_cap).
+  3분위 A∧B∧C. 2단계는 통과 축이 나왔을 때 별도 사전등록
+- triangle_census.py: 4파 삼각수렴 후보 **개수만** 세는 실현가능성 조사 (전략 구현 아님)
+- funding_accrual.py / supabase_schema_funding.sql: 펀딩비 일별 적재 (시험용 축적 전용, 매매 무관)
+- report_exit_regime_axis.md: 위 3종 판정 + 검토 중 확인한 레포 사실(docs/research 부재, Signal
+  인터페이스 이중화, 봉 데이터 DB 미저장, OI 수집 없음)
 - research_log.csv: 106건 시험 기록
 - detector_three_soldiers_4h.py: 3연속 장대 양봉 (4h, PASSED)
 - detector_three_soldiers_1h.py / detector_three_crows_1h.py: 1h 버전 (검증용)
