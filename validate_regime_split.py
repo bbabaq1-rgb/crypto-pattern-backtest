@@ -8,7 +8,7 @@ marubozu)을 **진입 시점 레짐(bull_btc / bull_altseason / bear / sideways)
 
 - 데이터: universe.json trading_universe, 1d WINDOW 일(거래소가 주는 만큼). 레짐맵은 현행
   regime_switch.build_regime_map()(닫힌 봉).
-- 라벨: 동결 ±10%/20봉 (detlib.outcome). 게이트: n>=20, mean>0, median>0, boot_p<0.05,
+- 라벨: 동결 ±10%/20봉 (detlib.outcome). 게이트 v2: n>=20, mean>0, **승률>=35%**(v1 median>0), boot_p<0.05,
   OOS 4분위 양구간>=2. **boot_p 는 같은 레짐·같은 코호트의 무작위 진입**을 베이스라인으로
   쓴다 — 상승장 롱이 "상승장이라서" 좋은 것을 엣지로 오인하지 않기 위해.
 - 현재 라우팅(direction_switch.json)과 셀 판정을 나란히 놓아 어느 (레짐, 패턴, 방향) 셀이
@@ -24,6 +24,7 @@ from math import erf, sqrt
 
 import detlib
 import fetch_data
+import gate
 import regime_switch as rs
 
 WINDOW = 1800
@@ -107,11 +108,11 @@ def gate_cell(label, sigs, pool, verbose=True):
             qm = st.mean(qr) if qr else 0.0
             oos.append(dict(q=q + 1, n=len(qr), mean=qm, ok=len(qr) >= 5 and qm > 0))
     oos_pos = sum(1 for o in oos if o["ok"])
-    ok = n >= 20 and mean > 0 and med > 0 and boot_p < 0.05 and oos_pos >= 2
+    ok = n >= 20 and mean > 0 and gate.dist_ok(rets) and boot_p < 0.05 and oos_pos >= 2   # v2: 승률>=35% (2026-09-05)
     fails = []
     if n < 20: fails.append("n<20")
     if mean <= 0: fails.append("mean<=0")
-    if med <= 0: fails.append("median<=0")
+    if not gate.dist_ok(rets): fails.append(gate.dist_reason(rets))
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if n >= 20 and oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
     # 연도별 분해 — 한 해에 몰린 결과인지 본다
@@ -120,6 +121,7 @@ def gate_cell(label, sigs, pool, verbose=True):
         by_year.setdefault(d[:4], []).append(r)
     years = {y: dict(n=len(v), mean=st.mean(v)) for y, v in sorted(by_year.items())}
     rec = dict(n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p, oos_pos=oos_pos,
+               win_rate=gate.win_rate(rets), trimmed_mean=gate.trimmed_mean(rets), top5_share=gate.top_share(rets),
                base_mean=base_mean, base_median=base_med, pool_n=pool_n, base_k=base_k,
                edge_vs_regime=(mean - base_mean) if base_mean is not None else None,
                by_year=years, verdict="PASSED" if ok else "REJECTED", reason=", ".join(fails))

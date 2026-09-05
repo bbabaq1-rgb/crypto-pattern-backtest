@@ -155,3 +155,49 @@ holdout n=8. 배포 근거(원 프레임 무조건부 검증 n=908 +1.04%)는 �
 validate_revival.py / validate_routing.py(route_bfl) / regime_axis.py(--corr) / detector_{ibs_low,rsi2_low,
 down_streak3,donchian20}.py / scheduler.py(adopted_regime_ok) / test_revival(46) · test_adopted_regimes(14) /
 revival.yml / 출력 _revival.json · _revival_new.json · _routing.json · regime_axis.json
+
+---
+
+## 7. 게이트 v2 재실행 (2026-09-05, run 33955072498) — CONFIRMED 3, 배포 2
+
+사용자 결정으로 분포 조건이 `중앙값>0` → **`승률≥35%`** 로 바뀌었다(gate.py v2, CLAUDE.md 핵심 원칙). 나머지
+4조건(n≥20 / 평균>0 / boot_p<0.05 레짐 정합 베이스라인 / OOS≥2/4)과 확인 기준 C2(holdout 365일 n≥10·평균>0),
+C3(자산곡선 CAGR>0·Calmar>0)은 그대로다. C1 은 같은 날 '두 코호트' → 실거래 코호트(top30)로 완화.
+
+| 셀 | top30 n | 평균 | 중앙 | 승률 | boot_p | OOS | holdout | CAGR / MDD / Calmar | 판정 |
+|---|---|---|---|---|---|---|---|---|---|
+| **triple_bottom_4h · ALL 롱** | 646 | +1.79% | −0.52% | 48% | .000 | 3/4 | n=212 **+1.62%** | +65.9% / −13.7% / **4.83** | **CONFIRMED → 배포** |
+| **equal_lows_4h · bear 롱** | 469 | +0.97% | −0.01% | 50% | .001 | 3/4 | n=406 **+1.17%** | +4.0% / −8.4% / 0.48 | **CONFIRMED → 배포** |
+| vwap_rev_short_4h · bear 숏 | 1443 | +0.76% | +0.55% | 53% | .001 | 3/4 | n=1325 +0.82% | +1.65% / −29.4% / **0.06** | CONFIRMED, **경계값 미배포**(§3 동일) |
+| triple_bottom_1d · bull_btc | 125 | +8.22% | −8.20% | ~38% | .011 | 3/4 | n=5 −8.20% | +34.5% / −29.2% / 1.18 | C2 탈락 (holdout n<10) |
+| double_bottom_1d · bull_btc | 711 | +6.85% | −8.20% | ~47% | .000 | 4/4 | n=42 **−7.96%** | +33.4% / −55.5% / 0.60 | C2 탈락 |
+| breakout_retest_4h · bull_btc | 2948 | +1.20% | −0.68% | | | | n=234 −1.57% | +2.2% / −28.9% / 0.07 | C2 탈락 |
+| vol_awakening_4h · bull_btc | 3091 | +1.85% | −0.84% | | | | n=166 −2.66% | −6.1% / −26.6% / −0.23 | C2·C3 탈락 |
+| fvg_short_1h · bull_altseason | 307 | +0.10% | +0.29% | | | | n=307 +0.10% | n/a (1h 프레임) | C3 계산 불가 |
+| three_soldiers_4h · bull_btc | 84 | +2.92% | +0.98% | | .011 | | n=8 +3.99% | +21.5% / −10.2% / 2.11 | C2 탈락(n<10), 배포 유지 |
+
+**v2 가 살린 것은 4h 두 셀이다.** 둘 다 v1 에서 정확히 '중앙값 음수' 하나로 기각됐고, 승률은 48%/50% 로 v2 문턱
+(35%)을 여유 있게 넘는다. 1d 후보는 승률이 아니라 **holdout 이 음수**라 v2 에서도 죽는다 — 게이트를 바꿔도
+"최근 1년에 돈을 잃은 규칙"은 배포되지 않는다는 뜻이고, 그게 맞다.
+
+- **triple_bottom_4h (전 레짐 롱, top30)**: 2023~2026 4년 전부 양수(+5.0/+0.5/+0.9/+2.1%), 청산 구성 maxhold 381 /
+  stop 200 / regime_switch 65, top5 기여 17%(복권형 아님). Calmar 4.83 은 배포 패턴 중 최고 수준. **원 등재
+  (2026-08-29 철회)와 다른 프레임**이다 — 종전은 ±10%/20봉 라벨에 돌파 신호, 이번은 인과 판(causal=True)
+  + 방식D 청산 + top30 코호트. 실거래는 `detect_on_closed_bar` 로 닫힌 4h 봉 종가에서 신호를 잡는다.
+- **equal_lows_4h (bear 롱, top30)**: 기대값이 작다(CAGR +4%, 건당 +0.97%). 2024 −0.3% / 2025 +1.7% / 2026 +1.1%.
+  '수익이 발생할 수 있으면 진행' 기준으로 배포하되, 슬롯 경합 시 다른 패턴 자리를 차지할 수 있다는 점을 기록한다.
+  bear 에서만 켜지므로 지금(bull_altseason)은 돌지 않는다.
+- **vwap_rev_short_4h**: §3 판단 그대로. C1~C3 문자상 통과이나 Calmar 0.06 은 −29% 낙폭을 감수하고 연 +1.65% —
+  자율 반영 조항의 '경계값 제외'. 사용자가 켜라고 하면 한 줄(regimes=["bear"], direction=short)로 켤 수 있다.
+
+**배포 경로 (scheduler 4h 블록)**: 항목별 `cohort`("top30" = `_volume_ranked()[:30]`, 검증의 turnover_rank 와 같은
+30일 close×volume 정의) + `detect_on_closed_bar`(`_closed_idx`). 기존 three_soldiers_4h 는 두 필드가 없어 동작
+불변(test_adopted_regimes 고정). 청산은 paper_executor eval_D 그대로(반대 신호 없음 → 검증의 opp_set=∅ 와 일치).
+
+**같은 커밋의 다른 재실행**: regime_split_all 440셀 PASSED 31→39 / STRICT 8→**10** (신규 STRICT: breakout_retest_4h·ALL,
+vol_awakening_4h·ALL, triple_bottom_4h·bull_btc). 앞 둘을 CANDIDATES 에 추가해 다음 실행에서 확인한다.
+routing_gate(배포 6종 통과 18셀)·intraday(15셀) 판정은 v2 로 바뀌지 않았다 — 거기서 기각된 셀은 평균이 음수라
+승률 조건과 무관하다.
+
+**남는 유보**: 후보가 같은 데이터에서 선별됐으므로 완전한 OOS 가 아니다(청산 규칙 차이 + holdout 이 독립성 원천).
+중복 방어 키가 날짜 단위라 4h 패턴은 종목·일 1회만 진입한다(검증은 봉마다) — three_soldiers_4h 와 같은 성질.

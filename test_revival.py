@@ -136,7 +136,9 @@ cells_ok = {"all": dict(gate=passed, sigs=train_sigs + hold_sigs),
 cf = vr.confirm(cells_ok, "2025-01-01", 700)
 check("confirm: 두 코호트 통과 + holdout 양수 + 자산곡선 양수 → CONFIRMED", cf["confirmed"], cf)
 cells_one = {"all": dict(gate=dict(verdict="REJECTED"), sigs=[]), "top30": cells_ok["top30"]}
-check("confirm: 한 코호트만 통과면 탈락(C1)", not vr.confirm(cells_one, "2025-01-01", 700)["confirmed"])
+check("confirm: top30 통과·all 기각이면 C1 통과(실거래 코호트 기준)", vr.confirm(cells_one, "2025-01-01", 700)["c1_live_cohort"])
+cells_rev = {"all": cells_ok["all"], "top30": dict(gate=dict(verdict="REJECTED"), sigs=cells_ok["top30"]["sigs"])}
+check("confirm: all 통과·top30 기각이면 탈락(C1)", not vr.confirm(cells_rev, "2025-01-01", 700)["confirmed"])
 cells_ho = {k: dict(gate=passed, sigs=train_sigs + [full_sig(f"2025-01-{1 + i:02d}", -0.03) for i in range(15)])
             for k in ("all", "top30")}
 check("confirm: holdout 음수면 탈락(C2)", not vr.confirm(cells_ho, "2025-01-01", 700)["confirmed"])

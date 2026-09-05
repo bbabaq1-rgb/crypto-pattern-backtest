@@ -1,0 +1,41 @@
+name: beta_slope overlay (method_b, research)
+
+# 연구 전용 — beta_slope(횡단면 베타 팩터 수익률) 하위 3분위에서 롱 진입 스킵(B_skip) / 축소(B_size)를
+# 현행 방식D 와 같은 신호에서 짝지음 비교. 매매·DB 접근 없음.
+# 사전 등록 7기준 전부 통과 시 자율 반영 권한(CLAUDE.md 2026-09-05)에 따라 실거래 오버레이로 반영.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "method_b.py"
+      - ".github/workflows/method_b.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_method_b.py
+      - name: beta_slope overlay — 유니버스 80
+        run: python method_b.py --universe
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: method-b-${{ github.run_number }}
+          path: method_b.json
+          if-no-files-found: ignore

@@ -46,12 +46,34 @@ for ap in u.get("adopted_patterns", []):
           all(sch.adopted_regime_ok(ap, r, ap.get("tf", "1d")) for r in REG))
 for ap in u.get("adopted_4h_patterns", []):
     ok = [r for r in REG if sch.adopted_regime_ok(ap, r, "4h")]
-    check(f"현 4h 채택 {ap['pattern']} 은 bull 둘에서만(종전 동작)", ok == ["bull_btc", "bull_altseason"], ok)
+    if "regimes" not in ap:
+        check(f"현 4h 채택 {ap['pattern']} (regimes 없음) 은 bull 둘에서만(종전 동작)", ok == ["bull_btc", "bull_altseason"], ok)
+    else:
+        want = REG if ap["regimes"] == "all" else [r for r in REG if r in ap["regimes"]]
+        check(f"현 4h 채택 {ap['pattern']} 은 등재 레짐 {ap['regimes']} 에서만", ok == want, ok)
+        # 게이트 v2 통과 셀은 top30 코호트·닫힌 봉 기준으로 검증됐다 — 그 조건이 항목에 박혀 있어야 한다
+        check(f"{ap['pattern']}: 검증 코호트(cohort) 명시", ap.get("cohort") in ("top30", "top20", "majors", "all"), ap.get("cohort"))
+        check(f"{ap['pattern']}: 닫힌 봉 탐지 명시", ap.get("detect_on_closed_bar") is True)
+        check(f"{ap['pattern']}: tf=4h·direction 명시", ap.get("tf") == "4h" and ap.get("direction") in ("long", "short"))
+
+# _cohort_symbols — 항목별 코호트 (2026-09-05)
+base = ["BTC", "ETH", "SOL", "ZZZ1", "ZZZ2"]
+check("cohort 없음 → base 그대로(종전 동작)", sch._cohort_symbols(None, base) == base)
+check("cohort='all' → base 그대로", sch._cohort_symbols("all", base) == base)
+check("cohort='majors' → 검증 7종목 ∩ base", sch._cohort_symbols("majors", base) == [s for s in sch.MAJORS if s in base])
+sch._VOL_RANKED = ["ETH", "BTC", "AAA", "SOL"]          # 순위 캐시를 가짜로 채워 결정론적으로
+check("cohort='top2' → 거래대금 상위 2 ∩ base (순위 순서 유지)", sch._cohort_symbols("top2", base) == ["ETH", "BTC"])
+check("cohort='top3' → base 에 없는 종목은 빠진다", sch._cohort_symbols("top3", base) == ["ETH", "BTC"])
+check("cohort='top30' 도 같은 규칙", sch._cohort_symbols("top30", base) == ["ETH", "BTC", "SOL"])
+sch._VOL_RANKED = []
 
 src = open("scheduler.py", encoding="utf-8").read()
 check("1d adopted 루프가 게이트를 호출", "adopted_regime_ok(ap, regime, ap_tf)" in src)
 check("4h 블록이 게이트를 호출", 'adopted_regime_ok(ap, regime, "4h")' in src)
 check("4h 숏 항목은 손절가가 진입가 위", "round(entry4 * (1 + STOP), 4)" in src)
+check("4h 블록이 항목별 코호트를 적용", 'syms4 = _cohort_symbols(ap.get("cohort"), h_syms)' in src)
+check("4h 블록이 항목별 닫힌 봉 탐지를 지원(없으면 마지막 행 = 종전)",
+      'last4 = _closed_idx(rows4h) if closed4 else len(rows4h) - 1' in src)
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

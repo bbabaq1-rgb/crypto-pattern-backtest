@@ -25,6 +25,8 @@ import json
 import os
 import random
 import statistics
+
+import gate
 from datetime import datetime, timezone
 from math import erf, sqrt
 
@@ -176,7 +178,7 @@ def evaluate(label, sigs, boot_means=None, min_oos_n=5, verbose=True,
         oos_pos += 1 if ok else 0
         oos.append(dict(q=i, n=len(seg), mean=round(m, 5), ok=ok))
 
-    frozen_ok = (n >= 20 and mean > 0 and med > 0
+    frozen_ok = (n >= 20 and mean > 0 and gate.dist_ok(rets)          # v2: 승률>=35% (2026-09-05)
                  and (boot_p is not None and boot_p < 0.05) and oos_pos >= 2)
     fee_ok = mean > FEE          # 순수익이 왕복 수수료보다 크다 = 총수익 2배 이상
     verdict = "PASSED" if (frozen_ok and fee_ok) else "REJECTED"

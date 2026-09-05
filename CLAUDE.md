@@ -345,6 +345,30 @@
     잔류. 신규 종목 1d/4h/1h CSV 는 다음 oncefull 에서 처음 수집(900/130/40일) — 4h/1h 블록은
     data/*_4h.csv 존재 종목을 돌므로 자동 편입. **4단계(캐스케이드 1h 재검증)는 미실행** — 새 종목
     1h 365일 수집 뒤 별도. 분기마다 universe_okx_scan 재실행으로 갱신.
+- **게이트 v2 재실행 → triple_bottom_4h(전 레짐)·equal_lows_4h(bear) 배포 (2026-09-05, 자율 반영)**: report_revival.md §7.
+  사용자 결정으로 분포 조건 `중앙값>0` → `승률≥35%`(gate.py v2, 핵심 원칙 참조) 후 revival/regime_split_all/
+  routing_gate/intraday 재실행. **revival CONFIRMED 3 / 배포 2**:
+  · **triple_bottom_4h · ALL 롱 · top30** — n=646 +1.79% med −0.52% 승률 48% bp .000 OOS 3/4, holdout n=212 +1.62%,
+    train CAGR +65.9% MDD −13.7% **Calmar 4.83**, 4년 전부 양수. v1 에서는 중앙값 하나로 기각됐던 셀.
+  · **equal_lows_4h · bear 롱 · top30** — n=469 +0.97% med −0.01% 승률 50% bp .001, holdout n=406 +1.17%, CAGR +4.0%
+    MDD −8.4% Calmar 0.48. **기대값 작음** — '수익이 발생할 수 있으면 진행' 기준 배포. bear 에서만 돌아 지금은 대기.
+  · vwap_rev_short_4h · bear 는 여전히 Calmar 0.06 경계값 → 미배포(사용자가 켜면 한 줄).
+  · 1d 후보(triple_bottom_1d/double_bottom_1d/donchian20)는 승률이 아니라 **holdout 음수**로 탈락 — v2 로도 안 살아남.
+  · **배포 경로**: `adopted_4h_patterns` 항목별 `cohort`("top30" = `_volume_ranked()[:30]`, 검증 turnover_rank 와 같은 정의)
+    + `detect_on_closed_bar`(`_closed_idx`) — `scheduler._cohort_symbols`. three_soldiers_4h 는 두 필드 없음 → 불변.
+    청산은 eval_D 그대로(OPP 매핑 없음 → 검증 opp_set=∅ 와 일치). 중복 키가 날짜 단위라 종목·일 1회 진입(검증보다 적음).
+  · regime_split_all: PASSED 31→39 / STRICT 8→10. 신규 STRICT breakout_retest_4h·ALL / vol_awakening_4h·ALL 을
+    CANDIDATES 에 추가(다음 revival 실행에서 확인). routing_gate 18셀·intraday 15셀 판정 불변(기각 셀은 평균 음수).
+- **beta_slope 오버레이 2단계(method_b) 기각 (2026-09-05)**: report_beta_overlay.md. B_skip(롱·하위 3분위 스킵)
+  6/7, B_size(×0.5) 5/7 — 둘 다 **기준 ①(걸러진 거래가 음수)** 에서 탈락. 걸러진 n=991 의 방식D 수익
+  **+2.15%**(나머지 +4.43%, p .02) — 덜 벌지만 번다. ②~⑦ 통과는 **D 기준선이 CAGR −47%/MDD −92%(7패턴
+  무조건부 × 80종목, 스킵 7,141건)** 인 슬롯 범람 프레임에서 '거래를 빼면 뭐든 좋아지는' 아티팩트.
+  · **설계 결함**: 오버레이 시험을 실거래 라우팅 복제 프레임(sizing_vol ROUTING_MODE)에서 돌려야 했다.
+    sizing_vol 이 이미 배운 교훈 반복. 다음 오버레이 시험부터 필수.
+  · beta_slope 는 필터가 아니라 **우선순위** 정보(더 좋은 vs 덜 좋은). 패턴별로 전혀 달라 engulfing 은 효과
+    0, inverted_hammer·triple_bottom 은 하위 음수(−1.17/−2.91%) — **IH 한정은 사후 선택 셀**, validate_ih_exit
+    교훈대로 사전 등록+반증 3종 없이는 추격 금지. 레짐 축 연구 종료.
+  · method_x.equity_curve 에 선택 8번째 원소 size_mult(기본 1.0, 7-튜플 불변) 추가.
 - **살릴 후보 확인 시험 + bear fvg 롱 + 신규 진입 후보 4종 + beta_slope 독립성 (2026-09-05, 사용자 지시
   "살릴 만한 것 / 스스로 찾아서 실거래에서 통과될 것")**: report_revival.md. **실거래 반영 없음.**
   · **선별 → 확인 2단계**: 베이스라인 수정 커밋이 validate_regime_split_all 을 자동 재실행(run 33947910532)
@@ -681,12 +705,18 @@
       고변동 신호부터 주문이 안 나간다(현 $400, 여유 $45). 스킵 로그에 필요 equity 가 찍힌다
 - [x] bear fvg 롱 단일 셀 시험 (2026-09-05) — **기각**. 셀은 +1.63% 지만 포트폴리오 악화(holdout −43→−66%)
 - [x] 종전 boot_p 재해석 (2026-09-05) — `_all` 재실행 PASSED 0→31 / STRICT 0→8. STRICT 8 확인 시험 → 7 기각 1 경계
-- [ ] **method_b — beta_slope 2단계 사전 등록** (2026-09-05 신규, 다음 작업) — avg_cap 과 독립 확인됨.
-      같은 신호 짝지음: D / D+beta 하위 3분위 진입 스킵 / D+beta 3분위 사이징(축소만). method_r 7기준
+- [x] method_b — beta_slope 2단계 (2026-09-05) — **기각**. 걸러진 거래가 +2.15% 로 양수(필터 부적합). 프레임 결함 기록
+- [ ] **beta_slope 슬롯 우선순위 사전 등록** — 슬롯이 꽉 찼을 때 beta 상위 신호 우선. 선결: 실거래 MAX_POS 스킵 빈도 실측
+- [ ] **오버레이 시험은 라우팅 복제 프레임으로** — method_b 가 무조건부 프레임(D CAGR −47%)에서 슬롯 아티팩트를 냈다
 - [ ] **three_soldiers_4h top30 축소 사전 등록** (2026-09-05 신규) — 실거래 프레임 재판정에서 top30 PASSED /
       all REJECTED(med −0.49%). 실거래는 all 코호트에서 돎. 짝지음으로 코호트 축소 효과 측정
 - [ ] **확인 시험 C2 보강** — train 자체 게이트 통과 또는 train n ≥ holdout n/2 요구. vwap_rev_short_4h 가
       표본 92% holdout 으로 통과한 사례. 다음 validate_revival 설계부터
+- [x] **게이트 v2 재실행 + 배포** (2026-09-05) — triple_bottom_4h(ALL·top30)·equal_lows_4h(bear·top30) adopted_4h_patterns 등재
+- [ ] **breakout_retest_4h·ALL / vol_awakening_4h·ALL 확인 시험 판독** — v2 재실행에서 새로 STRICT. CANDIDATES 추가됨,
+      다음 revival 실행 결과 판독 후 전부 통과 시 배포
+- [ ] **신규 4h 패턴 첫 실거래 관찰** — triple_bottom_4h 첫 진입 시 `[live 사이징]`·손절 algo·닫힌 봉 신호(rows[-2]) 확인.
+      신호봉 종가 vs 체결가 슬리피지 기록
 - [ ] **vwap_rev_short_4h · bear 경계 통과분** — 사용자가 켜라고 하면 켤 수 있음(regimes=["bear"], short,
       detector 에 load_ohlcv 추가 필요). 기대값 연 +1.65%, MDD −29%. 기본은 미반영
 - [ ] **beta_slope vs avg_cap 상관 확인** — 레짐 축 진단에서 beta_slope 만 생존했으나 현행 avg_cap 이
@@ -740,7 +770,13 @@
   보고한다. **여전히 사용자 결정으로 남는 것**: 위험 수준(RISK_FRAC/LEV_CAP/MAX_POS — 낙폭 선호 문제,
   통계가 답하지 않음) · 열린 포지션 수동 청산 · 자금 이동 · 게이트 문턱 자체의 변경.
   불변 안전장치는 권한과 무관: 손절 주문 없으면 실거래 없음 · 매매 결정은 결정론적 코드만 · tests.yml 그린.
-- 게이트 동결: n≥20, 평균수익>0, 중앙값>0, 베이스라인 p<0.05, OOS 양구간 통과
+- **게이트 v2 (2026-09-05 사용자 결정 "승률 35~45% 까지는 허용, 수익이 발생할 수 있으면 진행")**:
+  n≥20, 평균수익>0, **승률≥35%**, 베이스라인 p<0.05, OOS 양구간 통과. v1 의 '중앙값>0' 은 방식D(−8% 손절)에서
+  중앙값이 손절값에 붙어 사실상 승률 50% 이상을 요구했고, 승률 35~45% 로 수익을 내는 추세·돌파형을 구조적으로
+  막았다(report_revival.md: 1d 후보 전 셀 median −8.20%). 구현은 `gate.dist_ok` 한 곳 — 검증 모듈은 자체 판정을
+  두지 않는다(test_gate 가 고정). 복권형 방어는 boot_p·OOS·holdout·자산곡선이 맡고 절사평균·상위5기여도는 진단
+  병기. 확인 단계 C1 도 같은 날 '두 코호트' → '실거래 코호트(top30)' 로 완화(내가 얹었던 조건).
+  **v1 기록**: 2026-06 ~ 2026-09-05 의 모든 판정은 median>0 기준 — 그 시기 리포트를 v2 잣대로 읽지 말 것.
 - 매매 결정은 결정론적 코드만 — LLM은 코드 생성/수정만
 - 손절 주문 없으면 실거래 절대 안 됨
 
@@ -783,6 +819,7 @@
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
+- method_b.py: beta_slope 오버레이(B_skip/B_size) 짝지음 시험 — 기각 기록용. report_beta_overlay.md
 - validate_revival.py: 선별(validate_regime_split_all STRICT)을 통과한 후보를 **실거래 프레임**(방식D/ATR·레짐
   조건부·같은 청산 규칙 베이스라인·실거래 사이징)으로 확인. `--new` 는 신규 디텍터 전 셀. report_revival.md
 - detector_ibs_low / rsi2_low / down_streak3 / donchian20.py: 2026-09-05 신규 후보 4종 — **전부 rejected**, 미등재
