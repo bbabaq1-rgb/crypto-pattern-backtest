@@ -154,6 +154,25 @@ def adopted_regime_ok(ap, regime, tf):
     return regime in rg
 
 
+def _cohort_symbols(rule, base):
+    """
+    adopted 항목의 선택 필드 `cohort` (2026-09-05). 검증이 특정 거래대금 코호트에서만 통과한
+    패턴을 그 코호트에서만 켜기 위한 것이다.
+      없음 / "all" → base 그대로(종전 동작)
+      "topN"       → 30일 평균 거래대금 상위 N(_volume_ranked, 매 실행 재계산) ∩ base
+      "majors"     → 검증 7종목 ∩ base
+    validate_revival 의 top30 코호트(turnover_rank: 최근 30봉 close×volume 평균)와 같은 정의다.
+    """
+    if not rule or rule == "all":
+        return list(base)
+    bs = set(base)
+    if rule == "majors":
+        return [s for s in MAJORS if s in bs]
+    if isinstance(rule, str) and rule.startswith("top"):
+        return [s for s in _volume_ranked()[:int(rule[3:])] if s in bs]
+    return list(base)
+
+
 def _syms_for_pattern(pattern):
     """패턴별 탐지 대상 심볼 목록. 미지정 패턴은 전체 유니버스."""
     rule = PATTERN_UNIVERSE.get(pattern, "all")
@@ -694,13 +713,18 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
             except ImportError:
                 continue
             dd4 = ap.get("direction", "long")
-            for sym in h_syms:
+            # 항목별 코호트(없으면 4h 데이터 보유 전 종목 = 종전) / 닫힌 봉 탐지(없으면 마지막 행 = 종전).
+            # 2026-09-05 게이트 v2 통과 셀은 top30 코호트·닫힌 봉 종가 기준으로 검증됐으므로 그 조건을
+            # 그대로 건다. three_soldiers_4h 는 두 필드가 없어 동작 불변.
+            syms4 = _cohort_symbols(ap.get("cohort"), h_syms)
+            closed4 = bool(ap.get("detect_on_closed_bar"))
+            for sym in syms4:
                 try:
                     rows4h = mod4.load_ohlcv(sym, "4h")
                 except (FileNotFoundError, RuntimeError):
                     continue
-                last4 = len(rows4h) - 1
-                if last4 not in set(mod4.detect(rows4h)):
+                last4 = _closed_idx(rows4h) if closed4 else len(rows4h) - 1
+                if last4 is None or last4 not in set(mod4.detect(rows4h)):
                     continue
                 entry4  = rows4h[last4]["c"]
                 stop4   = round(entry4 * (1 - STOP), 4) if dd4 == "long" else round(entry4 * (1 + STOP), 4)
