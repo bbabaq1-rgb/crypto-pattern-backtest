@@ -161,7 +161,7 @@ def _cohort_symbols(rule, base):
       없음 / "all" → base 그대로(종전 동작)
       "topN"       → 30일 평균 거래대금 상위 N(_volume_ranked, 매 실행 재계산) ∩ base
       "majors"     → 검증 7종목 ∩ base
-    validate_revival 의 top30 코호트(turnover_rank: 최근 30봉 close×volume 평균)와 같은 정의다.
+    확인 시험(revival)의 top30 코호트(turnover_rank: 최근 30봉 close×volume 평균)와 같은 정의다.
     """
     if not rule or rule == "all":
         return list(base)
