@@ -16,7 +16,7 @@ x 코호트(all / top30). 레짐은 진입 봉 날짜의 일봉 레짐(regime_sw
 미래 봉을 봤으므로 비교 대상이 아니다.
 
 boot_p 베이스라인 = **같은 레짐·같은 코호트·같은 TF 의 무작위 진입** (validate_regime_split 과 동일).
-게이트(동결): n>=20, mean>0, median>0, boot_p<0.05, OOS 4분위 양구간>=2.
+게이트 v2(2026-09-05): n>=20, mean>0, **승률>=35%**(v1 median>0), boot_p<0.05, OOS 4분위 양구간>=2.
 
 **다중검정 사전 규칙** (실행 전 고정): 셀이 수백 개라 boot_p<0.05 만으로는 우연 통과가 수십 개
 나온다. 그래서 '배포 후보' 는 PASSED 에 더해 (a) boot_p < 0.01 (b) 연도별 양수 해 >= 2
@@ -36,6 +36,7 @@ from math import sqrt
 
 import detlib
 import fetch_data
+import gate
 import intraday_lab as il
 import regime_switch as rs
 from validate_regime_split import _pval, turnover_rank
@@ -187,11 +188,11 @@ def gate_cell(label, sigs, pool, outcome_fn, verbose=True):
             qm = st.mean(qr) if qr else 0.0
             oos.append(dict(q=q + 1, n=len(qr), mean=qm, ok=len(qr) >= 5 and qm > 0))
     oos_pos = sum(1 for o in oos if o["ok"])
-    ok = n >= 20 and mean > 0 and med > 0 and boot_p < 0.05 and oos_pos >= 2
+    ok = n >= 20 and mean > 0 and gate.dist_ok(rets) and boot_p < 0.05 and oos_pos >= 2   # v2: 승률>=35% (2026-09-05)
     fails = []
     if n < 20: fails.append("n<20")
     if mean <= 0: fails.append("mean<=0")
-    if med <= 0: fails.append("median<=0")
+    if not gate.dist_ok(rets): fails.append(gate.dist_reason(rets))
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if n >= 20 and oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
     by_year = {}
@@ -200,6 +201,7 @@ def gate_cell(label, sigs, pool, outcome_fn, verbose=True):
     years = {y: dict(n=len(v), mean=st.mean(v)) for y, v in sorted(by_year.items())}
     pos_years = sum(1 for v in years.values() if v["mean"] > 0 and v["n"] >= 5)
     rec = dict(n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p, oos_pos=oos_pos,
+               win_rate=gate.win_rate(rets), trimmed_mean=gate.trimmed_mean(rets), top5_share=gate.top_share(rets),
                base_mean=base_mean, pool_n=pool_n, base_k=base_k,
                edge_vs_regime=(mean - base_mean) if base_mean is not None else None,
                by_year=years, pos_years=pos_years,

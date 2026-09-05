@@ -64,7 +64,8 @@ jobs:
                    test_routing.py \
                    test_revival.py \
                    test_adopted_regimes.py \
-                   test_method_b.py; do
+                   test_method_b.py \
+                   test_gate.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
             echo "::endgroup::"

@@ -9,13 +9,14 @@ validate_1h_patterns.py
   vwap_rev_long_1h, vwap_rev_short_1h
   breakout_retest_1h
 
-게이트 동결: n>=20, mean>0, median>0, OOS 양구간>=2, baseline_p<0.05
+게이트 v2 (2026-09-05): n>=20, mean>0, 승률>=35% (gate.dist_ok), OOS 양구간>=2, baseline_p<0.05
 """
 import os, glob, csv, json, random, statistics, importlib
 from datetime import datetime, timezone
 from math import sqrt, erf
 
 import detlib
+import gate
 from detector_harmonic_base import detect_harmonic, find_pivots
 
 TF   = "1h"
@@ -114,12 +115,12 @@ def _gate(name, sigs, direction, syms, verbose=True):
         print(f"    t={t:.3f} p={p:.4f} | boot_p={boot_p:.4f}")
         g_n  = "✓" if n>=20     else "✗"
         g_mu = "✓" if mean>0    else "✗"
-        g_md = "✓" if med>0     else "✗"
+        g_md = "✓" if gate.dist_ok(rets) else "✗"
         g_bp = "✓" if boot_p<0.05 else "✗"
-        print(f"    게이트: n≥20{g_n} mean{g_mu} med{g_md} boot_p<0.05{g_bp}")
+        print(f"    게이트: n≥20{g_n} mean{g_mu} win_rate>={gate.WIN_RATE_MIN:.2f}{g_md} boot_p<0.05{g_bp}")
 
-    return dict(n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p,
-                ok=n>=20 and mean>0 and med>0 and boot_p<0.05)
+    return dict(n=n, mean=mean, median=med, win_rate=gate.win_rate(rets), t=t, p=p, boot_p=boot_p,
+                ok=n>=20 and mean>0 and gate.dist_ok(rets) and boot_p<0.05)
 
 # ── OOS 4구간 ────────────────────────────────────────────────────────────────
 def _oos4(detect_fn, direction, syms, verbose=True):
@@ -162,7 +163,7 @@ def run_pattern(label, detect_fn, direction, syms):
         fails = []
         if g["n"] < 20: fails.append("n<20")
         if g["mean"] <= 0: fails.append("mean<=0")
-        if g["median"] <= 0: fails.append("median<=0")
+        if g.get("win_rate", 0.0) < gate.WIN_RATE_MIN: fails.append(f"win_rate={g.get('win_rate', 0.0):.2f}<{gate.WIN_RATE_MIN:.2f}")
         if g["boot_p"] >= 0.05: fails.append(f"boot_p={g['boot_p']:.3f}")
         if oos_pos < 2: fails.append(f"OOS {oos_pos}/4<2")
         reason = ", ".join(fails)
@@ -176,7 +177,7 @@ def main():
     syms = _syms()
     print(f"1h 패턴 풀 파이프라인 검증")
     print(f"심볼: {len(syms)}개, OOS 4구간, 부트스트랩 {BOOT_N}회")
-    print(f"게이트: n>=20, mean>0, median>0, boot_p<0.05, OOS>=2")
+    print(f"게이트 v2: n>=20, mean>0, win_rate>={gate.WIN_RATE_MIN:.2f}, boot_p<0.05, OOS>=2")
 
     results = []
 

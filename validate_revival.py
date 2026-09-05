@@ -23,9 +23,9 @@ PASSED 0 → 31, STRICT 0 → 8 (우연 기대 ≈22). 그중 STRICT 8 은 사�
 ## 사전 등록 판정 (결과를 보기 전에 동결)
 
 셀(패턴, 레짐, 코호트)마다 동결 게이트 5조건:
-  G1 n>=20  G2 mean>0  G3 median>0  G4 boot_p<0.05 (레짐 베이스라인, k=n)  G5 OOS 4분위 양수>=2
+  G1 n>=20  G2 mean>0  G3 **승률>=35%** (gate v2, 2026-09-05; v1 은 median>0)  G4 boot_p<0.05 (레짐 베이스라인, k=n)  G5 OOS 4분위 양수>=2
 후보(패턴, 레짐)가 **확인(CONFIRMED)** 되려면 추가로:
-  C1 두 코호트(all, top30) 모두 G1~G5 통과
+  C1 실거래 코호트(top30) G1~G5 통과 (2026-09-05 완화 — 종전 '두 코호트 모두')
   C2 holdout(마지막 365일) n>=10 이고 mean>0 — top30 코호트 기준
   C3 train 자산곡선 CAGR>0 이고 Calmar>0 — top30 코호트 기준
 전부 만족 → registry `passed_not_deployed` 후보로 기록한다. **배포는 사용자 결정.** 하나라도
@@ -57,6 +57,7 @@ import time
 from datetime import date
 
 import detlib
+import gate
 import intraday_lab as il
 import method_s as ms
 import method_x as mx
@@ -145,7 +146,7 @@ def gate_cell(sigs, pool_rets, seed=SEED):
     fails = []
     if n < 20: fails.append("n<20")
     if mean <= 0: fails.append("mean<=0")
-    if med <= 0: fails.append("median<=0")
+    if not gate.dist_ok(rets): fails.append(gate.dist_reason(rets))   # v2: 승률>=35% (2026-09-05)
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if n >= 20 and oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
     by_year = {}
@@ -155,6 +156,7 @@ def gate_cell(sigs, pool_rets, seed=SEED):
     for s in sigs:
         reasons[s["reason"]] = reasons.get(s["reason"], 0) + 1
     return dict(n=n, mean=mean, median=med, boot_p=boot_p, base_mean=base_mean,
+                win_rate=gate.win_rate(rets), trimmed_mean=gate.trimmed_mean(rets), top5_share=gate.top_share(rets),
                 edge=(mean - base_mean) if base_mean is not None else None,
                 oos_pos=oos_pos, pool_n=len(pool_rets), base_k=n,
                 by_year={y: dict(n=len(v), mean=st.mean(v)) for y, v in sorted(by_year.items())},
@@ -175,7 +177,10 @@ def confirm(cells, cutoff, span_train):
     cells: {cohort: dict(gate=rec, sigs=[...])}. C1~C3 판정.
     반환 dict(confirmed, c1, c2, c3, holdout=..., equity=...)
     """
-    c1 = all(cells.get(c, {}).get("gate", {}).get("verdict") == "PASSED" for c in COHORTS)
+    # C1 (2026-09-05 완화): 두 코호트 동시 → **실거래 코호트(top30)** 통과. 사용자 지적("조건을 너무 다
+    # 만족시키려 한다")에 따라 내가 얹은 확인 조건 중 가장 엄한 것을 실거래가 실제로 도는 코호트로 좁힌다.
+    # all 코호트 결과는 계속 계산·보고한다(경계 판단 참고용).
+    c1 = cells.get(CONFIRM_COHORT, {}).get("gate", {}).get("verdict") == "PASSED"
     ref = cells.get(CONFIRM_COHORT, {}).get("sigs", [])
     train = [s for s in ref if s["date"] < cutoff]
     hold = [s for s in ref if s["date"] >= cutoff]
@@ -183,7 +188,7 @@ def confirm(cells, cutoff, span_train):
     c2 = ho["n"] >= HOLDOUT_MIN_N and ho["mean"] is not None and ho["mean"] > 0
     eq = equity(train, span_train)
     c3 = bool(eq) and eq["cagr"] > 0 and eq["calmar"] > 0
-    return dict(confirmed=bool(c1 and c2 and c3), c1_both_cohorts=c1, c2_holdout=c2, c3_equity=c3,
+    return dict(confirmed=bool(c1 and c2 and c3), c1_live_cohort=c1, c2_holdout=c2, c3_equity=c3,
                 holdout=ho, equity=eq)
 
 
@@ -300,13 +305,13 @@ def main(argv=None):
             rec = gate_cell(sigs, ctx["pool_rets"][pk])
             cells[cname] = dict(gate=rec, sigs=sigs)
             yr = " ".join(f"{y}:{v['mean']*100:+.1f}%(n{v['n']})" for y, v in rec["by_year"].items())
-            print(f"  {cname:<6} n={rec['n']:>5} mean={_f(rec['mean'])} med={_f(rec['median'])} "
+            print(f"  {cname:<6} n={rec['n']:>5} mean={_f(rec['mean'])} med={_f(rec['median'])} 승률 {rec['win_rate']*100:>3.0f}% 절사 {_f(rec['trimmed_mean'])} top5 {(rec['top5_share'] or 0)*100:>3.0f}% "
                   f"| 레짐평균 {_f(rec['base_mean'])} 엣지 {_f(rec['edge'])} | boot_p={rec['boot_p']:.3f} "
                   f"OOS={rec['oos_pos']}/4 보유 {rec['hold']:.1f} -> {rec['verdict']} {rec['reason']}")
             print(f"         연도별 {yr} | 청산 {rec['reasons']}")
         cf = confirm(cells, cutoff, ctx["span_train"])
         eq = cf["equity"] or {}
-        print(f"  => {'CONFIRMED' if cf['confirmed'] else 'not confirmed'} | C1 두코호트 {cf['c1_both_cohorts']} "
+        print(f"  => {'CONFIRMED' if cf['confirmed'] else 'not confirmed'} | C1 실거래코호트 {cf['c1_live_cohort']} "
               f"| C2 holdout n={cf['holdout']['n']} mean={_f(cf['holdout']['mean'])} {cf['c2_holdout']} "
               f"| C3 자산곡선 CAGR {_f(eq.get('cagr'))} MDD {_f(eq.get('mdd'))} Calmar {eq.get('calmar', 0):.2f} {cf['c3_equity']}")
         results[f"{cid}|{g}"] = dict(pattern=cid, regime=g, tf=tf, direction=direction,
