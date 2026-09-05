@@ -61,7 +61,9 @@ jobs:
                    test_method_x.py \
                    test_regime_axis.py \
                    test_xsec_momentum.py \
-                   test_routing.py; do
+                   test_routing.py \
+                   test_revival.py \
+                   test_adopted_regimes.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi
             echo "::endgroup::"

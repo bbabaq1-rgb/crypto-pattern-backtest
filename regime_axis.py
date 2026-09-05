@@ -291,6 +291,76 @@ def diagnose(axis, trades):
                 real=bool(a and mono and c))
 
 
+def _pearson(xs, ys):
+    n = len(xs)
+    if n < 3:
+        return None
+    mx_, my_ = st.mean(xs), st.mean(ys)
+    sx, sy = st.pstdev(xs), st.pstdev(ys)
+    if sx == 0 or sy == 0:
+        return None
+    return sum((xs[i] - mx_) * (ys[i] - my_) for i in range(n)) / n / (sx * sy)
+
+
+def _ranks(v):
+    order = sorted(range(len(v)), key=lambda i: v[i])
+    r = [0.0] * len(v)
+    for k, i in enumerate(order):
+        r[i] = float(k)
+    return r
+
+
+def corr_report(mkt, paired):
+    """
+    beta_slope vs avg_cap — 2단계 선결 질문: **같은 정보의 재포장인가, 독립 축인가.**
+    (1) 일별 시계열 상관(Pearson·Spearman)  (2) 거래 수준: avg_cap 3분위 **안에서** beta_slope
+    하위/상위 3분위 스프레드가 살아 있는가. 사전 규칙: |상관| < 0.5 이고 cap 3분위 중 >=2 에서
+    beta 스프레드가 같은 부호로 유의(boot_p<.05) → 독립 축 → 2단계 arm 제작. 아니면 재포장.
+    """
+    b, c = mkt["beta_slope"], mkt["avg_cap"]
+    common = sorted(set(b) & set(c))
+    xs, ys = [b[d] for d in common], [c[d] for d in common]
+    pear = _pearson(xs, ys)
+    spear = _pearson(_ranks(xs), _ranks(ys))
+    print("\n" + "=" * 90)
+    print("beta_slope vs avg_cap — 상관·조건부 스프레드 (2단계 선결)")
+    print("=" * 90)
+    print(f"  일별 공통 {len(common)}일 | Pearson {pear if pear is None else round(pear, 3)} | "
+          f"Spearman {spear if spear is None else round(spear, 3)}")
+    tr = [t for t in paired if t[1] is not None and t[2] is not None]
+    out = dict(n_days=len(common), pearson=pear, spearman=spear, n_trades=len(tr), within_cap={})
+    if len(tr) < 90:
+        print(f"  거래 표본 부족({len(tr)}) — 조건부 스프레드 생략")
+        return out
+    b_lo, b_hi = terciles([t[1] for t in tr])
+    c_lo, c_hi = terciles([t[2] for t in tr])
+    print(f"  {'avg_cap 3분위':<16}{'n':>6}{'beta하위 평균':>14}{'beta상위 평균':>14}{'스프레드':>10}{'boot_p':>9}")
+    print("  " + "-" * 72)
+    sig_pos = sig_neg = 0
+    for name, lo_, hi_ in (("cap 하위", None, c_lo), ("cap 중간", c_lo, c_hi), ("cap 상위", c_hi, None)):
+        sub = [t for t in tr if (lo_ is None or t[2] > lo_) and (hi_ is None or t[2] <= hi_)]
+        lo = [t[0] for t in sub if t[1] <= b_lo]
+        hi = [t[0] for t in sub if t[1] > b_hi]
+        if len(lo) < 15 or len(hi) < 15:
+            print(f"  {name:<16}{len(sub):>6}  분위 표본 부족")
+            out["within_cap"][name] = dict(n=len(sub), skip=True)
+            continue
+        sp = st.mean(hi) - st.mean(lo)
+        p = boot_diff_p(hi, lo)
+        sig = p < 0.05
+        sig_pos += sig and sp > 0; sig_neg += sig and sp < 0
+        print(f"  {name:<16}{len(sub):>6}{st.mean(lo)*100:>+13.2f}%{st.mean(hi)*100:>+13.2f}%"
+              f"{sp*100:>+9.2f}%p{p:>9.3f}{'  *' if sig else ''}")
+        out["within_cap"][name] = dict(n=len(sub), lo_n=len(lo), hi_n=len(hi),
+                                       lo_mean=st.mean(lo), hi_mean=st.mean(hi), spread=sp, boot_p=p)
+    low_corr = pear is not None and abs(pear) < 0.5
+    indep = low_corr and (sig_pos >= 2 or sig_neg >= 2)
+    out.update(low_corr=low_corr, sig_same_sign=max(sig_pos, sig_neg), independent=indep)
+    print(f"  판정: {'독립 축 — 2단계 arm 제작 가치 있음' if indep else '재포장/미확인 — 2단계 보류'} "
+          f"(|corr|<0.5: {low_corr}, 같은 부호 유의 셀 {max(sig_pos, sig_neg)}/3)")
+    return out
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
     ms.UNIVERSE_MODE = "--universe" in argv
@@ -320,6 +390,7 @@ def main(argv=None):
         print(f"  {k}: {len(v)}일", flush=True)
 
     per_axis = {a: [] for a in AXES}
+    paired = []            # (ret, beta_slope, avg_cap) — --corr 용 (두 축을 같은 거래에 짝지음)
     for label, direction, detmod, oppmod, tf in mt.PATS:
         mod = importlib.import_module(detmod)
         opp = importlib.import_module(oppmod) if oppmod else None
@@ -345,6 +416,7 @@ def main(argv=None):
                 per_axis["er"].append((ret, er[si]))
                 for k in ("volpct", "alt_breadth", "beta_slope", "avg_cap"):
                     per_axis[k].append((ret, mkt[k].get(d)))
+                paired.append((ret, mkt["beta_slope"].get(d), mkt["avg_cap"].get(d)))
                 n += 1
         print(f"  [{label}] {n}건", flush=True)
 
@@ -380,6 +452,8 @@ def main(argv=None):
     print("\n[유보] 유니버스 생존 편향 — 현재 살아있는 종목으로 과거를 계산한다(시점별 유니버스 없음).")
     print("       상폐 종목이 빠져 alt_breadth·beta_slope 가 낙관적으로 치우칠 수 있다.")
 
+    if "--corr" in argv:
+        out["_corr_beta_vs_cap"] = corr_report(mkt, paired)
     json.dump(dict(config=dict(adx_p=ADX_P, er_p=ER_P, breadth_lb=BREADTH_LB,
                                beta_lb=BETA_LB, beta_smooth=BETA_SMOOTH,
                                n_symbols=len(syms), universe=ms.UNIVERSE_MODE),

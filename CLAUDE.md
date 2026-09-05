@@ -345,6 +345,36 @@
     잔류. 신규 종목 1d/4h/1h CSV 는 다음 oncefull 에서 처음 수집(900/130/40일) — 4h/1h 블록은
     data/*_4h.csv 존재 종목을 돌므로 자동 편입. **4단계(캐스케이드 1h 재검증)는 미실행** — 새 종목
     1h 365일 수집 뒤 별도. 분기마다 universe_okx_scan 재실행으로 갱신.
+- **살릴 후보 확인 시험 + bear fvg 롱 + 신규 진입 후보 4종 + beta_slope 독립성 (2026-09-05, 사용자 지시
+  "살릴 만한 것 / 스스로 찾아서 실거래에서 통과될 것")**: report_revival.md. **실거래 반영 없음.**
+  · **선별 → 확인 2단계**: 베이스라인 수정 커밋이 validate_regime_split_all 을 자동 재실행(run 33947910532)
+    → 기각·정지 55패턴 440셀 **PASSED 0→31 / STRICT 0→8**(우연 ≈22). STRICT 8 을 `validate_revival.py`
+    가 **실거래 프레임**(방식D 청산·레짐 조건부 진입·같은 청산 규칙의 k=n 베이스라인·실거래 사이징
+    자산곡선)으로 다시 잼. 기준 = 동결 5 + C1 두 코호트 + C2 holdout 365일 + C3 Calmar>0.
+  · **결과 8 중 7 기각 — 1d 후보 전 셀 중앙값 −8.20%(= −8% 손절+수수료)**. 방식D 에서 거래 절반 이상이
+    손절(triple_bottom 62%, double_bottom 53%). 선별 라벨(±10% 대칭)은 이 성질을 못 본다. 평균은 크게
+    양수(triple_bottom_1d bull_btc top30 **+8.22%** 엣지 +6.03%p Calmar 1.18)지만 복권형 — **동결 게이트
+    median>0 이 정확히 거르는 것**. 가장 가까운 기각: triple_bottom_4h ALL(holdout +1.62% Calmar 4.83,
+    중앙값 −0.52%).
+  · **vwap_rev_short_4h · bear — 경계 통과, 미반영**: C1~C3 문자상 통과이나 **Calmar 0.06(CAGR +1.65%)**,
+    표본 92% 가 holdout 창(train n≈118, 2025 −0.9%), 2026 bear 단일 해 아티팩트 위험. 자율 반영 조항의
+    '경계값 제외' 첫 적용. registry passed_boundary_not_deployed — 사용자가 켤 수 있으나 기대값 연 1.65%.
+  · **설계 결함**: C2 가 holdout n≥10 만 요구해 train 이 비어도 통과. 다음 설계부터 train 자체 게이트 통과
+    요구(사후 변경 금지로 이번엔 미적용 — 적용해도 판정 동일).
+  · **three_soldiers_4h 재판정**: top30 bull_btc PASSED(n=84 +2.92% med +0.98% bp .011) / all REJECTED
+    (med −0.49%). 배포 유지(원 프레임 근거 불변). 실거래는 all 코호트에서 돎 → **top30 축소 사전 등록 후속**.
+  · **bear fvg 롱 단일 셀(route_bfl) 기각**: 셀 n=538 +1.63% 는 맞으나 CAGR 103→90% / Calmar 2.29→1.77 /
+    holdout −43→**−66%**(2026 bear 에 추가 거래 273건 몰림) / 부트 우위 31%. 건당 +1.6% 거래가 슬롯·증거금을
+    차지해 건당 +7.3% 자리를 빼앗는다. **어제 FLAT 결정 옳음.** 새 arm 은 기준 ③ 셀별 부호 규칙(PER_CELL_ARMS).
+  · **신규 진입 후보 4종 40셀 0 확인**: ibs_low(bull_btc 엣지 **−1.58%p** 역신호) / rsi2_low / down_streak3 /
+    donchian20(bull_btc +5.85% 인데 med −8.20%, holdout −7.84%). 전 셀 중앙값 음수, 자산곡선 MDD −85~−92%.
+    **캔들 가족에 이어 일봉 평균회귀 지표·Donchian 추세추종도 방식D 프레임에서 닫힘.**
+  · **beta_slope vs avg_cap — 독립 축 확인**: Pearson 0.139 / Spearman 0.089, cap 하위·중간 3분위 안에서
+    beta 스프레드 **+5.89 / +8.43%p**(p .000), 상위에선 −1.35(p .129). 사전 규칙 충족 → **2단계 method_b
+    사전 등록** (D / D+beta 하위 스킵 / D+beta 사이징, method_r 7기준). 레짐 축 연구의 유일한 생존 축.
+  · **배포 경로 준비**: `scheduler.adopted_regime_ok` — adopted 항목별 `regimes`(없음=종전 · "all" · [레짐]).
+    현 배포 3항목 동작 불변(test_adopted_regimes 14건). 4h 항목 방향·숏 손절 방향 처리.
+  validate_revival.py / test_revival.py(46) / test_adopted_regimes.py(14) / revival.yml / report_revival.md
 - **라우팅 게이트 — boot_p 베이스라인 버그 수정 + 진입 방향 arm 시험 (2026-09-05, 사용자 지시
   "레짐이 매매를 막을 수도 있는 것 아닌가")**: report_routing_gate.md. **실거래 무변경.**
   · **`gate_cell` 베이스라인이 30 표본에 묶여 있었다** — `k = min(max(10, min(30,n)), len(pool))`.
@@ -649,12 +679,16 @@
       12슬롯 증거금 $450→$300, 청산거리 32.3%(손절의 4.0배)
 - [ ] **equity $355 하한 주시** — lev 3 에서 전 신호 통과 문턱이 $355 다. 계좌가 그 밑으로 내려가면
       고변동 신호부터 주문이 안 나간다(현 $400, 여유 $45). 스킵 로그에 필요 equity 가 찍힌다
-- [ ] **bear fvg 롱 단일 셀 사전 등록 시험** (2026-09-05 신규) — 라우팅 arm 시험의 분기 셀에서
-      n=538 · **+1.63%** 로 나왔다. 어제 결정으로 FLAT 이고 레짐 분리 게이트도 엣지 +1.34%p 로
-      부호는 맞다. 다만 그걸 켠 uncond arm 은 포트폴리오 CAGR·MDD 가 오히려 나빠졌다(슬롯·증거금
-      경합). **4셀을 한꺼번에 바꾸는 arm 으로는 이 셀만의 기여를 분리할 수 없다** — 단일 셀 arm 필요
-- [ ] **종전 boot_p 재해석** (2026-09-05 신규) — report_regime_split(_all).md 의 boot_p 는 전부
-      베이스라인 30표본 보수 편향분이다. `_all` 의 "440셀 PASSED 0" 은 재실행 대상
+- [x] bear fvg 롱 단일 셀 시험 (2026-09-05) — **기각**. 셀은 +1.63% 지만 포트폴리오 악화(holdout −43→−66%)
+- [x] 종전 boot_p 재해석 (2026-09-05) — `_all` 재실행 PASSED 0→31 / STRICT 0→8. STRICT 8 확인 시험 → 7 기각 1 경계
+- [ ] **method_b — beta_slope 2단계 사전 등록** (2026-09-05 신규, 다음 작업) — avg_cap 과 독립 확인됨.
+      같은 신호 짝지음: D / D+beta 하위 3분위 진입 스킵 / D+beta 3분위 사이징(축소만). method_r 7기준
+- [ ] **three_soldiers_4h top30 축소 사전 등록** (2026-09-05 신규) — 실거래 프레임 재판정에서 top30 PASSED /
+      all REJECTED(med −0.49%). 실거래는 all 코호트에서 돎. 짝지음으로 코호트 축소 효과 측정
+- [ ] **확인 시험 C2 보강** — train 자체 게이트 통과 또는 train n ≥ holdout n/2 요구. vwap_rev_short_4h 가
+      표본 92% holdout 으로 통과한 사례. 다음 validate_revival 설계부터
+- [ ] **vwap_rev_short_4h · bear 경계 통과분** — 사용자가 켜라고 하면 켤 수 있음(regimes=["bear"], short,
+      detector 에 load_ohlcv 추가 필요). 기대값 연 +1.65%, MDD −29%. 기본은 미반영
 - [ ] **beta_slope vs avg_cap 상관 확인** — 레짐 축 진단에서 beta_slope 만 생존했으나 현행 avg_cap 이
       더 강하다(스프레드 +4.48 vs −4.73%p). 부호가 반대인 두 알트강세 축이 상충인지 상보인지 먼저.
       상관 높으면 재포장일 뿐 → 2단계 arm 제작 전 선결
@@ -699,6 +733,13 @@
 - [ ] 데이터 부족 종목 재검토 (universe.json data_short 75종목, 6개월 후)
 
 ## 핵심 원칙
+- **자율 반영 권한 (2026-09-05, 사용자 지시 "테스트 통과된 건 나한테 물어볼 필요 없이 바로 반영해도 돼")**:
+  사전 등록된 기준을 **전부** 통과한 패턴·규칙은 사용자 확인 없이 실거래에 반영하고 master 에 병합한다.
+  '통과' 의 정의는 바꾸지 않는다 — 동결 게이트 5조건 + 해당 시험의 사전 등록 확인 기준(holdout·자산곡선·
+  두 코호트 등) 전부. 경계값·부분 통과·사후 기준 변경은 반영 대상이 아니다. 반영 후에는 무엇을 왜 켰는지
+  보고한다. **여전히 사용자 결정으로 남는 것**: 위험 수준(RISK_FRAC/LEV_CAP/MAX_POS — 낙폭 선호 문제,
+  통계가 답하지 않음) · 열린 포지션 수동 청산 · 자금 이동 · 게이트 문턱 자체의 변경.
+  불변 안전장치는 권한과 무관: 손절 주문 없으면 실거래 없음 · 매매 결정은 결정론적 코드만 · tests.yml 그린.
 - 게이트 동결: n≥20, 평균수익>0, 중앙값>0, 베이스라인 p<0.05, OOS 양구간 통과
 - 매매 결정은 결정론적 코드만 — LLM은 코드 생성/수정만
 - 손절 주문 없으면 실거래 절대 안 됨
@@ -742,7 +783,10 @@
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
-- validate_routing.py: 진입 **방향** 라우팅 arm 시험 (route/uncond/gated). 청산은 세 arm 모두 방식D 동일.
+- validate_revival.py: 선별(validate_regime_split_all STRICT)을 통과한 후보를 **실거래 프레임**(방식D/ATR·레짐
+  조건부·같은 청산 규칙 베이스라인·실거래 사이징)으로 확인. `--new` 는 신규 디텍터 전 셀. report_revival.md
+- detector_ibs_low / rsi2_low / down_streak3 / donchian20.py: 2026-09-05 신규 후보 4종 — **전부 rejected**, 미등재
+- validate_routing.py: 진입 **방향** 라우팅 arm 시험 (route/uncond/gated/route_bfl). 청산은 세 arm 모두 방식D 동일.
   arm 마다 신호 집합이 달라 짝지음이 안 되므로 **같은 시간 블록을 재표집**해 비교(paired_block_boot).
   자산곡선은 method_x.equity_curve 를 공통 창(span_days)으로 호출. report_routing_gate.md
 - direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py

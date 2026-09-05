@@ -126,7 +126,9 @@ chk("1d FOCUS 루프가 느린틱 게이트를 통과",
 chk("adopted(1d/4h/1w) 루프가 느린틱 게이트를 통과",
     "for ap in (adopted if slow_tick else []):" in src)
 chk("4h 전용 블록이 느린틱 게이트를 통과",
-    "if slow_tick and adopted4h_dir and adopted_4h:" in src)
+    "if slow_tick and adopted_4h:" in src)
+chk("4h 전용 블록은 항목별 레짐 게이트(adopted_regime_ok)를 거친다",
+    'adopted_regime_ok(ap, regime, "4h")' in src)
 chk("하모닉 블록이 느린틱 게이트를 통과",
     "if slow_tick and harmonic_dir:" in src)
 chk("exit_spec 없는 1h 패턴은 느린틱에만 도는 분기 존재",
