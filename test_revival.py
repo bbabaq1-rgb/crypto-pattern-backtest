@@ -170,5 +170,29 @@ adopted = json.dumps(u.get("adopted_patterns", [])) + json.dumps(u.get("adopted_
 check("신규 디텍터는 universe.json adopted 에 없음(미등재)",
       not any(m in adopted for m in ("ibs_low", "rsi2_low", "down_streak3", "donchian20")))
 
+
+# ── 1h 채점표 (2026-09-05): 봉 ts 시각 자산곡선 + TF 별 holdout ─────────────
+import method_x as mx
+check("HOLDOUT_DAYS_BY_TF: 1h 는 90일, 1d/4h 는 종전 365일",
+      vr.HOLDOUT_DAYS_BY_TF["1h"] == 90 and vr.HOLDOUT_DAYS_BY_TF["1d"] == vr.HOLDOUT_DAYS == 365 == vr.HOLDOUT_DAYS_BY_TF["4h"])
+t0 = vr._tnum(dict(date="2026-09-05"))
+t1 = vr._tnum(dict(date="2026-09-05", ts=1788566400000))          # 2026-09-05 00:00 UTC
+t2 = vr._tnum(dict(date="2026-09-05", ts=1788566400000 + 3600000 * 5))
+check("_tnum: ts 없으면 date ordinal", t0 == float(__import__("datetime").date(2026, 9, 5).toordinal()))
+check("_tnum: ts 는 같은 날 자정과 일치, 5시간 뒤는 +5/24 일", abs(t1 - t0) < 1e-6 and abs((t2 - t1) - 5 / 24) < 1e-6)
+check("method_x._tnum: 숫자는 그대로, 문자열은 ordinal", mx._tnum(12.5) == 12.5 and mx._tnum("2026-09-05") == t0)
+# 같은 날 진입·청산되는 1h 거래 3건 — 날짜 문자열로 넘기면 빠지고, 분수 일수로 넘기면 전부 잡힌다
+base_ts = 1788566400000
+sig1h = [dict(date="2026-09-05", exit_date="2026-09-05", ret=0.02, hold=6, reason="atr", stop_pct=0.01, vol=0.8,
+              t_in=vr._tnum(dict(ts=base_ts + 3600000 * k)), t_out=vr._tnum(dict(ts=base_ts + 3600000 * (k + 6))))
+         for k in (0, 1, 2)]
+eq_ts = vr.equity(sig1h, 300)
+legacy = [{k: v for k, v in s.items() if k not in ("t_in", "t_out")} for s in sig1h]
+eq_dt = vr.equity(legacy, 300)
+check("1h 자산곡선: 분수 일수로 넘기면 같은 날 3거래가 전부 반영돼 자산이 늘어난다", eq_ts is not None and eq_ts["final"] > mx.START_EQ)
+check("1h 자산곡선: 날짜 문자열 폴백은 같은 날 거래를 놓친다(종전 'C3 계산 불가' 재현)",
+      eq_dt is not None and eq_dt["final"] == mx.START_EQ)
+check("CANDIDATES 에 1h 셀이 들어갔다", any(cid.endswith("_1h") for cid, _ in vr.CANDIDATES))
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

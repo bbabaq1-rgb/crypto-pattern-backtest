@@ -359,6 +359,16 @@
     청산은 eval_D 그대로(OPP 매핑 없음 → 검증 opp_set=∅ 와 일치). 중복 키가 날짜 단위라 종목·일 1회 진입(검증보다 적음).
   · regime_split_all: PASSED 31→39 / STRICT 8→10. 신규 STRICT breakout_retest_4h·ALL / vol_awakening_4h·ALL 을
     CANDIDATES 에 추가(다음 revival 실행에서 확인). routing_gate 18셀·intraday 15셀 판정 불변(기각 셀은 평균 음수).
+- **중복 진입 방어 키 date → 봉 ts (2026-09-05, 사용자 결정 "봉 시각 기준으로, 앞으로 모든 규칙은 다 이렇게")**:
+  `paper_executor._entry_key/_record_keys/_is_dup_entry`. 종전 (symbol,pattern,direction,**date**) 키는 4h/1h 를
+  '심볼·패턴당 하루 1회'로 묶어 검증(봉마다 진입 가능)보다 거래가 적었다. 이제 봉 ts 가 있으면 ts 로 대조(같은 봉만
+  중복), ts 없는 구 기록은 date 로 보수 대조. 1d 는 봉=날짜라 동작 동일. 같은 종목·방향 실포지션 중복 방어(live_dir_keys)
+  는 그대로. **원칙**: 검증 프레임과 실거래 규칙이 다르면 실거래를 검증에 맞춘다. test_executor_safety 8건.
+- **1h 채점표 신설 (2026-09-05, 사용자 지시)**: validate_revival 의 C3(자산곡선)이 1h 에서 계산 불가였던 원인은 거래
+  시각을 날짜 문자열로 넘겨 같은 날 진입·청산이 청산→진입 순으로 정렬돼 거래가 통째로 빠진 것. `_tnum`(봉 ts →
+  분수 일수) + `method_x._tnum`(숫자 그대로) 로 고침. TF 별 holdout `HOLDOUT_DAYS_BY_TF`(1h 90일 — 데이터 365일).
+  1h PASSED 8셀(engulfing/engulfing_short/vwap_rev_long·short/bb_zscore_short/rsi_extreme·short)을 CANDIDATES 에 추가.
+  1h 통과 셀 배포는 exit_spec(ATR 배리어)+adopted_1h_patterns+매시 fast 경로가 필요 — cascade 와 같은 길.
 - **bear fvg 숏 ON (2026-09-05, 사용자 결정 "bear fvg 숏 키고")**: `direction_switch.ROUTING_OVERRIDES` 의
   (bear, fvg) FLAT 제거 → decide() 그대로 short. 9/4 OFF 의 근거 '엣지 −0.96%p' 는 k=30 베이스라인 시절 값이었고,
   k=n 재실행(routing_gate 33955072569)에서 top20·bear 셀 PASSED(n=356 +0.81% med +3.28% 엣지 +1.58%p bp .014),

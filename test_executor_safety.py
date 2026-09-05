@@ -165,5 +165,26 @@ check("저가 코인 진입가가 0 이 아니고 8자리 보존", pos and pos[0
 check("저가 코인 손절가도 0 이 아님", pos and pos[0]["stop"] > 0, pos)
 check("저가 코인 청산 경로 정상(D·A 기록, 예외 없음)", {t["method"] for t in tr} == {"D", "A"} and all(t["exit_price"] > 0 for t in tr), tr)
 
+
+# ── 중복 진입 방어 키 — 봉 ts 기준 (2026-09-05 사용자 결정) ──────────────────
+_recs = [dict(symbol="ETH", pattern="triple_bottom_4h", direction="long", entry_date="2026-09-05", entry_ts=1000),
+         dict(symbol="SOL", pattern="fvg", direction="long", entry_date="2026-09-05")]          # 구 기록: ts 없음
+_ts, _dt, _all = pe._record_keys(_recs)
+check("키: 같은 날 다른 봉(ts) 신호는 중복이 아니다",
+      not pe._is_dup_entry(dict(symbol="ETH", pattern="triple_bottom_4h", direction="long", date="2026-09-05", ts=2000), _ts, _dt, _all))
+check("키: 같은 봉(ts) 신호는 중복",
+      pe._is_dup_entry(dict(symbol="ETH", pattern="triple_bottom_4h", direction="long", date="2026-09-05", ts=1000), _ts, _dt, _all))
+check("키: ts 없는 구 기록은 date 로 보수 대조 — 그날 신호는 중복",
+      pe._is_dup_entry(dict(symbol="SOL", pattern="fvg", direction="long", date="2026-09-05", ts=3000), _ts, _dt, _all))
+check("키: ts 없는 신호는 date 로만 대조(ts 기록에도 걸린다)",
+      pe._is_dup_entry(dict(symbol="ETH", pattern="triple_bottom_4h", direction="long", date="2026-09-05"), _ts, _dt, _all))
+check("키: 다른 날은 중복 아님",
+      not pe._is_dup_entry(dict(symbol="SOL", pattern="fvg", direction="long", date="2026-09-06", ts=4000), _ts, _dt, _all))
+check("키: 다른 방향은 별개", not pe._is_dup_entry(dict(symbol="ETH", pattern="triple_bottom_4h", direction="short", date="2026-09-05", ts=1000), _ts, _dt, _all))
+check("키: ts 문자열/실수도 정규화", pe._norm_ts("1000") == 1000 and pe._norm_ts(1000.0) == 1000 and pe._norm_ts(None) is None)
+check("run(): 종전 date 키 코드가 남아 있지 않다",
+      'key = (s["symbol"], s["pattern"], s["direction"], s["date"])' not in open("paper_executor.py", encoding="utf-8").read()
+      and "_is_dup_entry(s, dup_ts, dup_dt, dup_all)" in open("paper_executor.py", encoding="utf-8").read())
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)
