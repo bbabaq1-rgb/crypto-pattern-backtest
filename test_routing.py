@@ -42,8 +42,10 @@ if os.path.exists("direction_switch.json"):
 else:
     print("SKIP direction_switch.json 없음 — 실거래 표 대조 생략")
 
-check("ROUTING_OVERRIDES 가 반영된다 (bear fvg FLAT)",
-      tabs["route"][("bear", "fvg")] == "FLAT", tabs["route"][("bear", "fvg")])
+check("ROUTING_OVERRIDES 가 반영된다 (있는 항목은 전부 표에 그대로)",
+      all(tabs["route"].get(k) == v for k, v in vr.ds.ROUTING_OVERRIDES.items()), tabs["route"])
+check("bear fvg 는 오버라이드 없음 → decide() 결과(short)", tabs["route"][("bear", "fvg")] == "short",
+      tabs["route"][("bear", "fvg")])
 
 # route_bfl — route 와 정확히 한 셀만 다르다
 diff = [k for k in tabs["route"] if tabs["route"][k] != tabs["route_bfl"].get(k)]

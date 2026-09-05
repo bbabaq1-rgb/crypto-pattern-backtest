@@ -359,6 +359,14 @@
     청산은 eval_D 그대로(OPP 매핑 없음 → 검증 opp_set=∅ 와 일치). 중복 키가 날짜 단위라 종목·일 1회 진입(검증보다 적음).
   · regime_split_all: PASSED 31→39 / STRICT 8→10. 신규 STRICT breakout_retest_4h·ALL / vol_awakening_4h·ALL 을
     CANDIDATES 에 추가(다음 revival 실행에서 확인). routing_gate 18셀·intraday 15셀 판정 불변(기각 셀은 평균 음수).
+- **bear fvg 숏 ON (2026-09-05, 사용자 결정 "bear fvg 숏 키고")**: `direction_switch.ROUTING_OVERRIDES` 의
+  (bear, fvg) FLAT 제거 → decide() 그대로 short. 9/4 OFF 의 근거 '엣지 −0.96%p' 는 k=30 베이스라인 시절 값이었고,
+  k=n 재실행(routing_gate 33955072569)에서 top20·bear 셀 PASSED(n=356 +0.81% med +3.28% 엣지 +1.58%p bp .014),
+  top30 bp .072, all bp .397. **유의**: 수익이 2026 bear 단일 해(+5%)에서 나오고 2022·2024 bear 는 음수 —
+  실거래 fvg 는 top30 코호트라 경계 셀이다. 현 레짐 bull_altseason 에서는 즉시 변화 없음. test_direction_switch 갱신.
+- **MAX_POS 슬롯 격자 사전 등록 (2026-09-05, 사용자 지시 "맥스포스 12 시험")**: `sizing_vol.py --routing --slots`
+  — MAX_POS {8,12,16,20,24}, risk 1.5%/lev 3/vol_matched 고정, 동결 기준(boot MDD중앙≥−35% AND P(ruin)<5% 중
+  Calmar 최대). 슬롯 상한은 레버리지와 달리 동시 노출을 직접 키우므로 MDD·P(ruin) 이 먼저. **채택은 사용자 결정.**
 - **beta_slope 오버레이 2단계(method_b) 기각 (2026-09-05)**: report_beta_overlay.md. B_skip(롱·하위 3분위 스킵)
   6/7, B_size(×0.5) 5/7 — 둘 다 **기준 ①(걸러진 거래가 음수)** 에서 탈락. 걸러진 n=991 의 방식D 수익
   **+2.15%**(나머지 +4.43%, p .02) — 덜 벌지만 번다. ②~⑦ 통과는 **D 기준선이 CAGR −47%/MDD −92%(7패턴
@@ -724,8 +732,8 @@
       더 강하다(스프레드 +4.48 vs −4.73%p). 부호가 반대인 두 알트강세 축이 상충인지 상보인지 먼저.
       상관 높으면 재포장일 뿐 → 2단계 arm 제작 전 선결
 - [ ] **supabase_schema_funding.sql 실행** (사용자) — 실행 전까지 펀딩 이력이 안 쌓인다(6개월 뒤 시험)
-- [ ] MAX_POS(12) 상향 시험 사전 등록 — 이 표본에서 진입을 막는 건 증거금이 아니라 슬롯(391건).
-      단 동시 노출을 직접 키우므로 격자와 별개 시험
+- [ ] **MAX_POS(12) 슬롯 격자 결과 판독** (2026-09-05 사전 등록·실행, quant_batch1 `--slots`) — 숫자를 사용자에게
+      보고, 채택은 사용자 결정. 이 표본에서 진입을 막는 건 증거금이 아니라 슬롯(391건)이었음
 - [ ] **고변동 신호 스킵 관찰** — 현 계좌 $276 에서 실측 약 12~15% 스킵(σ>약 124%/yr). **equity
       $400 을 넘으면 0% 로 소멸**하므로 기본 해법은 계좌 성장 대기. 실제 스킵 로그를 누적해
       예상과 맞는지 확인 (레버리지 상향은 sizing_study 상 MDD 악화라 기본 아님)

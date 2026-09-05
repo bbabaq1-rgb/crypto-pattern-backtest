@@ -2193,5 +2193,19 @@
       "equal_lows_4h 는 기대값이 작다. 슬롯(MAX_POS 12) 경합 시 다른 패턴 자리를 차지할 수 있음 — 슬롯 우선순위 후속 과제와 연결",
       "후보는 같은 데이터에서 선별됐으므로 완전한 OOS 아님(청산 규칙 차이 + holdout 이 독립성 원천)"
     ]
+  },
+  "bear_fvg_short_on_2026_09_05": {
+    "date": "2026-09-05",
+    "decision": "사용자: 'bear fvg 숏 키고' — direction_switch.ROUTING_OVERRIDES 의 (bear,fvg) FLAT 제거 → decide() 그대로 short",
+    "context": "2026-09-04 OFF 의 근거(엣지 -0.96%p)는 k=30 베이스라인 값. k=n 재실행(routing_gate 33955072569): top20:bear n=356 +0.81% med +3.28% 엣지 +1.58%p bp .014 OOS 2/4 PASSED / top30:bear n=469 +0.38% 엣지 +0.95%p bp .072 / all:bear n=1074 +0.03% bp .397",
+    "caveat": "수익이 2026 bear 단일 해(+4.7~5.1%, n=173/245)에서 나오고 2022(-2.4~-3.2%)·2024(-7.4~-7.6%)·2025(n<=12) bear 는 음수. fvg 는 top30 코호트에서 도는데 그 셀은 bp .072 경계. 실거래 fvg_short 는 registry 무조건부 rejected 상태 유지 — 라우팅 표에 의해 켜진 것",
+    "effect": "현 레짐 bull_altseason 에서는 즉시 변화 없음. bear 전환 시 fvg 숏(top30, 방식D 청산)이 나간다"
+  },
+  "slots_grid_2026_09_05": {
+    "date": "2026-09-05",
+    "trigger": "사용자: '맥스포스 12 시험 돌려줘'",
+    "design": "sizing_vol.py --routing --slots: MAX_POS {8,12,16,20,24}, arm vol_matched, risk 1.5%/lev 3 고정, 실거래 라우팅 복제(bear fvg 숏 ON 포함), 블록부트 300회",
+    "criteria": "동결(격자와 동일): boot MDD중앙>=-35% AND P(ruin)<5% 중 Calmar 최대. 부가: 슬롯 스킵 실제 감소 / 증거금 스킵 증가 여부. 채택은 사용자 결정(위험 수준 항목)",
+    "status": "registered — quant_batch1 워크플로 실행 대기"
   }
 }

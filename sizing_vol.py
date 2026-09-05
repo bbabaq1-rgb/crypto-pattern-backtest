@@ -26,7 +26,7 @@ TF 에 맞춰 연율화(1d √365 / 1w √52).
   vol_raw 는 진단 전용 — 좋아 보여도 평균 노출 비율(로그에 출력)이 1 보다 크면 그만큼은
   '변동성 타겟팅'이 아니라 그냥 레버리지다.
 실거래 코드 무변경. 출력 sizing_vol.json + RESULT_JSON.
-실행: python sizing_vol.py [--no-fetch] [--majors] [--routing] [--grid]
+실행: python sizing_vol.py [--no-fetch] [--majors] [--routing] [--grid] [--slots]
   기본은 전 패턴 x 전 종목(표본 최대화 = 강건성 표본). --routing 은 **실거래 라우팅을 복제**해
   실제로 주문이 나갔을 집합만 남긴다 — 패턴별 유니버스(engulfing·fvg=top30, ih·marubozu=메이저)
   + 레짐->방향 라우팅(FOCUS 한정) + 정지 패턴 제외. 표본은 줄지만 **실주문 기준 판정**이다.
@@ -63,7 +63,7 @@ ARMS = ["risk", "vol_raw", "vol_matched"]
 # 실제 주문 집합이 아니다. 복제 모드는 scheduler 의 실제 진입 조건 세 겹을 그대로 건다.
 #   (1) 패턴별 유니버스 — scheduler._syms_for_pattern (engulfing·fvg=top30, ih·marubozu=메이저)
 #   (2) 레짐->방향 라우팅 — direction_switch.json routing (FOCUS 인 engulfing/fvg 에만 적용.
-#       ROUTING_OVERRIDES 의 bear fvg FLAT 이 이 표에 이미 반영돼 있다)
+#       ROUTING_OVERRIDES 가 있으면 이 표에 반영된다 — 2026-09-05 bear fvg 숏 ON 이후 오버라이드 없음)
 #   (3) 정지 패턴 제외 — universe.json suspended_patterns (triple_bottom 1w)
 # adopted_patterns(inverted_hammer / marubozu)는 스케줄러에서 레짐 게이트 없이 롱으로 진입한다.
 ROUTING_MODE = False
@@ -142,7 +142,7 @@ def collect_all(syms):
 scale_of = sz.vol_scale_raw        # s_raw = clip(TARGET/σ, LO, HI)
 
 
-def simulate(trades, arm, risk_frac=None, lev_cap=None):
+def simulate(trades, arm, risk_frac=None, lev_cap=None, max_pos=None):
     """시간순 포트폴리오 시뮬. sizing_study.simulate 와 같은 회계, risk_frac 만 arm 별로 스케일.
 
     risk_frac / lev_cap 을 주면 그 값으로 돈다(격자 시험용). 스킵을 **사유별로** 센다 —
@@ -152,6 +152,7 @@ def simulate(trades, arm, risk_frac=None, lev_cap=None):
     """
     risk_frac = RISK_FRAC if risk_frac is None else risk_frac
     lev_cap = LEV if lev_cap is None else lev_cap
+    max_pos = MAX_POS if max_pos is None else max_pos
     evs = []
     for i, t in enumerate(trades):
         evs.append((ss._dnum(t[0]), 0, i))
@@ -186,7 +187,7 @@ def simulate(trades, arm, risk_frac=None, lev_cap=None):
                 mean_prev = (s_sum / s_cnt) if s_cnt else 1.0
                 s = s_raw / mean_prev if mean_prev > 0 else s_raw
             s_sum += s_raw; s_cnt += 1               # 정규화 통계는 arm 무관하게 같은 열을 쓴다
-            if len(open_pos) >= MAX_POS:
+            if len(open_pos) >= max_pos:
                 skipped += 1; skip_slot += 1; continue
             open_notional = sum(n for _, n in open_pos.values())
             r = sz.risk_based_size(equity, free, STOP, risk_frac=risk_frac * s,
@@ -221,12 +222,12 @@ def block_bootstrap(trades, rng, block=BLOCK):
     return [(trades[k][0], trades[k][1]) + tuple(trades[j][2:]) for k, j in enumerate(idx)]
 
 
-def evaluate(trades, arm, risk_frac=None, lev_cap=None):
-    base = simulate(trades, arm, risk_frac, lev_cap)
+def evaluate(trades, arm, risk_frac=None, lev_cap=None, max_pos=None):
+    base = simulate(trades, arm, risk_frac, lev_cap, max_pos)
     rng = random.Random(SEED)
     mdds, calmars, cagrs, ruins = [], [], [], 0
     for _ in range(BOOT_N):
-        s = simulate(block_bootstrap(trades, rng), arm, risk_frac, lev_cap)
+        s = simulate(block_bootstrap(trades, rng), arm, risk_frac, lev_cap, max_pos)
         mdds.append(s["mdd"]); calmars.append(min(s["calmar"], 50.0)); cagrs.append(s["cagr"])
         if s["final"] < START_EQ * RUIN_LEVEL:
             ruins += 1
@@ -310,6 +311,74 @@ def run_grid(trades, s_norm):
                  mdd=round(res[f"r{RISK_FRAC}_l{LEV}"]["boot"]["mdd_med"], 4))), separators=(",", ":")))
 
 
+# ── 슬롯 상한(MAX_POS) 격자 (--slots, 2026-09-05 사용자 지시 "맥스포스 12 시험 돌려줘") ──────────
+# **사전 등록 — 실행 전 고정.** 위험·레버리지 격자에서 '이 표본에서 진입을 막는 건 증거금이 아니라
+# 슬롯(MAX_POS 12, 391건)'이 확인됐고, 2026-09-05 에 4h 패턴 둘(triple_bottom_4h·equal_lows_4h)이
+# 추가돼 슬롯 경합이 더 커진다. 슬롯 상한만 바꾸고(risk 1.5% / lev 3 / vol_matched 고정) 잰다.
+# 레버리지와 달리 슬롯 상한은 **동시 노출을 직접 키운다** — 같은 위험이라도 12→24 면 계좌 대비
+# 명목 노출이 최대 2배. 그래서 MDD·P(ruin) 이 먼저 봐야 할 값이고 CAGR 은 뒤다.
+#
+# 채택 기준(격자와 동일, 동결): boot MDD 중앙 >= -35% AND P(ruin) < 5% 를 만족하는 셀 중 boot Calmar 최대.
+# 부가 판정: (a) 슬롯 스킵이 실제로 줄어야 의미가 있다(0 이 되는 지점 이상은 동일). (b) 증거금 스킵이
+# 대신 늘면 그 상한은 계좌 크기에 막힌 것이다(equity $400 기준 12슬롯 증거금 $300 — 16이면 $400).
+# **채택은 사용자 결정**(MAX_POS 는 위험 수준 항목) — 이 격자는 숫자만 낸다.
+GRID_SLOTS = [8, 12, 16, 20, 24]
+
+
+def run_slots(trades, s_norm):
+    print("=" * 118)
+    print(f"슬롯 상한 격자 — arm=vol_matched risk={RISK_FRAC*100:.1f}% lev<={LEV} 고정 | "
+          f"사전 기준 boot MDD중앙>=-35% AND P(ruin)<5% 중 Calmar 최대 (채택은 사용자 결정)")
+    print("=" * 118)
+    print(f"  {'MAX_POS':>8}{'진입':>6}{'슬롯스킵':>9}{'증거금스킵':>11}{'평균lev':>8}{'CAGR':>9}{'MDD':>9}"
+          f" | {'bootCAGR':>9}{'bootMDD':>9}{'bootMDDp10':>11}{'bootCal':>8}{'P(ruin)':>9}  기준")
+    rows, res = [], {}
+    for mp in GRID_SLOTS:
+        r = evaluate(trades, "vol_matched", max_pos=mp)
+        b, t = r["base"], r["boot"]
+        ok = t["mdd_med"] >= MDD_FLOOR and t["p_ruin"] < RUIN_MAX
+        rows.append((mp, r, ok))
+        res[f"slots{mp}"] = dict(base=b, boot=t, pass_criteria=ok)
+        cur = "  <= 현행" if mp == MAX_POS else ""
+        print(f"  {mp:>8}{b['taken']:>6}{b['skip_slot']:>9}{b['skip_margin']:>11}{b['mean_lev']:>8.2f}"
+              f"{b['cagr']*100:>+8.1f}%{b['mdd']*100:>+8.1f}%"
+              f" | {t['cagr_med']*100:>+8.1f}%{t['mdd_med']*100:>+8.1f}%{t['mdd_p10']*100:>+10.1f}%"
+              f"{t['calmar_med']:>8.2f}{t['p_ruin']*100:>8.1f}%  {'통과' if ok else '탈락'}{cur}")
+    okrows = [x for x in rows if x[2]]
+    print()
+    if okrows:
+        best = max(okrows, key=lambda x: x[1]["boot"]["calmar_med"])
+        print(f"[기준 통과] {len(okrows)}셀 | 최적 = MAX_POS {best[0]} (boot Calmar {best[1]['boot']['calmar_med']:.2f}, "
+              f"MDD중앙 {best[1]['boot']['mdd_med']*100:+.1f}%, P(ruin) {best[1]['boot']['p_ruin']*100:.1f}%)")
+    else:
+        best = max(rows, key=lambda x: x[1]["boot"]["calmar_med"])
+        print(f"[기준 통과] 없음 — 참고: Calmar 최대는 MAX_POS {best[0]} (MDD중앙 {best[1]['boot']['mdd_med']*100:+.1f}%)")
+    cur = res[f"slots{MAX_POS}"]
+    print(f"\n[현행 12 대비] " + "  ".join(
+        f"{mp}: Cal {res[f'slots{mp}']['boot']['calmar_med'] - cur['boot']['calmar_med']:+.2f} "
+        f"MDD {(res[f'slots{mp}']['boot']['mdd_med'] - cur['boot']['mdd_med'])*100:+.1f}%p "
+        f"슬롯스킵 {res[f'slots{mp}']['base']['skip_slot'] - cur['base']['skip_slot']:+d}"
+        for mp in GRID_SLOTS if mp != MAX_POS))
+    sat = next((mp for mp in GRID_SLOTS if res[f"slots{mp}"]["base"]["skip_slot"] == 0), None)
+    if sat is not None:
+        print(f"[포화] MAX_POS {sat} 부터 슬롯 스킵 0 — 그 이상은 동일한 결과")
+    json.dump(dict(config=dict(grid_slots=GRID_SLOTS, risk_frac=RISK_FRAC, lev=LEV, s_norm=round(s_norm, 4),
+                               mdd_floor=MDD_FLOOR, ruin_max=RUIN_MAX,
+                               routing_mode=ROUTING_MODE, n_trades=len(trades)),
+                   cells=res),
+              open("sizing_slots.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("\n[저장] sizing_slots.json")
+    print("RESULT_JSON: " + json.dumps(dict(
+        best=(best[0] if rows else None), n_pass=len(okrows),
+        cur=dict(calmar=round(cur["boot"]["calmar_med"], 3), mdd=round(cur["boot"]["mdd_med"], 4),
+                 skip_slot=cur["base"]["skip_slot"]),
+        cells={f"slots{mp}": dict(calmar=round(res[f"slots{mp}"]["boot"]["calmar_med"], 3),
+                                   mdd=round(res[f"slots{mp}"]["boot"]["mdd_med"], 4),
+                                   p_ruin=res[f"slots{mp}"]["boot"]["p_ruin"],
+                                   skip_slot=res[f"slots{mp}"]["base"]["skip_slot"]) for mp in GRID_SLOTS}),
+        separators=(",", ":")))
+
+
 def main(argv=None):
     global ROUTING_MODE
     argv = argv if argv is not None else sys.argv[1:]
@@ -340,6 +409,9 @@ def main(argv=None):
           f"boot={BOOT_N} block={BLOCK}")
     if "--grid" in argv:
         run_grid(trades, s_norm)
+        return
+    if "--slots" in argv:
+        run_slots(trades, s_norm)
         return
     print("=" * 118)
     print("변동성 타겟팅 사이징 — risk(현행) vs vol_raw(스케일 그대로) vs vol_matched(평균 노출 정합)")

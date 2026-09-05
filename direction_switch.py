@@ -19,13 +19,14 @@ REGIMES = ["bull_altseason", "bull_btc", "bear", "sideways"]
 # 라우팅 강제 오버라이드 — decide() 결과 위에 덮어쓴다. main() 이 매 실행 regime_switch.json
 # 의 '무조건부 n>=20·mean>0' 만으로 표를 다시 만들기 때문에 JSON 을 손으로 고쳐도 다음
 # 실행에서 되돌아간다 → 예외는 반드시 여기(코드)에 둔다.
-#   (bear, fvg) FLAT — 2026-09-04 레짐 분리 게이트(validate_regime_split, report_regime_split.md):
-#     bear 진입 fvg 숏은 같은 레짐 무작위 진입 대비 엣지 −0.96%p(전 코호트 음수)이고 fvg 숏은
-#     4 레짐 전부 엣지 음수. bear 에서 fvg 롱은 엣지 +1.34%p 로 부호가 맞으나 동결 게이트
-#     (median/boot_p/OOS)는 통과하지 못했으므로 롱으로 뒤집지 않고 FLAT. 사용자 결정(2026-09-04
-#     "bear 숏 끄고"). 되돌리려면 이 항목을 지운다.
+#   이력: (bear, fvg) FLAT — 2026-09-04 사용자 결정("bear 숏 끄고"). 근거는 레짐 분리 게이트의
+#     'bear fvg 숏 엣지 −0.96%p' 였는데, 그 수치는 boot_p 베이스라인이 30표본에 묶여 있던(k=30)
+#     시절 값이다. k=n 으로 고친 재실행(routing_gate run 33955072569)에서는 top20·bear 셀이
+#     PASSED(n=356 +0.81% med +3.28% 엣지 +1.58%p bp .014 OOS 2/4), top30 bp .072, all bp .397.
+#     2026-09-05 사용자 결정("bear fvg 숏 키고")으로 오버라이드 제거 → decide() 그대로(현 표 short).
+#     유의: 그 셀의 수익은 2026 bear 단일 해(+5%)에서 나오고 2022·2024·2025 bear 는 음수다.
+#     다시 끄려면 {("bear", "fvg"): "FLAT"} 을 넣는다. test_direction_switch 가 현 상태를 고정한다.
 ROUTING_OVERRIDES = {
-    ("bear", "fvg"): "FLAT",
 }
 
 

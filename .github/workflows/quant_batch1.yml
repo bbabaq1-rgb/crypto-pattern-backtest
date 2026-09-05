@@ -40,6 +40,8 @@ jobs:
         run: python sizing_vol.py --no-fetch --routing
       - name: 1c) 위험·레버리지 격자 (실거래 라우팅 + 변동성 타겟팅)
         run: python sizing_vol.py --no-fetch --routing --grid
+      - name: 1d) 슬롯 상한(MAX_POS) 격자 (실거래 라우팅, risk 1.5%/lev 3 고정)
+        run: python sizing_vol.py --no-fetch --routing --slots
       - name: 2) Cross-sectional momentum (유니버스 80)
         run: python validate_xsec_momentum.py --no-fetch
       - name: 2b) Cross-sectional momentum (긴 이력 종목만 — 관측 창 확대)
@@ -53,6 +55,7 @@ jobs:
             sizing_vol.json
             sizing_vol_routing.json
             sizing_grid.json
+            sizing_slots.json
             _xsec_momentum.json
             _xsec_momentum_long.json
           if-no-files-found: ignore
