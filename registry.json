@@ -2370,7 +2370,45 @@
       "test_exit_1w.py",
       ".github/workflows/exit_1w.yml"
     ],
-    "status": "registered — 실행 대기"
+    "status": "REJECTED (2026-09-06 run 33986204668) — (late, A_label) C1 OOS 1/4 탈락. 실거래 반영 없음",
+    "result": {
+      "run": 33986204668,
+      "data": "80종목 1w 2021-10-02~2026-09-05, holdout>=2024-09-05(730일)",
+      "primary_late_A_label": "n=30 +11.39% med +13.59% 승률 63% boot_p .004 OOS 1/4 → C1 REJECTED | C2 holdout n=22 +15.50% OK | C3 CAGR +1.18% Calmar 0.20 OK | 청산 tp 19 / sl_close 4 / cat_stop 7 | 보유 1.6주 | vs D +9.47%p t 2.82 우위 53%",
+      "by_year_late_A_label": {
+        "2022": "-16.7% (n1)",
+        "2023": "-5.2% (n5)",
+        "2024": "+18.6% (n22)",
+        "2025": "-12.7% (n2)"
+      },
+      "oos_late_A_label": {
+        "Q1": "-3.9% (n7)",
+        "Q2": "+8.2% (n4)",
+        "Q3": "n0",
+        "Q4": "+17.7% (n19)"
+      },
+      "regime_late_A_label": {
+        "bull_btc": "+14.4% (n27)",
+        "bear": "-18.4% (n2)",
+        "bull_altseason": "-11.5% (n1)"
+      },
+      "other_arms_late": {
+        "D_close": "+6.26% 승률 50% bp .102 vs D +4.34%p t 2.32",
+        "D": "+1.92% 승률 20% bp .220 (stop 23)",
+        "A_notarget": "-6.94% 승률 10% (cat_stop 23/30)",
+        "S_base": "-7.85% (cat_stop 27/30)",
+        "N_neck": "-7.52% (cat_stop 25/30)"
+      },
+      "causal_A_label": "n=98 +2.22% med -14.95% 승률 41% bp .082, holdout n=35 -1.25% → REJECTED (cat_stop 46/98)",
+      "top30_late_A_label": "n=11 +8.25% bp .075 (참고)",
+      "interpretation": [
+        "라벨 일치 청산은 D 대비 건당 +9.5%p(t 2.8)로 크게 낫지만, 30건 중 22건이 2024 한 해에 몰려 있고 수익 전부가 그 해(+18.6%). 2022/2023/2025 는 음수 — 사용자 원칙 '단일 해 의존 셀은 켜지 않는다'에 해당. OOS 1/4 이 정확히 그것을 잡았다",
+        "익절을 빼면(A_notarget/S_base/N_neck) 30건 중 23~27건이 -20% 재해 손절 — 삼중바닥 돌파의 엣지는 '돌파 직후 +10% 한 번'이고 그 뒤 대부분 크게 무너진다. 들고 있으면 안 되는 패턴",
+        "재해 손절 -20% 자체도 7/30 에 걸려 라벨(+12.4%)보다 1%p 깎았다 — 주봉은 -20% 도 자주 찍는다",
+        "D 의 손절만 종가 판정으로 바꾼 D_close 가 +4.3%p(t 2.3) 개선 — 저가 판정이 주봉에서 과도하게 털어낸다는 독립 증거"
+      ],
+      "follow_up": "triple_bottom_1w 등재 정지 유지. 청산 규칙 변경 없음. 2024 외 표본이 쌓이기 전엔 재시험 가치 없음"
+    }
   },
   "exit_consistency_prereg_2026_09_06": {
     "test": "배포 패턴 청산 일치 점검 — 실거래 청산(방식D) vs 진입 검증 라벨 청산(A_label)",
