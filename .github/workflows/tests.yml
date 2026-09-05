@@ -48,6 +48,7 @@ jobs:
                    test_shadow_r.py \
                    test_confirm_bar.py \
                    test_late_entry.py \
+                   test_exit_1w.py \
                    test_executor_safety.py \
                    test_regime_determinism.py \
                    test_method_m.py \
