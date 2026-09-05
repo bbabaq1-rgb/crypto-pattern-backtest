@@ -2169,7 +2169,8 @@
       "revival 33955072498": "CANDIDATES 9 → CONFIRMED 3: triple_bottom_4h|ALL (배포), equal_lows_4h|bear (배포), vwap_rev_short_4h|bear (Calmar 0.06 경계값 — 미배포 유지). 1d 후보(triple_bottom/double_bottom/donchian20)는 승률과 무관하게 holdout 365일 음수로 탈락. 신규 4종 20셀 0",
       "regime_split_all 33955072518": "440셀 PASSED 31→39 / STRICT 8→10. 신규 STRICT: breakout_retest_4h|ALL, vol_awakening_4h|ALL, triple_bottom_4h|bull_btc(배포 ALL 셀의 부분집합) — 앞 둘은 CANDIDATES 에 추가해 확인 시험 후속",
       "routing_gate 33955072569": "배포 6종 통과 셀 18 → 18 동일(v2 영향 없음). 라우팅 arm 판정 불변(현행 유지)",
-      "intraday 33955072559": "15셀 판정 불변(cascade 1h PASSED, 나머지 mean 음수라 승률 조건과 무관)"
+      "intraday 33955072559": "15셀 판정 불변(cascade 1h PASSED, 나머지 mean 음수라 승률 조건과 무관)",
+      "revival 33957277149 (후속 STRICT 2셀)": "breakout_retest_4h|ALL: top30 n=4922 +0.73% 승률 44% bp .000 PASSED 이나 C2 holdout n=1528 -0.41% → REJECT. vol_awakening_4h|ALL: top30 n=4992 +1.21% 승률 44% bp .000 PASSED 이나 C3 자산곡선 CAGR -6.32% Calmar -0.24 → REJECT. 둘 다 2025~2026 음수(-0.1/-0.9, +0.2/+0.7 혼조) — 게이트 통과와 최근 1년 수익은 별개. CONFIRMED 집합 불변(3), 배포 불변(2)"
     },
     "deployed": [
       {
