@@ -46,7 +46,8 @@ R2 는 1차에서 R1 과 완전 동일했으므로 2차 실행 목록에서 뺀�
   1) 7패턴 합산 짝지음 평균차이 > 0 이고 t > 2.0 (또는 부트스트랩 p < 0.05)
   2) CAGR 우위 패턴 수 >= 4/7
   3) 짝지음 t < -2.0 인 패턴이 하나도 없음
-  4) 분기 거래 안에서 arm 승률 > 50%
+  4) 분기 거래 안에서 arm 승률 >= DIV_WIN_MIN (2026-09-05 사용자 결정 '방식R 35~45% 기준으로 재판정':
+     종전 '> 50%' → 게이트 v2 승률 문턱 gate.WIN_RATE_MIN=35% 로 통일. 3라운드 기각의 결정타였던 기준)
   5) **시간 분할** — 진입일 중앙값 기준 전반/후반 각각의 합산 짝지음 평균차이가 둘 다 > 0
 전부 만족해야 채택 후보. 하나라도 빠지면 REJECT. 2차는 같은 데이터에 대한 두 번째
 검정이므로 통과해도 1차 가설 통과보다 약한 증거로 본다(리포트에 명시).
@@ -69,7 +70,7 @@ BTC 에 뒤처지기 시작한다는 뜻이라 알트 롱에는 사실상 불리
   · 데이터 마지막 HOLDOUT_DAYS(365)일에 진입한 거래는 판정에서 제외(홀드아웃).
   · train(앞 4년)으로 기준 ①~⑤ 판정. 통과한 arm 만 홀드아웃에서 ⑥⑦ 확인.
       6) 홀드아웃 합산 짝지음 평균차이 > 0
-      7) 홀드아웃 분기 거래 arm 승률 > 50%
+      7) 홀드아웃 분기 거래 arm 승률 >= DIV_WIN_MIN (같은 문턱)
   · 7개 전부 만족해야 PASS. 홀드아웃은 한 번만 본다(재시도 없음).
 
 실행: python method_r.py   (Actions 러너 — 데이터 자동 수집, method_r.yml)
@@ -80,6 +81,7 @@ import random
 import statistics as st
 
 import detlib
+import gate
 import regime_switch as rs
 import method_t as mt                       # PATS / ensure_data / summ / paired_stats / equity_curve
 
@@ -368,6 +370,15 @@ def _pool(results, split, m):
     return out
 
 
+DIV_WIN_MIN = gate.WIN_RATE_MIN      # 분기 거래 승률 문턱 — 게이트 v2 와 같은 값(0.35). 종전 0.5 초과.
+
+
+def _div_ok(dv):
+    """분기 거래(D 와 결과가 다른 거래) 중 arm 이 이긴 비율 >= DIV_WIN_MIN. 분기 0건이면 판정 불가(False)."""
+    tot = dv.get("arm_wins", 0) + dv.get("arm_losses", 0)
+    return dv.get("n", 0) > 0 and tot > 0 and dv["arm_wins"] / tot >= DIV_WIN_MIN
+
+
 def verdict(results, arm):
     """train 으로 ①~⑤, 통과 시 holdout 으로 ⑥⑦. 7개 전부 만족해야 PASS."""
     tr = results["_pooled"]["train"].get(arm)
@@ -381,12 +392,12 @@ def verdict(results, arm):
     c2 = cw >= 4
     c3 = all(results[lb][arm]["train"]["paired_vs_D"]["t"] >= -2.0 for lb in pats)
     dv = tr["divergence"]
-    c4 = dv["n"] > 0 and dv["arm_wins"] > dv["arm_losses"]
+    c4 = _div_ok(dv)
     hv = tr.get("halves", {})
     c5 = hv.get("d1", 0) > 0 and hv.get("d2", 0) > 0
     train_pass = bool(c1 and c2 and c3 and c4 and c5)
     c6 = bool(ho) and ho["mean_diff"] > 0
-    c7 = bool(ho) and ho["divergence"]["arm_wins"] > ho["divergence"]["arm_losses"]
+    c7 = bool(ho) and _div_ok(ho["divergence"])
     return dict(pass_=bool(train_pass and c6 and c7), train_pass=train_pass,
                 c1_pooled_sig=c1, c2_cagr_wins=cw, c3_no_pattern_hurt=c3,
                 c4_divergence_winrate=c4, c5_halves_both_pos=c5,

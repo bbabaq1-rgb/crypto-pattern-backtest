@@ -42,7 +42,7 @@ import sizing as sz
 
 STOP = mt.STOP_LOSS_PCT            # 0.08 — 방식D 손절
 START_EQ = 1000.0
-MAX_POS = 12
+MAX_POS = 16     # 실거래 MAX_LIVE_POS 와 동일하게 유지 (2026-09-05 12→16). 2026-09-02 연구는 12 로 돌았다.
 RISK_GRID = [0.005, 0.01, 0.015, 0.02, 0.03, 0.04]
 LEV_GRID = [2, 3, 5]
 BOOT_N = 300

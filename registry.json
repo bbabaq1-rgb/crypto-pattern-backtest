@@ -2234,5 +2234,20 @@
     "design": "sizing_vol.py --routing --slots: MAX_POS {8,12,16,20,24}, arm vol_matched, risk 1.5%/lev 3 고정, 실거래 라우팅 복제(bear fvg 숏 ON 포함), 블록부트 300회",
     "criteria": "동결(격자와 동일): boot MDD중앙>=-35% AND P(ruin)<5% 중 Calmar 최대. 부가: 슬롯 스킵 실제 감소 / 증거금 스킵 증가 여부. 채택은 사용자 결정(위험 수준 항목)",
     "status": "registered — quant_batch1 워크플로 실행 대기"
+  },
+  "max_pos_16_2026_09_05": {
+    "date": "2026-09-05",
+    "decision": "사용자: '맥스포스 16으로 올려줘'",
+    "from": 12,
+    "to": 16,
+    "evidence": "sizing_vol --routing --slots run 33961480251 (risk 1.5%/lev 3/vol_matched): 12 → 진입 742 슬롯스킵 462 증거금스킵 125 bootCAGR +105.6% MDD중앙 -58.4% Calmar 1.84 | 16 → 784 / 47 / 498 / +111.2% / -60.4% / 1.85. 동결 기준(MDD중앙>=-35%) 통과 셀 없음 — 위험 수준 항목이라 사용자 결정",
+    "caveat": "equity $400 에서 16슬롯 증거금 $400(lev3) — 계좌가 $400 밑이면 슬롯보다 증거금이 먼저 막는다(격자 증거금 스킵 125→498). 동시 노출 상한 12→16 배."
+  },
+  "method_r_rejudge_2026_09_05": {
+    "date": "2026-09-05",
+    "decision": "사용자: '방식R 35~45% 기준으로 재판정'",
+    "change": "method_r 기준 ④·⑦ 분기 거래 승률 '>50%' → '>=35%'(gate.WIN_RATE_MIN, DIV_WIN_MIN). 나머지 5기준 불변. method_r.yml 재실행",
+    "prior": "2026-09-03 3라운드 REJECT — 결정타가 ④(RL 46%/R1 44%). 단 RL 은 ②CAGR우위 3/7 도 탈락, 홀드아웃 분기 6건 0승이라 ⑦ 도 탈락 예상",
+    "status": "registered — 결과 판독 후 기록"
   }
 }

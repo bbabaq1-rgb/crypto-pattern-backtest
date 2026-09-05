@@ -101,6 +101,10 @@ check("8% 손절에서 청산 거리가 손절폭의 2배 이상 (LIQ_SAFETY)",
       (1 / sz.liq_safe_leverage(0.08) - sz.MMR) >= sz.LIQ_SAFETY * 0.08)
 check("lev 3 에서 12슬롯 증거금이 equity $400 안에 들어온다 (lev 2 는 $450 로 초과했다)",
       sz.risk_based_size(400, 1e9, 0.08)["margin_usd"] * 12 <= 400)
+import paper_executor as _pe, sizing_study as _ss
+check("MAX_LIVE_POS 16 (사용자 결정 2026-09-05) — 연구 상수 sizing_study.MAX_POS 와 동일", _pe.MAX_LIVE_POS == 16 == _ss.MAX_POS)
+check("lev 3 에서 16슬롯 증거금이 equity $400 에 정확히 걸린다 ($25 x 16) — 그 아래 계좌면 증거금이 먼저 막는다",
+      abs(sz.risk_based_size(400, 1e9, 0.08)["margin_usd"] * 16 - 400) < 1e-6)
 
 
 # ── 엔진 연결 (소스 단언) ────────────────────────────────────────────────────
