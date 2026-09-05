@@ -49,7 +49,7 @@ def collect(mod, dfrom=None, dto=None):
 
 def gv(rets):
     if not rets: return "표본없음"
-    return gate.decide(len(rets), st.mean(rets), st.median(rets), gate.count_trials())[0]
+    return gate.decide(len(rets), st.mean(rets), st.median(rets), gate.count_trials(), rets=rets)[0]
 
 
 def main():

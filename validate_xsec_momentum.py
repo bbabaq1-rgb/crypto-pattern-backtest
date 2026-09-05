@@ -32,6 +32,7 @@ validate_xsec_momentum.py — 횡단면 모멘텀 (2026-09-04 사전 등록, 사
   기본 실행이 2024~2026(2.4년)만 덮는다 — 1차 실행에서 확인된 한계이고, 긴 이력 판을 병기한다.
 """
 import json
+import gate as gt   # 이 모듈의 로컬 함수 gate() 와 이름 충돌 방지
 import random
 import statistics as st
 import sys
@@ -157,11 +158,11 @@ def gate(label, sigs, pool, regmap, verbose=True):
             qm = st.mean(qr) if qr else 0.0
             oos.append(dict(q=q + 1, n=len(qr), mean=qm, ok=len(qr) >= 5 and qm > 0))
     oos_pos = sum(1 for o in oos if o["ok"])
-    ok = n >= 20 and mean > 0 and med > 0 and boot_p < 0.05 and oos_pos >= 2
+    ok = n >= 20 and mean > 0 and gt.dist_ok(rets) and boot_p < 0.05 and oos_pos >= 2
     fails = []
     if n < 20: fails.append("n<20")
     if mean <= 0: fails.append("mean<=0")
-    if med <= 0: fails.append("median<=0")
+    if not gt.dist_ok(rets): fails.append(gt.dist_reason(rets))
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if n >= 20 and oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
     by_year = {}

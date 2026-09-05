@@ -7,6 +7,7 @@ validate_vol_awakening.py — 거래량 각성(슈팅 초동) 4h 디텍터 동�
 발견-검증 중첩은 부분적(마지막 OOS 구간만) — 리포트에 명시.
 """
 import sys
+import gate
 import os
 import glob
 import json
@@ -112,11 +113,11 @@ def main():
         oos_pos += ok
         print(f"  Q{i} ({d0[:7]}~{d1[:7]}): n={len(rr)} mean={m*100:+.2f}% {'O' if ok else 'X'}")
 
-    ok_all = n >= 20 and mean > 0 and med > 0 and boot_p < 0.05 and oos_pos >= 2
+    ok_all = n >= 20 and mean > 0 and gate.dist_ok(rets) and boot_p < 0.05 and oos_pos >= 2
     fails = []
     if n < 20: fails.append("n<20")
     if mean <= 0: fails.append("mean<=0")
-    if med <= 0: fails.append("median<=0")
+    if not gate.dist_ok(rets): fails.append(gate.dist_reason(rets))
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
     verdict = "PASSED" if ok_all else "REJECTED"

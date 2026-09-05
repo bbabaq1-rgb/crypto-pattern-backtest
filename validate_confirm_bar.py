@@ -7,11 +7,12 @@ validate_confirm_bar.py — 룩어헤드 제거 후 재검증 (2026-09-03).
   triple_bottom @1w              — detector_triple_bottom (1d 1800일 리샘플)
 각 셀을 **new(인과, 실거래 발화 가능)** 와 **old(종전, 룩어헤드)** 두 판으로 돌려
 등재 수치가 얼마나 부풀려 있었는지와 인과 판이 게이트를 넘는지를 같이 본다.
-게이트 동결: n>=20, mean>0, median>0, boot_p<0.05, OOS 4분위 양구간>=2(n>=5).
+게이트 v2(2026-09-05): n>=20, mean>0, 승률>=35%(gate.dist_ok), boot_p<0.05, OOS 4분위 양구간>=2(n>=5).
 복귀 규칙: new 가 PASSED 인 셀만 등재 복귀 후보 — 사용자 결정.
 출력: _confirm_bar.json + 마지막 줄 RESULT_JSON.
 """
 import json
+import gate as gt   # 이 모듈의 로컬 함수 gate() 와 이름 충돌 방지
 import random
 import statistics
 import sys
@@ -110,11 +111,11 @@ def gate(label, sigs, syms, tf):
             qm = statistics.mean(qr) if qr else 0.0
             oos.append(dict(q=q + 1, n=len(qr), mean=qm, ok=len(qr) >= 5 and qm > 0))
     oos_pos = sum(1 for o in oos if o["ok"])
-    ok = n >= 20 and mean > 0 and med > 0 and boot_p < 0.05 and oos_pos >= 2
+    ok = n >= 20 and mean > 0 and gt.dist_ok(rets) and boot_p < 0.05 and oos_pos >= 2
     fails = []
     if n < 20: fails.append("n<20")
     if mean <= 0: fails.append("mean<=0")
-    if med <= 0: fails.append("median<=0")
+    if not gt.dist_ok(rets): fails.append(gt.dist_reason(rets))
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if n >= 20 and oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
     rec = dict(label=label, n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p,

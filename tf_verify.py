@@ -58,7 +58,7 @@ def gate_of(rets):
     if n == 0:
         return "표본없음", 0, 0.0, 0.0
     m, md = st.mean(rets), st.median(rets)
-    v, _ = gate.decide(n, m, md, gate.count_trials())
+    v, _ = gate.decide(n, m, md, gate.count_trials(), rets=rets)
     return v, n, m, md
 
 
