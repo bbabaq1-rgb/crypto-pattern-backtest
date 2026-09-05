@@ -710,7 +710,8 @@
   · **사용자 질문 "1h 빼고 전부 D 인데 진입 검증 프레임에 맞게 다 검증해야 하지 않나"** → 맞다. 방식D 로 실거래 프레임
     확인을 거친 것은 engulfing/fvg(method_d) 와 9/5 배포 4h 3종(revival C1~C3 가 방식D) 뿐. **inverted_hammer/marubozu(1d)·
     three_soldiers_4h 는 ±10%/20봉 라벨로만 통과하고 D 로 실거래 중** — validate_exit_consistency.py 로 D vs 라벨 일치 청산을
-    짝지음·실거래 프레임에서 비교(아래 항목).
+    짝지음·실거래 프레임에서 비교. 판정 규칙 사전 등록: D_OK→유지 / ¬D∧A∧짝지음 우위(t>2)→청산 전환 후보 / ¬D∧¬A→패턴
+    재판정 후보 — 전부 사용자 결정, 자율 반영 없음. 참고로 4h 신규 3종도 같은 표에(판정 아님). exit_consistency.yml.
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
   시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
   같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도

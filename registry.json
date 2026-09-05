@@ -2371,5 +2371,39 @@
       ".github/workflows/exit_1w.yml"
     ],
     "status": "registered — 실행 대기"
+  },
+  "exit_consistency_prereg_2026_09_06": {
+    "test": "배포 패턴 청산 일치 점검 — 실거래 청산(방식D) vs 진입 검증 라벨 청산(A_label)",
+    "requested_by": "사용자 2026-09-06 (\"1h 빼고 전부 청산 규칙이 D 인데 진입 규칙에 맞게 검증해봐야 하지 않나\")",
+    "judged": {
+      "inverted_hammer": "1d majors 전 레짐",
+      "marubozu": "1d majors 전 레짐",
+      "three_soldiers_4h": "4h all bull_btc/bull_altseason"
+    },
+    "reference": [
+      "triple_bottom_4h",
+      "equal_lows_4h",
+      "vol_awakening_4h"
+    ],
+    "already_D_validated": {
+      "engulfing/fvg": "method_d 2026-07",
+      "4h 신규 3종": "validate_revival C1~C3 2026-09-05"
+    },
+    "arms": {
+      "D": "현행(method_s.outcome)",
+      "A_label": "종가 ±10%/20봉 + 재해 −20%(저가)",
+      "A_nocat": "진단, 순수 라벨"
+    },
+    "criteria_frozen": {
+      "OK": "C1 같은 청산·코호트·레짐 k=n 베이스라인 게이트 v2 ∧ C2 holdout 365일 n>=10 & mean>0 ∧ C3 자산곡선 CAGR>0 & Calmar>0",
+      "judge": "D_OK→KEEP_D / ¬D∧A∧짝지음(A−D)>0,t>2→SWITCH_CANDIDATE_A_label(사용자 결정) / ¬D∧A→OBSERVE / ¬D∧¬A→PATTERN_REJUDGE_CANDIDATE(사용자 결정)",
+      "autonomy": "결과는 보고만. 실거래 청산 변경·패턴 정지는 사용자 결정"
+    },
+    "files": [
+      "validate_exit_consistency.py",
+      "test_exit_consistency.py",
+      ".github/workflows/exit_consistency.yml"
+    ],
+    "status": "registered — 실행 대기"
   }
 }

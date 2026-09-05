@@ -296,3 +296,4 @@
 2026-09-05T12:47:00+00:00,triple_bottom_late_entry,80@1w,"{""stage1_late"": ""PASSED n=30 +12.42% bp.004"", ""stage2_D"": ""REJECTED win 20% med -8.20% bp.298"", ""holdout_n"": 1, ""run"": 33966797748}",30,0.67,0.1242,0.1374,INCONCLUSIVE (D exit kills it),
 2026-09-05T13:28:00+00:00,harmonic_causal_k_eq_n,7cells@4h/1h/1w,"{""baseline"": ""k=n"", ""harmonic_6"": ""all REJECTED bp .20-.71"", ""triple_bottom_1w"": ""stage1 PASSED bp.038 but D-frame win 13% REJECTED"", ""run"": 33967559035}",7,,,,REJECTED 6/7 (no revival),
 2026-09-06T00:20:00+00:00,triple_bottom_exit_1w_prereg,80@1w,"{""primary"": ""(late, A_label)"", ""A_label"": ""close +-10%/20w + cat -20%"", ""holdout_days"": 730, ""status"": ""registered""}",,,,,PREREGISTERED,
+2026-09-06T00:40:00+00:00,exit_consistency_prereg,ih/marubozu/three_soldiers_4h,"{""arms"": ""D vs A_label vs A_nocat"", ""judge"": ""KEEP_D / SWITCH_CANDIDATE / OBSERVE / REJUDGE"", ""status"": ""registered""}",,,,,PREREGISTERED,
