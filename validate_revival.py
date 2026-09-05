@@ -87,6 +87,10 @@ CANDIDATES = [
     ("vwap_rev_short_4h",  "bear"),
     ("fvg_short_1h",       "bull_altseason"),
     ("three_soldiers_4h",  "bull_btc"),      # 배포 중 — 레짐 베이스라인 재판정(종전 bp .165 → 수정 후 .003)
+    # 2026-09-05 게이트 v2 재실행(regime_split_all run 33955072518)에서 새로 STRICT 가 된 셀 — 확인 시험 대상 추가.
+    # (triple_bottom_4h|bull_btc 도 STRICT 이지만 배포된 ALL 셀의 부분집합이라 별도 확인 불필요)
+    ("breakout_retest_4h", "ALL"),
+    ("vol_awakening_4h",   "ALL"),
 ]
 NEW_PATTERNS = [
     ("ibs_low_1d",      "1d", "detector_ibs_low",      "long"),
