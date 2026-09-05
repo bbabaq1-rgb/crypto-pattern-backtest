@@ -91,6 +91,25 @@ CANDIDATES = [
     # (triple_bottom_4h|bull_btc 도 STRICT 이지만 배포된 ALL 셀의 부분집합이라 별도 확인 불필요)
     ("breakout_retest_4h", "ALL"),
     ("vol_awakening_4h",   "ALL"),
+    # 2026-09-05 선별 기준 완화(사용자 질문 "내 제한 때문에 못 한 게 뭐냐"): STRICT(두 코호트·bp<.01) 가 아니라
+    # **한 코호트라도 v2 PASSED** 인 1d/4h 셀 전부를 확인 시험에 올린다. C1 이 top30 기준으로 완화된 것과 맞춘다.
+    # (regime_split_all run 33955072518 PASSED 39 중 1d/4h · 이미 판정된 것 · 배포 ALL 셀의 부분집합 제외. 1h 는 C3 를
+    #  계산할 수 없어 제외 — 별도 프레임 필요)
+    ("inverse_hs_1d",        "bull_btc"),
+    ("inverse_hs_1d",        "ALL"),
+    ("order_block_1d",       "bull_btc"),
+    ("bos_choch_1d",         "bull_btc"),
+    ("order_block_short_1d", "bull_altseason"),
+    ("triple_bottom_1d",     "bear"),
+    ("triple_bottom_1d",     "ALL"),
+    ("marubozu_short_1d",    "bull_btc"),
+    ("equal_lows_4h",        "ALL"),
+    ("vwap_rev_long_4h",     "bull_altseason"),
+    ("vwap_rev_short_4h",    "bull_altseason"),
+    ("vwap_rev_short_4h",    "ALL"),
+    ("vol_awakening_4h",     "bull_altseason"),
+    ("vol_awakening_4h",     "bear"),
+    ("three_soldiers_4h",    "ALL"),           # 배포는 bull 전용 — 전 레짐 확대 여부
 ]
 NEW_PATTERNS = [
     ("ibs_low_1d",      "1d", "detector_ibs_low",      "long"),
