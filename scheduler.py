@@ -137,6 +137,23 @@ def _volume_ranked():
     return _VOL_RANKED
 
 
+# 채택 패턴의 레짐 게이트 (2026-09-05). universe.json adopted 항목의 선택 필드 `regimes`:
+#   없음        → 종전 동작 그대로. 1d 는 게이트 없음(ih/marubozu), 4h 는 전역 bull-only(three_soldiers).
+#   "all"       → 전 레짐 허용 (예: 레짐 무관으로 검증된 4h 패턴)
+#   [레짐, ...] → 그 레짐에서만 (예: bull_btc 셀만 통과한 패턴)
+# 검증이 레짐 셀 단위로 통과한 패턴을 그 셀에서만 켜기 위한 것이다. 기존 항목은 필드가 없어 불변.
+ADOPTED4H_REGIME = {"bull_btc": "long", "bull_altseason": "long"}
+
+
+def adopted_regime_ok(ap, regime, tf):
+    rg = ap.get("regimes")
+    if rg is None:
+        return True if tf == "1d" else (regime in ADOPTED4H_REGIME)
+    if rg == "all":
+        return True
+    return regime in rg
+
+
 def _syms_for_pattern(pattern):
     """패턴별 탐지 대상 심볼 목록. 미지정 패턴은 전체 유니버스."""
     rule = PATTERN_UNIVERSE.get(pattern, "all")
@@ -627,6 +644,9 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
         adopted = json.load(open("universe.json", encoding="utf-8")).get("adopted_patterns", [])
     for ap in (adopted if slow_tick else []):
         ap_tf = ap.get("tf", "1d")
+        if not adopted_regime_ok(ap, regime, ap_tf):
+            print(f"    [adopted] {ap['pattern']} 레짐={regime} -> {ap.get('regimes')} 아님, 스킵")
+            continue
         mod   = importlib.import_module(ap["module"])
         if ap_tf == "1d":
             # 패턴별 차등 유니버스(inverted_hammer/marubozu → 메이저 한정)
@@ -659,18 +679,21 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                                     tf_confirmed=tf_conf, tf=ap_tf,
                                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
 
-    # 채택된 4h 전용 패턴 (three_soldiers_4h 등) — bull 레짐에서만 롱
-    ADOPTED4H_REGIME = {"bull_btc": "long", "bull_altseason": "long"}
-    adopted4h_dir = ADOPTED4H_REGIME.get(regime)
+    # 채택된 4h 전용 패턴 (three_soldiers_4h 등). 항목에 `regimes` 가 없으면 종전 전역 규칙
+    # (bull_btc/bull_altseason 에서만) — adopted_regime_ok 참조. 방향은 항목의 direction.
     adopted_4h = json.load(open("universe.json", encoding="utf-8")).get(
         "adopted_4h_patterns", []) if os.path.exists("universe.json") else []
-    if slow_tick and adopted4h_dir and adopted_4h:
+    if slow_tick and adopted_4h:
         h_syms = _harmonic_symbols()
         for ap in adopted_4h:
+            if not adopted_regime_ok(ap, regime, "4h"):
+                print(f"    [4h 패턴] {ap['pattern']} 레짐={regime} -> 허용 레짐 아님, 스킵")
+                continue
             try:
                 mod4 = importlib.import_module(ap["module"])
             except ImportError:
                 continue
+            dd4 = ap.get("direction", "long")
             for sym in h_syms:
                 try:
                     rows4h = mod4.load_ohlcv(sym, "4h")
@@ -680,17 +703,15 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 if last4 not in set(mod4.detect(rows4h)):
                     continue
                 entry4  = rows4h[last4]["c"]
-                stop4   = round(entry4 * (1 - STOP), 4)
+                stop4   = round(entry4 * (1 - STOP), 4) if dd4 == "long" else round(entry4 * (1 + STOP), 4)
                 signals.append(dict(
-                    pattern=ap["pattern"], direction=adopted4h_dir, symbol=sym, tf="4h",
+                    pattern=ap["pattern"], direction=dd4, symbol=sym, tf="4h",
                     date=rows4h[last4]["date"], ts=rows4h[last4].get("ts"),
                     pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
                     entry=round(entry4, 4), stop=stop4,
                     tf_confirmed=True,
                     take_profit="레짐전환 or 최대30봉 시가청산"))
-    elif adopted_4h and slow_tick:
-        print(f"    [4h 패턴] 레짐={regime} -> bull 아님, 4h 전용 패턴 스킵")
 
     # 채택된 1h 전용 패턴 (bat_1h / butterfly_1h 등) — 레짐 무관 롱 (OOS 4/4 전구간 양수)
     adopted_1h = json.load(open("universe.json", encoding="utf-8")).get(
