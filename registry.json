@@ -2442,6 +2442,39 @@
       "test_exit_consistency.py",
       ".github/workflows/exit_consistency.yml"
     ],
-    "status": "registered — 실행 대기"
+    "status": "DONE (2026-09-06 run 33985949280) — 판정 3종 전부 PATTERN_REJUDGE_CANDIDATE(사용자 결정), 참고 3종 D_OK. 실거래 변경 없음",
+    "result": {
+      "run": 33985949280,
+      "data": "1d 2021-10~2026-09 / 4h 2023-09~2026-09, holdout>=2025-09-05",
+      "inverted_hammer": {
+        "D": "n=104 -0.63% 승률 33% bp .692 NOT OK",
+        "A_label": "n=105 +0.79% 승률 49% bp .181 NOT OK (holdout n=27 +2.6%, Calmar 0.26)",
+        "paired": "A−D +1.28%p t 0.99 우위 47%",
+        "verdict": "PATTERN_REJUDGE_CANDIDATE — 두 청산 모두 무작위 진입과 구분 안 됨. 가장 약한 배포 패턴"
+      },
+      "marubozu": {
+        "D": "n=19 +9.88% med -8.20% 승률 26% bp .047 (n<20, 손절 11/19) NOT OK",
+        "A_label": "n=19 -1.59% bp .653 NOT OK",
+        "paired": "A−D -11.47%p t -1.18",
+        "verdict": "PATTERN_REJUDGE_CANDIDATE — 메이저 6종목 5년에 19건. 표본 자체가 판정 불가 수준, D 평균은 소수 대박(복권형)"
+      },
+      "three_soldiers_4h": {
+        "D": "n=229 +2.27% med -0.71% 승률 47% bp .003 OOS 3/4 → C1 PASSED, C3 CAGR +71% Calmar 3.99 OK, **C2 holdout n=28 -1.48% 탈락**(2025-09~ bear 지배 해의 bull 레짐 거래 28건)",
+        "A_label": "n=229 +0.82% 승률 56% bp .057 NOT OK",
+        "paired": "A−D -1.44%p t -1.88 (D 우위)",
+        "verdict": "PATTERN_REJUDGE_CANDIDATE(규칙상) — 단 탈락 항목은 holdout 하나이고 D 가 A 보다 낫다. 레짐 정합 베이스라인(k=n, bull 만)에서 bp .003 은 9/4 '레짐 베이스라인 bp .165' 우려를 해소. 정지보다 관찰 권고"
+      },
+      "reference": {
+        "triple_bottom_4h": "D OK(Calmar 2.79) / A OK(0.79) / A−D -1.10%p t -2.46 → D 유지 근거 강화",
+        "equal_lows_4h": "D OK(0.50) / A NOT OK(bp .062, Calmar -0.26) / A−D -0.41%p t -2.78",
+        "vol_awakening_4h": "D OK(0.99) / A OK(2.09) / A−D -0.34%p t -1.98"
+      },
+      "interpretation": [
+        "4h 배포 3종 전부 D 가 A_label 보다 낫다(짝지음 t -2.0~-2.8). 라벨 일치 청산이 항상 옳은 게 아니다 — 1w 에서 D 가 무너진 건 주봉 저가 폭 때문이고 4h/1d 에서는 D 의 레짐 전환 청산이 값을 낸다",
+        "방식D 미검증 3종 중 inverted_hammer 가 가장 약함(D 승률 33%, 평균 음수). marubozu 는 표본 19건으로 판정 불가. three_soldiers_4h 는 D 프레임 C1·C3 강하게 통과, holdout 한 해(bear)만 탈락",
+        "cohort majors 가 6 종목으로 잡힘(7 중 1 종목 1d 데이터 누락) — 판정에 영향 없음, 기록"
+      ],
+      "follow_up": "사용자 결정: inverted_hammer 정지 여부 / marubozu 정지 여부(표본 부족) / three_soldiers_4h 유지·관찰. 청산 규칙은 전 패턴 D 유지가 맞다"
+    }
   }
 }
