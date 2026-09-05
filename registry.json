@@ -2131,5 +2131,26 @@
   "design_defect": "C2 는 holdout n>=10 만 요구해 train 이 거의 비어도 통과 — vwap_rev_short_4h 가 그 사례. 다음 설계: train 자체 게이트 통과 또는 train n >= holdout n/2. 사후 변경 금지로 이번 판정엔 미적용(적용해도 '미반영' 동일)",
   "deploy_path": "scheduler.adopted_regime_ok — adopted 항목별 regimes 필드(없음=종전, 'all', [레짐]). 현 배포 3항목 동작 불변(test_adopted_regimes)",
   "files": "validate_revival.py / test_revival.py(46) / test_adopted_regimes.py(14) / revival.yml / report_revival.md"
+ },
+ "beta_overlay_2026_09_05": {
+  "date": "2026-09-05",
+  "run": "33953200171",
+  "verdict": "REJECT — B_skip 6/7, B_size 5/7, 둘 다 기준 ① 탈락",
+  "criterion_1": "걸러진 집합(롱·beta 하위 3분위, train n=991) 방식D mean +2.15% vs 나머지 +4.43% (boot_p .020) — 음수 요구 미충족. 덜 벌지만 번다",
+  "why_2_to_7_passed": "D 기준선이 7패턴 무조건부 × 80종목 → CAGR −47% MDD −92% 스킵 7,141건. 슬롯 범람 프레임에서 거래를 빼면 뭐든 좋아짐 — beta 정보가 아닌 아티팩트",
+  "design_flaw": "오버레이 시험을 실거래 라우팅 복제 프레임에서 돌려야 했다(sizing_vol ROUTING_MODE 교훈 반복). 다음부터 필수",
+  "per_pattern_low_tercile": {
+   "engulfing": "+3.34% vs +3.19% (효과 없음)",
+   "fvg": "+3.75% vs +4.74%",
+   "marubozu": "+3.47% vs +3.85%",
+   "inverted_hammer": "-1.17% vs +4.07%",
+   "triple_bottom": "-2.91% vs +1.44%"
+  },
+  "interpretation": "beta_slope 는 필터가 아니라 우선순위 정보. IH 한정은 사후 선택 셀 — 사전 등록+반증 3종 없이 추격 금지",
+  "followups": [
+   "beta_slope 슬롯 우선순위 사전 등록(선결: MAX_POS 스킵 빈도 실측)",
+   "오버레이 시험 라우팅 복제 프레임"
+  ],
+  "files": "method_b.py / test_method_b.py(35) / method_b.yml / report_beta_overlay.md"
  }
 }

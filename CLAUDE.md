@@ -345,6 +345,16 @@
     잔류. 신규 종목 1d/4h/1h CSV 는 다음 oncefull 에서 처음 수집(900/130/40일) — 4h/1h 블록은
     data/*_4h.csv 존재 종목을 돌므로 자동 편입. **4단계(캐스케이드 1h 재검증)는 미실행** — 새 종목
     1h 365일 수집 뒤 별도. 분기마다 universe_okx_scan 재실행으로 갱신.
+- **beta_slope 오버레이 2단계(method_b) 기각 (2026-09-05)**: report_beta_overlay.md. B_skip(롱·하위 3분위 스킵)
+  6/7, B_size(×0.5) 5/7 — 둘 다 **기준 ①(걸러진 거래가 음수)** 에서 탈락. 걸러진 n=991 의 방식D 수익
+  **+2.15%**(나머지 +4.43%, p .02) — 덜 벌지만 번다. ②~⑦ 통과는 **D 기준선이 CAGR −47%/MDD −92%(7패턴
+  무조건부 × 80종목, 스킵 7,141건)** 인 슬롯 범람 프레임에서 '거래를 빼면 뭐든 좋아지는' 아티팩트.
+  · **설계 결함**: 오버레이 시험을 실거래 라우팅 복제 프레임(sizing_vol ROUTING_MODE)에서 돌려야 했다.
+    sizing_vol 이 이미 배운 교훈 반복. 다음 오버레이 시험부터 필수.
+  · beta_slope 는 필터가 아니라 **우선순위** 정보(더 좋은 vs 덜 좋은). 패턴별로 전혀 달라 engulfing 은 효과
+    0, inverted_hammer·triple_bottom 은 하위 음수(−1.17/−2.91%) — **IH 한정은 사후 선택 셀**, validate_ih_exit
+    교훈대로 사전 등록+반증 3종 없이는 추격 금지. 레짐 축 연구 종료.
+  · method_x.equity_curve 에 선택 8번째 원소 size_mult(기본 1.0, 7-튜플 불변) 추가.
 - **살릴 후보 확인 시험 + bear fvg 롱 + 신규 진입 후보 4종 + beta_slope 독립성 (2026-09-05, 사용자 지시
   "살릴 만한 것 / 스스로 찾아서 실거래에서 통과될 것")**: report_revival.md. **실거래 반영 없음.**
   · **선별 → 확인 2단계**: 베이스라인 수정 커밋이 validate_regime_split_all 을 자동 재실행(run 33947910532)
@@ -681,8 +691,9 @@
       고변동 신호부터 주문이 안 나간다(현 $400, 여유 $45). 스킵 로그에 필요 equity 가 찍힌다
 - [x] bear fvg 롱 단일 셀 시험 (2026-09-05) — **기각**. 셀은 +1.63% 지만 포트폴리오 악화(holdout −43→−66%)
 - [x] 종전 boot_p 재해석 (2026-09-05) — `_all` 재실행 PASSED 0→31 / STRICT 0→8. STRICT 8 확인 시험 → 7 기각 1 경계
-- [ ] **method_b — beta_slope 2단계 사전 등록** (2026-09-05 신규, 다음 작업) — avg_cap 과 독립 확인됨.
-      같은 신호 짝지음: D / D+beta 하위 3분위 진입 스킵 / D+beta 3분위 사이징(축소만). method_r 7기준
+- [x] method_b — beta_slope 2단계 (2026-09-05) — **기각**. 걸러진 거래가 +2.15% 로 양수(필터 부적합). 프레임 결함 기록
+- [ ] **beta_slope 슬롯 우선순위 사전 등록** — 슬롯이 꽉 찼을 때 beta 상위 신호 우선. 선결: 실거래 MAX_POS 스킵 빈도 실측
+- [ ] **오버레이 시험은 라우팅 복제 프레임으로** — method_b 가 무조건부 프레임(D CAGR −47%)에서 슬롯 아티팩트를 냈다
 - [ ] **three_soldiers_4h top30 축소 사전 등록** (2026-09-05 신규) — 실거래 프레임 재판정에서 top30 PASSED /
       all REJECTED(med −0.49%). 실거래는 all 코호트에서 돎. 짝지음으로 코호트 축소 효과 측정
 - [ ] **확인 시험 C2 보강** — train 자체 게이트 통과 또는 train n ≥ holdout n/2 요구. vwap_rev_short_4h 가
@@ -783,6 +794,7 @@
 - method_s.py: 레짐 청산 소거 시험 (D vs 제거/보유상한/셔플 대조군). `--universe` 로 80종목 재확인. report_regime_exit_ablation.md
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
+- method_b.py: beta_slope 오버레이(B_skip/B_size) 짝지음 시험 — 기각 기록용. report_beta_overlay.md
 - validate_revival.py: 선별(validate_regime_split_all STRICT)을 통과한 후보를 **실거래 프레임**(방식D/ATR·레짐
   조건부·같은 청산 규칙 베이스라인·실거래 사이징)으로 확인. `--new` 는 신규 디텍터 전 셀. report_revival.md
 - detector_ibs_low / rsi2_low / down_streak3 / donchian20.py: 2026-09-05 신규 후보 4종 — **전부 rejected**, 미등재
