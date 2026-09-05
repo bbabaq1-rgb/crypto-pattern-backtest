@@ -2257,5 +2257,67 @@
       "RA": "train ① +0.272%p bp .047 / ② 3/7 False / ④ 71/98=42% True / ⑤ True → 탈락 | holdout ⑥ -0.000%p False / ⑦ 1/4 False",
       "reading": "승률 문턱을 35% 로 내리면 ④는 통과하지만 ②(자산곡선 CAGR 우위 3/7)와 홀드아웃(⑥⑦ — 마지막 1년 bear 에서 RL 이 D 보다 유의하게 나쁨, 분기 1승 11패)이 남는다. 승률이 문제가 아니었다. 실거래 청산 규칙 변경 없음(방식D 유지)"
     }
+  },
+  "late_entry_prereg_2026_09_05": {
+    "test": "triple_bottom_1w 지각 진입(L3+3봉) 사전 등록 시험",
+    "requested_by": "사용자 2026-09-05 (\"triple_bottom 1w 지각 진입(L3+3봉) 사전 등록해서 돌려줘\")",
+    "hypothesis": "9/3 룩어헤드 점검에서 엣지 전부를 담당했던 L3 미확정 돌파 38건(평균 약 +20%)을, 실거래가 처음 알 수 있는 봉인 L3+3(스윙 저점 확정 봉)에 뒤늦게 진입해도 엣지의 상당 부분이 남는다",
+    "arms": {
+      "late": "주 판정. 미확정 돌파 셋업만, 신호=L3+3, 그 봉 종가>넥라인. 인과(테스트 고정)",
+      "late_nohold": "진단. 종가 조건 없음",
+      "causal": "참고. 9/3 REJECT 집합 재현",
+      "early_ceiling": "참고. 같은 셋업을 돌파봉에서(실거래 불가 상한)",
+      "union_live": "진단. late ∪ causal"
+    },
+    "criteria_frozen": {
+      "stage1": "동결 라벨 ±10%/20봉 · 게이트 v2(n>=20, mean>0, 승률>=35%, boot_p<0.05 k=n 1w 무작위 진입 베이스라인 1000회 시드42, OOS 4분위 양구간>=2)",
+      "stage2_C1": "실거래 코호트 all(1w 스케줄러는 유니버스 전체)에서 방식D(−8%/레짐전환/30봉) 청산·k=n 베이스라인 게이트 v2 PASSED",
+      "stage2_C2": "holdout 마지막 365일 n>=10 이고 mean>0. n<10 → INCONCLUSIVE(배포 불가·기각 아님). 데이터 끝 미결 거래는 마지막 봉 시가 평가(truncated 표시)",
+      "stage2_C3": "train 자산곡선(실거래 사이징 risk 1.5%/lev3/vol targeting/MAX_POS16) CAGR>0 이고 Calmar>0",
+      "final": "1단계 PASSED ∧ C1 ∧ C2 ∧ C3 → PASSED(자율 반영: adopted_patterns 1w 항목 mode=late). 1단계 PASSED·C2 표본부족 → INCONCLUSIVE. 그 외 REJECTED. 판정은 late 한 arm 만 — 참고·진단 arm 은 통과해도 미반영"
+    },
+    "data": "유니버스 80 · 1d 1800일 → 1w 리샘플(종전 등재·9/3 재검증과 같은 창)",
+    "files": [
+      "validate_late_entry.py",
+      "detector_triple_bottom.py (mode=late/late_nohold, breakout 기본값 불변)",
+      "test_late_entry.py",
+      ".github/workflows/late_entry.yml"
+    ],
+    "status": "INCONCLUSIVE (2026-09-05 run 33966797748) — 1단계 PASSED, C1 REJECTED, C2 holdout n=1",
+    "result": {
+      "run": 33966797748,
+      "data": "80종목 1w 2021-10-02~2026-09-05, holdout>=2025-09-05",
+      "stage1_frozen_label": {
+        "late": "PASSED n=30 +12.42% med +13.74% 승률 67% 절사 +9.66% boot_p .004 OOS 2/4",
+        "late_nohold": "PASSED n=34 +10.92% bp .006",
+        "early_ceiling": "PASSED n=34 +15.72% bp .001 (실거래 불가 상한)",
+        "causal": "PASSED n=99 +3.65% med -11.65% 승률 45% bp .038 — k=n 베이스라인에서는 통과(9/3·9/5 의 .164/.133 은 k=30 보수 편향)",
+        "union_live": "PASSED n=127 +5.54% bp .001"
+      },
+      "decay_frozen_label": {
+        "brk+0": "+15.72%",
+        "brk+1": "+11.67%",
+        "brk+2": "-4.50%",
+        "brk+3": "-12.28%",
+        "L3+3": "+10.92%",
+        "L3+3&hold": "+12.42%",
+        "brk-L3": {
+          "1": 8,
+          "2": 26
+        },
+        "dropped_by_hold": 4
+      },
+      "stage2_live_frame_D": {
+        "late:all": "REJECTED n=30 +1.92% med -8.20% 승률 20% boot_p .298 OOS 1/4 | 청산 stop 23 / regime 7 | C3 Calmar 0.14",
+        "late:top30": "n=11 -1.68%",
+        "causal:all": "n=98 -0.42% 승률 13%",
+        "causal:top30": "n=34 +6.66% 승률 26% bp .100 Calmar 0.41",
+        "union_live:all": "n=126 -0.25%",
+        "holdout": "late n=1 (-8.2%) → 판정 불가"
+      },
+      "verdict": "INCONCLUSIVE (사전 규칙: 1단계 PASSED ∧ holdout n<10). 단 C1 이 표본과 무관하게 탈락 — 방식D 의 -8% 손절이 주봉 저가에 30건 중 23건(77%) 걸린다. 동결 라벨(종가 ±10%/20주)에서는 살아 있는 엣지가 실거래 청산 규칙에서 사라짐",
+      "interpretation": "지각 진입 자체는 유효(L3+3 ≈ brk+1, 감쇠 15.7→12.4%). 죽이는 것은 지연이 아니라 청산 규칙 — 방식D 는 1d 에서 검증된 규칙이고 1w 에서는 미검증(CLAUDE.md 보류 항목). 실거래 반영 없음",
+      "follow_up": "1w 전용 청산(예: ATR 배수 손절 / 종가 기준 손절 / exit_spec) 사전 등록 — 사용자 결정. 검증 없이 방식D 를 바꾸지 않는다"
+    }
   }
 }
