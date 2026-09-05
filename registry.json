@@ -2476,5 +2476,25 @@
       ],
       "follow_up": "사용자 결정: inverted_hammer 정지 여부 / marubozu 정지 여부(표본 부족) / three_soldiers_4h 유지·관찰. 청산 규칙은 전 패턴 D 유지가 맞다"
     }
+  },
+  "ma_breakout_study_2026_09_06": {
+    "test": "일봉 장기 이평선(180/200/250) 상향 돌파 뒤 슈팅 이벤트 스터디 — 탐색적 분석(배포 판정 아님)",
+    "requested_by": "사용자 2026-09-06 (\"일봉 기준 이평선 180일 이상을 돌파했을때 슈팅이 나오는 케이스 수익률 분석해줘\")",
+    "event": "close 가 MA_N 을 아래→위로 교차, 직전 20봉 이상 연속 아래(fresh). 진입 = 돌파봉 종가(인과). 필터 셀 raw/decisive(≥MA×1.02)/volume(≥20봉평균×1.5)/slope(MA 상승)/deep(직전 60봉 최저 ≤ MA−20%)/rebreak(짧게 아래였던 재돌파)",
+    "metrics": [
+      "전방 +5/10/20/40/60 봉 수익 평균·중앙·승률",
+      "슈팅률 = MFE(k봉 내 최고가) ≥ 20/30/50%, k=20/40/60",
+      "MAE 중앙·20봉 내 MA 재하향 비율",
+      "무작위 진입 베이스라인 동일 지표",
+      "동결 라벨 게이트 v2·방식D 건당(참고)",
+      "레짐/연도/코호트/메이저 분해"
+    ],
+    "autonomy": "결과는 보고만. 진입 후보로 쓰려면 별도 사전 등록(디텍터 + revival 확인 프레임)",
+    "files": [
+      "study_ma_breakout.py",
+      "test_ma_breakout.py",
+      ".github/workflows/ma_breakout.yml"
+    ],
+    "status": "registered — 실행 대기"
   }
 }

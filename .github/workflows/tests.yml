@@ -50,6 +50,7 @@ jobs:
                    test_late_entry.py \
                    test_exit_1w.py \
                    test_exit_consistency.py \
+                   test_ma_breakout.py \
                    test_executor_safety.py \
                    test_regime_determinism.py \
                    test_method_m.py \
