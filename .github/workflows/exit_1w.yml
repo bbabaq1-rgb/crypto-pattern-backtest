@@ -1,0 +1,43 @@
+name: Exit rule 1w — triple_bottom label-consistent exit (research, pre-registered)
+
+# 연구 전용 — 매매/DB 접근 없음, 실거래 규칙 무변경.
+# triple_bottom 1w 전용 청산(종가 ±10%/20주 + 재해 −20%) 사전 등록 시험. 기준은 validate_exit_1w.py 상단에 고정.
+# PASSED 여도 실거래 청산 변경은 자율 반영 대상이 아니다(사용자 보고 후 적용).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_exit_1w.py"
+      - ".github/workflows/exit_1w.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_exit_1w.py
+          python test_late_entry.py
+      - name: Pre-registered test
+        run: python validate_exit_1w.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exit-1w-${{ github.run_number }}
+          path: _exit_1w.json
+          if-no-files-found: ignore

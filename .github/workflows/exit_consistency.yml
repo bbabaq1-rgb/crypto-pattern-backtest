@@ -1,0 +1,44 @@
+name: Exit consistency — deployed patterns D vs label exit (research, pre-registered)
+
+# 연구 전용 — 매매/DB 접근 없음, 실거래 규칙 무변경.
+# 배포 패턴(inverted_hammer/marubozu/three_soldiers_4h 판정 + 4h 3종 참고)의 실거래 청산(방식D)이
+# 진입 검증 프레임(±10%/20봉 라벨)과 일치하는지. 기준·판정 규칙은 validate_exit_consistency.py 상단에 고정.
+# 결과는 보고만 — 실거래 청산 변경은 사용자 결정.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_exit_consistency.py"
+      - ".github/workflows/exit_consistency.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_exit_consistency.py
+          python test_exit_1w.py
+      - name: Pre-registered test
+        run: python validate_exit_consistency.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exit-consistency-${{ github.run_number }}
+          path: _exit_consistency.json
+          if-no-files-found: ignore
