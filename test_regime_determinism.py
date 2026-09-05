@@ -111,6 +111,17 @@ check("스케줄러: 온체인 조정이 라우팅 레짐에 대입되지 않음
 rsrc = open("regime_switch.py", encoding="utf-8").read()
 check("BTC.D fetch 실패 시 만료 캐시 우선", "_load_btcd_cache(allow_stale=True)" in rsrc)
 
+# ── 3b. BTC.D 오늘 점 = 5종 프록시 척도 (2026-09-05) ────────────────────────
+# /global 의 전체시장 점유율(btc≈59%)을 그대로 쓰면 5종 시계열(≈78%)과 척도가 어긋난다.
+g = {"btc": 59.1, "eth": 12.0, "sol": 2.5, "xrp": 1.9, "ada": 0.6, "usdt": 5.0, "bnb": 3.0}
+v = rs._proxy_from_global_pct(g)
+check("오늘 점: 5종 합산 비율", v is not None and abs(v - 59.1 / (59.1 + 12.0 + 2.5 + 1.9 + 0.6)) < 1e-12, v)
+check("오늘 점: 전체시장 점유율 그대로 쓰지 않음", v is not None and abs(v - 0.591) > 0.1)
+check("5종 중 하나 없으면 덮어쓰기 생략", rs._proxy_from_global_pct({"btc": 59.1, "eth": 12.0}) is None)
+check("비정상 값(0/문자열) 은 None", rs._proxy_from_global_pct({k: 0 for k in ("btc", "eth", "sol", "xrp", "ada")}) is None
+      and rs._proxy_from_global_pct({"btc": "x", "eth": 1, "sol": 1, "xrp": 1, "ada": 1}) is None)
+check("fetch 가 helper 를 거친다", "v = _proxy_from_global_pct(pct)" in rsrc and 'btcd[today] = pct["btc"] / 100.0' not in rsrc)
+
 # ── 4. 스키마 패치가 코드의 push 컬럼을 덮는가 ──────────────────────────────
 sql = open("supabase_schema_patch_2026_09.sql", encoding="utf-8").read()
 cols = {(t, c) for t, c in re.findall(r"alter table (\w+) add column if not exists (\w+)", sql)}

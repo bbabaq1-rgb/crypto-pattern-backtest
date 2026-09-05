@@ -687,6 +687,11 @@
     스킵). **사용자가 supabase_schema_funding.sql 실행해야 쌓인다.** OI 는 수집 코드 자체가 없음.
   · method_x.py / regime_axis.py / triangle_census.py / test_method_x(38) / test_regime_axis(28) /
     funding_accrual.py / exit_regime_axis.yml / triangle_census.yml
+- **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
+  시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
+  같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도
+  들어가지 않으며, 러너는 매 실행 새로 받는다(커밋된 btc_dominance.json 은 7/6 만료분, 워크플로가 되밀지 않음).
+  오늘 점을 /global 의 5종 점유율로 같은 비율로 환산(`_proxy_from_global_pct`, 하나라도 없으면 생략). test_regime_determinism +5.
 - **1h 추가 기각** (2026-07-03): bb_zscore_1h·rsi_extreme_1h 롱/숏 4방향 전부 REJECTED
   (mean 음수, boot_p 0.42~0.60, 저볼륨 필터로도 미달 — registry rejected_1h 14건)
 - 유니버스: **80종목** (OKX 무기한 30일 거래대금 상위 80, 2026-09-04. 종전 업비트KRW∩OKX선물 71→67)

@@ -156,7 +156,10 @@ def _fetch_btcd_from_cg():
         if total > 0:
             btcd[d] = btc_mc / total
 
-    # 오늘 실시간 BTC.D 덮어쓰기
+    # 오늘 실시간 BTC.D 덮어쓰기 — 2026-09-05: 종전엔 /global 의 전체시장 BTC 점유율
+    # (≈59%)을 그대로 넣어 5종 프록시 시계열(≈78%)과 척도가 달랐다(실행 로그 77.8% vs
+    # 59.1%). 라벨은 닫힌 봉만 쓰므로 오늘 점은 표시용이었지만, 같은 5종 비율로
+    # 환산해 시계열과 척도를 맞춘다. 5종 중 하나라도 없으면 덮어쓰지 않는다.
     try:
         r = requests.get(
             "https://api.coingecko.com/api/v3/global",
@@ -166,12 +169,30 @@ def _fetch_btcd_from_cg():
         if r.ok:
             pct = r.json()["data"]["market_cap_percentage"]
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            if "btc" in pct:
-                btcd[today] = pct["btc"] / 100.0
+            v = _proxy_from_global_pct(pct)
+            if v is not None:
+                btcd[today] = v
     except Exception:
         pass
 
     return btcd
+
+
+def _proxy_from_global_pct(pct):
+    """
+    /global market_cap_percentage(코인 → 전체시장 점유율 %) 에서 5종 프록시 BTC.D 를
+    계산한다: btc / (btc+eth+sol+xrp+ada). CG_IDS 의 코인이 하나라도 빠지면 None.
+    시계열(_fetch_btcd_from_cg 의 market_chart 합산)과 같은 정의라 척도가 일치한다.
+    """
+    keys = {"BTC": "btc", "ETH": "eth", "SOL": "sol", "XRP": "xrp", "ADA": "ada"}
+    try:
+        vals = [float(pct[keys[sym]]) for _, sym in CG_IDS]
+    except (KeyError, TypeError, ValueError):
+        return None
+    total = sum(vals)
+    if total <= 0 or vals[0] <= 0:
+        return None
+    return vals[0] / total
 
 
 def _load_btcd_cache(allow_stale=False):
