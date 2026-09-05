@@ -146,7 +146,7 @@ def outcome_x(rows, si, direction, opp_set, arm, stop):
 # ── 자산곡선 — 실거래 사이징 (arm 의 stop_pct 를 그대로 넘긴다) ─────────────
 def equity_curve(trades, span_days=None):
     """
-    trades: [(entry_date, exit_date, ret, hold, reason, stop_pct, vol)] 시간순 무관.
+    trades: [(entry_date, exit_date, ret, hold, reason, stop_pct, vol[, size_mult])] 시간순 무관.
     sizing.risk_based_size 로 실거래와 같은 규칙(RISK_FRAC/LEV_CAP/변동성 타겟팅)을 쓴다.
     **손절폭이 arm 마다 다른 것이 명목가에 반영되는 것이 이 시험의 핵심**이다.
 
@@ -186,6 +186,11 @@ def equity_curve(trades, span_days=None):
                 skipped += 1; continue
             stop, vol = trades[idx][5], trades[idx][6]
             vs = sz.vol_scale_raw(vol) / sz.VOL_S_NORM if (sz.VOL_TARGETING and sz.VOL_S_NORM) else 1.0
+            # 선택 8번째 원소 size_mult — 오버레이 arm(method_b) 이 거래별 배율을 준다. 없으면 1.0.
+            # vol_scale 에 곱하면 risk_usd 에 선형으로 걸려 명목가만 바뀐다(손절가·레버리지 불변) —
+            # 실거래 REGIME_CAP_MULT 오버레이와 같은 자리다.
+            if len(trades[idx]) > 7 and trades[idx][7] is not None:
+                vs *= trades[idx][7]
             open_notional = sum(n for _, n in open_pos.values())
             r = sz.risk_based_size(equity, free, stop, vol_scale=vs,
                                    open_notional=open_notional)
