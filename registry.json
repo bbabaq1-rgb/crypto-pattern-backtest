@@ -1681,7 +1681,22 @@
       "triple_bottom_1w": "new n=104 +3.07% med -11.36% bp .164 OOS 2/4 REJECT | old n=142 +7.73% PASSED | +4.65%p"
     },
     "verdict": "7셀 전부 인과 판 REJECT. 하모닉 5종 정지 유지 + triple_bottom_1w 추가 정지. 복귀 후보 없음",
-    "note": "old 의 n/mean 이 registry 등재 수치와 일치(bat_1h 는 검증 창이 달라 n 108→40) — 재현 확인. 종전 4h 창(1100일)은 4h 패턴 등재 당시(3년)와 같음"
+    "note": "old 의 n/mean 이 registry 등재 수치와 일치(bat_1h 는 검증 창이 달라 n 108→40) — 재현 확인. 종전 4h 창(1100일)은 4h 패턴 등재 당시(3년)와 같음",
+    "rerun_k_eq_n_2026_09_05": {
+      "run": 33967559035,
+      "note": "부트스트랩 베이스라인 k=30 고정 → k=n (routing_gate 수정 누락분). 게이트 v2.",
+      "new_causal": {
+        "gartley_4h": "REJECTED n=54 +0.66% bp .196 OOS 3/4",
+        "bat_4h": "REJECTED n=52 +0.36% bp .296",
+        "butterfly_4h": "REJECTED n=41 -0.31% bp .517",
+        "gartley_1h": "REJECTED n=143 -0.54% bp .712",
+        "bat_1h": "REJECTED n=50 -0.03% bp .278",
+        "butterfly_1h": "REJECTED n=81 -0.03% bp .240",
+        "triple_bottom_1w": "PASSED n=99 +3.64% med -11.65% bp .038 OOS 3/4 (동결 라벨만) — 실거래 프레임(방식D)에서는 n=98 -0.42% 승률 13% REJECTED (late_entry run 33966797748 causal:all)"
+      },
+      "old_lookahead": "7셀 전부 PASSED (부풀림 +0.84~+3.09%p)",
+      "verdict": "복귀 후보 없음. 하모닉 6셀은 k=n 에서도 boot_p .20~.71 로 기각(평균이 0 근처 — 베이스라인 정의 문제가 아니라 엣지 부재). triple_bottom_1w 는 동결 라벨 1단계만 통과하고 방식D 청산에서 승률 13% 로 무너져 등재 정지 유지."
+    }
   },
   "regime_scale_2026_09": {
     "date": "2026-09-03",
