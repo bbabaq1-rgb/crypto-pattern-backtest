@@ -2283,6 +2283,41 @@
       "test_late_entry.py",
       ".github/workflows/late_entry.yml"
     ],
-    "status": "registered — 실행 대기 (결과는 result 키에 추가)"
+    "status": "INCONCLUSIVE (2026-09-05 run 33966797748) — 1단계 PASSED, C1 REJECTED, C2 holdout n=1",
+    "result": {
+      "run": 33966797748,
+      "data": "80종목 1w 2021-10-02~2026-09-05, holdout>=2025-09-05",
+      "stage1_frozen_label": {
+        "late": "PASSED n=30 +12.42% med +13.74% 승률 67% 절사 +9.66% boot_p .004 OOS 2/4",
+        "late_nohold": "PASSED n=34 +10.92% bp .006",
+        "early_ceiling": "PASSED n=34 +15.72% bp .001 (실거래 불가 상한)",
+        "causal": "PASSED n=99 +3.65% med -11.65% 승률 45% bp .038 — k=n 베이스라인에서는 통과(9/3·9/5 의 .164/.133 은 k=30 보수 편향)",
+        "union_live": "PASSED n=127 +5.54% bp .001"
+      },
+      "decay_frozen_label": {
+        "brk+0": "+15.72%",
+        "brk+1": "+11.67%",
+        "brk+2": "-4.50%",
+        "brk+3": "-12.28%",
+        "L3+3": "+10.92%",
+        "L3+3&hold": "+12.42%",
+        "brk-L3": {
+          "1": 8,
+          "2": 26
+        },
+        "dropped_by_hold": 4
+      },
+      "stage2_live_frame_D": {
+        "late:all": "REJECTED n=30 +1.92% med -8.20% 승률 20% boot_p .298 OOS 1/4 | 청산 stop 23 / regime 7 | C3 Calmar 0.14",
+        "late:top30": "n=11 -1.68%",
+        "causal:all": "n=98 -0.42% 승률 13%",
+        "causal:top30": "n=34 +6.66% 승률 26% bp .100 Calmar 0.41",
+        "union_live:all": "n=126 -0.25%",
+        "holdout": "late n=1 (-8.2%) → 판정 불가"
+      },
+      "verdict": "INCONCLUSIVE (사전 규칙: 1단계 PASSED ∧ holdout n<10). 단 C1 이 표본과 무관하게 탈락 — 방식D 의 -8% 손절이 주봉 저가에 30건 중 23건(77%) 걸린다. 동결 라벨(종가 ±10%/20주)에서는 살아 있는 엣지가 실거래 청산 규칙에서 사라짐",
+      "interpretation": "지각 진입 자체는 유효(L3+3 ≈ brk+1, 감쇠 15.7→12.4%). 죽이는 것은 지연이 아니라 청산 규칙 — 방식D 는 1d 에서 검증된 규칙이고 1w 에서는 미검증(CLAUDE.md 보류 항목). 실거래 반영 없음",
+      "follow_up": "1w 전용 청산(예: ATR 배수 손절 / 종가 기준 손절 / exit_spec) 사전 등록 — 사용자 결정. 검증 없이 방식D 를 바꾸지 않는다"
+    }
   }
 }

@@ -694,6 +694,13 @@
   기준(사전 등록, validate_late_entry.py 상단): 1단계 동결 라벨 게이트 v2(k=n 베이스라인) → 2단계 실거래 프레임 C1(코호트 all =
   1w 스케줄러 범위, 방식D) · C2 holdout 365일 n≥10 & mean>0(n<10 은 INCONCLUSIVE) · C3 자산곡선 Calmar>0. **판정은 late 한 arm 만**,
   late_nohold/causal/early_ceiling/union_live 는 진단. PASSED 면 자율 반영(adopted 1w 항목 mode=late). late_entry.yml.
+  · **결과 INCONCLUSIVE (run 33966797748)**: 1단계 동결 라벨 **PASSED**(n=30 +12.42% med +13.74% 승률 67% bp .004 OOS 2/4).
+    감쇠: 돌파봉 +15.7% → L3+3(≈돌파+1주) +12.4% — 지각 비용은 작다. 그러나 **2단계 방식D 에서 30건 중 23건이 −8% 손절**
+    (승률 20%, med −8.20%, bp .298) → C1 탈락, holdout n=1 로 규칙상 INCONCLUSIVE. **죽이는 건 지연이 아니라 청산 규칙** —
+    방식D(−8% 저가 손절)는 1d 검증 규칙이고 주봉 저가 폭엔 맞지 않는다(보류 항목 '방식D 를 1d 외 TF 에서 검증'의 실증).
+    실거래 반영 없음. 후속(사용자 결정): 1w 전용 청산 사전 등록. **부수 발견**: validate_confirm_bar 의 boot 베이스라인이
+    k=30 으로 남아 있었다(routing_gate 수정 누락) → k=n 으로 고침. k=n 이면 causal 1w 도 1단계 통과(bp .038, 종전 .133)이나
+    방식D 에서는 승률 13% 로 기각. 하모닉 5종은 재실행 대상(revalidate_confirm_bar 자동 실행).
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
   시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
   같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도

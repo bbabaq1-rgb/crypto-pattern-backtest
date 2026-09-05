@@ -97,7 +97,9 @@ def gate(label, sigs, syms, tf):
         t = mean / (statistics.stdev(rets) / sqrt(n)); p = _pval(t, n - 1)
     else:
         t, p = 0.0, 1.0
-    boot = _bootstrap(syms, tf, k=max(10, min(30, n)))
+    # 2026-09-05: k=n — routing_gate 의 베이스라인 표본 정합 수정(k=30 고정 → n)이 이 복사본에는 빠져 있었다.
+    # 9/3·9/5 의 하모닉·triple_bottom_1w 재검증 boot_p 는 보수 편향분(n 큰 셀에서 부풀려짐).
+    boot = _bootstrap(syms, tf, k=max(10, n))
     boot_p = sum(1 for b in boot if b >= mean) / len(boot)
     # OOS: 실제 신호 날짜 범위를 4등분(결정론적)
     oos = []
