@@ -218,3 +218,34 @@ inverse_hs_1d · bull_btc(top30 n=254 +5.57% 승률 46% bp .016 OOS 4/4, Calmar 
 bos_choch_1d · bull_btc 도 holdout −8.09%. equal_lows_4h · ALL 은 C1·C2 통과인데 자산곡선 CAGR −24.9%/MDD −52.9% —
 bear 셀만 배포한 판단이 맞았다. three_soldiers_4h · ALL 은 bp .110·holdout −0.82% 로 전 레짐 확대 근거 없음(bull 전용 유지).
 결론: STRICT 문턱을 풀어도 1d 후보는 **최근 1년 holdout**에서 죽는다 — 2025~2026 의 1d 반전형은 방식D 에서 손절 비율이 높다.
+
+---
+
+## 8. 4h 자산곡선 프레임 정정 → CONFIRMED 5, 추가 배포 2 (2026-09-05 저녁, run 33961032437)
+
+1h 채점표를 만들다 **4h 에도 있던 오류**를 찾았다. 자산곡선 계산기가 거래 시각을 날짜(정수)로 받아, 같은 날 진입·청산된
+거래는 청산 이벤트가 진입보다 먼저 정렬돼 버려지고 진입만 남았다 — 그 포지션은 슬롯·증거금을 **영구히 잠그고** 손익도
+반영되지 않았다. 1d 는 보유가 하루 이상이라 영향이 없지만, 4h 는 6봉 미만에 끝나는 거래(주로 손절)가 전부 이 경로로
+빠졋다. 봉 시각을 분수 일수로 넘겨 고쳤고(`_tnum`), 4h 셀의 C3 가 전부 바뀌었다:
+
+| 셀 | 종전 C3 (오류 판) | 정정 C3 | 판정 |
+|---|---|---|---|
+| triple_bottom_4h · ALL | Calmar 4.83 | **CAGR +79.5% / MDD −28.5% / Calmar 2.79** | CONFIRMED 유지 |
+| equal_lows_4h · bear | 0.48 | +6.8% / −6.1% / **1.11** | CONFIRMED 유지 |
+| vwap_rev_short_4h · bear | 0.06 | +5.2% / −28.6% / 0.18 | 여전히 경계값, 미배포 |
+| **vol_awakening_4h · ALL** | −0.24 (기각) | **+99.8% / −72.4% / 1.38** | **CONFIRMED → 배포** |
+| **equal_lows_4h · ALL** | −0.47 (기각) | +23.4% / −52.5% / 0.45 | **CONFIRMED → bear→전 레짐 확대** |
+| breakout_retest_4h · ALL | 0.07 | −6.6% / −74.4% / −0.09 | 기각(C2 도 −0.41%) |
+
+**vol_awakening_4h 는 다른 배포 패턴과 성질이 다르다**: top30 에서 연 약 1,900건(배포 패턴 전체 합의 몇 배), 건당 +1.21%,
+승률 44%, 단독 MDD −72%. 사전 기준(C1·C2·C3)은 전부 통과했고 자율 반영 규정대로 켠다. 단 **슬롯 12 를 이 패턴이 채워
+engulfing/fvg(건당 +7%) 진입을 밀어낼 수 있다** — 패턴 하나씩 재는 확인 프레임이 못 보는 포트폴리오 효과다. MAX_POS 격자
+(§ 아래)에서 16 이 Calmar 동일·슬롯 스킵 462→47 이었으므로, 이 배포와 MAX_POS 16 은 한 쌍으로 보는 것이 맞다(사용자 결정).
+holdout +0.12%/건은 양수지만 얇다(2025 −0.9%, 2026 +0.7%).
+
+**1h 8셀(새 채점표)**: 0 CONFIRMED. C1 통과 5셀 중 bull_btc 3셀(vwap_rev_short/bb_zscore_short/rsi_extreme_short)은
+holdout 90일이 전부 bear 라 **holdout 거래 0** — 판정 불가(프레임 한계, bull 국면이 와야 잰다). fvg_short_1h altseason 과
+rsi_extreme_1h bear 는 C1·C2 통과·C3 음수. rsi_extreme_short_1h bull_btc 는 train Calmar 3.96 — holdout 생기면 첫 후보.
+
+**코호트 스캔 v2(run 33961492997)**: 결론 불변 — engulfing 1~20위 PASSED(+4.15%, bp .039), 21~30위는 중앙값이 아니라
+boot_p .132 로 기각. fvg 전 코호트 boot_p 탈락. 유니버스 top20 제한은 v2 에서도 맞다.

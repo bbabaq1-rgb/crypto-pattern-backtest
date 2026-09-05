@@ -797,7 +797,8 @@
       "gate_version": 2,
       "deployed_date": "2026-09-05",
       "deploy_cell": "ALL regimes long, top30 cohort, closed bar",
-      "v2_confirm": "revival 33955072498: top30 n=646 mean +1.79% med -0.52% win 48% boot_p .000 OOS 3/4 | holdout n=212 +1.62% | train CAGR +65.9% MDD -13.7% Calmar 4.83"
+      "v2_confirm": "revival 33955072498: top30 n=646 mean +1.79% med -0.52% win 48% boot_p .000 OOS 3/4 | holdout n=212 +1.62% | train CAGR +65.9% MDD -13.7% Calmar 4.83",
+      "v2_confirm_corrected": "4h C3 프레임 정정 후: CAGR +79.5% MDD -28.5% Calmar 2.79 (종전 4.83 은 같은 날 진입·청산 누락 판)"
     },
     {
       "id": "triple_bottom_1w",
@@ -954,8 +955,9 @@
       "note": "mean<0 | 종전 무조건부 기각(mean<0). 2026-09-05 레짐 분리(bear) + 게이트 v2 확인 시험 CONFIRMED → 배포",
       "gate_version": 2,
       "deployed_date": "2026-09-05",
-      "deploy_cell": "bear long, top30 cohort, closed bar",
-      "v2_confirm": "revival 33955072498: top30 n=469 mean +0.97% med -0.01% win 50% boot_p .001 OOS 3/4 | holdout n=406 +1.17% | train CAGR +4.0% MDD -8.4% Calmar 0.48"
+      "deploy_cell": "ALL long, top30 cohort, closed bar (2026-09-05 저녁 bear→all 확대)",
+      "v2_confirm": "revival 33955072498: top30 n=469 mean +0.97% med -0.01% win 50% boot_p .001 OOS 3/4 | holdout n=406 +1.17% | train CAGR +4.0% MDD -8.4% Calmar 0.48",
+      "v2_confirm_all": "revival 33961032437: top30 n=1086 +0.67% med +0.02% win 50% bp .004 OOS 3/4 | holdout n=497 +0.70% | CAGR +23.4% MDD -52.5% Calmar 0.45"
     },
     {
       "id": "vwap_rev_long_4h",
@@ -974,6 +976,17 @@
       "n": 28537,
       "mean": -0.0006,
       "note": "mean<0"
+    },
+    {
+      "id": "vol_awakening_4h",
+      "status": "passed_v2_deployed",
+      "tf": "4h",
+      "direction": "long",
+      "gate_version": 2,
+      "deployed_date": "2026-09-05",
+      "deploy_cell": "ALL long, top30 cohort, closed bar",
+      "v2_confirm": "revival 33961032437: top30 n=4992 +1.21% med -1.26% win 44% bp .000 OOS 3/4 | holdout n=1477 +0.12% | CAGR +99.8% MDD -72.4% Calmar 1.38",
+      "note": "종전 rejected(4h 확장 2026-06/07, v1) → regime_split_all v2 STRICT → 1차 확인(33957277149) C3 -6.3% 기각은 4h 자산곡선 프레임 오류(같은 날 진입·청산 누락) → 정정 후 CONFIRMED·배포. 고빈도·얇은 엣지 — 슬롯 경합 주시"
     }
   ],
   "rejected_1h": [
@@ -2171,7 +2184,9 @@
       "routing_gate 33955072569": "배포 6종 통과 셀 18 → 18 동일(v2 영향 없음). 라우팅 arm 판정 불변(현행 유지)",
       "intraday 33955072559": "15셀 판정 불변(cascade 1h PASSED, 나머지 mean 음수라 승률 조건과 무관)",
       "revival 33957277149 (후속 STRICT 2셀)": "breakout_retest_4h|ALL: top30 n=4922 +0.73% 승률 44% bp .000 PASSED 이나 C2 holdout n=1528 -0.41% → REJECT. vol_awakening_4h|ALL: top30 n=4992 +1.21% 승률 44% bp .000 PASSED 이나 C3 자산곡선 CAGR -6.32% Calmar -0.24 → REJECT. 둘 다 2025~2026 음수(-0.1/-0.9, +0.2/+0.7 혼조) — 게이트 통과와 최근 1년 수익은 별개. CONFIRMED 집합 불변(3), 배포 불변(2)",
-      "revival 33960053517 (선별 완화: 한 코호트 PASSED 1d/4h 14셀)": "0 CONFIRMED (CONFIRMED 3 불변). C1 통과·C2 탈락: inverse_hs_1d|bull_btc(top30 n=254 +5.57% 승률46% bp.016 Calmar 2.89, holdout n=12 -8.20%), bos_choch_1d|bull_btc(n=1061 +5.22% 승률36%, holdout n=50 -8.09%), double_bottom_1d(재확인, holdout -7.96%). C1·C2 통과·C3 탈락: equal_lows_4h|ALL(n=1086 +0.67% holdout +0.70% 이나 CAGR -24.9% MDD -52.9% — bear 셀만 배포한 것이 맞음). C1 탈락(승률<35% 또는 boot_p): triple_bottom_1d ALL/bear(승률 29%/23%), inverse_hs_1d ALL(34%), order_block_1d(bp.072), marubozu_short_1d(n=19), order_block_short_1d(top30 n=13 음수), vwap_rev_long/short_4h·vol_awakening_4h 다른 레짐(평균 음수 또는 OOS 1/4), three_soldiers_4h ALL(bp.110, holdout -0.82% — 전 레짐 확대 근거 없음, bull 전용 유지)"
+      "revival 33960053517 (선별 완화: 한 코호트 PASSED 1d/4h 14셀)": "0 CONFIRMED (CONFIRMED 3 불변). C1 통과·C2 탈락: inverse_hs_1d|bull_btc(top30 n=254 +5.57% 승률46% bp.016 Calmar 2.89, holdout n=12 -8.20%), bos_choch_1d|bull_btc(n=1061 +5.22% 승률36%, holdout n=50 -8.09%), double_bottom_1d(재확인, holdout -7.96%). C1·C2 통과·C3 탈락: equal_lows_4h|ALL(n=1086 +0.67% holdout +0.70% 이나 CAGR -24.9% MDD -52.9% — bear 셀만 배포한 것이 맞음). C1 탈락(승률<35% 또는 boot_p): triple_bottom_1d ALL/bear(승률 29%/23%), inverse_hs_1d ALL(34%), order_block_1d(bp.072), marubozu_short_1d(n=19), order_block_short_1d(top30 n=13 음수), vwap_rev_long/short_4h·vol_awakening_4h 다른 레짐(평균 음수 또는 OOS 1/4), three_soldiers_4h ALL(bp.110, holdout -0.82% — 전 레짐 확대 근거 없음, bull 전용 유지)",
+      "revival 33961032437 (1h 채점표 + 4h 프레임 정정)": "CONFIRMED 5 (+vol_awakening_4h|ALL, equal_lows_4h|ALL → 배포). 1h 8셀 0 CONFIRMED: C1 통과 5(fvg_short_1h altseason, vwap_rev_short_1h·bb_zscore_short_1h·rsi_extreme_short_1h bull_btc, rsi_extreme_1h bear) 중 bull_btc 3셀은 holdout 90일(2026 bear)에 거래 0 → C2 판정 불가(프레임 한계), fvg_short_1h·rsi_extreme_1h bear 는 C3 음수. rsi_extreme_short_1h bull_btc 는 train Calmar 3.96 이나 holdout 없음",
+      "universe_okx_scan 33961492997 (코호트 v2)": "결론 불변: engulfing rank1-20 PASSED(n=67 +4.15% bp .039 OOS 4/4), 21-30 REJECTED(bp .132 — 중앙값 아니라 boot_p), 31위 이하 전부 기각, cur_top30 bp .061. fvg 전 코호트 boot_p 탈락. engulfing new_candidates(유니버스 밖 소수) n=35 PASSED 이나 new_top20 변동 없음"
     },
     "deployed": [
       {
@@ -2183,6 +2198,16 @@
         "pattern": "equal_lows_4h",
         "cell": "bear|long|top30",
         "expected": "top30 n=469 +0.97%/건, 승률 50%, 보유 27.5봉, holdout +1.17%, Calmar 0.48 (기대 CAGR +4%)"
+      },
+      {
+        "pattern": "vol_awakening_4h",
+        "cell": "ALL|long|top30",
+        "expected": "top30 n=4992 +1.21%/건 승률 44% 보유 22봉, holdout +0.12%, Calmar 1.38, MDD -72%(단독). 고빈도"
+      },
+      {
+        "pattern": "equal_lows_4h",
+        "cell": "ALL|long|top30 (bear→all 확대)",
+        "expected": "n=1086 +0.67%/건 승률 50%, holdout +0.70%, Calmar 0.45"
       }
     ],
     "not_deployed": {
@@ -2193,7 +2218,8 @@
       "중복 방어 키가 (symbol,pattern,direction,date) 라 4h 패턴은 종목·일 1회만 진입 — 검증(봉마다 진입 가능)보다 적게 거래한다(three_soldiers_4h 와 동일)",
       "equal_lows_4h 는 기대값이 작다. 슬롯(MAX_POS 12) 경합 시 다른 패턴 자리를 차지할 수 있음 — 슬롯 우선순위 후속 과제와 연결",
       "후보는 같은 데이터에서 선별됐으므로 완전한 OOS 아님(청산 규칙 차이 + holdout 이 독립성 원천)"
-    ]
+    ],
+    "frame_correction_4h_c3": "2026-09-05 저녁, 1h 채점표 작업 중 발견: method_x.equity_curve 가 거래 시각을 날짜 ordinal 로 받아 같은 날 진입·청산 거래는 청산 이벤트가 진입보다 먼저 정렬돼 pop 실패 → 진입만 남아 슬롯·증거금이 영구 잠기고 손익도 미반영. 1d 는 영향 없음(보유>=1일), 4h 는 6봉 미만 보유(주로 손절)가 누락. 봉 ts 분수 일수로 정렬(validate_revival._tnum / method_x._tnum)해 정정. 정정 후 4h 셀 C3 전부 재산출: triple_bottom_4h ALL Calmar 4.83→2.79 / equal_lows_4h bear 0.48→1.11 / vwap_rev_short_4h bear 0.06→0.18 / vol_awakening_4h ALL -0.24→1.38(CONFIRMED) / equal_lows_4h ALL -0.47→0.45(CONFIRMED) / breakout_retest_4h ALL 0.07→-0.09"
   },
   "bear_fvg_short_on_2026_09_05": {
     "date": "2026-09-05",

@@ -359,6 +359,20 @@
     청산은 eval_D 그대로(OPP 매핑 없음 → 검증 opp_set=∅ 와 일치). 중복 키가 날짜 단위라 종목·일 1회 진입(검증보다 적음).
   · regime_split_all: PASSED 31→39 / STRICT 8→10. 신규 STRICT breakout_retest_4h·ALL / vol_awakening_4h·ALL 을
     CANDIDATES 에 추가(다음 revival 실행에서 확인). routing_gate 18셀·intraday 15셀 판정 불변(기각 셀은 평균 음수).
+- **4h 자산곡선(C3) 프레임 정정 → vol_awakening_4h(전 레짐)·equal_lows_4h(bear→전 레짐) 추가 배포 (2026-09-05 저녁, 자율 반영)**:
+  report_revival.md §8. method_x.equity_curve 가 거래 시각을 날짜 정수로 받아 **같은 날 진입·청산 거래(4h 6봉 미만, 주로 손절)를
+  버리고 진입만 남겨 슬롯·증거금을 영구 잠갔다**. 봉 ts 분수 일수 정렬로 정정(`_tnum`). 정정 후 4h C3: triple_bottom_4h
+  Calmar **4.83→2.79**(유지) / equal_lows bear 0.48→1.11 / vwap_rev_short bear 0.06→0.18(경계 유지) / **vol_awakening_4h ALL
+  −0.24→1.38 CONFIRMED** / **equal_lows_4h ALL −0.47→0.45 CONFIRMED**. **1d 는 무영향**(보유≥1일). run 33961032437.
+  · vol_awakening_4h · ALL 롱 · top30: n=4992 +1.21% 승률 44% bp .000 OOS 3/4, holdout n=1477 **+0.12%**(얇음), CAGR +99.8%
+    MDD −72% 단독. **연 약 1,900건 고빈도** — 슬롯 12 를 채워 engulfing/fvg 진입을 밀어낼 수 있다(패턴 단독 프레임의 한계).
+    MAX_POS 격자에서 16 이 Calmar 동일·슬롯 스킵 462→47 → 이 배포와 MAX_POS 16 상향은 한 쌍(사용자 결정).
+  · **MAX_POS 격자 결과** (quant_batch1 33961480251, risk 1.5%/lev 3): 8 Calmar 1.59 MDD −55.6% / **12 1.84 −58.4%** / 16 1.85 −60.4%
+    (슬롯스킵 462→47) / 20 1.83 −60.4% / 24 1.83 −60.4%(스킵 0). 동결 기준(MDD중앙≥−35%) 통과 셀 없음 — 위험 1.5% 자체가 기준 밖.
+    16 이상은 증거금 스킵이 대신 늘어(125→498) 계좌 크기에 막힌다.
+  · **1h 8셀(새 채점표) 0 CONFIRMED** — bull_btc 3셀은 holdout 90일(2026 bear)에 거래 0 으로 판정 불가, 나머지 C3 음수.
+    rsi_extreme_short_1h bull_btc 는 train Calmar 3.96 — bull 국면 holdout 생기면 첫 후보.
+  · **코호트 스캔 v2 결론 불변** — engulfing 1~20위 PASSED, 21~30위 boot_p .132 기각(중앙값 아님). fvg 전 코호트 기각.
 - **중복 진입 방어 키 date → 봉 ts (2026-09-05, 사용자 결정 "봉 시각 기준으로, 앞으로 모든 규칙은 다 이렇게")**:
   `paper_executor._entry_key/_record_keys/_is_dup_entry`. 종전 (symbol,pattern,direction,**date**) 키는 4h/1h 를
   '심볼·패턴당 하루 1회'로 묶어 검증(봉마다 진입 가능)보다 거래가 적었다. 이제 봉 ts 가 있으면 ts 로 대조(같은 봉만
@@ -736,8 +750,11 @@
       자산곡선을 끌어내린다. 배포 집합 불변
 - [x] **선별 완화(한 코호트 PASSED) 1d/4h 14셀 확인 시험** (2026-09-05, run 33960053517) — **0 CONFIRMED**. 가까운 셀
       inverse_hs_1d·bull_btc(C1 통과 Calmar 2.89)는 holdout n=12 전부 손절. equal_lows_4h·ALL 은 자산곡선 음수(bear 셀만 배포가 맞음)
-- [ ] **1h 8셀 확인 시험 판독** (새 채점표, run on 6c50baa) — 통과 시 exit_spec + adopted_1h + fast 경로로 배포
-- [ ] **MAX_POS 슬롯 격자 판독** (quant_batch1 on a0c29c5) — 숫자 보고, 채택은 사용자 결정
+- [x] **1h 8셀 확인 시험 판독** (2026-09-05, run 33961032437) — 0 CONFIRMED. bull_btc 셀은 holdout 거래 0(2026 bear) → 판정 불가
+- [x] **MAX_POS 슬롯 격자 판독** (2026-09-05, run 33961480251) — 16: Calmar 1.85(=12) MDD −2%p 슬롯스킵 462→47. 채택은 사용자 결정
+- [x] **4h C3 프레임 정정 → vol_awakening_4h·equal_lows_4h(ALL) 배포** (2026-09-05 저녁) — report_revival §8
+- [ ] **vol_awakening_4h 첫 주 슬롯 점유 관찰** — `[live] 최대 포지션 도달` 스킵 로그 빈도, 다른 패턴 진입이 밀리는지. 밀리면 MAX_POS 16 제안
+- [ ] **포트폴리오 단위 확인 프레임** — 패턴 단독 C3 는 슬롯 경합을 못 본다. 배포 집합 전체를 한 자산곡선으로(sizing_vol --routing 에 4h adopted 포함) 재는 시험 사전 등록
 - [ ] **신규 4h 패턴 첫 실거래 관찰** — triple_bottom_4h 첫 진입 시 `[live 사이징]`·손절 algo·닫힌 봉 신호(rows[-2]) 확인.
       신호봉 종가 vs 체결가 슬리피지 기록
 - [ ] **vwap_rev_short_4h · bear 경계 통과분** — 사용자가 켜라고 하면 켤 수 있음(regimes=["bear"], short,
