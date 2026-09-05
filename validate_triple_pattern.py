@@ -14,6 +14,7 @@ OOS: TF마다 실제 데이터 기간을 4등분(날짜 기준, 결정론적).
 출력: 사람용 로그 + 마지막 줄 'RESULT_JSON: {...}' (원격 로그 파싱용).
 """
 import json
+import gate
 import statistics
 import sys
 import time
@@ -178,13 +179,13 @@ def run_tf(label, detect_fn, direction, syms, tf):
     out["oos"] = oos_detail
     out["oos_pos"] = oos_pos
 
-    passed = (mean > 0 and med > 0 and boot_p < 0.05 and oos_pos >= 2)
+    passed = (mean > 0 and gate.dist_ok(rets) and boot_p < 0.05 and oos_pos >= 2)
     out["verdict"] = "PASSED" if passed else "REJECTED"
     fails = []
     if mean <= 0:
         fails.append("mean<=0")
-    if med <= 0:
-        fails.append("median<=0")
+    if not gate.dist_ok(rets):
+        fails.append(gate.dist_reason(rets))
     if boot_p >= 0.05:
         fails.append(f"boot_p={boot_p:.3f}")
     if oos_pos < 2:

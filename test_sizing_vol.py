@@ -275,5 +275,16 @@ check("격자 기준이 sizing_study 와 같은 값으로 동결",
 check("격자에 현행 설정(risk 1%, lev 2)이 포함돼 비교 기준이 된다",
       sv.RISK_FRAC in sv.GRID_RISK and sv.LEV in sv.GRID_LEV)
 
+# ── 10. 슬롯 격자 (--slots): MAX_POS 파라미터화 ────────────────────────────
+sl1 = sv.simulate(trades, "vol_matched", max_pos=1)
+sl12 = sv.simulate(trades, "vol_matched", max_pos=12)
+sl99 = sv.simulate(trades, "vol_matched", max_pos=10**6)
+check("simulate: max_pos=1 은 슬롯 스킵이 가장 많다", sl1["skip_slot"] >= sl12["skip_slot"] >= sl99["skip_slot"])
+check("simulate: 상한이 사실상 없으면 슬롯 스킵 0", sl99["skip_slot"] == 0)
+check("simulate: max_pos 미지정은 모듈 MAX_POS 와 동일",
+      sv.simulate(trades, "vol_matched") == sv.simulate(trades, "vol_matched", max_pos=sv.MAX_POS))
+check("슬롯 격자에 현행 MAX_POS 가 포함돼 비교 기준이 된다", sv.MAX_POS in sv.GRID_SLOTS)
+check("슬롯 격자도 같은 동결 기준(MDD_FLOOR/RUIN_MAX)을 쓴다", (sv.MDD_FLOOR, sv.RUIN_MAX) == (-0.35, 0.05))
+
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)

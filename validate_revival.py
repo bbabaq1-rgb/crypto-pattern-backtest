@@ -27,7 +27,7 @@ PASSED 0 → 31, STRICT 0 → 8 (우연 기대 ≈22). 그중 STRICT 8 은 사�
 후보(패턴, 레짐)가 **확인(CONFIRMED)** 되려면 추가로:
   C1 실거래 코호트(top30) G1~G5 통과 (2026-09-05 완화 — 종전 '두 코호트 모두')
   C2 holdout(마지막 365일) n>=10 이고 mean>0 — top30 코호트 기준
-  C3 train 자산곡선 CAGR>0 이고 Calmar>0 — top30 코호트 기준
+  C3 train 자산곡선 CAGR>0 이고 Calmar>0 — top30 코호트 기준 (1h 도 계산 — 봉 ts 시각 자산곡선, 2026-09-05)
 전부 만족 → registry `passed_not_deployed` 후보로 기록한다. **배포는 사용자 결정.** 하나라도
 빠지면 그대로 기각 기록.
 
@@ -69,6 +69,22 @@ from validate_regime_split import _pval, turnover_rank
 SEED, BOOT_N = 42, 1000
 POOL_CAP = 20000            # 베이스라인 풀 평가 상한(셀당) — 방식D 는 봉마다 최대 30봉 루프라 비용 제한
 HOLDOUT_DAYS = 365
+# TF 별 holdout (2026-09-05, 1h 채점표 신설): 1h 데이터는 365일뿐이라 365일 holdout 이면 train 이 빈다
+# (종전 실행 로그 '[1h] train 창 1일'). 1h 는 마지막 90일을 holdout 으로 쓴다. 1d/4h 는 종전과 동일.
+HOLDOUT_DAYS_BY_TF = {"1d": HOLDOUT_DAYS, "4h": HOLDOUT_DAYS, "1h": 90}
+_EPOCH_ORD = 719163          # date(1970,1,1).toordinal()
+
+
+def _tnum(row):
+    """봉 → 분수 일수. ts(ms) 가 있으면 봉 시각 그대로(1h/4h 가 같은 날 여러 봉이어도 순서 보존),
+    없으면 date 의 정수 ordinal. method_x.equity_curve 가 숫자를 그대로 받는다."""
+    ts = row.get("ts")
+    if ts:
+        try:
+            return float(ts) / 86400000.0 + _EPOCH_ORD
+        except (TypeError, ValueError):
+            pass
+    return float(date.fromisoformat(row["date"]).toordinal())
 HOLDOUT_MIN_N = 10
 MAX_HOLD = ms.MAX_HOLD      # 30
 STOP = ms.STOP              # 0.08
@@ -91,6 +107,35 @@ CANDIDATES = [
     # (triple_bottom_4h|bull_btc 도 STRICT 이지만 배포된 ALL 셀의 부분집합이라 별도 확인 불필요)
     ("breakout_retest_4h", "ALL"),
     ("vol_awakening_4h",   "ALL"),
+    # 2026-09-05 선별 기준 완화(사용자 질문 "내 제한 때문에 못 한 게 뭐냐"): STRICT(두 코호트·bp<.01) 가 아니라
+    # **한 코호트라도 v2 PASSED** 인 1d/4h 셀 전부를 확인 시험에 올린다. C1 이 top30 기준으로 완화된 것과 맞춘다.
+    # (regime_split_all run 33955072518 PASSED 39 중 1d/4h · 이미 판정된 것 · 배포 ALL 셀의 부분집합 제외. 1h 는 C3 를
+    #  계산할 수 없어 제외 — 별도 프레임 필요)
+    ("inverse_hs_1d",        "bull_btc"),
+    ("inverse_hs_1d",        "ALL"),
+    ("order_block_1d",       "bull_btc"),
+    ("bos_choch_1d",         "bull_btc"),
+    ("order_block_short_1d", "bull_altseason"),
+    ("triple_bottom_1d",     "bear"),
+    ("triple_bottom_1d",     "ALL"),
+    ("marubozu_short_1d",    "bull_btc"),
+    ("equal_lows_4h",        "ALL"),
+    ("vwap_rev_long_4h",     "bull_altseason"),
+    ("vwap_rev_short_4h",    "bull_altseason"),
+    ("vwap_rev_short_4h",    "ALL"),
+    ("vol_awakening_4h",     "bull_altseason"),
+    ("vol_awakening_4h",     "bear"),
+    ("three_soldiers_4h",    "ALL"),           # 배포는 bull 전용 — 전 레짐 확대 여부
+    # 1h 채점표 신설(2026-09-05, 사용자 지시) 후 1h PASSED 셀 — ATR 배리어 청산 + 봉 ts 자산곡선 + holdout 90일.
+    # (bat_1h 는 룩어헤드 정지 중이라 제외)
+    ("engulfing_1h",         "bull_altseason"),
+    ("engulfing_short_1h",   "bull_btc"),
+    ("vwap_rev_long_1h",     "bull_altseason"),
+    ("vwap_rev_short_1h",    "bull_btc"),
+    ("bb_zscore_short_1h",   "bull_btc"),
+    ("rsi_extreme_1h",       "bear"),
+    ("rsi_extreme_1h",       "ALL"),
+    ("rsi_extreme_short_1h", "bull_btc"),
 ]
 NEW_PATTERNS = [
     ("ibs_low_1d",      "1d", "detector_ibs_low",      "long"),
@@ -171,8 +216,11 @@ def gate_cell(sigs, pool_rets, seed=SEED):
 def equity(sigs, span_days):
     if not sigs:
         return None
-    tup = [(s["date"], s["exit_date"], s["ret"], s["hold"], s["reason"], s["stop_pct"], s["vol"]) for s in sigs]
-    tup.sort()
+    # 시각은 봉 ts 기반 분수 일수(t_in/t_out). 1h 는 같은 날 진입·청산이 대부분이라 날짜 문자열로는
+    # 청산이 진입보다 먼저 정렬돼 거래가 통째로 빠졌다(종전 'C3 계산 불가'의 원인). 구 dict 는 date 폴백.
+    tup = [(s.get("t_in", s["date"]), s.get("t_out", s["exit_date"]), s["ret"], s["hold"], s["reason"],
+            s["stop_pct"], s["vol"]) for s in sigs]
+    tup.sort(key=lambda t: (t[0], t[1]))
     return mx.equity_curve(tup, span_days=span_days)
 
 
@@ -245,9 +293,11 @@ def collect(tf, detect_fn, direction, rows_by, atrs, regmap):
             if vol is None:
                 continue
             ret, hold, reason, stop_pct = r
+            xi = min(si + hold, len(rows) - 1)
             out.append(dict(sym=s, date=rows[si]["date"], regime=regmap.get(rows[si]["date"]),
                             ret=ret, hold=hold, reason=reason, stop_pct=stop_pct, vol=vol,
-                            exit_date=rows[min(si + hold, len(rows) - 1)]["date"]))
+                            exit_date=rows[xi]["date"],
+                            t_in=_tnum(rows[si]), t_out=_tnum(rows[xi])))
         by_sym[s] = out
     return by_sym
 
@@ -275,7 +325,7 @@ def main(argv=None):
     all_dates = sorted({r["date"] for rows in rows_1d.values() for r in rows})
     d_hi = date.fromisoformat(all_dates[-1]).toordinal()
     cutoff = date.fromordinal(d_hi - HOLDOUT_DAYS).isoformat()
-    print(f"[분할] train < {cutoff} <= holdout")
+    print(f"[분할] 1d/4h: train < {cutoff} <= holdout | 1h: 마지막 {HOLDOUT_DAYS_BY_TF['1h']}일 holdout (TF 별 아래)")
 
     results, ctx_cache = {}, {}
     for cid, g in todo:
@@ -285,10 +335,12 @@ def main(argv=None):
             cohorts = {"all": set(rows_by), "top30": set(s for s in ranked[:30] if s in rows_by)}
             pools, atrs = build_context(tf, rows_by, cohorts, regmap)
             first = min(r["date"] for rows in rows_by.values() for r in rows)
-            span_train = max(1, date.fromisoformat(cutoff).toordinal() - date.fromisoformat(first).toordinal())
+            last_tf = max(r["date"] for rows in rows_by.values() for r in rows)
+            cutoff_tf = date.fromordinal(date.fromisoformat(last_tf).toordinal() - HOLDOUT_DAYS_BY_TF[tf]).isoformat()
+            span_train = max(1, date.fromisoformat(cutoff_tf).toordinal() - date.fromisoformat(first).toordinal())
             ctx_cache[tf] = dict(rows_by=rows_by, cohorts=cohorts, pools=pools, atrs=atrs,
-                                 span_train=span_train, pool_rets={}, sigs={})
-            print(f"[{tf}] 종목 {len(rows_by)} | train 창 {span_train}일", flush=True)
+                                 span_train=span_train, cutoff=cutoff_tf, pool_rets={}, sigs={})
+            print(f"[{tf}] 종목 {len(rows_by)} | train {first}~{cutoff_tf} ({span_train}일) | holdout {HOLDOUT_DAYS_BY_TF[tf]}일", flush=True)
         ctx = ctx_cache[tf]
         key = (cid, direction)
         if key not in ctx["sigs"]:
@@ -313,7 +365,7 @@ def main(argv=None):
                   f"| 레짐평균 {_f(rec['base_mean'])} 엣지 {_f(rec['edge'])} | boot_p={rec['boot_p']:.3f} "
                   f"OOS={rec['oos_pos']}/4 보유 {rec['hold']:.1f} -> {rec['verdict']} {rec['reason']}")
             print(f"         연도별 {yr} | 청산 {rec['reasons']}")
-        cf = confirm(cells, cutoff, ctx["span_train"])
+        cf = confirm(cells, ctx["cutoff"], ctx["span_train"])
         eq = cf["equity"] or {}
         print(f"  => {'CONFIRMED' if cf['confirmed'] else 'not confirmed'} | C1 실거래코호트 {cf['c1_live_cohort']} "
               f"| C2 holdout n={cf['holdout']['n']} mean={_f(cf['holdout']['mean'])} {cf['c2_holdout']} "

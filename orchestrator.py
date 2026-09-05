@@ -96,15 +96,15 @@ def expectancy(res):
     tr = true_rate(agg)
     mean_r = st.mean(rets) if rets else 0.0
     med_r = st.median(rets) if rets else 0.0
-    return n, tr, mean_r, med_r
+    return n, tr, mean_r, med_r, rets
 
 
 def test_and_gate(mod, pattern_id, symbol_label, tf, date_from=None, date_to=None):
     """백테스트 1회 -> 기대값 gate -> research_log 기록. verdict 반환."""
     res = mod.evaluate(date_from, date_to, tf)
-    n, tr, mean_r, med_r = expectancy(res)
+    n, tr, mean_r, med_r, rets = expectancy(res)
     T = gate.count_trials()                       # 기록 전 시점 = 보정 기준
-    verdict, eff = gate.decide(n, mean_r, med_r, T)
+    verdict, eff = gate.decide(n, mean_r, med_r, T, rets=rets)   # v2: 승률 조건
     research_log.append_log(
         pattern_id, symbol_label,
         {"tf": tf, "from": date_from, "to": date_to},
@@ -148,9 +148,9 @@ def process(p):
     reject_reason = None
     for tf in TIMEFRAMES:
         full = mod.evaluate(None, None, tf)
-        n, tr, mean_r, med_r = expectancy(full)
+        n, tr, mean_r, med_r, rets = expectancy(full)
         T = gate.count_trials()
-        verdict, eff = gate.decide(n, mean_r, med_r, T)
+        verdict, eff = gate.decide(n, mean_r, med_r, T, rets=rets)   # v2: 승률 조건
         research_log.append_log(p["id"], f"{SYMBOLS_LABEL}@{tf}",
                                 {"tf": tf, "period": "full"}, n, tr, mean_r, med_r, verdict)
         print(f"    [{tf}] n={n}, 평균={mean_r*100:+.2f}%, 중앙값={med_r*100:+.2f}%, "

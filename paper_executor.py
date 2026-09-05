@@ -135,6 +135,47 @@ def _save(fn, obj):
     json.dump(obj, open(fn, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
 
+# ── 중복 진입 방어 키 (2026-09-05 사용자 결정 "봉 시각 기준으로") ─────────────────
+# 종전 키는 (symbol, pattern, direction, date) 였다. 1d 에서는 봉=날짜라 문제가 없지만 4h/1h 는
+# 하루에 여러 봉이 같은 date 를 가져 '심볼·패턴당 하루 1회'로 묶였고, 검증(봉마다 진입 가능)보다
+# 거래가 적었다. 이제 봉 ts 가 있으면 ts 로, 없으면(구 기록·ts 없는 신호) date 로 대조한다.
+# 같은 종목·방향 실포지션 중복 방어(live_dir_keys)는 별도로 그대로 작동한다.
+def _norm_ts(v):
+    try:
+        return int(float(v)) if v not in (None, "", 0) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _entry_key(symbol, pattern, direction, ts, date):
+    ts = _norm_ts(ts)
+    return (symbol, pattern, direction, ts if ts else date)
+
+
+def _record_keys(records):
+    """포지션/거래 기록 → (ts 키, ts 없는 기록의 date 키, 전체 기록의 date 키)."""
+    ts_keys, date_keys, all_date = set(), set(), set()
+    for r in records:
+        base = (r.get("symbol"), r.get("pattern"), r.get("direction"))
+        ts = _norm_ts(r.get("entry_ts"))
+        all_date.add(base + (r.get("entry_date"),))
+        if ts:
+            ts_keys.add(base + (ts,))
+        else:
+            date_keys.add(base + (r.get("entry_date"),))
+    return ts_keys, date_keys, all_date
+
+
+def _is_dup_entry(sig, ts_keys, date_keys, all_date):
+    """신호가 이미 진입한 봉과 겹치는가. ts 신호는 ts 로 대조하고, ts 가 없는 **기록**은 date 로
+    보수 대조한다(구 기록이 그날 첫 봉을 진입봉으로 잡았을 수 있어서). ts 없는 신호는 date 로만."""
+    base = (sig["symbol"], sig["pattern"], sig["direction"])
+    ts = _norm_ts(sig.get("ts"))
+    if ts:
+        return (base + (ts,) in ts_keys) or (base + (sig.get("date"),) in date_keys)
+    return base + (sig.get("date"),) in all_date
+
+
 def eval_D(rows, ei, direction, opp_set, regmap, entry_reg=None):
     # entry_reg: 진입 시 기록한 레짐(pos["entry_regime"]). 레짐맵은 실행마다 다시 계산돼
     # 과거 라벨이 밀릴 수 있으므로(BTC.D 캐시 창 이동 + 히스테리시스 경로 의존) 기록값을
@@ -816,8 +857,10 @@ def run(stamp=None):
     # 59% vs complacent 26%. 축소만(공포 국면 upsize 안 함), 타이밍 과적합 방어.
     market_cap = sig.get("avg_alt_cap")
     regime_long_weak = market_cap is not None and market_cap > REGIME_CAP_THR
-    openkeys  = {(p["symbol"], p["pattern"], p["direction"], p["entry_date"]) for p in still_open}
-    closedkeys = {(t["symbol"], t["pattern"], t["direction"], t["entry_date"]) for t in trades}
+    # 중복 진입 방어 키 — 봉 ts 기준(2026-09-05, _entry_key/_is_dup_entry 참조). 구 기록은 date 폴백.
+    _o_ts, _o_dt, _o_all = _record_keys(still_open)
+    _c_ts, _c_dt, _c_all = _record_keys(trades)
+    dup_ts, dup_dt, dup_all = _o_ts | _c_ts, _o_dt | _c_dt, _o_all | _c_all
     new = 0
     live_orders = 0
     # 같은 종목·방향 실포지션 중복 방어(2026-09-03): (a) DB 저장 실패·실행 중단으로 장부에
@@ -837,10 +880,9 @@ def run(stamp=None):
         ei = _bar_idx(rows, s.get("ts"), s["date"])
         if ei is None:
             continue
-        # 중복 진입 방어 키는 date 단위 유지 — 하위 TF에서는 '심볼·패턴당 하루 1회'
-        # 라는 보수적 상한으로 작동한다(같은 날 여러 봉 신호 시 첫 건만).
-        key = (s["symbol"], s["pattern"], s["direction"], s["date"])
-        if key in openkeys or key in closedkeys:
+        # 중복 진입 방어 — 봉 ts 기준(2026-09-05 사용자 결정). 같은 봉에 두 번 들어가지 않되,
+        # 같은 날 다른 봉의 신호는 검증과 같이 별개 거래로 본다.
+        if _is_dup_entry(s, dup_ts, dup_dt, dup_all):
             continue
 
         entry   = rows[ei]["c"]

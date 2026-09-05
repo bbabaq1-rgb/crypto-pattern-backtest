@@ -54,10 +54,18 @@ check("복권형도 v2 판정 자체는 승률로만 (5%→기각)", not gate.di
 check("dist_reason 문자열", "win_rate=" in gate.dist_reason(rets30))
 
 # 배포 검증 모듈이 v2 를 쓴다
-for f in ("validate_regime_split.py", "validate_regime_split_all.py", "validate_revival.py"):
+for f in ("validate_regime_split.py", "validate_regime_split_all.py", "validate_revival.py",
+          "validate_confirm_bar.py", "validate_universe_1d.py", "validate_vol_awakening.py",
+          "validate_xsec_momentum.py", "validate_triple_pattern.py"):
     src = open(f, encoding="utf-8").read()
-    check(f"{f}: gate.dist_ok 사용", "gate.dist_ok(rets)" in src)
+    check(f"{f}: gate.dist_ok 사용", "gate.dist_ok(rets)" in src or "gt.dist_ok(rets)" in src)
     check(f"{f}: 자체 median 판정 없음", "and med > 0 and" not in src and 'fails.append("median<=0")' not in src)
+
+for f in ("orchestrator.py", "tf_verify.py", "alt_verify.py", "candle_verify.py"):
+    src = open(f, encoding="utf-8").read()
+    check(f"{f}: gate.decide 에 rets 를 넘긴다(v2)", "rets=rets" in src and "gate.decide(" in src)
+    check(f"{f}: rets 없는 v1 호출 없음", not __import__("re").search(r"gate\.decide\([^)]*count_trials\(\)\)", src) or "rets=rets" in src)
+check("validate_crows_regime.py: 승률 조건", "gate.dist_ok(rets)" in open("validate_crows_regime.py", encoding="utf-8").read())
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

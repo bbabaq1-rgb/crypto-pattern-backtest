@@ -5,6 +5,7 @@ Three Black Crows 4h — bear/altseason 레짐 조건부 재검증
 게이트: n>=20, mean>0, median>0, OOS 양구간, baseline p<0.05
 """
 import json, os, random, statistics, importlib
+import gate
 from regime_switch import build_regime_map
 import detlib
 
@@ -110,11 +111,11 @@ def _gate(label, sigs, boot_means=None):
     print(f"  게이트:")
     g_n   = n >= 20
     g_mu  = mean > 0
-    g_med = med > 0
+    g_med = gate.dist_ok(rets)          # v2: 승률>=35%
     g_bas = (not isinstance(boot_p, float) or not (boot_p == boot_p)) or boot_p < 0.05
     print(f"    n≥20  : {'✓' if g_n   else '✗'}")
     print(f"    mean>0: {'✓' if g_mu  else '✗'}")
-    print(f"    med>0 : {'✓' if g_med else '✗'}")
+    print(f"    승률>=35% : {'✓' if g_med else '✗'}")
     if boot_means:
         print(f"    base p<0.05: {'✓' if g_bas else '✗'} (boot_p={boot_p:.4f})")
     return dict(n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p,

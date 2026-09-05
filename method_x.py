@@ -144,6 +144,13 @@ def outcome_x(rows, si, direction, opp_set, arm, stop):
 
 
 # ── 자산곡선 — 실거래 사이징 (arm 의 stop_pct 를 그대로 넘긴다) ─────────────
+def _tnum(x):
+    """거래 시각 → 일수(ordinal). 문자열 날짜는 종전대로 정수 ordinal, 숫자면 **분수 일수 그대로**
+    (2026-09-05: 1h 프레임은 봉 ts 를 분수 일수로 넘긴다 — 같은 날 진입·청산이 순서대로 처리된다.
+    종전 문자열 호출은 값이 변하지 않는다)."""
+    return float(x) if isinstance(x, (int, float)) else ss._dnum(x)
+
+
 def equity_curve(trades, span_days=None):
     """
     trades: [(entry_date, exit_date, ret, hold, reason, stop_pct, vol[, size_mult])] 시간순 무관.
@@ -161,8 +168,8 @@ def equity_curve(trades, span_days=None):
         return None
     evs = []
     for i, t in enumerate(trades):
-        evs.append((ss._dnum(t[0]), 0, i))
-        evs.append((ss._dnum(t[1]), -1, i))
+        evs.append((_tnum(t[0]), 0, i))
+        evs.append((_tnum(t[1]), -1, i))
     evs.sort()
     equity = free = START_EQ
     open_pos, peak, mdd = {}, START_EQ, 0.0

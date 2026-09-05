@@ -12,6 +12,7 @@ validate_universe_1d.py — 검증-실거래 유니버스 불일치 해소용 �
   engulfing(L/S), fvg(L/S), inverted_hammer(L), marubozu(L)
 """
 import os
+import gate
 import glob
 import json
 import random
@@ -131,12 +132,12 @@ def run_pattern(label, detect_fn, direction, syms):
         oos.append(dict(q=i, n=len(rr), mean=m, ok=ok))
         print(f"  OOS Q{i} ({d0[:7]}~{d1[:7]}): n={len(rr)} mean={m*100:+.2f}% {'O' if ok else 'X'}")
 
-    ok_all = n >= 20 and mean > 0 and med > 0 and boot_p < 0.05 and oos_pos >= 2
+    ok_all = n >= 20 and mean > 0 and gate.dist_ok(rets) and boot_p < 0.05 and oos_pos >= 2
     verdict = "PASSED" if ok_all else "REJECTED"
     fails = []
     if n < 20: fails.append("n<20")
     if mean <= 0: fails.append("mean<=0")
-    if med <= 0: fails.append("median<=0")
+    if not gate.dist_ok(rets): fails.append(gate.dist_reason(rets))
     if boot_p >= 0.05: fails.append(f"boot_p={boot_p:.3f}")
     if oos_pos < 2: fails.append(f"OOS {oos_pos}/4")
     print(f"  판정: {verdict}" + (f" ({', '.join(fails)})" if fails else ""))

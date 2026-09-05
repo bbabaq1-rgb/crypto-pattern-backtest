@@ -152,7 +152,8 @@ def build_tables():
     g = gated_table(cohort_of)
     if g is not None:
         tabs["gated"] = g
-    # route 와 한 셀만 다르다 — bear fvg FLAT → long. 다른 7셀은 route 그대로 복사.
+    # route 와 한 셀만 다르다 — (bear, fvg) 를 long 으로. 다른 7셀은 route 그대로 복사.
+    # (2026-09-04~05 사이 route 값은 FLAT, 2026-09-05 오버라이드 제거 후는 short — 어느 쪽이든 arm 정의는 같다)
     bfl = dict(tabs["route"])
     bfl[("bear", "fvg")] = "long"
     tabs["route_bfl"] = bfl
