@@ -2249,6 +2249,11 @@
     "decision": "사용자: '방식R 35~45% 기준으로 재판정'",
     "change": "method_r 기준 ④·⑦ 분기 거래 승률 '>50%' → '>=35%'(gate.WIN_RATE_MIN, DIV_WIN_MIN). 나머지 5기준 불변. method_r.yml 재실행",
     "prior": "2026-09-03 3라운드 REJECT — 결정타가 ④(RL 46%/R1 44%). 단 RL 은 ②CAGR우위 3/7 도 탈락, 홀드아웃 분기 6건 0승이라 ⑦ 도 탈락 예상",
-    "status": "registered — 결과 판독 후 기록"
+    "status": "REJECT (run 33962938139, 메이저 7종목 n=837)",
+    "result": {
+      "RL": "train ①합산 +0.613%p boot_p .005 True / ②CAGR우위 3/7 False / ③True / ④분기 195건 88/102=45% True(35% 문턱) / ⑤전반 +1.20 후반 +0.03 True → train 탈락 | holdout n=217 ⑥ -0.180%p t -2.19 False / ⑦ 분기 21건 1/11 False",
+      "RA": "train ① +0.272%p bp .047 / ② 3/7 False / ④ 71/98=42% True / ⑤ True → 탈락 | holdout ⑥ -0.000%p False / ⑦ 1/4 False",
+      "reading": "승률 문턱을 35% 로 내리면 ④는 통과하지만 ②(자산곡선 CAGR 우위 3/7)와 홀드아웃(⑥⑦ — 마지막 1년 bear 에서 RL 이 D 보다 유의하게 나쁨, 분기 1승 11패)이 남는다. 승률이 문제가 아니었다. 실거래 청산 규칙 변경 없음(방식D 유지)"
+    }
   }
 }
