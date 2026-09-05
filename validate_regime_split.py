@@ -78,14 +78,20 @@ def gate_cell(label, sigs, pool, verbose=True):
         t = mean / (st.stdev(rets) / sqrt(n)); p = _pval(t, n - 1)
     boot_p = 1.0
     base_mean = base_med = None
+    pool_n, base_k = len(pool), 0
     if pool and n:
         rng = random.Random(SEED)
-        k = min(max(10, min(30, n)), len(pool))
         direction = sigs[0][2] if len(sigs[0]) > 2 else "long"
+        # 베이스라인 표본 수는 셀과 같아야 한다(k = n). 종전 k=min(30, n) 은 n 이 큰 셀에서
+        # 베이스라인 평균의 표준오차를 sqrt(30) 에 묶어 분포를 실제보다 넓게 만들었고, 그만큼
+        # boot_p 가 부풀려졌다(보수적). 게이트 문턱(0.05)은 그대로 — 추정량 버그를 고친 것이다.
+        # 풀은 한 번만 평가해 재사용한다: outcome 은 (rows, i, direction) 의 결정론적 함수라
+        # 매 draw 마다 다시 계산해도 같은 값이고, 재사용이 BOOT_N x k 회 호출을 없앤다.
+        pool_rets = [detlib.outcome(r, i, direction)[1] for r, i in pool]
+        base_k = n
         ge, means = 0, []
         for _ in range(BOOT_N):
-            smp = rng.choices(pool, k=k)
-            bm = st.mean(detlib.outcome(r, i, direction)[1] for r, i in smp)
+            bm = st.mean(rng.choices(pool_rets, k=base_k))
             means.append(bm)
             ge += bm >= mean
         boot_p = ge / BOOT_N
@@ -114,7 +120,7 @@ def gate_cell(label, sigs, pool, verbose=True):
         by_year.setdefault(d[:4], []).append(r)
     years = {y: dict(n=len(v), mean=st.mean(v)) for y, v in sorted(by_year.items())}
     rec = dict(n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p, oos_pos=oos_pos,
-               base_mean=base_mean, base_median=base_med,
+               base_mean=base_mean, base_median=base_med, pool_n=pool_n, base_k=base_k,
                edge_vs_regime=(mean - base_mean) if base_mean is not None else None,
                by_year=years, verdict="PASSED" if ok else "REJECTED", reason=", ".join(fails))
     if verbose:

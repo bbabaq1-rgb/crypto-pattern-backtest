@@ -161,16 +161,20 @@ def gate_cell(label, sigs, pool, outcome_fn, verbose=True):
     if n >= 2 and st.stdev(rets) > 0:
         t = mean / (st.stdev(rets) / sqrt(n)); p = _pval(t, n - 1)
     boot_p, base_mean = 1.0, None
+    pool_n, base_k = len(pool), 0
     if pool and n:
         rng = random.Random(SEED)
-        k = min(max(10, min(30, n)), len(pool))
         direction = sigs[0][2]
+        # 베이스라인 표본 수 = 셀 표본 수(k = n). 종전 k=min(30, n) 은 베이스라인 평균의
+        # 표준오차를 sqrt(30) 에 묶어 분포를 넓히고 boot_p 를 부풀렸다 — 게이트 문턱이 아니라
+        # 추정량의 버그다. 풀은 한 번만 평가한다(outcome_fn 은 결정론적).
+        pool_rets = [v for v in (outcome_fn(r, i, direction, a) for r, i, a in pool) if v is not None]
+        base_k = n
         ge, means = 0, []
-        for _ in range(BOOT_N):
-            vals = [v for v in (outcome_fn(r, i, direction, a) for r, i, a in rng.choices(pool, k=k)) if v is not None]
-            if not vals:
-                continue
-            bm = st.mean(vals); means.append(bm); ge += bm >= mean
+        if pool_rets:
+            for _ in range(BOOT_N):
+                bm = st.mean(rng.choices(pool_rets, k=base_k))
+                means.append(bm); ge += bm >= mean
         if means:
             boot_p = ge / len(means); base_mean = st.mean(means)
     oos = []
@@ -196,7 +200,7 @@ def gate_cell(label, sigs, pool, outcome_fn, verbose=True):
     years = {y: dict(n=len(v), mean=st.mean(v)) for y, v in sorted(by_year.items())}
     pos_years = sum(1 for v in years.values() if v["mean"] > 0 and v["n"] >= 5)
     rec = dict(n=n, mean=mean, median=med, t=t, p=p, boot_p=boot_p, oos_pos=oos_pos,
-               base_mean=base_mean,
+               base_mean=base_mean, pool_n=pool_n, base_k=base_k,
                edge_vs_regime=(mean - base_mean) if base_mean is not None else None,
                by_year=years, pos_years=pos_years,
                verdict="PASSED" if ok else "REJECTED", reason=", ".join(fails))
