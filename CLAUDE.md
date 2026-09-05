@@ -388,6 +388,9 @@
   k=n 재실행(routing_gate 33955072569)에서 top20·bear 셀 PASSED(n=356 +0.81% med +3.28% 엣지 +1.58%p bp .014),
   top30 bp .072, all bp .397. **유의**: 수익이 2026 bear 단일 해(+5%)에서 나오고 2022·2024 bear 는 음수 —
   실거래 fvg 는 top30 코호트라 경계 셀이다. 현 레짐 bull_altseason 에서는 즉시 변화 없음. test_direction_switch 갱신.
+  · **같은 날 저녁 다시 OFF (사용자 결정 "이건 꺼주고")** — 잣대: "2026년 한 해만 이익인 규칙은 적용하지 않는다"(vwap_rev_short_4h
+    미배포와 동일). bear 국면 연도별 top20 2022 −2.4% / 2024 −7.6% / 2025 −10.8% / 2026 +5.1%. 켜져 있던 약 3시간 동안 실주문 0.
+    `ROUTING_OVERRIDES` {(bear, fvg): FLAT} 복원. **원칙 기록**: 단일 해(특히 현재 진행 중인 해) 의존 셀은 게이트를 넘어도 켜지 않는다.
 - **MAX_POS 슬롯 격자 사전 등록 (2026-09-05, 사용자 지시 "맥스포스 12 시험")**: `sizing_vol.py --routing --slots`
   — MAX_POS {8,12,16,20,24}, risk 1.5%/lev 3/vol_matched 고정, 동결 기준(boot MDD중앙≥−35% AND P(ruin)<5% 중
   Calmar 최대). 슬롯 상한은 레버리지와 달리 동시 노출을 직접 키우므로 MDD·P(ruin) 이 먼저. **채택은 사용자 결정.**

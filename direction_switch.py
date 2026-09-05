@@ -25,8 +25,11 @@ REGIMES = ["bull_altseason", "bull_btc", "bear", "sideways"]
 #     PASSED(n=356 +0.81% med +3.28% 엣지 +1.58%p bp .014 OOS 2/4), top30 bp .072, all bp .397.
 #     2026-09-05 사용자 결정("bear fvg 숏 키고")으로 오버라이드 제거 → decide() 그대로(현 표 short).
 #     유의: 그 셀의 수익은 2026 bear 단일 해(+5%)에서 나오고 2022·2024·2025 bear 는 음수다.
-#     다시 끄려면 {("bear", "fvg"): "FLAT"} 을 넣는다. test_direction_switch 가 현 상태를 고정한다.
+#     2026-09-05 저녁 사용자 결정으로 **다시 OFF** — "2026년 한 해만 이익인 규칙은 적용하지 않는다"는 잣대
+#     (vwap_rev_short_4h 미배포와 같은 기준). bear 국면 연도별: 2022 −2.4% / 2024 −7.6% / 2025 −10.8% / 2026 +5.1%.
+#     test_direction_switch 가 현 상태(FLAT)를 고정한다. 되돌리려면 항목을 지운다.
 ROUTING_OVERRIDES = {
+    ("bear", "fvg"): "FLAT",
 }
 
 
