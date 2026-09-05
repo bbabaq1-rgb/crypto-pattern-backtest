@@ -697,7 +697,8 @@
   `fast_scheduler.yml` (--fast, exit_spec 패턴만, **schedule 없음**). 2026-09-02 분리.
   **발화는 Supabase pg_cron → workflow_dispatch**(fast 매시 :03 / daily 정각) —
   daily 만 GitHub schedule 폴백 유지. 발화율 측정 시 dispatch 이벤트 포함
-- **실거래 안전장치** (2026-07-06): MAX_LIVE_POS 12(사용자 승인 5→12) ·
+- **실거래 안전장치** (2026-07-06): MAX_LIVE_POS **16**(사용자 승인 5→12 2026-07-06 → 16 2026-09-05, 슬롯 격자 근거 —
+  12→16 슬롯 스킵 462→47·Calmar 1.84→1.85·MDD −2%p, equity $400 에서 16슬롯 증거금 $400 이라 그 아래면 증거금이 먼저 막음) ·
   킬스위치(equity < $100 → 신규 진입 중지, paper_executor.EQUITY_FLOOR —
   2026-08-29 사용자 지정 절대 하한. 기존 HWM 대비 -20%($230.06) 규칙은 폐기) ·
   손절 algo 주문 매 실행 자동점검(ensure_stop_orders — 누락 시 재등록 +
@@ -751,7 +752,13 @@
 - [x] **선별 완화(한 코호트 PASSED) 1d/4h 14셀 확인 시험** (2026-09-05, run 33960053517) — **0 CONFIRMED**. 가까운 셀
       inverse_hs_1d·bull_btc(C1 통과 Calmar 2.89)는 holdout n=12 전부 손절. equal_lows_4h·ALL 은 자산곡선 음수(bear 셀만 배포가 맞음)
 - [x] **1h 8셀 확인 시험 판독** (2026-09-05, run 33961032437) — 0 CONFIRMED. bull_btc 셀은 holdout 거래 0(2026 bear) → 판정 불가
-- [x] **MAX_POS 슬롯 격자 판독** (2026-09-05, run 33961480251) — 16: Calmar 1.85(=12) MDD −2%p 슬롯스킵 462→47. 채택은 사용자 결정
+- [x] **MAX_POS 슬롯 격자 판독** (2026-09-05, run 33961480251) — 16: Calmar 1.85(=12) MDD −2%p 슬롯스킵 462→47
+- [x] **MAX_POS 12 → 16** (2026-09-05 사용자 결정 "맥스포스 16으로") — paper_executor.MAX_LIVE_POS, sizing_study.MAX_POS 동기
+- [x] **하모닉 5종 + triple_bottom_1w 인과 판 v2 재검증** (2026-09-05, run 33961480261) — **7셀 전부 REJECTED 유지**.
+      탈락 사유는 전부 boot_p(.13~.58) 또는 평균 음수 — 승률 문턱과 무관. gartley_4h 인과 +0.66% bp .237, triple_bottom_1w
+      인과 +3.65% bp .133. 룩어헤드 판은 여전히 +0.85~+3.09%p 부풀림. 등재 정지 유지, 복귀 후보 없음
+- [ ] **방식R 재판정(분기 승률 문턱 50%→35%, 사용자 결정) 결과 판독** — method_r.yml 재실행. ⑦ 홀드아웃 분기 승률도 같은 문턱.
+      통과 arm 이 나오면 자율 반영 대상(eval_D 청산 규칙 변경 — 실거래 청산 로직이라 반영 전 사용자에게 한 번 더 보고)
 - [x] **4h C3 프레임 정정 → vol_awakening_4h·equal_lows_4h(ALL) 배포** (2026-09-05 저녁) — report_revival §8
 - [ ] **vol_awakening_4h 첫 주 슬롯 점유 관찰** — `[live] 최대 포지션 도달` 스킵 로그 빈도, 다른 패턴 진입이 밀리는지. 밀리면 MAX_POS 16 제안
 - [ ] **포트폴리오 단위 확인 프레임** — 패턴 단독 C3 는 슬롯 경합을 못 본다. 배포 집합 전체를 한 자산곡선으로(sizing_vol --routing 에 4h adopted 포함) 재는 시험 사전 등록

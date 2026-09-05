@@ -77,7 +77,9 @@ def load_exit_specs(path=EXIT_SPEC_FILE):
 EXIT_SPECS = load_exit_specs()
 
 # 실거래 포지션 사이징 규칙
-MAX_LIVE_POS   = 12    # 동시 최대 실거래 포지션 (2026-07-06 사용자 승인으로 5→12 상향)
+MAX_LIVE_POS   = 16    # 동시 최대 실거래 포지션. 5→12(2026-07-06) → 16(2026-09-05 사용자 결정 "맥스포스 16으로").
+                       # 근거: 슬롯 격자(sizing_vol --slots, run 33961480251) 12→16 에서 슬롯 스킵 462→47, boot Calmar 1.84→1.85,
+                       # MDD중앙 -58.4→-60.4%. 고빈도 vol_awakening_4h 배포와 한 쌍. equity $400 에서 16슬롯 증거금 = $400(lev3).
 LIVE_MIN_USD   = 10.0  # 최소 주문 금액 (이하 스킵)
 LIVE_FIRST_USD = 20.0  # 첫 주문 고정 금액
 LIVE_BAL_PCT   = 0.20  # 두 번째부터 가용잔고 × 20%

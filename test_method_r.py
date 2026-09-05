@@ -258,5 +258,14 @@ check("paper_executor.eval_D 의 레짐 조건은 현행 그대로(방향 무관
 check("paper_executor 는 method_r 를 import 하지 않음", "import method_r" not in src and "from method_r" not in src)
 
 print()
+# ── 분기 승률 문턱 (2026-09-05 사용자 결정: 방식R 을 35~45% 기준으로 재판정) ──────
+import gate as _gate
+check("DIV_WIN_MIN 은 게이트 v2 승률 문턱과 같다(0.35)", mr.DIV_WIN_MIN == _gate.WIN_RATE_MIN == 0.35)
+check("_div_ok: 승률 44%(종전 기각 사유) 는 이제 통과", mr._div_ok(dict(n=285, arm_wins=125, arm_losses=160)))
+check("_div_ok: 승률 30% 는 탈락", not mr._div_ok(dict(n=100, arm_wins=30, arm_losses=70)))
+check("_div_ok: 분기 0건은 판정 불가(False)", not mr._div_ok(dict(n=0, arm_wins=0, arm_losses=0)))
+_src = open("method_r.py", encoding="utf-8").read()
+check("verdict c4/c7 이 _div_ok 를 쓴다", "c4 = _div_ok(dv)" in _src and 'c7 = bool(ho) and _div_ok(ho["divergence"])' in _src)
+
 print(f"실패 {len(fails)} 건" if fails else "실패 0 — 전체 통과")
 sys.exit(1 if fails else 0)

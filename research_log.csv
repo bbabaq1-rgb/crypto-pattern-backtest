@@ -290,3 +290,4 @@
 2026-09-05T11:10:00+00:00,equal_lows_4h,top30@4h,"{""cell"": ""ALL long (bear->all)"", ""win_rate"": 0.5, ""boot_p"": 0.004, ""oos"": ""3/4"", ""holdout_n"": 497, ""holdout_mean"": 0.007, ""calmar"": 0.45}",1086,,0.0067,0.0002,DEPLOYED (gate v2),
 2026-09-05T11:10:00+00:00,revival_1h_frame,8cells@1h,"{""confirmed"": 0, ""c1_pass"": 5, ""holdout_n0_bull_btc"": 3, ""note"": ""holdout 90d = 2026 bear; bull_btc cells have no holdout trades""}",8,,,,0 CONFIRMED,
 2026-09-05T11:10:00+00:00,universe_okx_scan_v2,cohorts@1d,"{""engulfing_rank1_20"": ""PASSED +4.15% bp.039"", ""engulfing_rank21_30"": ""REJECTED bp.132"", ""fvg"": ""all cohorts REJECTED boot_p"", ""conclusion"": ""unchanged""}",,,,,UNCHANGED,
+2026-09-05T11:20:00+00:00,harmonic_causal_v2,7cells@4h/1h/1w,"{""rejected"": 7, ""reasons"": ""boot_p or mean<=0 (not win_rate)"", ""gartley_4h"": ""+0.66% bp.237"", ""triple_bottom_1w"": ""+3.65% bp.133"", ""run"": 33961480261}",7,,,,REJECTED 7/7 (unchanged),
