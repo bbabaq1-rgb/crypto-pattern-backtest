@@ -1953,5 +1953,93 @@
   "max_n": 48,
   "cells_meeting_n20": 4,
   "note": "36셀 중 n>=20 은 1d·터치4·zz<=0.05 의 4셀뿐(최대 48건 = 80종목 5년 전체). 4h/1h 전 셀 미달(최대 9건). 터치 4->5 에서 48->2건. zigzag +-40% 에 48/38/18. 환원형(bb_squeeze/nr7/breakout_retest/equal_highs·lows)이 이미 6번 기각. 진입 A(하단선 터치)는 시장가 엔진에서 실행 불가. 재검토 조건: 1d 이력 2배 누적 후 터치4·zz0.05 셀 n>=60."
+ },
+ "routing_gate_2026_09_05": {
+  "date": "2026-09-05",
+  "trigger": "사용자: '잘못 설정된 레짐이 매매를 막을 수도 있는 것 아닌가'",
+  "verdict": "실거래 무변경 — 현행 라우팅 유지 (uncond·gated 둘 다 사전 등록 7기준 미달)",
+  "run": "33947910558(1차) / 33949570271(확정)",
+  "baseline_bug": {
+   "what": "gate_cell 의 boot_p 베이스라인 표본 수가 k=min(max(10,min(30,n)),len(pool)) 로 30 에 묶여 있었다",
+   "effect": "베이스라인 평균의 SE 가 sqrt(30) 에 고정 → 분포가 실제보다 넓어져 boot_p 부풀림(보수적)",
+   "symptom": "engulfing 숏 top30 bull_altseason 의 .045 <-> .055 진동 — 데이터가 아니라 추정량 탓",
+   "fix": "k=n. 게이트 문턱 불변. 한쪽으로 느슨해지는 변경 아님(엣지 양수 셀 내려가고 음수 셀 올라감)",
+   "passed_cells_before": 2,
+   "passed_cells_after": 18,
+   "passed_after": {
+    "engulfing": [
+     "all:bull_btc",
+     "top20:bull_btc",
+     "top20:ALL",
+     "top30:bull_btc",
+     "top30:ALL"
+    ],
+    "engulfing_short": [
+     "all:bull_altseason",
+     "top20:bull_altseason",
+     "top30:bull_altseason"
+    ],
+    "fvg": [
+     "all:bull_btc",
+     "top20:bull_btc",
+     "top30:bull_btc"
+    ],
+    "fvg_short": [
+     "top20:bear"
+    ],
+    "inverted_hammer": [
+     "all:bear",
+     "top20:bear",
+     "top20:ALL",
+     "top30:bear",
+     "top30:ALL"
+    ],
+    "marubozu": [
+     "all:ALL"
+    ]
+   },
+   "note": "종전 '72셀 중 2셀 통과, 우연 기대와 구분 어려움' 은 상당 부분 측정 결함. report_regime_split(_all).md boot_p 는 전부 재해석 대상"
+  },
+  "arms": {
+   "design": "청산은 세 arm 모두 방식D 동일 — 다른 것은 진입 방향뿐. 유니버스 80 / 1800일 / 실거래 코호트(engulfing=top20, fvg=top30)",
+   "route": "현행 실거래. direction_switch.decide() + ROUTING_OVERRIDES 를 그대로 호출해 복제",
+   "uncond": "레짐을 방향에 쓰지 않음 — 게이트가 검증한 방향 고정(engulfing·fvg 둘 다 롱)",
+   "gated": "레짐 라우팅이되 분리 게이트 통과 셀만, 없으면 FLAT",
+   "train": {
+    "route": "n=996 +7.30% med-3.79% CAGR+103.2% MDD-45.2% Calmar2.29",
+    "uncond": "n=1219 +6.88% med-8.20% CAGR+82.3% MDD-50.4% Calmar1.63",
+    "gated": "n=849 +8.35% med-3.68% CAGR+71.0% MDD-43.1% Calmar1.65"
+   },
+   "holdout": {
+    "route": "n=87 -4.09% CAGR-43.2% MDD-54.5%",
+    "uncond": "n=360 -1.78% CAGR-65.5% MDD-77.2%",
+    "gated": "n=41 -7.01% CAGR-35.7% MDD-36.6%"
+   },
+   "boot_calmar_median": {
+    "route": 1.28,
+    "uncond": 0.91,
+    "gated": 0.83
+   },
+   "boot_win_rate": {
+    "uncond": 0.31,
+    "gated": 0.07
+   },
+   "criteria": {
+    "uncond": "c3 만 통과 (1/7)",
+    "gated": "c5·c7 만 통과 (2/7)"
+   }
+  },
+  "key_cells": {
+   "bull_altseason_engulfing": "route 숏 n=53 +0.32% vs uncond 롱 n=11 -2.77% — 그 레짐의 롱은 11건뿐이고 음수. 숏이 낫고 분리 게이트도 숏 셀을 통과시킨다",
+   "bear_fvg": "route FLAT n=0 vs uncond 롱 n=538 +1.63% — 후속 단일 셀 시험 대상",
+   "bear_engulfing": "route 롱 n=47 +2.41% vs gated FLAT — 게이트를 라우팅에 걸면 꺼지는 수익 셀",
+   "bull_altseason_fvg": "route 롱 n=146 +0.02% vs gated FLAT",
+   "agreement": "route 와 gated 는 8셀 중 6셀 동일. 방향을 두고 충돌하는 셀은 0 — 다른 2셀은 게이트가 아무것도 통과 못 시킨 자리에서 route 가 거래하는 경우"
+  },
+  "stage3_answer": "'라우팅에 동결 게이트 적용'(내가 제안한 3단계) = gated arm. 시험했고 기각. 레짐별로 쪼갠 셀은 표본이 작아 게이트를 못 넘을 뿐 엣지가 없다는 뜻이 아니다 — 게이트를 라우팅 계층에 옮기면 '표본 부족'을 '엣지 없음'으로 오독한다",
+  "method_fix": "equity_curve 가 CAGR 을 arm 자신의 거래 간격으로 연율화해 arm 마다 분모가 달랐다. 1차에서 gated holdout 이 MDD -36.6% 인데 CAGR -92.2%. equity_curve(trades, span_days=None) 추가(기본값은 종전 동작 = method_x 수치 불변), 분할 공통 창으로 통일. 수정 후 -35.7% 로 기준 7 이 뒤집혔으나 판정 불변. 전반/후반 mid 도 arm 별 중앙값 -> 달력 중점",
+  "design_limit": "기준 3(분기 셀)은 엉뚱한 이유로 통과 — uncond 의 분기 우위가 전부 bear fvg 롱 538건에서 나왔고 정작 altseason engulfing 셀에서는 크게 졌다. 분기 표본을 셀 구분 없이 합친 한계. 사후 기준 변경은 사전등록 위반이라 판정은 유지하고, 다음 설계에 '분기 평균은 셀별 부호 요구'를 넣는다",
+  "correction": "시험 전 진단 '동결 게이트에서 기각된 숏이 게이트 없는 표로 켜진다' 는 무조건부 게이트 기준으로는 맞았으나, 베이스라인을 고친 레짐 분리 게이트에서는 bull_altseason 숏 셀이 통과한다. 문제는 규칙이 아니라 측정이었다",
+  "files": "validate_routing.py / test_routing.py(47) / routing_gate.yml / report_routing_gate.md / validate_regime_split(_all).py / method_x.py(span_days)"
  }
 }
