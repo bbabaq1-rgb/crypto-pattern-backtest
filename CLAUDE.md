@@ -734,6 +734,10 @@
 - [x] **breakout_retest_4h·ALL / vol_awakening_4h·ALL 확인 시험** (2026-09-05, run 33957277149) — **둘 다 기각**.
       breakout_retest holdout −0.41%(C2), vol_awakening 자산곡선 CAGR −6.3%(C3). n≈5천의 얇은 엣지 신호는 슬롯을 채우며
       자산곡선을 끌어내린다. 배포 집합 불변
+- [x] **선별 완화(한 코호트 PASSED) 1d/4h 14셀 확인 시험** (2026-09-05, run 33960053517) — **0 CONFIRMED**. 가까운 셀
+      inverse_hs_1d·bull_btc(C1 통과 Calmar 2.89)는 holdout n=12 전부 손절. equal_lows_4h·ALL 은 자산곡선 음수(bear 셀만 배포가 맞음)
+- [ ] **1h 8셀 확인 시험 판독** (새 채점표, run on 6c50baa) — 통과 시 exit_spec + adopted_1h + fast 경로로 배포
+- [ ] **MAX_POS 슬롯 격자 판독** (quant_batch1 on a0c29c5) — 숫자 보고, 채택은 사용자 결정
 - [ ] **신규 4h 패턴 첫 실거래 관찰** — triple_bottom_4h 첫 진입 시 `[live 사이징]`·손절 algo·닫힌 봉 신호(rows[-2]) 확인.
       신호봉 종가 vs 체결가 슬리피지 기록
 - [ ] **vwap_rev_short_4h · bear 경계 통과분** — 사용자가 켜라고 하면 켤 수 있음(regimes=["bear"], short,
