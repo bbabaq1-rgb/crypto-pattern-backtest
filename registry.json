@@ -2744,6 +2744,42 @@
    "test_phase.py",
    ".github/workflows/phase.yml"
   ],
+  "status": "SUPERSEDED — 실행 전 취소(run 34024626777). 사용자 사양(버킷 0-2/3-5/6-8/9-11/12+개월·재점등 6개월·낙폭 0/-10/-20%, 필터 arm 없음)의 진단 전용 시험 diag_bull_phase 로 대체. 파일 삭제"
+ },
+ "diag_bull_phase_2026_09_06": {
+  "test": "bull_btc 레짐 안에서 패턴 엣지가 시간에 따라 체계적으로 감소하는가 — 진단 전용(코드/판정/실거래 변경 없음)",
+  "requested_by": "사용자 2026-09-06 (9개 항목 사양)",
+  "core_question": "bull_btc 하나의 레짐 안에서 시간이 지나며 엣지가 감소하는가 → bull_early/bull_late/bull_reentry 시간축 레짐의 근거가 되는가. 반대로 'BTC 강한 달=패턴 강한 달'이면 새 레짐 불필요",
+  "key_metric": "엣지 = 패턴 − 같은 조건(같은 달/버킷/코호트/청산D) 무작위 진입. BTC 상승을 패턴 능력으로 착각하지 않기 위함",
+  "buckets_frozen": {
+   "age_months": "0-2 / 3-5 / 6-8 / 9-11 / 12+ (일수//30)",
+   "reignition": "직전 bull 종료 후 <=182일 재점등 / >182일 신규",
+   "btc_dd_365": "0~-10% / -10~-20% / <=-20%"
+  },
+  "patterns": [
+   "double_bottom_1d",
+   "ma180_decisive",
+   "inverse_hs_1d",
+   "three_soldiers_4h",
+   "(우선)",
+   "triple_bottom_1d",
+   "engulfing(top20)",
+   "fvg(top30)"
+  ],
+  "outputs": [
+   "월별(2023-01~) 시장표: bull일·경과·재점등·낙폭·BTC월/fwd3m/fwd6m·ETH/BTC·알트상대30d",
+   "월별 패턴 n/평균/엣지",
+   "버킷별 n/패턴/무작위/엣지/t",
+   "레짐 품질(버킷별 fwd)",
+   "Spearman(엣지, BTC월)"
+  ],
+  "not_available": "TOTAL3 (CoinGecko 유료). 알트 상태는 ETH/BTC + 알트 바스켓 30d 상대수익(라벨러 프록시)으로 대체",
+  "rules": "버킷 경계 사후 변경 금지 · 필터 실거래 적용 없음 · 결과 전 패턴 제외/채택 없음 · 최종 판정은 {패턴 문제/BTC 레짐/알트 레짐/표본 부족} 중 증거와 함께",
+  "files": [
+   "diag_bull_phase.py",
+   "test_diag_bull_phase.py",
+   ".github/workflows/diag_bull_phase.yml"
+  ],
   "status": "REGISTERED (실행 대기)"
  }
 }

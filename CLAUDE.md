@@ -793,11 +793,14 @@
     · 신규 4종 20셀 v3 도 전부 REJECTED. exit_consistency: three_soldiers_4h(all·BULL) 국면 홀드아웃 n=92 **−0.42%** REJECTED — 하락기 탓 아님.
     · **주의**: 2017~22 에피소드는 '오늘의 top30 중 당시 존재한 종목'(생존 편향). C2b 가 검정력 부족(n≈30·bp .06~.10)을 기각으로
       분류하는 건 설계 메모(사후 변경 안 함). 실거래 변경 없음.
-- **국면 위치(에피소드 페이즈) 진단 + 필터 arm 사전 등록 (2026-09-06, 사용자 지시)**: v3 에서 double_bottom/MA180/inverse_hs 가
-  **같은 bull_btc 에피소드**(2025-08~11·2021-10~2022-02·2019-10~12 = 고점 뒤 레짐 재점등)에서 함께 손절 → 패턴이 아니라 라벨의
-  사이클 위치 문제라는 가설. 인과 변수 3개(에피소드 나이 90/270일 · 재점등 180일 · BTC 365봉 낙폭 −10/−30%)·버킷 고정, 5셀
-  (double_bottom_1d/ma180/triple_bottom_1d/inverse_hs_1d/three_soldiers_4h, bull_btc·top30). 1단계 진단 → 사전 규칙 만족 변수만
-  2단계 필터 arm(①제외분 음수 ②D+F v3 CONFIRMED — 풀에도 같은 필터 ③Calmar 비악화). **자동 반영 없음.** validate_phase.py / test_phase.py(21) / phase.yml
+- **bull_btc 국면 위치 진단 — 진단 전용 (2026-09-06, 사용자 사양 9항목)**: 핵심 질문 "bull_btc 하나의 레짐 안에서 시간이 지나며 패턴
+  엣지가 체계적으로 감소하는가"(→ bull_early/late/reentry 시간축 레짐 근거) vs "BTC 강한 달 = 패턴 강한 달"(→ 새 레짐 불필요).
+  **엣지 = 패턴 − 같은 조건(같은 달/버킷/코호트/청산D) 무작위 진입.** 월별(2023-01~) 전수 + 경과개월 0-2/3-5/6-8/9-11/12+ ·
+  재점등(직전 bull 종료 6개월 이내) · BTC 1년 고점 낙폭 0/−10/−20% 고정 버킷 · bull 월의 BTC fwd 3m/6m(국면 품질) · ETH/BTC·알트
+  바스켓 상대수익(TOTAL3 없음). 7패턴(우선 double_bottom/MA180/inverse_hs/three_soldiers + triple_bottom/engulfing/fvg).
+  **버킷 사후 변경 금지·필터 실거래 적용 없음·결과 전 제외/채택 없음.** 판정은 {패턴/BTC 레짐/알트 레짐/표본 부족} 중 증거와 함께.
+  (앞서 내가 짠 90/270일 버킷+필터 arm 판 validate_phase 는 실행 전 취소·삭제 — 버킷이 달라 두 판을 같이 보면 사후 선택이 된다.)
+  diag_bull_phase.py / test_diag_bull_phase.py(17) / diag_bull_phase.yml
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
   시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
   같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도

@@ -1,7 +1,6 @@
-name: Cycle-position (episode phase) diagnostic + filter arm (research, pre-registered)
+name: Diagnostic — bull_btc phase / edge decay (research, diagnostic only)
 
-# 연구 전용 — 매매/DB 무관. bull_btc 에피소드의 국면 위치(나이/재점등/BTC 낙폭)로
-# 5셀을 진단하고, 사전 등록 규칙을 만족한 변수만 필터 arm 을 돌린다. 실거래 반영 없음.
+# 진단 전용 — 매매/DB 무관, 필터·채택·판정 로직 없음. 버킷 경계는 스크립트에 고정.
 
 on:
   workflow_dispatch:
@@ -9,9 +8,9 @@ on:
     branches:
       - "claude/7day-trading-signals-2bk3yq"
     paths:
-      - "validate_phase.py"
-      - "test_phase.py"
-      - ".github/workflows/phase.yml"
+      - "diag_bull_phase.py"
+      - "test_diag_bull_phase.py"
+      - ".github/workflows/diag_bull_phase.yml"
 
 jobs:
   research:
@@ -29,13 +28,13 @@ jobs:
       - name: Logic tests (no network)
         run: |
           python test_frame_v3.py
-          python test_phase.py
-      - name: Diagnostic + filter arm (v3 frame, long 1d)
-        run: python validate_phase.py
+          python test_diag_bull_phase.py
+      - name: Diagnostic
+        run: python diag_bull_phase.py
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: phase-${{ github.run_number }}
-          path: _phase.json
+          name: diag-bull-phase-${{ github.run_number }}
+          path: _diag_bull_phase.json
           if-no-files-found: ignore
