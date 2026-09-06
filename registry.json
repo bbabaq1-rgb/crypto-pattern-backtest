@@ -2579,7 +2579,7 @@
    "test_ma180.py",
    ".github/workflows/ma180.yml"
   ],
-  "status": "DONE (2026-09-06 run 34013456038) — 주 셀 REJECTED (C2 holdout). 실거래 변경 없음, 복귀 후보 없음",
+  "status": "DONE — v2 REJECTED(holdout n=6) → v3 REJECTED(C2b train bp .066), 홀드아웃 문제는 해소됐으나 train 검정력 부족. 실거래 변경 없음",
   "result": {
    "run": 34013456038,
    "split": "train 2021-10-03 ~ 2025-09-06 (1434일) / holdout 365일",
@@ -2614,6 +2614,29 @@
    "reading": "train 은 일관되게 강했다(2023 +9.9 / 2024 +23.4 / 2025 +0.2, 엣지 +8.42%p, Calmar 2.85). 무너진 건 holdout 하나 — bull_btc 국면이 지난 1년에 거의 없어 신호가 6건뿐이고 그 6건이 전부 -8% 손절. 표본이 작아 '판정 불가'에 가깝지만 6/6 손절은 우호적 증거도 아니다. 사전 등록 규칙상 n<10 · mean<0 둘 다 탈락 사유.",
    "caution": "게이트를 통과한 train 셀도 top5 기여 69%, 절사평균 +2.35%(평균 +10.57%) 로 복권형이다. 스터디의 MAE 중앙 -19% · 20일 내 MA 재하향 73% 와 같은 성질 — 크게 튀고 크게 흔들린다",
    "retest_condition": "bull_btc 국면이 1년 이상 누적돼 holdout n>=10 이 될 때. 그 전 재시험은 무가치"
+  },
+  "result_v3": {
+   "run": 34019731790,
+   "frame": "v3 + data_long(2017~, 2021 이전 시작 38/80, 레짐 라벨 2017-08~)",
+   "primary_cell": {
+    "full": "n=59 +13.81% med -4.76% 승률 42% 절사 +4.14% top5 61% 엣지 +10.11%p bp .039 OOS 4/4",
+    "C1_perf": "PASSED",
+    "E": "적격 3 / 양수 2 / 최대비중 50% → PASSED (ep 2023-01~2024-09 n=25 +16.5% / 2024-11~2025-07 n=20 +20.3% / 2025-08~11 n=6 -8.2%)",
+    "C2_holdout_regime": "n=30 **+13.05%** PASSED — v2 의 n=6 전부 손절이 국면 홀드아웃에서는 해소",
+    "C2b_train": "**FAILED — train n=29 boot_p .066** (mean 은 양수지만 표본이 작아 베이스라인 +3.7% 와 유의하게 못 갈라짐)",
+    "C3": "CAGR +12.7% MDD -5.6% Calmar 2.27 PASSED",
+    "COV": "PASSED",
+    "verdict": "REJECTED (C2b)"
+   },
+   "diagnostics": {
+    "ma180_raw|bull_btc|top30": "n=104 +10.84% 승률 48% E 3/4 / holdout n=46 +11.28% / **train n=58 bp .094** → REJECTED(C2b) / Calmar 2.35",
+    "ma200_decisive|bull_btc|top30": "n=54 +17.68% / holdout n=25 +24.04% / train n=29 bp .096 → REJECTED(C2b)",
+    "ma180_decisive|ALL|top30": "n=136 +8.44% / E 4/9 → 실패, holdout -7.06% → REJECTED. 연도별 2018 -8.2 / 2019 -2.5 / 2020 +8.6 / 2021 +19.2 / 2022 -5.8 / 2023 +16.9 / 2024 +18.8 / 2025 -0.9 / 2026 -6.3 — **상승 해에만 번다**",
+    "ma180_raw|ALL|top30": "n=239 E 5/9 / holdout -5.31% → REJECTED"
+   },
+   "reading": "v3 는 v2 의 결함을 실제로 고쳤다 — 국면 홀드아웃(최근 bull 365일 = 2024-11~2025-11 에피소드)에서 n=30 +13.05% 로 엣지가 살아 있다. 대신 그 에피소드를 홀드아웃으로 떼자 train 이 n=29 로 얇아져 boot_p .066 으로 문턱을 못 넘는다. 2017~2022 상승 에피소드는 top30 코호트에서 신호가 2~3건뿐(대부분 당시 미상장)이라 '독립된 상승장 여러 개' 질문에 top30 은 여전히 답하기 어렵다. all 코호트 ALL 셀의 연도별 표가 방향성 자체는 명확히 보여준다(상승 해 4/4 양수, 하락·횡보 해 5/5 음수).",
+   "design_note": "C2b(train 게이트) 실패를 '성능 실패 → REJECTED' 로 분류한 사전 규칙이 boot_p .066·n=29 같은 검정력 부족 사례를 기각으로 만든다. 이번 판정은 규칙대로 두고(사후 변경 금지), 다음 프레임 설계에서 'train n<40 이고 mean>0 이면 INCONCLUSIVE' 같은 검정력 조항을 검토한다.",
+   "live_change": "없음 — 기록용"
   }
  },
  "cron_fallback_removed_2026_09_06": {
