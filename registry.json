@@ -2825,7 +2825,7 @@
   }
  },
  "guard_v4_prereg_draft_2026_09_06": {
-  "status": "PREREGISTERED (2026-09-06, 사용자 확정) — 결과 전 고정. 실행: validate_guard_v4.py / guard_v4.yml",
+  "status": "EXECUTED 2026-09-06 (run 34030352467) — CONFIRMED 0 / UNCONFIRMED_SHADOW 6 / REJECTED 5 / INCONCLUSIVE 0. 실거래 무변경(보고만)",
   "purpose": "확인 프레임 v4 = 3중 대조 동시 통과. 하나라도 실패하면 영구 기각이 아니라 미확인/그림자",
   "checks": {
    "A_regime_cohort_random": "기존 v3 C1 — 같은 레짐·코호트·청산 k=n 무작위, 해당 시장 상태에서의 절대 우위",
@@ -2891,6 +2891,140 @@
    "INCONCLUSIVE": "OOS n<10 또는 OOS B 월 수<3 (표본 부족)",
    "CONFIRMED": "train 적격 AND OOS A(mean>0·승률>=35%·boot_p<.05) AND OOS B(세 가중 >0 · Holm p<.05 · 엣지>=+0.20%p) AND OOS 비용(왕복 0.4% 에서 mean>0)",
    "deployed_cells": "판정과 무관하게 주문 무변경 — 보고만. 그림자 셀은 CONFIRMED 여도 자율 반영 없음(사용자 결정)"
+  },
+  "result_2026_09_06": {
+   "run": 34030352467,
+   "holm_family_m": 10,
+   "split": "train<2025-01-01<=OOS",
+   "data": "1d 80종목 2017-01-01~2026-09-06(장기 접합) / 4h 2023-09-02~",
+   "cells": {
+    "engulfing|bull_btc": {
+     "verdict": "UNCONFIRMED_SHADOW",
+     "fails": [
+      "train A gate bp .368",
+      "train B nw +0.37% p .457",
+      "OOS B +5.14% p .142 Holm 1.0"
+     ],
+     "A_full": "+6.10% win 46% edge +2.51 bp .171",
+     "A_oos": "n34 +7.00% win 56% edge +8.76 bp .004",
+     "cost04": "+6.80%"
+    },
+    "engulfing|bear": {
+     "verdict": "REJECTED",
+     "fails": [
+      "A_full win 24%"
+     ],
+     "A_full": "+1.42% win 24%",
+     "A_oos": "n33 -3.65% win 15% (stop 28/33)",
+     "B_train": "+3.49% p .095",
+     "B_oos": "-1.79% p .782",
+     "note": "실거래 라우팅 셀(bear engulfing 롱)"
+    },
+    "engulfing_short|bull_altseason": {
+     "verdict": "UNCONFIRMED_SHADOW",
+     "fails": [
+      "train A gate bp .449",
+      "train B -0.63% p .629"
+     ],
+     "A_oos": "n40 +1.14% win 52% edge +3.26 bp .011",
+     "B_oos": "+4.40%/+6.52%/+4.98% p .000 Holm .000 (월 4)",
+     "cost04": "+0.94%",
+     "note": "유일하게 OOS B 통과 — train 미적격"
+    },
+    "fvg|bull_btc": {
+     "verdict": "UNCONFIRMED_SHADOW",
+     "fails": [
+      "train B -6.92% p 1.000",
+      "OOS A -0.33% bp .111",
+      "OOS B -3.21% p .974",
+      "cost04 -0.53%"
+     ],
+     "A_full": "+9.58% win 37% edge +6.06 bp .000",
+     "A_train": "+11.86% PASSED",
+     "A_oos": "n229 -0.33% win 36% edge +1.36"
+    },
+    "fvg|bull_altseason": {
+     "verdict": "REJECTED",
+     "fails": [
+      "A_full win 26%"
+     ],
+     "A_full": "+5.32% win 26% edge +3.63 bp .009",
+     "A_oos": "n82 -0.78% win 24%",
+     "B_oos": "-8.68% p .934",
+     "note": "실거래 라우팅 셀(altseason fvg 롱)"
+    },
+    "three_soldiers_4h|bull_btc": {
+     "verdict": "UNCONFIRMED_SHADOW",
+     "fails": [
+      "train B +1.38% p .278",
+      "OOS A -0.06% bp .104",
+      "OOS B +0.79% p .260",
+      "cost04 -0.26%"
+     ],
+     "A_train": "n123 +4.62% win 54% edge +3.85 bp .000 PASSED Calmar 7.23",
+     "A_oos": "n71 -0.06% win 39% edge +1.43"
+    },
+    "three_soldiers_4h|bull_altseason": {
+     "verdict": "REJECTED",
+     "fails": [
+      "A_full mean -1.29%"
+     ],
+     "A_oos": "n18 -3.17% win 22%",
+     "B_train": "-2.53% p 1.000",
+     "note": "실거래 라우팅 셀(altseason three_soldiers 롱), n=35"
+    },
+    "inverted_hammer|ALL": {
+     "verdict": "REJECTED",
+     "fails": [
+      "A_full win 30%"
+     ],
+     "A_full": "n222 +4.50% win 30% edge +0.87 bp .290",
+     "A_oos": "n36 +0.40% win 42% edge +1.98 bp .162",
+     "B_oos": "-0.72% p .701",
+     "note": "관찰 셀(~10/06)"
+    },
+    "marubozu|ALL": {
+     "verdict": "REJECTED",
+     "fails": [
+      "A_full win 28%"
+     ],
+     "A_full": "n61 +9.64% win 28% edge +6.07 bp .067",
+     "A_oos": "n8 -0.89%",
+     "note": "관찰 셀(~10/06), OOS n=8 — Holm 가족 제외"
+    },
+    "double_bottom_1d|bull_btc": {
+     "verdict": "UNCONFIRMED_SHADOW",
+     "fails": [
+      "train B -4.29% p 1.000",
+      "OOS A -0.17% bp .076",
+      "OOS B -2.22% p .956",
+      "cost04 -0.37%"
+     ],
+     "A_train": "n795 +9.47% win 39% edge +4.21 bp .003 PASSED",
+     "A_oos": "n233 -0.17% win 36% edge +1.52",
+     "note": "그림자 유지"
+    },
+    "inverse_hs_1d|bull_btc": {
+     "verdict": "UNCONFIRMED_SHADOW",
+     "fails": [
+      "train A gate bp .229",
+      "train B -6.43% p 1.000",
+      "OOS A +2.00% bp .051",
+      "OOS B -2.19% p .907"
+     ],
+     "A_oos": "n69 +2.00% win 46% edge +3.61 bp .051",
+     "note": "그림자 유지"
+    }
+   },
+   "findings": [
+    "B(같은 코인·월·레짐 무작위) 는 1d 반전 패턴(fvg/double_bottom/inverse_hs) 에서 train·OOS 모두 강한 음수(−2~−7%p, p≥.9, train CI 가 0 을 배제). A(레짐·코호트) 엣지 +4~+6.6%p 와 정반대 — A 엣지는 '어느 코인-월에 있느냐'(코인-월 선택)에서 나오고, 그 코인-월 안의 진입일 타이밍은 무작위보다 나쁘다. D3 ±10봉 창도 동일 부호(−2~−8%p, p 1.000).",
+    "B 벤치가 신호 이후 봉을 포함해 '그 코인-월이 좋은 달'이라는 정보를 쓰므로(사후 조건화) B 음수 ≠ 실거래 손실. B 는 '월 안 타이밍' 검정이고, 코인-월 선택 자체는 실시간 인과(신호가 그 달에 뜬다). 단 사전 등록 규칙상 판정은 그대로 둔다.",
+    "OOS(2025~) A 절대 성능: engulfing bull +7.0%(bp .004) / engulfing_short altseason +1.14%(bp .011, B Holm .000) 만 양수 유의. fvg bull −0.33% / three_soldiers bull −0.06% / double_bottom −0.17% — 2025 bull_btc 라벨 월에서 알트 롱은 손익분기.",
+    "REJECTED 5 중 실거래 라우팅 셀 3: engulfing|bear 롱(OOS 손절 28/33, 승률 15%) · fvg|bull_altseason 롱(승률 26%, OOS −0.78%) · three_soldiers_4h|bull_altseason(n35, OOS −3.17%). 라우팅 표는 2026-06-24 n≥20·mean>0 만으로 만들어져 게이트를 거친 적이 없다(종전 보류 항목). 변경은 사용자 결정.",
+    "D1: bull_btc 라벨 월의 top30 롱 무작위 기대값 train +5.24%(p .005, 양수월 53%) vs 비-bull +2.19% — train 에서는 조건부 기대값 라우터로 작동. OOS −1.70%(p .767) vs 비-bull −0.18% — 2025~ 에는 역전. D2: BTC fwd3m 은 OOS 에서도 bull +2.3%(양수 58%) vs bear −9.4%(24%) 로 분리 — 라벨은 BTC 방향은 가르지만 알트 수익은 못 가른다(bull_btc = BTC 주도 국면).",
+    "sideways 라벨 일수 0 (train·OOS) — 현행 라벨러가 sideways 를 사실상 내지 않음. D4 실거래 행 4건(패턴당 1) — 표본 없음."
+   ],
+   "no_change": "실거래 주문·라우팅·adopted 무변경. 그림자 셀 유지. 관찰 셀 10/06 까지 유지."
   }
  }
 }
