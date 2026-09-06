@@ -1,0 +1,39 @@
+name: MA180 Breakout Prereg (record-only)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'detector_ma180_breakout.py'
+      - 'validate_ma180.py'
+      - 'test_ma180.py'
+      - '.github/workflows/ma180.yml'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Test
+        run: python test_ma180.py
+      - name: Validate (record-only prereg)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python validate_ma180.py
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ma180-${{ github.run_number }}
+          path: _ma180.json
+          if-no-files-found: ignore
