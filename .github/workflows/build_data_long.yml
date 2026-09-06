@@ -5,6 +5,13 @@ name: Build long 1d history (data_long)
 # 스케줄러·실거래는 이 폴더를 읽지 않는다.
 
 on:
+  # dispatch 전용 워크플로는 기본 브랜치에 없으면 GitHub 가 등록하지 않아 404 가 난다 —
+  # 다른 연구 워크플로처럼 자기 파일 push 에도 반응하게 둔다(처음 한 번 돌리기 위해).
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - ".github/workflows/build_data_long.yml"
   workflow_dispatch:
     inputs:
       since:
