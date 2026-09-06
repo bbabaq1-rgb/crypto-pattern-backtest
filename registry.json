@@ -3035,7 +3035,7 @@
   }
  },
  "pit_cohort_prereg_2026_09_06": {
-  "status": "PREREGISTERED (2026-09-06, 사용자 지시 '사전등록해줘') — 실행 전. validate_pit_cohort.py / pit_cohort.yml",
+  "status": "EXECUTED 2026-09-06 (run 34033988347) — STABLE 10 / SHIFTED 1 (fvg|bull_btc SHADOW→REJECTED). 실거래 무변경",
   "question": "정적 코호트(데이터 끝 시점 30일 거래대금 순위를 과거 전체에 소급)로 얻은 v4 결과가 point-in-time(당시 알 수 있던) 코호트에서도 살아남는가",
   "origin": "사용자 제시 의견(2026-09-06): 시총→유동성 rolling universe / survivorship·룩어헤드 회피 / Core·Liquid·mid-cap 병렬 / 코인별 엣지 분산 지표. 이미 반영된 것(유니버스 80 = 거래대금 기준, 실거래 코호트 매 실행 재계산, mid-cap 기각 이력)은 제외하고 '검증 코호트의 룩어헤드' 하나로 좁힘",
   "cohort_construction_frozen": {
@@ -3064,6 +3064,35 @@
    "호가 스프레드 이력 없음 → 거래대금·상장 경과일로 대체",
    "3개 유니버스 병렬은 다중검정 증가 → 판정은 v4 11셀에만, core20/mid 는 진단"
   ],
-  "live_change": "없음 (관찰 기간 2026-09-06~10-06, 실거래 코드·라우팅·사이징 불변)"
+  "live_change": "없음 (관찰 기간 2026-09-06~10-06, 실거래 코드·라우팅·사이징 불변)",
+  "result_2026_09_06": {
+   "run": 34033988347,
+   "pit_months": 116,
+   "cohort_turnover_per_month": {
+    "core20": 4.6,
+    "top30": 4.3,
+    "liquid": 0.7
+   },
+   "static_top30_vs_pit_2026_09_overlap": "29/30",
+   "summary": {
+    "engulfing|bull_btc": "STABLE SHADOW/SHADOW. n 109→130, A엣지 +2.79→+2.31, OOS +7.00→+6.82 (bp .007). 상위3 코인 제외 시 A엣지 +0.07/+0.10 — 전체 엣지가 3코인(BTC/LTC/UNI·AR)에 집중. core20 OOS +9.75%, mid OOS +0.61%",
+    "engulfing|bear": "STABLE REJECTED. PIT OOS −6.60%(정적 −3.65%), OOS 코인 양수 0%, train B +4.76% p .011 — 2025 이전 bear 에서만 월 안 타이밍 양수",
+    "engulfing_short|bull_altseason": "STABLE SHADOW. PIT 가 더 강함: OOS +1.52% bp .026, B OOS +4.59% Holm .000. mid 코호트도 B OOS +3.94% p .000 — 코호트 무관한 숏 셀. train 미적격 유지",
+    "fvg|bull_btc": "**SHIFTED SHADOW→REJECTED**. PIT 승률<35%. A엣지 +6.30→+4.71, OOS −0.33→−1.65, 코인 양수 비율 93%→69%, OKX구간 엣지 +7.75→+4.84. 정적 코호트가 '나중에 살아남은 코인'을 골라 엣지를 약 1.6%p 부풀렸다",
+    "fvg|bull_altseason": "STABLE REJECTED. A엣지 +3.66→+3.11, OOS −0.78→−2.66",
+    "three_soldiers_4h|bull_btc / bull_altseason": "STABLE (liquid = all 이라 신호 동일, 풀만 PIT 적격 필터 — 수치 거의 동일)",
+    "inverted_hammer|ALL / marubozu|ALL": "STABLE REJECTED (majors 고정 — PIT 무관)",
+    "double_bottom_1d|bull_btc": "STABLE SHADOW. A엣지 +4.02→+2.47, 코인 양수 83%→58%, OOS −0.17→−1.14",
+    "inverse_hs_1d|bull_btc": "STABLE SHADOW. A엣지 +2.49→+1.72, OOS +2.00→+1.03 (bp .064)"
+   },
+   "scan_unconditional": "engulfing/fvg × core20/top30/liquid/mid 전부 static·PIT 모두 REJECTED(게이트 v2). fvg PIT 엣지 +2.2~+4.0%p bp .000 이나 승률/OOS 분위 탈락. engulfing mid PIT 엣지 +1.72→+0.16 — mid-cap 확장은 PIT 에서 더 약함",
+   "findings": [
+    "정적 코호트의 룩어헤드는 1d 반전 패턴(fvg/double_bottom/inverse_hs)의 A 엣지를 1.5~2%p 부풀렸다(코인 양수 비율 93→69%, 83→58%). 판정은 10/11 불변 — 원래 SHADOW/REJECTED 라 방향만 더 나빠졌다",
+    "engulfing 계열은 PIT 에서 오히려 같거나 강해졌다(bull_btc OOS +6.8%, 숏 altseason B Holm .000). 단 engulfing|bull_btc 는 상위 3 코인 제외 시 A 엣지 ≈0 — 코인 집중 위험",
+    "PIT top30 은 월평균 4.3 코인이 바뀐다(≈14%/월). 실거래는 매 실행 재계산이므로 이 회전이 실거래 조건이다",
+    "v4 정적 결론(CONFIRMED 0)은 PIT 에서도 CONFIRMED 0. 배포 판정 변화 없음"
+   ],
+   "live_change": "없음 (관찰 기간 ~2026-10-06)"
+  }
  }
 }

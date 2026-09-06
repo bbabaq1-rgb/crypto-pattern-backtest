@@ -841,6 +841,16 @@
     OOS −1.70%(p .767) vs 비-bull −0.18% → 2025~ 역전. **D2** BTC fwd3m 은 OOS 에서도 bull +2.3%(양수 58%) vs bear −9.4%(24%) 로 분리 —
     라벨은 BTC 방향은 가르지만 **알트 롱 수익은 못 가른다**(bull_btc = BTC 주도 국면, 알트 지체). sideways 라벨 일수 0(라벨러가 사실상 안 냄).
   · D4 실거래 행 4건(패턴당 1) — 표본 없음. 그림자 2 셀 유지, 관찰 2 셀 10/06 까지 유지.
+- **PIT(point-in-time) 코호트 재검증 (2026-09-06, 사용자 의견 → 사전 등록 → run 34033988347)**: validate_pit_cohort.py / test_pit_cohort.py(25) /
+  pit_cohort.yml / registry `pit_cohort_prereg_2026_09_06`. 검증 코호트(top20/top30)가 데이터 끝 순위를 과거에 소급한 정적 집합이었던 룩어헤드를
+  월말 30일 거래대금 순위(다음 달 적용, 적격 60봉)로 교체해 v4 11셀을 재계산. **STABLE 10 / SHIFTED 1 — 실거래 무변경.**
+  · **SHIFTED: fvg|bull_btc SHADOW→REJECTED**(PIT 승률<35%). 1d 반전 패턴은 정적 코호트가 A 엣지를 1.5~2%p 부풀렸다 — fvg +6.30→+4.71,
+    double_bottom +4.02→+2.47, inverse_hs +2.49→+1.72, 코인 양수 비율 93→69% / 83→58%. '나중에 살아남은 코인'을 고른 효과.
+  · engulfing 계열은 PIT 에서 같거나 강함(bull_btc OOS +6.8% bp .007, 숏 altseason B OOS +4.59% Holm .000 — mid 코호트도 통과). 단
+    **engulfing|bull_btc 는 상위 3 코인 제외 시 A 엣지 ≈0**(+2.79→+0.07) — 코인 집중.
+  · PIT top30 월평균 4.3 코인 교체(≈14%/월), 정적 vs 2026-09 PIT 겹침 29/30. 무조건부 코호트 스캔은 static·PIT 전부 REJECTED, mid-cap
+    engulfing 은 PIT 에서 더 약함(+1.72→+0.16). 한계: 상장폐지 이력 없음(생존 편향 잔존), 스프레드 없음.
+  · **이후 확인 프레임은 PIT 코호트를 기본으로 쓴다**(사전 등록 시 명시). 배포 판정 변화 없음(CONFIRMED 0 유지).
   · **사용자 결정 (2026-09-06 저녁) — "현 상태에서 더 이상 끄지 않고 실거래로 1달 정도 돌려본다"**: REJECTED 라우팅 셀 3 포함 배포 집합
     전부 유지, 관찰 종료 **2026-10-06**(ih/marubozu 와 동일). 종료 시 셀별 실거래 표를 v4 OOS 와 나란히 보고 후 재결정. 실거래 무변경.
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
@@ -1049,6 +1059,7 @@
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - method_b.py: beta_slope 오버레이(B_skip/B_size) 짝지음 시험 — 기각 기록용. report_beta_overlay.md
+- validate_pit_cohort.py: PIT 코호트(월말 30일 거래대금 → 다음 달 적용) static vs PIT 재검증 + 코인별 분산 + 무조건부 스캔. test_pit_cohort.py(25)
 - validate_guard_v4.py: 확인 프레임 v4 = 3중 대조(A 레짐·코호트 / B 같은 코인·월·레짐 / C 시간 OOS 2025-01-01) + 월 클러스터 부트 + Holm +
   비용 스트레스 + 진단 D1~D4. 사전 등록 registry guard_v4_prereg_draft_2026_09_06. DEPLOY_ON_PASS=False. test_guard_v4.py(41)
 - validate_revival.py: 선별(validate_regime_split_all STRICT)을 통과한 후보를 **실거래 프레임**(방식D/ATR·레짐
