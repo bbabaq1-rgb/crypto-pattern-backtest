@@ -223,7 +223,7 @@ def main(argv=None):
         v3 = fv.judge(sig_by["D"], pool("D", cs, rows_by, regmap, regimes), reg3, g3,
                       equity_fn=lambda tr, span: _equity(tr, span))
         print(f"  v3(D, 홀드아웃 기준 {g3}) => **{v3['verdict']}** | C1성능 {v3['c1_perf']} | E {v3['E']['positive']}/{v3['E']['qualifying']} "
-              f"| holdout(국면 {v3['holdout']['days']}일) n={v3['holdout']['n']} mean={_f(v3['holdout']['mean'])} | train n={v3['train']['n']} "
+              f"| holdout(국면 {v3['holdout']['days']}일) n={v3['holdout']['n']} mean={_f(v3['holdout']['mean'])} | C2b train n={v3['train']['n']} {v3['c2b_train']}({'/'.join(v3['train']['gate'].get('fails', [])) or 'ok'}) "
               f"| C3 Calmar {(v3['equity'] or {}).get('calmar', 0):.2f} | COV {v3['coverage']}")
         print(fv.fmt_episodes(v3["episodes"]))
         print(f"  짝지음 A_label−D: n={pv['n']} {pv['mean_diff']*100:+.2f}%p t={pv['t']:.2f} 우위 {pv['win_share']*100:.0f}% "

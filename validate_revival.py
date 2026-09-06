@@ -391,7 +391,7 @@ def main(argv=None):
             print(f"  => v3 **{cf3['verdict']}** | C1성능 {cf3['c1_perf']} {fails_s} "
                   f"| E 적격 {E['qualifying']} 양수 {E['positive']} 최대비중 {share_s} {E['ok']} "
                   f"| C2 홀드아웃(국면 {cf3['holdout']['days']}일) n={cf3['holdout']['n']} mean={_f(cf3['holdout']['mean'])} {cf3['c2_holdout']} "
-                  f"| C2b train n={cf3['train']['n']} {cf3['c2b_train']} | C3 CAGR {_f(eq3.get('cagr'))} MDD {_f(eq3.get('mdd'))} "
+                  f"| C2b train n={cf3['train']['n']} {cf3['c2b_train']}({'/'.join(cf3['train']['gate'].get('fails', [])) or 'ok'}) | C3 CAGR {_f(eq3.get('cagr'))} MDD {_f(eq3.get('mdd'))} "
                   f"Calmar {eq3.get('calmar', 0):.2f} {cf3['c3_equity']} | COV {cf3['coverage']}")
             print(fv.fmt_episodes(cf3["episodes"]))
         results[f"{cid}|{g}"] = dict(pattern=cid, regime=g, tf=tf, direction=direction,

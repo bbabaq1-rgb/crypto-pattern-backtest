@@ -158,7 +158,7 @@ def main(argv=None):
                 print(f"    => v3 **{cf3['verdict']}**{' (판정)' if judged else ' (진단)'} | C1성능 {cf3['c1_perf']} {'/'.join(cf3['c1']['fails']) or 'ok'} "
                       f"| E 적격 {E['qualifying']} 양수 {E['positive']} 최대비중 {share_s} {E['ok']} "
                       f"| C2 홀드아웃(국면 {cf3['holdout']['days']}일) n={cf3['holdout']['n']} mean={vr._f(cf3['holdout']['mean'])} {cf3['c2_holdout']} "
-                      f"| C2b train n={cf3['train']['n']} {cf3['c2b_train']} | C3 CAGR {vr._f(eq3.get('cagr'))} MDD {vr._f(eq3.get('mdd'))} "
+                      f"| C2b train n={cf3['train']['n']} {cf3['c2b_train']}({'/'.join(cf3['train']['gate'].get('fails', [])) or 'ok'}) | C3 CAGR {vr._f(eq3.get('cagr'))} MDD {vr._f(eq3.get('mdd'))} "
                       f"Calmar {eq3.get('calmar', 0):.2f} {cf3['c3_equity']} | COV {cf3['coverage']}")
                 print(fv.fmt_episodes(cf3["episodes"]))
             print(f"    => v2 {'CONFIRMED' if cf['confirmed'] else 'not confirmed'}{' (판정)' if judged else ' (진단, 판정 아님)'} "
