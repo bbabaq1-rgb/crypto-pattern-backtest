@@ -2615,5 +2615,20 @@
    "caution": "게이트를 통과한 train 셀도 top5 기여 69%, 절사평균 +2.35%(평균 +10.57%) 로 복권형이다. 스터디의 MAE 중앙 -19% · 20일 내 MA 재하향 73% 와 같은 성질 — 크게 튀고 크게 흔들린다",
    "retest_condition": "bull_btc 국면이 1년 이상 누적돼 holdout n>=10 이 될 때. 그 전 재시험은 무가치"
   }
+ },
+ "cron_fallback_removed_2026_09_06": {
+  "change": "daily_scheduler.yml 의 GitHub schedule('0 */4 * * *') 폴백 제거 — 두 워크플로 모두 외부 트리거 전용",
+  "decided_by": "사용자 2026-09-06 (\"폴백 제거해줘\")",
+  "evidence": "9/05~9/06 폴백 5회 연속 지각: 14:21Z·17:50Z·21:50Z(9/05), 02:19Z(9/06) 등 25분~2시간 19분. 매번 외부 트리거가 이미 돈 느린틱을 재실행(중복 방어 키가 봉 ts 라 실주문 0건). 외부 트리거는 2026-09-02 전환 후 정시 100% 발화",
+  "risk_of_late_fallback": "지각한 폴백이 같은 concurrency 그룹에 큐로 들어오면 GitHub 가 pending 을 취소한다(cancel-in-progress: false 여도) — fast 쪽에서 12:03 실행이 12:04:30 폴백에 취소된 실측 있음",
+  "cost": "발화 경로가 Supabase pg_cron 하나뿐. 멈추면(PAT 만료→gh_dispatch_log 401, Supabase 프로젝트 일시정지) 진입·청산·손절 점검이 전부 정지한다. 감지는 실행 이력·dispatch 로그 점검, 복구는 수동 dispatch",
+  "detection": "정기 실거래 점검(세션 체크인)에서 최근 틱 실행 유무 확인 + gh_dispatch_log 응답코드",
+  "unchanged": "발화 시각 집합(UTC 00/04/08/12/16/20 + fast 매시 :03)·모드·패턴 케이던스 전부 불변",
+  "files": [
+   "`.github/workflows/daily_scheduler.yml`",
+   "test_cron_split.py",
+   "test_external_trigger.py"
+  ],
+  "status": "APPLIED"
  }
 }

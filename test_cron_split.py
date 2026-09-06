@@ -51,7 +51,12 @@ chk("느린틱이 아닌 시각은 분과 무관하게 False",
 # 에서 1d/4h 탐지가 조용히 빠진다. 그래서 워크플로가 모드를 플래그로 명시한다.
 wf = io.open(".github/workflows/daily_scheduler.yml", encoding="utf-8").read()
 crons = re.findall(r"- cron: '([^']+)'", wf)
-chk("메인 스케줄러 크론이 4시간(검증된 99% 크론)", crons == ["0 */4 * * *"], crons)
+# 2026-09-06 (사용자 결정 "폴백 제거해줘"): daily 의 GitHub schedule 폴백도 제거했다.
+# 9/05~9/06 에 5회 연속 지각(최대 2시간 19분)해 이미 돈 느린틱을 다시 돌렸고, 지각한
+# 폴백이 같은 concurrency 그룹의 pending 을 취소할 수 있다. 이제 두 워크플로 모두
+# 외부 트리거(Supabase pg_cron -> workflow_dispatch)로만 발화한다.
+chk("메인 스케줄러에 GitHub schedule 없음(외부 트리거 전용)", crons == [], crons)
+chk("메인 스케줄러는 workflow_dispatch 를 받는다", "workflow_dispatch:" in wf)
 chk("메인 스케줄러는 항상 --slow 를 넘긴다", 'python scheduler.py "$MODE" --slow' in wf)
 chk("메인 스케줄러 실행 커맨드에 --fast 없음",
     not re.search(r"python scheduler\.py[^\n]*--fast", wf))

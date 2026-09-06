@@ -7,7 +7,8 @@ supabase_external_trigger.sql 은 레포 밖(Supabase)에서 실행되는 SQL �
   · 호출하는 워크플로 파일이 실제로 존재하고 workflow_dispatch 를 받는다
   · daily 의 mode 입력값이 yml 이 아는 값이고, 발화 시각이 SLOW_TICK_HOURS 와 같다
   · fast 는 inputs 없이 호출한다 (yml 에 inputs 가 없어 보내면 422)
-  · GitHub 자체 schedule 은 폴백으로 남아 있다 (둘 다 없으면 아무것도 안 돈다)
+  · 두 워크플로 모두 GitHub schedule 이 없다 — 발화는 이 SQL 전용(2026-09-06 폴백 제거).
+    이 SQL 이 멈추면 아무것도 돌지 않는다
   · 토큰 리터럴이 파일에 없다
 
 실행: python test_external_trigger.py
@@ -82,14 +83,16 @@ for name in ("fast_scheduler.yml", "daily_scheduler.yml"):
     chk(f"{name} 존재", os.path.exists(os.path.join(WF_DIR, name)))
     chk(f"{name} workflow_dispatch 수신", "workflow_dispatch:" in wf(name))
 
-# 폴백 정책 (2026-09-02): daily 만 GitHub schedule 을 남긴다.
-#   fast 는 제거 — 매시 폴백이 daily 와 같은 concurrency 그룹에 큐로 들어오면
+# 폴백 정책 (2026-09-06, 사용자 결정): **두 워크플로 다 GitHub schedule 없음.**
+#   fast 는 2026-09-02 제거 — 매시 폴백이 daily 와 같은 concurrency 그룹에 큐로 들어오면
 #   GitHub 가 **먼저 대기 중이던 실행을 취소**한다(실측: 12:03 외부 트리거 실행이
-#   12:04:30 폴백 때문에 취소). 거울상으로 daily 가 취소되면 느린TF 탐지를 4시간
-#   잃으므로, 발화율 0~27% 짜리 폴백을 위해 감수할 위험이 아니다.
-#   daily 는 4h 간격이라 fast 와 큐가 겹칠 창이 좁고, 두 달간 99% 발화 실적이 있다.
-chk("daily 는 GitHub schedule 폴백 유지",
-    re.search(r"^\s*schedule:", wf("daily_scheduler.yml"), re.M) is not None)
+#   12:04:30 폴백 때문에 취소).
+#   daily 는 2026-09-06 제거 — 9/05~9/06 에 5회 연속 지각(최대 2시간 19분)하며 이미 돈
+#   느린틱을 재실행했고, 같은 취소 위험을 daily 쪽에도 안긴다. 외부 트리거는 9/02 이후
+#   정시 100% 발화.
+#   **대가**: 발화 경로가 이 SQL 하나뿐 — 멈추면 진입·청산·손절 점검이 전부 정지한다.
+chk("daily 도 GitHub schedule 없음(2026-09-06 폴백 제거)",
+    re.search(r"^\s*schedule:", wf("daily_scheduler.yml"), re.M) is None)
 chk("fast 는 GitHub schedule 없음(큐 경합 제거)",
     re.search(r"^\s*schedule:", wf("fast_scheduler.yml"), re.M) is None)
 chk("ref 는 master (스케줄 크론과 같은 기본 브랜치)", "'ref', 'master'" in SQL)
