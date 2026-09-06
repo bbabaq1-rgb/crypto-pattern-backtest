@@ -91,10 +91,30 @@ def load_ohlcv_long(sym, tf="1d"):
             d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
             old.append(dict(ts=ts, date=d, o=float(r["open"]), h=float(r["high"]),
                             l=float(r["low"]), c=float(r["close"]), v=float(r["volume"])))
+    old = _sanitize_long(old)
     if not recent:
         return old
     first_recent = recent[0]["date"]
     return [r for r in old if r["date"] < first_recent] + recent
+
+
+LONG_JUMP = 5.0          # 하루 종가 비율이 이 배수를 넘거나 1/배수 미만이면 티커 재사용으로 본다
+LONG_GAP_DAYS = 30       # 봉이 이 일수보다 오래 비면 상장폐지→재상장으로 본다
+
+
+def _sanitize_long(rows):
+    """장기 소스의 티커 재사용·재상장 방어 — 마지막 불연속 지점 **이후**만 남긴다.
+    실례: gate 'APT' 2022-01~09 는 다른 토큰($0.08→$0.004), Aptos 는 2022-10 $8 부터."""
+    if len(rows) < 2:
+        return rows
+    from datetime import date as _d
+    cut = 0
+    for i in range(1, len(rows)):
+        a, b = rows[i - 1]["c"], rows[i]["c"]
+        gap = _d.fromisoformat(rows[i]["date"]).toordinal() - _d.fromisoformat(rows[i - 1]["date"]).toordinal()
+        if a <= 0 or b <= 0 or b / a >= LONG_JUMP or b / a <= 1 / LONG_JUMP or gap > LONG_GAP_DAYS:
+            cut = i
+    return rows[cut:]
 
 
 def outcome(rows, si, direction="long"):

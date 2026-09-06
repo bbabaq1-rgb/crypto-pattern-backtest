@@ -17,7 +17,7 @@ import os
 import random
 import sys
 import tempfile
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime, timezone
 
 import frame_v3 as fv
 
@@ -161,6 +161,20 @@ try:
     rows = detlib.load_ohlcv_long("ZZZ")
     check("접합: 장기 0~5 + OKX 6~11 = 12봉, 겹침은 OKX 값", len(rows) == 12 and rows[5]["c"] == 6.0 and rows[6]["c"] == 106.0)
     check("접합: 날짜 단조 증가", all(rows[i]["date"] < rows[i + 1]["date"] for i in range(len(rows) - 1)))
+    # 티커 재사용·재상장 방어 — 마지막 불연속(하루 5배 점프 / 30일 공백) 이후만 남긴다 (실례: gate APT 2022-01~09 는 다른 토큰)
+    def mk(vals, gaps=None):
+        out, t = [], t0
+        for i, c in enumerate(vals):
+            if gaps and i in gaps: t += gaps[i] * day
+            out.append(dict(ts=t, date=datetime.fromtimestamp(t / 1000, tz=timezone.utc).strftime("%Y-%m-%d"), c=c)); t += day
+        return out
+    san = detlib._sanitize_long(mk([0.08, 0.07, 0.004, 0.0039, 8.0, 7.9, 7.8]))
+    check("sanitize: 5배 점프 이전 이력 제거(APT 형)", [r["c"] for r in san] == [8.0, 7.9, 7.8], [r["c"] for r in san])
+    san2 = detlib._sanitize_long(mk([1, 1.1, 1.2, 1.3, 1.25], gaps={3: 40}))
+    check("sanitize: 30일 넘는 공백 이전 제거(재상장 형)", [r["c"] for r in san2] == [1.3, 1.25])
+    san3 = detlib._sanitize_long(mk([1, 1.5, 2.0, 1.2, 3.0, 2.0]))
+    check("sanitize: 5배 미만 변동·연속 봉은 그대로", len(san3) == 6)
+    check("sanitize 상수 동결: 5배 / 30일", detlib.LONG_JUMP == 5.0 and detlib.LONG_GAP_DAYS == 30)
     os.remove("data/zzz_1d.csv")
     detlib._fetch_failed.add(("ZZZ", "1d")) if hasattr(detlib, "_fetch_failed") else None
     try:
