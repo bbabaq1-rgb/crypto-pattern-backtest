@@ -3025,6 +3025,13 @@
     "sideways 라벨 일수 0 (train·OOS) — 현행 라벨러가 sideways 를 사실상 내지 않음. D4 실거래 행 4건(패턴당 1) — 표본 없음."
    ],
    "no_change": "실거래 주문·라우팅·adopted 무변경. 그림자 셀 유지. 관찰 셀 10/06 까지 유지."
+  },
+  "user_decision_2026_09_06": {
+   "decision": "현 상태에서 더 이상 끄지 않고 실거래로 1개월 관찰 (사용자, 2026-09-06 21:00 KST 경)",
+   "scope": "v4 REJECTED 라우팅 셀 3(engulfing|bear 롱 / fvg|bull_altseason 롱 / three_soldiers_4h|bull_altseason) 포함 배포 집합 전부 유지. 그림자 2 셀 미배포 유지. ih/marubozu 관찰과 같은 종료일",
+   "observation_end": "2026-10-06",
+   "report_at_end": "패턴·레짐 셀별 실거래 진입 건수 / 건당 수익 / 손절 비율 / 슬리피지(신호봉 종가 vs 체결가) 표 — v4 OOS 수치와 나란히. 정지/유지 재결정은 사용자",
+   "live_change": "없음"
   }
  }
 }
