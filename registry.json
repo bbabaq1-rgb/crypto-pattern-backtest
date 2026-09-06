@@ -2579,6 +2579,41 @@
    "test_ma180.py",
    ".github/workflows/ma180.yml"
   ],
-  "status": "REGISTERED (실행 대기)"
+  "status": "DONE (2026-09-06 run 34013456038) — 주 셀 REJECTED (C2 holdout). 실거래 변경 없음, 복귀 후보 없음",
+  "result": {
+   "run": 34013456038,
+   "split": "train 2021-10-03 ~ 2025-09-06 (1434일) / holdout 365일",
+   "primary_cell_ma180_decisive_bull_btc_top30": {
+    "n": 44,
+    "mean": "+10.57%",
+    "median": "-6.64%",
+    "win": "41%",
+    "trimmed_mean": "+2.35%",
+    "top5_share": "69%",
+    "regime_baseline": "+2.15%",
+    "edge": "+8.42%",
+    "boot_p": 0.022,
+    "oos": "3/4",
+    "hold": 9.8,
+    "by_year": "2023 +9.9%(n16) / 2024 +23.4%(n13) / 2025 +0.2%(n15)",
+    "exits": "stop 22 / regime_switch 17 / maxhold 5",
+    "C1": "PASSED",
+    "C2": "FAILED — holdout n=6 mean -8.20% (6건 전부 손절)",
+    "C2b": "PASSED (train n=38)",
+    "C3": "PASSED — CAGR +24.13% MDD -8.46% Calmar 2.85",
+    "verdict": "REJECTED"
+   },
+   "diagnostics_all_not_confirmed": {
+    "ma180_decisive|bull_btc|all": "n=123 +9.99% 승률 34% -> 게이트 탈락(승률 문턱 1%p 미달)",
+    "ma180_decisive|ALL|top30": "n=85 +6.04% med -8.20% 승률 36% bp .020 / holdout n=15 -7.06%",
+    "ma180_raw|bull_btc|top30": "n=79 +9.60% med -0.78% 승률 48% bp .011 OOS 4/4 Calmar 4.47 — train 최강 / holdout n=6 -8.20%",
+    "ma180_raw|ALL|top30": "n=155 +4.35% med -8.20% 승률 37% / holdout n=26 -5.31%",
+    "ma200_decisive|bull_btc|top30": "n=43 +15.63% top5 76% / holdout n=5 -8.20%",
+    "note": "5개 진단 셀 전부 C2(holdout) 에서 탈락. 사후 선택 금지 — 추격하지 않는다"
+   },
+   "reading": "train 은 일관되게 강했다(2023 +9.9 / 2024 +23.4 / 2025 +0.2, 엣지 +8.42%p, Calmar 2.85). 무너진 건 holdout 하나 — bull_btc 국면이 지난 1년에 거의 없어 신호가 6건뿐이고 그 6건이 전부 -8% 손절. 표본이 작아 '판정 불가'에 가깝지만 6/6 손절은 우호적 증거도 아니다. 사전 등록 규칙상 n<10 · mean<0 둘 다 탈락 사유.",
+   "caution": "게이트를 통과한 train 셀도 top5 기여 69%, 절사평균 +2.35%(평균 +10.57%) 로 복권형이다. 스터디의 MAE 중앙 -19% · 20일 내 MA 재하향 73% 와 같은 성질 — 크게 튀고 크게 흔들린다",
+   "retest_condition": "bull_btc 국면이 1년 이상 누적돼 holdout n>=10 이 될 때. 그 전 재시험은 무가치"
+  }
  }
 }
