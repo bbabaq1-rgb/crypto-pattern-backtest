@@ -1,0 +1,40 @@
+name: Diagnostic — bull_btc phase / edge decay (research, diagnostic only)
+
+# 진단 전용 — 매매/DB 무관, 필터·채택·판정 로직 없음. 버킷 경계는 스크립트에 고정.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "diag_bull_phase.py"
+      - "test_diag_bull_phase.py"
+      - ".github/workflows/diag_bull_phase.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_frame_v3.py
+          python test_diag_bull_phase.py
+      - name: Diagnostic
+        run: python diag_bull_phase.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diag-bull-phase-${{ github.run_number }}
+          path: _diag_bull_phase.json
+          if-no-files-found: ignore

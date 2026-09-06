@@ -2718,5 +2718,92 @@
    "caveats": "① 2017~2022 에피소드는 '오늘의 top30 중 당시 존재하던 종목'(생존 편향) ② 4h 는 2023~ 만이라 E 2/3 는 다중 사이클이 아님 ③ v3 C2b 는 검정력 부족(n≈30·bp .06~.10)을 기각으로 분류 — 설계 메모",
    "deploy_decision": "이번 라운드는 사전 등록대로 결과 보고 후 사용자 결정. 권고: double_bottom_1d|bull_btc|top30 배포 검토(단일 셀 중 유일하게 12 에피소드·Calmar 1.78), 4h bull_btc 2셀은 경계값이라 비권고"
   }
+ },
+ "phase_prereg_2026_09_06": {
+  "test": "bull_btc 에피소드의 사이클 위치(국면 위치) 진단 + 필터 arm — 사전 등록",
+  "requested_by": "사용자 2026-09-06 (\"월별로 레짐을 세분화해서 다시 테스트\" → 재점등 에피소드 가설로 구체화, \"응 진행해\")",
+  "observation": "v3 에서 double_bottom/MA180/inverse_hs 가 같은 bull_btc 에피소드(2025-08~11, 2021-10~2022-02, 2019-10~12)에서 함께 손절 — 고점 뒤 레짐 재점등 구간",
+  "variables_frozen": {
+   "A_age": "에피소드 나이 <=90 / 91~270 / >270일",
+   "B_reig": "직전 bull 끝과 간격 <=180일 → 재점등",
+   "C_dd": "BTC 365봉 최고 대비 낙폭 >-10 / -10~-30 / <-30%"
+  },
+  "cells": [
+   "double_bottom_1d",
+   "ma180_decisive",
+   "triple_bottom_1d",
+   "inverse_hs_1d",
+   "three_soldiers_4h",
+   "(전부 bull_btc·top30·롱·방식D)"
+  ],
+  "stage1_rule": "ordered: 최악<0 & 최선>0 인 셀 >=3 이고 최악 버킷 위치 일치 >=3 / binary: 재점등<신규 >=4 & 재점등<0 >=3. 버킷 n>=5 만 셈",
+  "stage2_rule": "F = 1단계가 정한 최악 버킷 제외. ①제외분 mean<0 ∧ ②D+F v3 CONFIRMED(풀에도 같은 필터) ∧ ③train Calmar 비악화 → ADOPT_CANDIDATE",
+  "autonomy": "결과 보고 후 사용자 결정 — 자동 반영 없음. 여기 없는 변수·버킷은 보지 않는다(사후 선택 금지)",
+  "files": [
+   "validate_phase.py",
+   "test_phase.py",
+   ".github/workflows/phase.yml"
+  ],
+  "status": "SUPERSEDED — 실행 전 취소(run 34024626777). 사용자 사양(버킷 0-2/3-5/6-8/9-11/12+개월·재점등 6개월·낙폭 0/-10/-20%, 필터 arm 없음)의 진단 전용 시험 diag_bull_phase 로 대체. 파일 삭제"
+ },
+ "diag_bull_phase_2026_09_06": {
+  "test": "bull_btc 레짐 안에서 패턴 엣지가 시간에 따라 체계적으로 감소하는가 — 진단 전용(코드/판정/실거래 변경 없음)",
+  "requested_by": "사용자 2026-09-06 (9개 항목 사양)",
+  "core_question": "bull_btc 하나의 레짐 안에서 시간이 지나며 엣지가 감소하는가 → bull_early/bull_late/bull_reentry 시간축 레짐의 근거가 되는가. 반대로 'BTC 강한 달=패턴 강한 달'이면 새 레짐 불필요",
+  "key_metric": "엣지 = 패턴 − 같은 조건(같은 달/버킷/코호트/청산D) 무작위 진입. BTC 상승을 패턴 능력으로 착각하지 않기 위함",
+  "buckets_frozen": {
+   "age_months": "0-2 / 3-5 / 6-8 / 9-11 / 12+ (일수//30)",
+   "reignition": "직전 bull 종료 후 <=182일 재점등 / >182일 신규",
+   "btc_dd_365": "0~-10% / -10~-20% / <=-20%"
+  },
+  "patterns": [
+   "double_bottom_1d",
+   "ma180_decisive",
+   "inverse_hs_1d",
+   "three_soldiers_4h",
+   "(우선)",
+   "triple_bottom_1d",
+   "engulfing(top20)",
+   "fvg(top30)"
+  ],
+  "outputs": [
+   "월별(2023-01~) 시장표: bull일·경과·재점등·낙폭·BTC월/fwd3m/fwd6m·ETH/BTC·알트상대30d",
+   "월별 패턴 n/평균/엣지",
+   "버킷별 n/패턴/무작위/엣지/t",
+   "레짐 품질(버킷별 fwd)",
+   "Spearman(엣지, BTC월)"
+  ],
+  "not_available": "TOTAL3 (CoinGecko 유료). 알트 상태는 ETH/BTC + 알트 바스켓 30d 상대수익(라벨러 프록시)으로 대체",
+  "rules": "버킷 경계 사후 변경 금지 · 필터 실거래 적용 없음 · 결과 전 패턴 제외/채택 없음 · 최종 판정은 {패턴 문제/BTC 레짐/알트 레짐/표본 부족} 중 증거와 함께",
+  "files": [
+   "diag_bull_phase.py",
+   "test_diag_bull_phase.py",
+   ".github/workflows/diag_bull_phase.yml"
+  ],
+  "status": "DONE (2026-09-06 run 34024883650) — 시간축 감소 기각, BTC 라벨 품질 1차 + 월 대조 시 1d 반전 패턴 엣지 ≈0. 실거래 변경 없음",
+  "result": {
+   "run": 34024883650,
+   "episodes": "bull_btc 12개 (2017-08 ~ 2025-11)",
+   "q_edge_decay_with_age": "**기각** — 경과개월별 엣지(전 기간, 패턴−같은 버킷 무작위)는 비단조. 12m+ 에서 double_bottom +5.96(t2.7)/fvg +6.59(t2.3)/inverse_hs +8.00(t2.1)/three_soldiers +2.99 로 오히려 강함. 무작위 자체는 12m+ +0.68% 로 약해지는데 패턴 엣지는 유지",
+   "q_reignition": "**기각** — 재점등(<=6m) 엣지가 신규보다 높은 패턴 5/7 (double_bottom +5.03 vs +3.11, fvg +8.12 vs +4.25, triple_bottom +15.25 vs +5.13). 재점등 월의 BTC fwd3m 양수 52%(신규 74%) — 라벨 품질은 낮지만 패턴 엣지는 안 죽음",
+   "q_btc_drawdown": "엣지는 BTC 가 1년 고점 근처(0~-10%)일 때 집중: double_bottom +4.73(t2.6) ma180 +15.45(t1.8) three_soldiers +3.70(t2.3) triple_bottom +12.09(t2.1) fvg +7.23(t3.9). -10~-20% 에서는 대부분 ~0 (double_bottom +0.05, ma180 -0.02, fvg -0.81)",
+   "q_2025_08_11_collapse": "패턴 -8.2% 인데 같은 달 무작위도 -8% → **엣지 ≈ -0.1~-0.2%**. 죽은 건 패턴이 아니라 라벨 — bull 라벨인데 BTC fwd3m -22%/fwd6m -40%",
+   "regime_quality": "bull 월 BTC fwd3m 양수: 0-2m 55% / 재점등 52% / 낙폭<=-20% 65%(fwd6m 46%). 라벨은 수준 예측기로 약함(regime_quality 2026-09-04 와 일치)",
+   "corr": "ρ(패턴평균, BTC월) 0.48~0.68 전 패턴 / ρ(엣지, BTC월) -0.17~+0.26 (engulfing -0.60 n=9) — 원수익은 BTC 가 끌고, 엣지는 BTC 월수익과 거의 무관",
+   "month_matched_edge_2023_25": {
+    "정의": "엣지 = 패턴 − **같은 달** 무작위 (버킷 대조보다 엄격: 신호가 강한 달에 몰리는 효과 제거)",
+    "double_bottom_1d": "n=762 **-0.93%**, 양수 달 8/32",
+    "fvg": "n=832 -0.32%, 10/31",
+    "inverse_hs_1d": "n=270 **-5.01%**, 7/25 (2023-10 -28%p: 패턴 +8.8 vs 무작위 +37)",
+    "three_soldiers_4h": "n=194 **+2.18%**, 11/22 — 유일하게 월 대조에서도 양수",
+    "ma180": "n=51 +0.62% (달 n 2~4, 판정 불가)",
+    "triple_bottom_1d": "+0.30%",
+    "engulfing": "+1.71% n=65",
+    "해석": "버킷 대조(+4~9%, t2~4.6)와 월 대조(≈0)의 차이 = **신호가 강한 달(2023-10·2024-02·2024-11, 무작위 +30~45%)에 2~3배 몰린 효과**. '하락 뒤 bull 에서 반등을 산다'는 시장 수준 타이밍이지 패턴 고유의 진입일 선택 엣지가 아닐 수 있음"
+   },
+   "alt_regime": "월별 ETH/BTC·알트상대30d 와 엣지 사이 일관된 관계 없음(정식 검정은 사양 밖). TOTAL3 없음",
+   "verdict": "**BTC 레짐(라벨 품질) 문제가 1차** — 시간축 감소·재점등 가설은 기각, 붕괴 구간은 라벨이 bull 을 잘못 가리킨 구간이고 무작위도 같이 죽음. bull_early/late/reentry 시간축 레짐 근거 없음. **단, 월 대조라는 더 엄격한 대조를 걸면 1d 반전 패턴(double_bottom/fvg/inverse_hs)의 패턴 고유 엣지는 ≈0 또는 음수** → 부분적으로 패턴 문제. three_soldiers_4h 만 월 대조 양수. ma180/engulfing/triple_bottom 은 표본 부족. 알트 레짐 증거 없음",
+   "implication": "(1) 시간축 레짐 신설 안 함. (2) double_bottom_1d 배포 권고 **철회 → 보류**: 월 대조 -0.93%. (3) 확인 프레임에 '같은 달(또는 20일 창) 무작위 대조'를 추가 가드로 사전 등록할 것 — 2026-09-04 레짐 대조 추가와 같은 종류의 정정. (4) 실거래 변경 없음"
+  }
  }
 }
