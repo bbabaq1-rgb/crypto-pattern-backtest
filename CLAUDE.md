@@ -819,7 +819,40 @@
       필요) ④ 월 대조를 결과 본 뒤 v3 기준으로 교체하면 사후 선택 — 다음 프레임은 사전 등록. three_soldiers '유일 생존' 선언 철회(다중검정).
       **결정**: 시간축 레짐 신설 안 함 / double_bottom·inverse_hs 통과 판단 철회 → 미확인·그림자 / fvg·engulfing·three_soldiers 주문 무변경,
       동일 코인·동일 월·동일 실행조건 대조 포함 재검증 대상 / BTC 레짐 유지 / **v4 가드는 매칭 규칙·클러스터 추론·OOS 분할·통과/보류 기준을
-      먼저 고정**(registry guard_v4_prereg_draft — 사용자 확정 대기).
+      먼저 고정**(registry guard_v4_prereg_draft — 2026-09-06 사용자 확정 → 아래 v4 항목).
+- **확인 프레임 v4 — 3중 대조 가드 실행 (2026-09-06, 사용자 확정 파라미터, run 34030352467)**: validate_guard_v4.py / test_guard_v4.py(41) /
+  guard_v4.yml / registry `guard_v4_prereg_draft_2026_09_06.result_2026_09_06`. **CONFIRMED 0 / UNCONFIRMED_SHADOW 6 / REJECTED 5. 실거래 무변경.**
+  · **고정(결과 전)**: A 레짐·코호트 무작위 k=n / B 같은 코인·같은 달·**같은 레짐 라벨**·같은 TF·방향·진입가능봉(신호봉 제외, 풀<5 제외) /
+    C train<2025-01-01≤OOS. train = 적격성(A 게이트 v2 + B 월클러스터 p<.05·세 가중>0), OOS = 재현(A mean>0·승률≥35%·bp<.05 + B 세 가중>0·
+    **Holm** p<.05·엣지≥+0.20%p + 왕복 0.4% 에서 mean>0). 월 클러스터 블록 부트 1000(코인-월 병기). REJECTED 는 전체 A mean≤0·승률<35% 만.
+    주 셀 11 = 실거래 라우팅 복제 7(engulfing bull/bear 롱·altseason 숏, fvg bull/altseason 롱, three_soldiers bull/altseason) + 관찰 2(ih/marubozu) +
+    그림자 2(double_bottom_1d/inverse_hs_1d bull_btc). DEPLOY_ON_PASS=False.
+  · **핵심 결과 — B 는 1d 반전 패턴에서 train·OOS 모두 강한 음수**: fvg|bull_btc train −6.92%p(p 1.000, CI [−9.5,−4.1]) / OOS −3.21%p,
+    double_bottom −4.29/−2.22, inverse_hs −6.43/−2.19, fvg altseason −3.58/−8.68. A 엣지(+4~+6.6%p, bp .000)와 정반대. ±10봉 창(D3)도 동일.
+    **해석**: A 엣지는 '어느 코인-월에 있느냐'(코인-월 선택)에서 나오고, 그 코인-월 **안의** 진입일은 무작위보다 나쁘다(갭·돌파 뒤 추격).
+    단 B 벤치는 신호 이후 봉까지 포함해 '그 달이 좋은 달'이라는 정보를 쓴다(사후 조건화) — B 음수 ≠ 실거래 손실. B 는 월 안 타이밍 검정.
+  · **OOS(2025~) 절대 성능**: engulfing|bull_btc n34 **+7.0%**(edge +8.76 bp .004, 0.4% 비용에도 +6.8%) / engulfing_short|altseason n40 +1.14%
+    (bp .011, **B +4.40% Holm .000 — 유일한 OOS B 통과**, 그러나 train A bp .449·B −0.63% 로 미적격 → SHADOW) / fvg bull −0.33% / three_soldiers bull
+    −0.06% / double_bottom −0.17% / inverse_hs +2.00%(bp .051) / ih +0.40% / marubozu n8. engulfing|bull_btc 는 train 게이트가 bp .368 로 실패(n75).
+  · **REJECTED 5 중 실거래 라우팅 셀 3**: **engulfing|bear 롱**(전체 승률 24%, OOS n33 −3.65% 손절 28/33 승률 15%) · **fvg|bull_altseason 롱**
+    (승률 26%, OOS n82 −0.78%) · **three_soldiers_4h|bull_altseason**(n35, mean −1.29%, OOS −3.17%). 나머지 2 는 관찰 셀 ih(승률 30%)·marubozu
+    (승률 28%, OOS n8). 라우팅 표는 2026-06-24 n≥20·mean>0 만으로 만들어져 게이트를 거친 적이 없다 — **변경은 사용자 결정(주문 무변경)**.
+  · **D1 레짐 = 조건부 기대값 라우터?**: bull_btc 월 top30 롱 무작위 train +5.24%(p .005, 양수월 53%) vs 비-bull +2.19% → train 에선 작동.
+    OOS −1.70%(p .767) vs 비-bull −0.18% → 2025~ 역전. **D2** BTC fwd3m 은 OOS 에서도 bull +2.3%(양수 58%) vs bear −9.4%(24%) 로 분리 —
+    라벨은 BTC 방향은 가르지만 **알트 롱 수익은 못 가른다**(bull_btc = BTC 주도 국면, 알트 지체). sideways 라벨 일수 0(라벨러가 사실상 안 냄).
+  · D4 실거래 행 4건(패턴당 1) — 표본 없음. 그림자 2 셀 유지, 관찰 2 셀 10/06 까지 유지.
+- **PIT(point-in-time) 코호트 재검증 (2026-09-06, 사용자 의견 → 사전 등록 → run 34033988347)**: validate_pit_cohort.py / test_pit_cohort.py(25) /
+  pit_cohort.yml / registry `pit_cohort_prereg_2026_09_06`. 검증 코호트(top20/top30)가 데이터 끝 순위를 과거에 소급한 정적 집합이었던 룩어헤드를
+  월말 30일 거래대금 순위(다음 달 적용, 적격 60봉)로 교체해 v4 11셀을 재계산. **STABLE 10 / SHIFTED 1 — 실거래 무변경.**
+  · **SHIFTED: fvg|bull_btc SHADOW→REJECTED**(PIT 승률<35%). 1d 반전 패턴은 정적 코호트가 A 엣지를 1.5~2%p 부풀렸다 — fvg +6.30→+4.71,
+    double_bottom +4.02→+2.47, inverse_hs +2.49→+1.72, 코인 양수 비율 93→69% / 83→58%. '나중에 살아남은 코인'을 고른 효과.
+  · engulfing 계열은 PIT 에서 같거나 강함(bull_btc OOS +6.8% bp .007, 숏 altseason B OOS +4.59% Holm .000 — mid 코호트도 통과). 단
+    **engulfing|bull_btc 는 상위 3 코인 제외 시 A 엣지 ≈0**(+2.79→+0.07) — 코인 집중.
+  · PIT top30 월평균 4.3 코인 교체(≈14%/월), 정적 vs 2026-09 PIT 겹침 29/30. 무조건부 코호트 스캔은 static·PIT 전부 REJECTED, mid-cap
+    engulfing 은 PIT 에서 더 약함(+1.72→+0.16). 한계: 상장폐지 이력 없음(생존 편향 잔존), 스프레드 없음.
+  · **이후 확인 프레임은 PIT 코호트를 기본으로 쓴다**(사전 등록 시 명시). 배포 판정 변화 없음(CONFIRMED 0 유지).
+  · **사용자 결정 (2026-09-06 저녁) — "현 상태에서 더 이상 끄지 않고 실거래로 1달 정도 돌려본다"**: REJECTED 라우팅 셀 3 포함 배포 집합
+    전부 유지, 관찰 종료 **2026-10-06**(ih/marubozu 와 동일). 종료 시 셀별 실거래 표를 v4 OOS 와 나란히 보고 후 재결정. 실거래 무변경.
 - **월 +1,000% 목표 실현가능성 시험 — 불가 판정, 실거래 무변경 (2026-09-06, 사용자 지시 "수단 방법 가리지 말고
   월 1,000%")**: report_target_1000pct.md / study_target_1000pct.py(외부 데이터 불필요). 목표 = 월 로그수익 2.303,
   현행 실측(boot CAGR +63%) 0.041 의 **56배**, 역사상 최고 펀드(Medallion 연 66%)의 55배. 레포 실측 분포(승률 44%·
@@ -959,6 +992,13 @@
 - [ ] **three_soldiers_4h 재판정** — 레짐 베이스라인(같은 레짐 무작위 진입)으로 bull_btc 셀 bp .165. 원 프레임과 병기해 배포 유지 여부 판단
 - [ ] triple_bottom top30 코호트 사전 등록 재시험 (데이터 누적 후, 현재 n=35 bp .078)
 - [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
+- [x] **v4 REJECTED 라우팅 셀 3 처리 → 사용자 결정 "현 상태에서 더 이상 끄지 않고 실거래로 1달 돌려본다" (2026-09-06)** —
+      engulfing|bear 롱 / fvg|bull_altseason 롱 / three_soldiers_4h|bull_altseason 포함 배포 집합 전부 유지. 끄는 방법은 참고로 남김
+      (direction_switch.ROUTING_OVERRIDES FLAT + adopted_4h regimes). **관찰 종료 2026-10-06** — ih/marubozu 관찰과 같은 날
+- [ ] **실거래 1개월 관찰 보고 (2026-10-06)** — 패턴·레짐 셀별 진입 건수 / 건당 수익 / 손절 비율 / 슬리피지를 v4 OOS 수치와 나란히 표로.
+      정지/유지 재결정은 사용자. 관찰 중 코드·라우팅·사이징 변경 없음(사용자 별도 지시 외)
+- [ ] **B 벤치 사후 조건화 보완(다음 프레임 사전 등록)** — 같은 코인-월 풀을 신호 **이전** 봉으로만 제한한 변형(인과 B)을 병기.
+      현 B 는 월 안 타이밍 검정이라 코인-월 선택 엣지를 못 본다
 - [ ] **숏 라우팅 재판정** — 레짐 조건부 engulfing_short(bull_altseason)/fvg_short(bear) 셀을
       동결 게이트(median/boot_p/OOS)로. 통과 못 하면 숏 중단은 사용자 결정
 - [ ] **형성 중인 봉 탐지 재검토** — 기존 배포 패턴은 아직 `rows[-1]`(미완성 봉)에서
@@ -1028,6 +1068,9 @@
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - method_b.py: beta_slope 오버레이(B_skip/B_size) 짝지음 시험 — 기각 기록용. report_beta_overlay.md
+- validate_pit_cohort.py: PIT 코호트(월말 30일 거래대금 → 다음 달 적용) static vs PIT 재검증 + 코인별 분산 + 무조건부 스캔. test_pit_cohort.py(25)
+- validate_guard_v4.py: 확인 프레임 v4 = 3중 대조(A 레짐·코호트 / B 같은 코인·월·레짐 / C 시간 OOS 2025-01-01) + 월 클러스터 부트 + Holm +
+  비용 스트레스 + 진단 D1~D4. 사전 등록 registry guard_v4_prereg_draft_2026_09_06. DEPLOY_ON_PASS=False. test_guard_v4.py(41)
 - validate_revival.py: 선별(validate_regime_split_all STRICT)을 통과한 후보를 **실거래 프레임**(방식D/ATR·레짐
   조건부·같은 청산 규칙 베이스라인·실거래 사이징)으로 확인. `--new` 는 신규 디텍터 전 셀. report_revival.md
 - detector_ibs_low / rsi2_low / down_streak3 / donchian20.py: 2026-09-05 신규 후보 4종 — **전부 rejected**, 미등재

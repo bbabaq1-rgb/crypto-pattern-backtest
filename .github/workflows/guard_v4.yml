@@ -1,0 +1,45 @@
+name: Research — confirm frame v4 (triple control guard, pre-registered)
+
+# 확인 프레임 v4 — 3중 대조(레짐·코호트 무작위 / 같은 코인·같은 달 무작위 / 시간 OOS 2025-01-01).
+# 사전 등록 registry guard_v4_prereg_draft_2026_09_06. DEPLOY_ON_PASS=False — 매매·DB 쓰기 없음(Supabase 는 읽기만).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_guard_v4.py"
+      - "test_guard_v4.py"
+      - ".github/workflows/guard_v4.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_frame_v3.py
+          python test_guard_v4.py
+      - name: Validate (v4)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python validate_guard_v4.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-v4-${{ github.run_number }}
+          path: _guard_v4.json
+          if-no-files-found: ignore
