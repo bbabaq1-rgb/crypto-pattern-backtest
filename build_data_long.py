@@ -82,19 +82,43 @@ def market_symbol(ex, exid, base):
     return None
 
 
+def _first_bar(ex, sym, ms):
+    try:
+        rows = ex.fetch_ohlcv(sym, "1d", since=ms, limit=10)
+    except Exception:
+        rows = None
+    time.sleep(ex.rateLimit / 1000)
+    return rows[0][0] if rows else None
+
+
 def earliest_start(ex, sym, since_ms):
-    """since 이후 첫 봉 ts. 후보 시작일을 앞에서부터 시도해 처음 비어 있지 않은 응답의 첫 봉."""
+    """since 이후 첫 봉 ts. 후보 시작일을 앞에서부터 시도해 처음 비어 있지 않은 응답을 찾고,
+    직전 빈 후보와 그 사이를 **일 단위 이분 탐색**으로 좁힌다(격자 반년~1년에 상장일이 끼면
+    최대 1년을 잃던 것을 막는다 — 3차 실행에서 OP/APT/ARB 가 격자 날짜에 붙어 있었다)."""
+    prev_empty = None
     for cand in START_CANDIDATES:
         ms = _ms(cand)
         if ms < since_ms:
             continue
-        try:
-            rows = ex.fetch_ohlcv(sym, "1d", since=ms, limit=10)
-        except Exception:
-            rows = None
-        if rows:
-            return rows[0][0]
-        time.sleep(ex.rateLimit / 1000)
+        ts = _first_bar(ex, sym, ms)
+        if ts is None:
+            prev_empty = ms
+            continue
+        # 거래소가 since 보다 이른 봉을 돌려줬다면(상장 이후 since) 그 자체가 첫 봉
+        if prev_empty is None or ts < ms:
+            return ts
+        lo, hi = prev_empty, ms                      # lo: 빈 응답, hi: 데이터 있음
+        day = 86_400_000
+        while hi - lo > day:
+            mid = lo + ((hi - lo) // (2 * day)) * day
+            if mid <= lo:
+                break
+            t2 = _first_bar(ex, sym, mid)
+            if t2 is None:
+                lo = mid
+            else:
+                hi = mid; ts = t2
+        return ts
     return None
 
 
