@@ -42,12 +42,12 @@ check("나이: 에피소드 첫날 0, 100일째 100", f.age(dl[0]) == 0 and f.ag
 check("나이: bear 날은 None", f.age(dl[500]) is None)
 check("재점등: 첫 에피소드 신규", f.reignition(dl[10]) is False)
 check("재점등: 간격 400일 → 신규", f.reignition(dl[750]) is False)
-check("재점등: 간격 100일 → 재점등", f.reignition(dl[850]) is True)
+check("재점등: 간격 100일 → 재점등", f.reignition(dl[920]) is True)
 check("낙폭: 상승 중 0", abs(f.drawdown(dl[500])) < 1e-9)
 dd = f.drawdown(dl[900])   # 고점 800(=i 699 → 799) 대비
 check("낙폭: 고점 뒤 음수·인과(당일 포함 365봉 최고)", dd is not None and -0.5 < dd < -0.2, dd)
 check("버킷 A", f.bucket("A_age", dl[30]) == "<=90d" and f.bucket("A_age", dl[200]) == "91~270d" and f.bucket("A_age", dl[299]) == ">270d")
-check("버킷 B", f.bucket("B_reig", dl[720]) == "신규" and f.bucket("B_reig", dl[820]) == "재점등")
+check("버킷 B", f.bucket("B_reig", dl[720]) == "신규" and f.bucket("B_reig", dl[920]) == "재점등")
 check("버킷 C", f.bucket("C_dd", dl[100]) == ">-10%" and f.bucket("C_dd", dl[900]) in ("-10~-30%", "<-30%"))
 check("동결 경계: 90/270, 180, -10/-30, 365", vp.AGE_CUTS == (90, 270) and vp.REIG_GAP == 180 and vp.DD_CUTS == (-0.10, -0.30) and vp.DD_LB == 365)
 
@@ -60,16 +60,20 @@ good["c3"] = {A[0]: dict(n=10, mean=0.01), A[1]: dict(n=10, mean=0.03), A[2]: di
 good["c4"] = {A[0]: dict(n=3, mean=0.0), A[1]: dict(n=10, mean=0.01), A[2]: dict(n=10, mean=-0.01)}
 ok, worst, det = vp.stage1_rule(good, "A_age")
 check("ordered: 3셀 최악<0·최선>0·같은 버킷 → 통과, 최악=>270d", ok and worst == ">270d", (ok, worst, det))
-mixed = dict(good); mixed["c2"] = {A[0]: dict(n=10, mean=-0.02), A[1]: dict(n=10, mean=0.02), A[2]: dict(n=10, mean=0.03)}
+mixed = dict(good)
+mixed["c2"] = {A[0]: dict(n=10, mean=-0.02), A[1]: dict(n=10, mean=0.02), A[2]: dict(n=10, mean=0.03)}   # 최악 = <=90d
+mixed["c4"] = {A[0]: dict(n=10, mean=-0.02), A[1]: dict(n=10, mean=0.01), A[2]: dict(n=10, mean=0.02)}   # 최악 = <=90d
 ok2, w2, _ = vp.stage1_rule(mixed, "A_age")
-check("ordered: 최악 위치가 2:1 로 갈리면 탈락", not ok2 and w2 is None)
+check("ordered: 최악 위치가 2:2 로 갈리면 탈락(일치 >=3 미달)", not ok2 and w2 is None)
 B = {f"c{i}": {"신규": dict(n=10, mean=0.03), "재점등": dict(n=10, mean=-0.02)} for i in range(4)}
 B["c4"] = {"신규": dict(n=10, mean=0.01), "재점등": dict(n=10, mean=0.02)}
 ok3, w3, _ = vp.stage1_rule(B, "B_reig")
 check("binary: 재점등<신규 4셀 & 재점등<0 4셀 → 통과", ok3 and w3 == "재점등")
-B2 = dict(B); B2["c3"] = {"신규": dict(n=10, mean=0.03), "재점등": dict(n=10, mean=0.01)}
+B2 = dict(B)
+B2["c2"] = {"신규": dict(n=10, mean=0.03), "재점등": dict(n=10, mean=0.01)}   # 재점등<신규 이지만 양수
+B2["c3"] = {"신규": dict(n=10, mean=0.03), "재점등": dict(n=10, mean=0.01)}
 ok4, _, _ = vp.stage1_rule(B2, "B_reig")
-check("binary: 재점등<0 이 2셀뿐이면 탈락", not ok4)
+check("binary: 재점등<신규 4셀이어도 재점등<0 이 2셀뿐이면 탈락", not ok4)
 B3 = {f"c{i}": {"신규": dict(n=10, mean=0.03), "재점등": dict(n=3, mean=-0.05)} for i in range(5)}
 check("binary: n<5 버킷은 세지 않음 → 탈락", not vp.stage1_rule(B3, "B_reig")[0])
 
