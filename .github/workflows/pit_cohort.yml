@@ -1,0 +1,41 @@
+name: Research — point-in-time cohort re-validation (pre-registered, diagnostic)
+
+# 정적 코호트(데이터 끝 순위 소급) vs point-in-time 코호트(월말 30일 거래대금 순위 → 다음 달 적용)로 v4 11셀 재계산.
+# 사전 등록 registry pit_cohort_prereg_2026_09_06. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_pit_cohort.py"
+      - "test_pit_cohort.py"
+      - ".github/workflows/pit_cohort.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_guard_v4.py
+          python test_pit_cohort.py
+      - name: Validate (PIT cohort)
+        run: python validate_pit_cohort.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pit-cohort-${{ github.run_number }}
+          path: _pit_cohort.json
+          if-no-files-found: ignore

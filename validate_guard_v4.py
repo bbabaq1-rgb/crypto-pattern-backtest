@@ -303,10 +303,11 @@ def verdict(full_a, train_gate_passed, train_b, oos_a, oos_b, p_holm, oos_mean):
     return ("CONFIRMED" if not fails else "UNCONFIRMED_SHADOW"), fails
 
 
-def run_cell(cell, oc, cs, pool, first_date, last_date):
-    """셀 하나의 A/B/C 통계 (판정 제외 — Holm 은 가족 전체가 있어야 한다). 반환 dict + (train, oos)."""
+def run_cell(cell, oc, cs, pool, first_date, last_date, sigs=None):
+    """셀 하나의 A/B/C 통계 (판정 제외 — Holm 은 가족 전체가 있어야 한다). sigs 를 주면 수집을 건너뛴다(PIT 코호트 재검증용)."""
     tf = cell["tf"]
-    sigs = collect_cell(oc, _det(cell["det"]), cs, cell["regime"])
+    if sigs is None:
+        sigs = collect_cell(oc, _det(cell["det"]), cs, cell["regime"])
     train = [s for s in sigs if s["date"] < SPLIT_DATE]
     oos = [s for s in sigs if s["date"] >= SPLIT_DATE]
     pool_tr = [r for dt, r in pool if dt < SPLIT_DATE]

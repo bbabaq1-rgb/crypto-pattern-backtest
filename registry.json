@@ -1558,7 +1558,7 @@
   },
   "leverage_finding": "같은 위험 2%에서 2/3/5x: CAGR 43/39/36%, MDD -67/-76/-76%, P(ruin) 0.7/2.0/3.0%. 위험 1%에서는 2x=3x 완전 동일(증거금 비제약). 레버리지는 명목가를 바꾸지 않고 동시 노출만 키운다.",
   "verdict": "'포지션·레버리지가 작다'는 전제 기각. 현행은 사전 기준 밖(MDD -60%). 권고 규칙은 equity < $320 에서 최소주문 미달로 스킵 — 현 계좌($271)는 위험 0.5% 관리엔 작다.",
-  "status": "SIZING_MODE=legacy 유지. 전환은 사용자 판단 (report_sizing.md 선택지 4개).",
+  "status": "SUPERSEDED — 2026-09-02 risk 1%/2x 전환 → 2026-09-04 risk 1.5%/lev 3 + 변동성 타겟팅 (사용자 결정). 종전 'legacy 유지' 문구는 2026-09-02 시점 기록. (2026-09-06 상태 정정)",
   "decision_2026_09_02": {
    "choice": "③ risk 1%/2x — 사용자 결정, 실거래 반영",
    "config": "paper_executor.SIZING_MODE=\"risk\", sizing.RISK_FRAC=0.01, LEV_CAP=2",
@@ -2251,7 +2251,7 @@
   "trigger": "사용자: '맥스포스 12 시험 돌려줘'",
   "design": "sizing_vol.py --routing --slots: MAX_POS {8,12,16,20,24}, arm vol_matched, risk 1.5%/lev 3 고정, 실거래 라우팅 복제(bear fvg 숏 ON 포함), 블록부트 300회",
   "criteria": "동결(격자와 동일): boot MDD중앙>=-35% AND P(ruin)<5% 중 Calmar 최대. 부가: 슬롯 스킵 실제 감소 / 증거금 스킵 증가 여부. 채택은 사용자 결정(위험 수준 항목)",
-  "status": "registered — quant_batch1 워크플로 실행 대기"
+  "status": "DONE (2026-09-05 run 33961480251) — 8:1.59/12:1.84/16:1.85/20:1.83/24:1.83 Calmar, 슬롯스킵 462→47. 사용자 결정 MAX_POS 12→16 반영(paper_executor.MAX_LIVE_POS). (2026-09-06 상태 정정 — 종전 '실행 대기'는 오기)"
  },
  "max_pos_16_2026_09_05": {
   "date": "2026-09-05",
@@ -3032,6 +3032,67 @@
    "observation_end": "2026-10-06",
    "report_at_end": "패턴·레짐 셀별 실거래 진입 건수 / 건당 수익 / 손절 비율 / 슬리피지(신호봉 종가 vs 체결가) 표 — v4 OOS 수치와 나란히. 정지/유지 재결정은 사용자",
    "live_change": "없음"
+  }
+ },
+ "pit_cohort_prereg_2026_09_06": {
+  "status": "EXECUTED 2026-09-06 (run 34033988347) — STABLE 10 / SHIFTED 1 (fvg|bull_btc SHADOW→REJECTED). 실거래 무변경",
+  "question": "정적 코호트(데이터 끝 시점 30일 거래대금 순위를 과거 전체에 소급)로 얻은 v4 결과가 point-in-time(당시 알 수 있던) 코호트에서도 살아남는가",
+  "origin": "사용자 제시 의견(2026-09-06): 시총→유동성 rolling universe / survivorship·룩어헤드 회피 / Core·Liquid·mid-cap 병렬 / 코인별 엣지 분산 지표. 이미 반영된 것(유니버스 80 = 거래대금 기준, 실거래 코호트 매 실행 재계산, mid-cap 기각 이력)은 제외하고 '검증 코호트의 룩어헤드' 하나로 좁힘",
+  "cohort_construction_frozen": {
+   "rebalance": "매월 말 M. 순위 = 그 코인의 M 마지막 봉까지 최근 30 일봉 평균 거래대금(close×volume). 다음 달 M+1 의 모든 봉에 적용",
+   "eligibility": "월말 기준 일봉 이력 >= 60봉, 거래량 존재. 미달 코인은 그 달 어떤 코호트에도 없음",
+   "cohorts": {
+    "core20": "순위 1~20",
+    "top30": "순위 1~30 (실거래 engulfing/fvg 코호트 복제)",
+    "liquid": "적격 전부(순위 무관, 유니버스 80 안)",
+    "mid": "순위 21~80 (진단 전용, 판정 없음)",
+    "majors": "고정 7종(BTC/SOL/ETH/BNB/XRP/ADA/AVAX) — PIT 불필요"
+   },
+   "membership": "신호·A 풀 봉 모두 '그 봉의 달에 그 코인이 코호트에 있었는가'로 판정. B 벤치(같은 코인·같은 달)는 코호트와 무관 — 불변",
+   "source_note": "OKX 상장 전 구간은 data_long(타 거래소) 거래량 — 거래소 간 수준 차이로 순위가 흔들릴 수 있음. 진단으로 OKX 구간(2022-01~)만의 결과를 병기"
+  },
+  "cells": "v4 주 셀 11개 그대로(코호트만 PIT 로 교체: top30→PIT top30, all→PIT liquid, majors 불변) + 진단: engulfing·fvg 의 라우팅 셀을 core20 / mid 로도 계산(판정 없음) + 무조건부(ALL 레짐) 코호트 스캔 static vs PIT (core20/top30/liquid/mid, 게이트 v2, k=n 같은 코호트 풀)",
+  "metrics_frozen": {
+   "v4_recompute": "PIT 코호트로 v4 규칙(A/B/C·Holm·비용) 전부 재계산 → PIT 판정",
+   "stability": "STABLE = PIT 판정 == 정적 판정 AND 전체 A 엣지 부호 동일. 그 외 SHIFTED. 셀 수 집계",
+   "per_coin_dispersion": "코인별 평균수익(n>=3 코인만) 중앙값 / 양수 코인 비율 / 기여 상위 3 코인 제외 후 평균과 A 엣지 / 왕복 0.4% 비용 후 평균 — 전 셀·전 기간·train/OOS",
+   "judgement": "이 시험은 '정적 결과의 강건성 확인'이지 배포 판정이 아님. PIT 에서 CONFIRMED 가 새로 나와도 자율 반영 없음(관찰 기간 + 사용자 결정). SHIFTED 셀은 그 방향(개선/악화)과 원인(코호트 구성 변화 n)을 보고"
+  },
+  "not_changed_by_results": "리밸런스 주기(월)·순위 창(30일)·적격 60봉·코호트 경계(20/30/80)·판정 규칙. 결과 본 뒤 바꾸지 않음",
+  "limitations_recorded_before_run": [
+   "상장폐지 코인 이력 없음 → 생존 편향은 남음(선택 시점 룩어헤드만 제거)",
+   "호가 스프레드 이력 없음 → 거래대금·상장 경과일로 대체",
+   "3개 유니버스 병렬은 다중검정 증가 → 판정은 v4 11셀에만, core20/mid 는 진단"
+  ],
+  "live_change": "없음 (관찰 기간 2026-09-06~10-06, 실거래 코드·라우팅·사이징 불변)",
+  "result_2026_09_06": {
+   "run": 34033988347,
+   "pit_months": 116,
+   "cohort_turnover_per_month": {
+    "core20": 4.6,
+    "top30": 4.3,
+    "liquid": 0.7
+   },
+   "static_top30_vs_pit_2026_09_overlap": "29/30",
+   "summary": {
+    "engulfing|bull_btc": "STABLE SHADOW/SHADOW. n 109→130, A엣지 +2.79→+2.31, OOS +7.00→+6.82 (bp .007). 상위3 코인 제외 시 A엣지 +0.07/+0.10 — 전체 엣지가 3코인(BTC/LTC/UNI·AR)에 집중. core20 OOS +9.75%, mid OOS +0.61%",
+    "engulfing|bear": "STABLE REJECTED. PIT OOS −6.60%(정적 −3.65%), OOS 코인 양수 0%, train B +4.76% p .011 — 2025 이전 bear 에서만 월 안 타이밍 양수",
+    "engulfing_short|bull_altseason": "STABLE SHADOW. PIT 가 더 강함: OOS +1.52% bp .026, B OOS +4.59% Holm .000. mid 코호트도 B OOS +3.94% p .000 — 코호트 무관한 숏 셀. train 미적격 유지",
+    "fvg|bull_btc": "**SHIFTED SHADOW→REJECTED**. PIT 승률<35%. A엣지 +6.30→+4.71, OOS −0.33→−1.65, 코인 양수 비율 93%→69%, OKX구간 엣지 +7.75→+4.84. 정적 코호트가 '나중에 살아남은 코인'을 골라 엣지를 약 1.6%p 부풀렸다",
+    "fvg|bull_altseason": "STABLE REJECTED. A엣지 +3.66→+3.11, OOS −0.78→−2.66",
+    "three_soldiers_4h|bull_btc / bull_altseason": "STABLE (liquid = all 이라 신호 동일, 풀만 PIT 적격 필터 — 수치 거의 동일)",
+    "inverted_hammer|ALL / marubozu|ALL": "STABLE REJECTED (majors 고정 — PIT 무관)",
+    "double_bottom_1d|bull_btc": "STABLE SHADOW. A엣지 +4.02→+2.47, 코인 양수 83%→58%, OOS −0.17→−1.14",
+    "inverse_hs_1d|bull_btc": "STABLE SHADOW. A엣지 +2.49→+1.72, OOS +2.00→+1.03 (bp .064)"
+   },
+   "scan_unconditional": "engulfing/fvg × core20/top30/liquid/mid 전부 static·PIT 모두 REJECTED(게이트 v2). fvg PIT 엣지 +2.2~+4.0%p bp .000 이나 승률/OOS 분위 탈락. engulfing mid PIT 엣지 +1.72→+0.16 — mid-cap 확장은 PIT 에서 더 약함",
+   "findings": [
+    "정적 코호트의 룩어헤드는 1d 반전 패턴(fvg/double_bottom/inverse_hs)의 A 엣지를 1.5~2%p 부풀렸다(코인 양수 비율 93→69%, 83→58%). 판정은 10/11 불변 — 원래 SHADOW/REJECTED 라 방향만 더 나빠졌다",
+    "engulfing 계열은 PIT 에서 오히려 같거나 강해졌다(bull_btc OOS +6.8%, 숏 altseason B Holm .000). 단 engulfing|bull_btc 는 상위 3 코인 제외 시 A 엣지 ≈0 — 코인 집중 위험",
+    "PIT top30 은 월평균 4.3 코인이 바뀐다(≈14%/월). 실거래는 매 실행 재계산이므로 이 회전이 실거래 조건이다",
+    "v4 정적 결론(CONFIRMED 0)은 PIT 에서도 CONFIRMED 0. 배포 판정 변화 없음"
+   ],
+   "live_change": "없음 (관찰 기간 ~2026-10-06)"
   }
  }
 }
