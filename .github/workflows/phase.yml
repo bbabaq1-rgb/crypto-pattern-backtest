@@ -1,0 +1,41 @@
+name: Cycle-position (episode phase) diagnostic + filter arm (research, pre-registered)
+
+# 연구 전용 — 매매/DB 무관. bull_btc 에피소드의 국면 위치(나이/재점등/BTC 낙폭)로
+# 5셀을 진단하고, 사전 등록 규칙을 만족한 변수만 필터 arm 을 돌린다. 실거래 반영 없음.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_phase.py"
+      - "test_phase.py"
+      - ".github/workflows/phase.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_frame_v3.py
+          python test_phase.py
+      - name: Diagnostic + filter arm (v3 frame, long 1d)
+        run: python validate_phase.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-${{ github.run_number }}
+          path: _phase.json
+          if-no-files-found: ignore

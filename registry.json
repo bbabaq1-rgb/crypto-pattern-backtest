@@ -2718,5 +2718,32 @@
    "caveats": "① 2017~2022 에피소드는 '오늘의 top30 중 당시 존재하던 종목'(생존 편향) ② 4h 는 2023~ 만이라 E 2/3 는 다중 사이클이 아님 ③ v3 C2b 는 검정력 부족(n≈30·bp .06~.10)을 기각으로 분류 — 설계 메모",
    "deploy_decision": "이번 라운드는 사전 등록대로 결과 보고 후 사용자 결정. 권고: double_bottom_1d|bull_btc|top30 배포 검토(단일 셀 중 유일하게 12 에피소드·Calmar 1.78), 4h bull_btc 2셀은 경계값이라 비권고"
   }
+ },
+ "phase_prereg_2026_09_06": {
+  "test": "bull_btc 에피소드의 사이클 위치(국면 위치) 진단 + 필터 arm — 사전 등록",
+  "requested_by": "사용자 2026-09-06 (\"월별로 레짐을 세분화해서 다시 테스트\" → 재점등 에피소드 가설로 구체화, \"응 진행해\")",
+  "observation": "v3 에서 double_bottom/MA180/inverse_hs 가 같은 bull_btc 에피소드(2025-08~11, 2021-10~2022-02, 2019-10~12)에서 함께 손절 — 고점 뒤 레짐 재점등 구간",
+  "variables_frozen": {
+   "A_age": "에피소드 나이 <=90 / 91~270 / >270일",
+   "B_reig": "직전 bull 끝과 간격 <=180일 → 재점등",
+   "C_dd": "BTC 365봉 최고 대비 낙폭 >-10 / -10~-30 / <-30%"
+  },
+  "cells": [
+   "double_bottom_1d",
+   "ma180_decisive",
+   "triple_bottom_1d",
+   "inverse_hs_1d",
+   "three_soldiers_4h",
+   "(전부 bull_btc·top30·롱·방식D)"
+  ],
+  "stage1_rule": "ordered: 최악<0 & 최선>0 인 셀 >=3 이고 최악 버킷 위치 일치 >=3 / binary: 재점등<신규 >=4 & 재점등<0 >=3. 버킷 n>=5 만 셈",
+  "stage2_rule": "F = 1단계가 정한 최악 버킷 제외. ①제외분 mean<0 ∧ ②D+F v3 CONFIRMED(풀에도 같은 필터) ∧ ③train Calmar 비악화 → ADOPT_CANDIDATE",
+  "autonomy": "결과 보고 후 사용자 결정 — 자동 반영 없음. 여기 없는 변수·버킷은 보지 않는다(사후 선택 금지)",
+  "files": [
+   "validate_phase.py",
+   "test_phase.py",
+   ".github/workflows/phase.yml"
+  ],
+  "status": "REGISTERED (실행 대기)"
  }
 }
