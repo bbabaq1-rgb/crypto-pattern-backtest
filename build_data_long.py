@@ -153,7 +153,7 @@ def main(argv=None):
     print(f"  [probe] 시도 순서: {[e for e, _, _ in reachable]}", flush=True)
 
     manifest = dict(since=since, built_at=datetime.now(timezone.utc).isoformat(),
-                    exchanges=[e for e, _ in reachable], symbols={})
+                    exchanges=[e for e, _, _ in reachable], symbols={})
     t_all = time.time()
     for i, s in enumerate(syms, 1):
         best = None
