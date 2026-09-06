@@ -3033,5 +3033,37 @@
    "report_at_end": "패턴·레짐 셀별 실거래 진입 건수 / 건당 수익 / 손절 비율 / 슬리피지(신호봉 종가 vs 체결가) 표 — v4 OOS 수치와 나란히. 정지/유지 재결정은 사용자",
    "live_change": "없음"
   }
+ },
+ "pit_cohort_prereg_2026_09_06": {
+  "status": "PREREGISTERED (2026-09-06, 사용자 지시 '사전등록해줘') — 실행 전. validate_pit_cohort.py / pit_cohort.yml",
+  "question": "정적 코호트(데이터 끝 시점 30일 거래대금 순위를 과거 전체에 소급)로 얻은 v4 결과가 point-in-time(당시 알 수 있던) 코호트에서도 살아남는가",
+  "origin": "사용자 제시 의견(2026-09-06): 시총→유동성 rolling universe / survivorship·룩어헤드 회피 / Core·Liquid·mid-cap 병렬 / 코인별 엣지 분산 지표. 이미 반영된 것(유니버스 80 = 거래대금 기준, 실거래 코호트 매 실행 재계산, mid-cap 기각 이력)은 제외하고 '검증 코호트의 룩어헤드' 하나로 좁힘",
+  "cohort_construction_frozen": {
+   "rebalance": "매월 말 M. 순위 = 그 코인의 M 마지막 봉까지 최근 30 일봉 평균 거래대금(close×volume). 다음 달 M+1 의 모든 봉에 적용",
+   "eligibility": "월말 기준 일봉 이력 >= 60봉, 거래량 존재. 미달 코인은 그 달 어떤 코호트에도 없음",
+   "cohorts": {
+    "core20": "순위 1~20",
+    "top30": "순위 1~30 (실거래 engulfing/fvg 코호트 복제)",
+    "liquid": "적격 전부(순위 무관, 유니버스 80 안)",
+    "mid": "순위 21~80 (진단 전용, 판정 없음)",
+    "majors": "고정 7종(BTC/SOL/ETH/BNB/XRP/ADA/AVAX) — PIT 불필요"
+   },
+   "membership": "신호·A 풀 봉 모두 '그 봉의 달에 그 코인이 코호트에 있었는가'로 판정. B 벤치(같은 코인·같은 달)는 코호트와 무관 — 불변",
+   "source_note": "OKX 상장 전 구간은 data_long(타 거래소) 거래량 — 거래소 간 수준 차이로 순위가 흔들릴 수 있음. 진단으로 OKX 구간(2022-01~)만의 결과를 병기"
+  },
+  "cells": "v4 주 셀 11개 그대로(코호트만 PIT 로 교체: top30→PIT top30, all→PIT liquid, majors 불변) + 진단: engulfing·fvg 의 라우팅 셀을 core20 / mid 로도 계산(판정 없음) + 무조건부(ALL 레짐) 코호트 스캔 static vs PIT (core20/top30/liquid/mid, 게이트 v2, k=n 같은 코호트 풀)",
+  "metrics_frozen": {
+   "v4_recompute": "PIT 코호트로 v4 규칙(A/B/C·Holm·비용) 전부 재계산 → PIT 판정",
+   "stability": "STABLE = PIT 판정 == 정적 판정 AND 전체 A 엣지 부호 동일. 그 외 SHIFTED. 셀 수 집계",
+   "per_coin_dispersion": "코인별 평균수익(n>=3 코인만) 중앙값 / 양수 코인 비율 / 기여 상위 3 코인 제외 후 평균과 A 엣지 / 왕복 0.4% 비용 후 평균 — 전 셀·전 기간·train/OOS",
+   "judgement": "이 시험은 '정적 결과의 강건성 확인'이지 배포 판정이 아님. PIT 에서 CONFIRMED 가 새로 나와도 자율 반영 없음(관찰 기간 + 사용자 결정). SHIFTED 셀은 그 방향(개선/악화)과 원인(코호트 구성 변화 n)을 보고"
+  },
+  "not_changed_by_results": "리밸런스 주기(월)·순위 창(30일)·적격 60봉·코호트 경계(20/30/80)·판정 규칙. 결과 본 뒤 바꾸지 않음",
+  "limitations_recorded_before_run": [
+   "상장폐지 코인 이력 없음 → 생존 편향은 남음(선택 시점 룩어헤드만 제거)",
+   "호가 스프레드 이력 없음 → 거래대금·상장 경과일로 대체",
+   "3개 유니버스 병렬은 다중검정 증가 → 판정은 v4 11셀에만, core20/mid 는 진단"
+  ],
+  "live_change": "없음 (관찰 기간 2026-09-06~10-06, 실거래 코드·라우팅·사이징 불변)"
  }
 }
