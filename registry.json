@@ -1558,7 +1558,7 @@
   },
   "leverage_finding": "같은 위험 2%에서 2/3/5x: CAGR 43/39/36%, MDD -67/-76/-76%, P(ruin) 0.7/2.0/3.0%. 위험 1%에서는 2x=3x 완전 동일(증거금 비제약). 레버리지는 명목가를 바꾸지 않고 동시 노출만 키운다.",
   "verdict": "'포지션·레버리지가 작다'는 전제 기각. 현행은 사전 기준 밖(MDD -60%). 권고 규칙은 equity < $320 에서 최소주문 미달로 스킵 — 현 계좌($271)는 위험 0.5% 관리엔 작다.",
-  "status": "SIZING_MODE=legacy 유지. 전환은 사용자 판단 (report_sizing.md 선택지 4개).",
+  "status": "SUPERSEDED — 2026-09-02 risk 1%/2x 전환 → 2026-09-04 risk 1.5%/lev 3 + 변동성 타겟팅 (사용자 결정). 종전 'legacy 유지' 문구는 2026-09-02 시점 기록. (2026-09-06 상태 정정)",
   "decision_2026_09_02": {
    "choice": "③ risk 1%/2x — 사용자 결정, 실거래 반영",
    "config": "paper_executor.SIZING_MODE=\"risk\", sizing.RISK_FRAC=0.01, LEV_CAP=2",
@@ -2251,7 +2251,7 @@
   "trigger": "사용자: '맥스포스 12 시험 돌려줘'",
   "design": "sizing_vol.py --routing --slots: MAX_POS {8,12,16,20,24}, arm vol_matched, risk 1.5%/lev 3 고정, 실거래 라우팅 복제(bear fvg 숏 ON 포함), 블록부트 300회",
   "criteria": "동결(격자와 동일): boot MDD중앙>=-35% AND P(ruin)<5% 중 Calmar 최대. 부가: 슬롯 스킵 실제 감소 / 증거금 스킵 증가 여부. 채택은 사용자 결정(위험 수준 항목)",
-  "status": "registered — quant_batch1 워크플로 실행 대기"
+  "status": "DONE (2026-09-05 run 33961480251) — 8:1.59/12:1.84/16:1.85/20:1.83/24:1.83 Calmar, 슬롯스킵 462→47. 사용자 결정 MAX_POS 12→16 반영(paper_executor.MAX_LIVE_POS). (2026-09-06 상태 정정 — 종전 '실행 대기'는 오기)"
  },
  "max_pos_16_2026_09_05": {
   "date": "2026-09-05",
