@@ -841,6 +841,8 @@
     OOS −1.70%(p .767) vs 비-bull −0.18% → 2025~ 역전. **D2** BTC fwd3m 은 OOS 에서도 bull +2.3%(양수 58%) vs bear −9.4%(24%) 로 분리 —
     라벨은 BTC 방향은 가르지만 **알트 롱 수익은 못 가른다**(bull_btc = BTC 주도 국면, 알트 지체). sideways 라벨 일수 0(라벨러가 사실상 안 냄).
   · D4 실거래 행 4건(패턴당 1) — 표본 없음. 그림자 2 셀 유지, 관찰 2 셀 10/06 까지 유지.
+  · **사용자 결정 (2026-09-06 저녁) — "현 상태에서 더 이상 끄지 않고 실거래로 1달 정도 돌려본다"**: REJECTED 라우팅 셀 3 포함 배포 집합
+    전부 유지, 관찰 종료 **2026-10-06**(ih/marubozu 와 동일). 종료 시 셀별 실거래 표를 v4 OOS 와 나란히 보고 후 재결정. 실거래 무변경.
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
   시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
   같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도
@@ -971,9 +973,11 @@
 - [ ] **three_soldiers_4h 재판정** — 레짐 베이스라인(같은 레짐 무작위 진입)으로 bull_btc 셀 bp .165. 원 프레임과 병기해 배포 유지 여부 판단
 - [ ] triple_bottom top30 코호트 사전 등록 재시험 (데이터 누적 후, 현재 n=35 bp .078)
 - [ ] 캐스케이드 1h 재검증 on 새 유니버스 (4단계) — 신규 24종목 1h 365일 수집 후
-- [ ] **v4 REJECTED 라우팅 셀 3 처리 (사용자 결정)** — engulfing|bear 롱 / fvg|bull_altseason 롱 / three_soldiers_4h|bull_altseason.
-      v4(2026-09-06)에서 전체 A 승률<35% 또는 mean≤0. 끄려면 direction_switch.ROUTING_OVERRIDES(FLAT) + adopted_4h regimes. 현 레짐
-      bull_altseason 이라 fvg 롱·three_soldiers 는 지금 발화 가능 — 결정 전까지 주문 무변경
+- [x] **v4 REJECTED 라우팅 셀 3 처리 → 사용자 결정 "현 상태에서 더 이상 끄지 않고 실거래로 1달 돌려본다" (2026-09-06)** —
+      engulfing|bear 롱 / fvg|bull_altseason 롱 / three_soldiers_4h|bull_altseason 포함 배포 집합 전부 유지. 끄는 방법은 참고로 남김
+      (direction_switch.ROUTING_OVERRIDES FLAT + adopted_4h regimes). **관찰 종료 2026-10-06** — ih/marubozu 관찰과 같은 날
+- [ ] **실거래 1개월 관찰 보고 (2026-10-06)** — 패턴·레짐 셀별 진입 건수 / 건당 수익 / 손절 비율 / 슬리피지를 v4 OOS 수치와 나란히 표로.
+      정지/유지 재결정은 사용자. 관찰 중 코드·라우팅·사이징 변경 없음(사용자 별도 지시 외)
 - [ ] **B 벤치 사후 조건화 보완(다음 프레임 사전 등록)** — 같은 코인-월 풀을 신호 **이전** 봉으로만 제한한 변형(인과 B)을 병기.
       현 B 는 월 안 타이밍 검정이라 코인-월 선택 엣지를 못 본다
 - [ ] **숏 라우팅 재판정** — 레짐 조건부 engulfing_short(bull_altseason)/fvg_short(bear) 셀을
