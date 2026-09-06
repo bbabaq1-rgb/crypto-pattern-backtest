@@ -2825,7 +2825,7 @@
   }
  },
  "guard_v4_prereg_draft_2026_09_06": {
-  "status": "DRAFT — 사용자 확정 대기 (결과를 보기 전에 고정할 항목)",
+  "status": "PREREGISTERED (2026-09-06, 사용자 확정) — 결과 전 고정. 실행: validate_guard_v4.py / guard_v4.yml",
   "purpose": "확인 프레임 v4 = 3중 대조 동시 통과. 하나라도 실패하면 영구 기각이 아니라 미확인/그림자",
   "checks": {
    "A_regime_cohort_random": "기존 v3 C1 — 같은 레짐·코호트·청산 k=n 무작위, 해당 시장 상태에서의 절대 우위",
@@ -2836,6 +2836,61 @@
   "cluster_inference": "월 클러스터 블록 부트스트랩 1000회(코인-월 클러스터도 병기): n가중 / 동등월가중 / 코인-월동등가중 세 평균 각각의 CI 와 p(≤0). 통과 = 세 평균 모두 > 0 이고 월 클러스터 p < 0.05",
   "pass_hold_rules": "A·B·C 전부 통과 → CONFIRMED / 어느 하나 실패 → UNCONFIRMED_SHADOW(그림자, 미배포·미변경) / A 의 성능(mean≤0·승률<35%)이 명확히 음수일 때만 REJECTED",
   "targets": "fvg · engulfing · three_soldiers_4h(배포 중 — 결과와 무관하게 주문 변경 없음, 보고만) / double_bottom_1d · inverse_hs_1d(그림자 후보) / ih · marubozu(관찰 중, 보고만)",
-  "not_changed_by_results": "버킷·창 폭·분할일·문턱. 결과 본 뒤 바꾸지 않는다"
+  "not_changed_by_results": "버킷·창 폭·분할일·문턱. 결과 본 뒤 바꾸지 않는다",
+  "user_confirmed_2026_09_06": {
+   "split": "train < 2025-01-01 <= OOS (고정)",
+   "B_pool": "같은 코인 · 같은 달 · 같은 레짐 라벨(신호 봉의 라벨) · 같은 TF · 같은 방향 · 실제 진입 가능 봉(신호봉 제외, 청산 평가 가능 범위 안). 풀 <5봉이면 그 신호는 B 에서 제외(개수 보고)",
+   "stages": "train = 후보 적격성(A 게이트 v2 + B 월클러스터 p<.05·세 가중 >0). OOS = 최종 확인(A 재현 + B 재현 + 비용 스트레스)",
+   "priority": "B 의 OOS 월 클러스터 검정과 비용 스트레스가 최우선 — 통과 규칙에 그대로 반영",
+   "holm": "OOS B 월클러스터 p 를 주 판정 가족(셀 전체) 안에서 Holm 보정. double_bottom_1d·inverse_hs_1d 는 Holm 보정 OOS 통과 전까지 그림자 유지",
+   "diagnostic_block": "판정과 분리해 같은 실행에 포함(찬성): bull_btc 같은 달 무작위 기대값 장기 부호 / bull vs 비-bull / BTC fwd3m 라벨 분리 / OOS 유지 / ±10봉 창 B 변형 / 배포 후 실거래 행"
+  },
+  "frozen_params": {
+   "SPLIT_DATE": "2025-01-01",
+   "FEE_BASE": 0.002,
+   "STRESS_FEES": [
+    0.004,
+    0.006
+   ],
+   "STRESS_REQUIRED": 0.004,
+   "EDGE_MARGIN": 0.002,
+   "BOOT_N": 1000,
+   "SEED": 42,
+   "ALPHA": 0.05,
+   "OOS_MIN_N": 10,
+   "B_MIN_POOL": 5,
+   "B_MIN_MONTHS": 3,
+   "WINDOW_BARS_DIAG": 10,
+   "exit": "방식D(−8% 저가 손절/레짐 전환/30봉, 반대 신호 없음 = validate_revival.live_outcome)",
+   "cohorts_live": {
+    "engulfing": "top30(실거래 PATTERN_UNIVERSE 그대로 — 검증은 top20 이었으나 사용자 강제 top30)",
+    "fvg": "top30",
+    "three_soldiers_4h": "all",
+    "inverted_hammer": "majors7",
+    "marubozu": "majors7",
+    "double_bottom_1d": "top30",
+    "inverse_hs_1d": "top30"
+   }
+  },
+  "cells_primary": [
+   "engulfing|bull_btc|long",
+   "engulfing|bear|long",
+   "engulfing_short|bull_altseason|short",
+   "fvg|bull_btc|long",
+   "fvg|bull_altseason|long",
+   "three_soldiers_4h|bull_btc|long",
+   "three_soldiers_4h|bull_altseason|long",
+   "inverted_hammer|ALL|long",
+   "marubozu|ALL|long",
+   "double_bottom_1d|bull_btc|long",
+   "inverse_hs_1d|bull_btc|long"
+  ],
+  "verdict_rules": {
+   "REJECTED": "전체 표본 A 성능이 명확히 음수: mean<=0 또는 승률<35%",
+   "UNCONFIRMED_SHADOW": "train 적격성 실패 또는 OOS 재현(A/B/비용) 중 하나라도 실패 — 영구 기각 아님",
+   "INCONCLUSIVE": "OOS n<10 또는 OOS B 월 수<3 (표본 부족)",
+   "CONFIRMED": "train 적격 AND OOS A(mean>0·승률>=35%·boot_p<.05) AND OOS B(세 가중 >0 · Holm p<.05 · 엣지>=+0.20%p) AND OOS 비용(왕복 0.4% 에서 mean>0)",
+   "deployed_cells": "판정과 무관하게 주문 무변경 — 보고만. 그림자 셀은 CONFIRMED 여도 자율 반영 없음(사용자 결정)"
+  }
  }
 }
