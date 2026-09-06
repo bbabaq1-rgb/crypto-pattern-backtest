@@ -761,6 +761,38 @@
     MAE 중앙 −19% · 20일 내 MA 재하향 73% 와 같은 성질. 재시험은 bull_btc 국면이 누적돼 holdout n≥10 이 될 때.
     실거래 변경 없음, 복귀 후보 없음.
     detector_ma180_breakout.py / validate_ma180.py / test_ma180.py(33건) / ma180.yml
+- **확인 프레임 v3 — 국면 기준 홀드아웃 + 장기 이력 (2026-09-06, 사용자 지시 "1~3번 전부 진행 / 홀드아웃에서만 탈락한 것 전부 다시 검증")**:
+  사용자 지적 — "지난 1년은 최악의 하락기였는데 홀드아웃을 거기서 하니 통과를 못 한다. 방향성이 중요하다. 4년 주기로 더 공정하게,
+  데이터가 모자라면 끌어와서." v2 홀드아웃(달력 마지막 365일)은 레짐 조건부 셀에서 그 1년의 국면이 결과를 먼저 정한다 —
+  MA180 bull_btc 셀이 정확히 그 사례(신호 6건 전부 손절 → '판정 불가'가 REJECTED 로 기록).
+  · **frame_v3.py (동결)**: 에피소드 = 레짐 연속 구간(30일 이하 끊김 병합, ALL 은 달력 연도) · 홀드아웃 = **셀 레짐으로 라벨된 날 중
+    가장 최근 365일**(달력상 비연속; ALL 은 종전 달력 365일) · **E 에피소드 OOS** = 적격(n≥5) 에피소드 ≥2, 양수 ≥2 이며 과반
+    (v2 G5 4분위 대체) · COV = 적격 에피소드 ≥2 & holdout n≥10 & train n≥20. **판정 우선순위**: 성능(mean/승률/boot_p/holdout
+    mean/train/C3) 실패 → REJECTED / 성능 통과·COV 실패 → **INCONCLUSIVE**(기각 아님) / E 실패 → REJECTED / 전부 → CONFIRMED.
+    4년 주기는 예측 가정이 아니라 커버리지 요건(독립 국면 ≥2)으로만 쓴다.
+  · **장기 데이터 data_long/ (2017~, 1d 만)**: 러너에서 okx/coinbaseexchange/kucoin/gate/htx… 순으로 probe 해 종목별 가장 이른
+    소스를 gzip CSV 로 브랜치 data-long 에 커밋(build_data_long.py). `detlib.load_ohlcv_long` 이 OKX 첫 봉 이전만 장기 소스로 채움
+    (겹치면 OKX). `regime_switch.build_regime_map(rows_by=)` 로 장기 라벨(365일 밖은 종전과 같은 프록시). 스케줄러 무관.
+    **한계**: 생존 편향 · 현물/무기한 혼합 · 4h/1h 는 장기 이력 없음(그 셀은 기존 범위에서 v3 → 에피소드 부족이면 INCONCLUSIVE).
+    1차 수집(run 34015653158)은 probe 결함으로 kraken 720봉뿐 → 폐기·재실행.
+  · **적용 범위**: 프레임 변경은 후보 전체(게이트 v2 전환 원칙) — validate_revival 전 후보+신규 4종 / validate_ma180 /
+    validate_exit_consistency(three_soldiers_4h D arm 병기). `--frame v3 --long`. v2 수치도 나란히 찍어 어느 셀이 홀드아웃 설계로
+    뒤집혔는지 보고한다. test_frame_v3.py(33건).
+  · **결과 (2026-09-06, revival run 34019730685 / ma180 34019731790)**: 34셀 v3 **CONFIRMED 6 / INCONCLUSIVE 8 / REJECTED 20**
+    (v2 CONFIRMED 5). **v2 홀드아웃 탈락 → v3 CONFIRMED 3셀**:
+    · **double_bottom_1d · bull_btc · top30** — n=1028 +7.29% 승률 38% top5 13% 엣지 +4.05%p bp .000 OOS 4/4, **E 8/12**(2017·2018·
+      2020×2·2021×3·2023-24·2024-25 양수 / 2019×2·2021-22·2025-08~11 음수), 국면 홀드아웃 n=365 **+7.78%**, Calmar 1.78.
+      v2 는 holdout n=42 −7.96% 로 탈락했었다. **유일한 다중 사이클 확인 셀** — 배포는 사용자 결정(현 레짐 bull_altseason 이라 즉시 발화 없음).
+    · vol_awakening_4h · bull_btc (Calmar **0.08**) / breakout_retest_4h · bull_btc (Calmar **0.30**, MDD −62%) — 경계값, 4h 라 2023~ 두
+      에피소드뿐. 비권고. breakout_retest ALL 은 v3 도 holdout −0.48% 탈락.
+    · **홀드아웃 문제는 풀렸지만 다른 데서 걸린 셀**: triple_bottom_1d|bull_btc holdout +21% 인데 승률 30%(복권형) / inverse_hs_1d|bull_btc
+      holdout +5.1% E 8/10 인데 bp .088(bull 무작위 +3.3% 를 못 이김) / three_soldiers_4h|bull_btc top30 holdout +4.95% E 3/3 인데 train n=37
+      bp .39 / **ma180 holdout n=30 +13.05% 인데 train n=29 bp .066**. 4셀 다 C2b·분포·boot_p 로 REJECTED.
+    · **INCONCLUSIVE 8**: 4h bear 3셀(equal_lows/vwap_rev_short/vol_awakening — 4h bear 에피소드 2개, 국면 홀드아웃이 전부 삼켜 train 0.
+      즉 v2 의 bear CONFIRMED 는 단일 bear 에피소드(2025-11~) 위였다; equal_lows 는 ALL 배포라 ALL 셀 E 3/4 가 근거) + 1h 5셀(365일뿐).
+    · 신규 4종 20셀 v3 도 전부 REJECTED. exit_consistency: three_soldiers_4h(all·BULL) 국면 홀드아웃 n=92 **−0.42%** REJECTED — 하락기 탓 아님.
+    · **주의**: 2017~22 에피소드는 '오늘의 top30 중 당시 존재한 종목'(생존 편향). C2b 가 검정력 부족(n≈30·bp .06~.10)을 기각으로
+      분류하는 건 설계 메모(사후 변경 안 함). 실거래 변경 없음.
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
   시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
   같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도

@@ -8,6 +8,7 @@ on:
       - 'validate_ma180.py'
       - 'test_ma180.py'
       - '.github/workflows/ma180.yml'
+      - 'frame_v3.py'
 
 jobs:
   run:
@@ -29,11 +30,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python validate_ma180.py
+        run: python validate_ma180.py --frame v3 --long
       - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ma180-${{ github.run_number }}
-          path: _ma180.json
+          path: |
+            _ma180.json
+            _ma180_v3.json
           if-no-files-found: ignore

@@ -1,0 +1,53 @@
+name: Build long 1d history (data_long)
+
+# 연구 데이터 확보 전용 — 매매/DB 무관. 러너에서 2017~ 일봉을 거래소별로 받아
+# data_long/ 에 gzip CSV 로 저장하고 브랜치 `data-long` 에 커밋한다.
+# 스케줄러·실거래는 이 폴더를 읽지 않는다.
+
+on:
+  # dispatch 전용 워크플로는 기본 브랜치에 없으면 GitHub 가 등록하지 않아 404 가 난다 —
+  # 다른 연구 워크플로처럼 자기 파일 push 에도 반응하게 둔다(처음 한 번 돌리기 위해).
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - ".github/workflows/build_data_long.yml"
+      - "build_data_long.py"
+  workflow_dispatch:
+    inputs:
+      since:
+        description: '수집 시작일 (YYYY-MM-DD)'
+        required: false
+        default: '2017-01-01'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Fetch long history
+        run: python build_data_long.py --since "${{ github.event.inputs.since || '2017-01-01' }}"
+      - name: Commit to data-long branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B data-long
+          git add data_long
+          git commit -m "data: long 1d history (data_long) built $(date -u +%Y-%m-%dT%H:%MZ)" || echo "no changes"
+          git push -f origin data-long
+      - name: Upload manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-long-manifest-${{ github.run_number }}
+          path: data_long/manifest.json
+          if-no-files-found: ignore

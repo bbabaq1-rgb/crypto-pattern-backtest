@@ -52,6 +52,7 @@ jobs:
                    test_exit_consistency.py \
                    test_ma_breakout.py \
                    test_ma180.py \
+                   test_frame_v3.py \
                    test_executor_safety.py \
                    test_regime_determinism.py \
                    test_method_m.py \

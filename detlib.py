@@ -61,6 +61,62 @@ def load_ohlcv(sym, tf="1d"):
     return rows
 
 
+LONG_DIR = "data_long"     # build_data_long.py 산출물(2017~ 일봉, gzip). 연구 전용 — 스케줄러는 읽지 않는다.
+
+
+def load_ohlcv_long(sym, tf="1d"):
+    """
+    장기 이력 로더(연구 전용, 2026-09-06). data_long/{sym}_1d.csv.gz 의 오래된 구간 + data/ 의 OKX
+    최근 구간을 잇는다 — **겹치는 날짜는 OKX(실거래 소스)를 쓰고**, 장기 소스는 OKX 첫 봉 이전만
+    채운다. 둘 중 하나만 있으면 그것을 그대로 돌려준다. 1w/1M 은 잇고 나서 리샘플.
+    """
+    import gzip, os
+    if tf in ("1w", "1M"):
+        return resample_rows(load_ohlcv_long(sym, "1d"), tf)
+    if tf != "1d":
+        return load_ohlcv(sym, tf)
+    try:
+        recent = load_ohlcv(sym, "1d")
+    except FileNotFoundError:
+        recent = []
+    path = f"{LONG_DIR}/{sym.lower()}_1d.csv.gz"
+    if not os.path.exists(path):
+        if not recent:
+            raise FileNotFoundError(path)
+        return recent
+    old = []
+    with gzip.open(path, "rt", encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            ts = int(float(r["timestamp"]))
+            d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            old.append(dict(ts=ts, date=d, o=float(r["open"]), h=float(r["high"]),
+                            l=float(r["low"]), c=float(r["close"]), v=float(r["volume"])))
+    old = _sanitize_long(old)
+    if not recent:
+        return old
+    first_recent = recent[0]["date"]
+    return [r for r in old if r["date"] < first_recent] + recent
+
+
+LONG_JUMP = 5.0          # 하루 종가 비율이 이 배수를 넘거나 1/배수 미만이면 티커 재사용으로 본다
+LONG_GAP_DAYS = 30       # 봉이 이 일수보다 오래 비면 상장폐지→재상장으로 본다
+
+
+def _sanitize_long(rows):
+    """장기 소스의 티커 재사용·재상장 방어 — 마지막 불연속 지점 **이후**만 남긴다.
+    실례: gate 'APT' 2022-01~09 는 다른 토큰($0.08→$0.004), Aptos 는 2022-10 $8 부터."""
+    if len(rows) < 2:
+        return rows
+    from datetime import date as _d
+    cut = 0
+    for i in range(1, len(rows)):
+        a, b = rows[i - 1]["c"], rows[i]["c"]
+        gap = _d.fromisoformat(rows[i]["date"]).toordinal() - _d.fromisoformat(rows[i - 1]["date"]).toordinal()
+        if a <= 0 or b <= 0 or b / a >= LONG_JUMP or b / a <= 1 / LONG_JUMP or gap > LONG_GAP_DAYS:
+            cut = i
+    return rows[cut:]
+
+
 def outcome(rows, si, direction="long"):
     """트리플배리어. direction='short'이면 라벨/수익 반전(하락 선도달=real)."""
     base = rows[si]["c"]

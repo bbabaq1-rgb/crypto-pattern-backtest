@@ -65,6 +65,7 @@ import regime_switch as rs
 import sizing as sz
 import validate_regime_split_all as va
 from validate_regime_split import _pval, turnover_rank
+import frame_v3 as fv
 
 SEED, BOOT_N = 42, 1000
 POOL_CAP = 20000            # 베이스라인 풀 평가 상한(셀당) — 방식D 는 봉마다 최대 30봉 루프라 비용 제한
@@ -310,17 +311,26 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     new_mode = "--new" in argv
     tfs = argv[argv.index("--tf") + 1].split(",") if "--tf" in argv else ["1d", "4h", "1h"]
+    # 확인 프레임: v2(달력 홀드아웃, 종전) / v3(국면 기준 홀드아웃 + 에피소드 OOS + 커버리지, frame_v3.py).
+    # 2026-09-06 사용자 결정으로 v3 가 기본 — 프레임 변경은 후보 전체에 적용한다.
+    frame = argv[argv.index("--frame") + 1] if "--frame" in argv else "v3"
+    long_1d = "--long" in argv          # data_long(2017~) 을 1d 에 이어 붙인다(레짐 라벨도 그 봉으로)
     syms = va._syms()
     if "--no-fetch" not in argv:
         va.fetch(syms, [tf for tf in ("1d", "4h", "1h") if tf in tfs])
-    regmap = rs.build_regime_map()
+    rows_1d = va.load_tf(syms, "1d", long=long_1d)
+    regmap = rs.build_regime_map(rows_by=rows_1d) if long_1d else rs.build_regime_map()
+    if long_1d:
+        first_all = min(r["date"] for rows in rows_1d.values() for r in rows)
+        n_pre2021 = sum(1 for rows in rows_1d.values() if rows[0]["date"] < "2021-01-01")
+        print(f"[long] 1d 장기 이력 사용 — 최초 {first_all}, 2021 이전 시작 종목 {n_pre2021}/{len(rows_1d)} | 레짐 라벨 {min(regmap)}~{max(regmap)}")
+    print(f"[frame] {frame}")
     table = _pattern_table()
     todo = ([(cid, g) for cid, _, _, _ in NEW_PATTERNS for g in REGIMES + ["ALL"]] if new_mode
             else list(CANDIDATES))
     todo = [(cid, g) for cid, g in todo if table[cid][0] in tfs]
     print(f"[모드] {'신규 후보 전 셀' if new_mode else 'STRICT 후보 확인'} | 셀(패턴,레짐) {len(todo)} | TF {tfs}")
 
-    rows_1d = va.load_tf(syms, "1d")
     ranked = turnover_rank(rows_1d)
     all_dates = sorted({r["date"] for rows in rows_1d.values() for r in rows})
     d_hi = date.fromisoformat(all_dates[-1]).toordinal()
@@ -367,24 +377,54 @@ def main(argv=None):
             print(f"         연도별 {yr} | 청산 {rec['reasons']}")
         cf = confirm(cells, ctx["cutoff"], ctx["span_train"])
         eq = cf["equity"] or {}
-        print(f"  => {'CONFIRMED' if cf['confirmed'] else 'not confirmed'} | C1 실거래코호트 {cf['c1_live_cohort']} "
+        print(f"  => v2 {'CONFIRMED' if cf['confirmed'] else 'not confirmed'} | C1 실거래코호트 {cf['c1_live_cohort']} "
               f"| C2 holdout n={cf['holdout']['n']} mean={_f(cf['holdout']['mean'])} {cf['c2_holdout']} "
               f"| C3 자산곡선 CAGR {_f(eq.get('cagr'))} MDD {_f(eq.get('mdd'))} Calmar {eq.get('calmar', 0):.2f} {cf['c3_equity']}")
+        cf3 = None
+        if frame == "v3":
+            cf3 = fv.judge(cells[CONFIRM_COHORT]["sigs"], ctx["pool_rets"][(CONFIRM_COHORT, g, direction)], regmap, g,
+                           equity_fn=lambda tr, span: equity(tr, span))
+            eq3 = cf3["equity"] or {}
+            E = cf3["E"]
+            share_s = "n/a" if E["max_share"] is None else f"{E['max_share']*100:.0f}%"
+            fails_s = "/".join(cf3["c1"]["fails"]) or "ok"
+            print(f"  => v3 **{cf3['verdict']}** | C1성능 {cf3['c1_perf']} {fails_s} "
+                  f"| E 적격 {E['qualifying']} 양수 {E['positive']} 최대비중 {share_s} {E['ok']} "
+                  f"| C2 홀드아웃(국면 {cf3['holdout']['days']}일) n={cf3['holdout']['n']} mean={_f(cf3['holdout']['mean'])} {cf3['c2_holdout']} "
+                  f"| C2b train n={cf3['train']['n']} {cf3['c2b_train']}({'/'.join(cf3['train']['gate'].get('fails', [])) or 'ok'}) | C3 CAGR {_f(eq3.get('cagr'))} MDD {_f(eq3.get('mdd'))} "
+                  f"Calmar {eq3.get('calmar', 0):.2f} {cf3['c3_equity']} | COV {cf3['coverage']}")
+            print(fv.fmt_episodes(cf3["episodes"]))
         results[f"{cid}|{g}"] = dict(pattern=cid, regime=g, tf=tf, direction=direction,
-                                     cells={c: cells[c]["gate"] for c in cells}, confirm=cf)
+                                     cells={c: cells[c]["gate"] for c in cells}, confirm=cf, confirm_v3=cf3)
 
     confirmed = [k for k, v in results.items() if v["confirm"]["confirmed"]]
     print("\n" + "=" * 100)
-    print(f"[요약] 셀(패턴,레짐) {len(results)} | CONFIRMED {len(confirmed)}")
+    print(f"[요약 v2] 셀(패턴,레짐) {len(results)} | CONFIRMED {len(confirmed)}")
     for k in confirmed:
         v = results[k]; r30 = v["cells"]["top30"]; eq = v["confirm"]["equity"]
         print(f"  CONFIRMED {v['pattern']:<22} {v['regime']:<15} top30 n={r30['n']} mean={_f(r30['mean'])} "
               f"boot_p={r30['boot_p']:.3f} | holdout {_f(v['confirm']['holdout']['mean'])} | Calmar {eq['calmar']:.2f}")
-    out = "_revival_new.json" if new_mode else "_revival.json"
-    json.dump(dict(mode="new" if new_mode else "candidates", cutoff=cutoff, results=results, confirmed=confirmed),
+    v3_by = {}
+    if frame == "v3":
+        for k, v in results.items():
+            v3_by.setdefault(v["confirm_v3"]["verdict"], []).append(k)
+        print(f"[요약 v3] CONFIRMED {len(v3_by.get('CONFIRMED', []))} / INCONCLUSIVE {len(v3_by.get('INCONCLUSIVE', []))} "
+              f"/ REJECTED {len(v3_by.get('REJECTED', []))}")
+        flips = [k for k, v in results.items() if v["confirm_v3"]["verdict"] == "CONFIRMED" and not v["confirm"]["confirmed"]]
+        print(f"  v2 미확인 → v3 CONFIRMED (홀드아웃 설계로 뒤집힌 셀): {flips or '없음'}")
+        for k in v3_by.get("CONFIRMED", []):
+            c3 = results[k]["confirm_v3"]; eq = c3["equity"] or {}
+            print(f"  CONFIRMED(v3) {k:<38} n={c3['c1']['n']} mean={_f(c3['c1']['mean'])} 엣지 {_f(c3['c1']['edge'])} bp={c3['c1']['boot_p']:.3f} "
+                  f"| E {c3['E']['positive']}/{c3['E']['qualifying']} | holdout n={c3['holdout']['n']} {_f(c3['holdout']['mean'])} | Calmar {eq.get('calmar', 0):.2f}")
+        for k in v3_by.get("INCONCLUSIVE", []):
+            c3 = results[k]["confirm_v3"]
+            print(f"  INCONCLUSIVE(v3) {k:<35} 적격 에피소드 {c3['E']['qualifying']} holdout n={c3['holdout']['n']} train n={c3['train']['n']}")
+    out = ("_revival_new" if new_mode else "_revival") + ("_v3" if frame == "v3" else "") + ".json"
+    json.dump(dict(mode="new" if new_mode else "candidates", frame=frame, long=long_1d, cutoff=cutoff,
+                   results=results, confirmed=confirmed, v3=v3_by),
               open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
     print(f"[저장] {out}")
-    print("RESULT_JSON: " + json.dumps(dict(confirmed=confirmed, n=len(results)), ensure_ascii=False))
+    print("RESULT_JSON: " + json.dumps(dict(frame=frame, confirmed_v2=confirmed, v3=v3_by, n=len(results)), ensure_ascii=False))
 
 
 if __name__ == "__main__":

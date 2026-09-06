@@ -1,0 +1,578 @@
+{
+ "since": "2017-01-01",
+ "built_at": "2026-09-06T06:53:11.576721+00:00",
+ "exchanges": [
+  "gate",
+  "kucoin",
+  "htx",
+  "mexc",
+  "okx",
+  "bitget",
+  "cryptocom",
+  "coinbaseexchange",
+  "coinbase",
+  "kraken"
+ ],
+ "symbols": {
+  "ETH": {
+   "exchange": "gate",
+   "symbol": "ETH/USDT",
+   "first": "2017-01-01",
+   "last": "2026-09-06",
+   "n": 3536
+  },
+  "BTC": {
+   "exchange": "gate",
+   "symbol": "BTC/USDT",
+   "first": "2017-01-01",
+   "last": "2026-09-06",
+   "n": 3536
+  },
+  "SOL": {
+   "exchange": "gate",
+   "symbol": "SOL/USDT",
+   "first": "2020-06-25",
+   "last": "2026-09-06",
+   "n": 2265
+  },
+  "XRP": {
+   "exchange": "gate",
+   "symbol": "XRP/USDT",
+   "first": "2017-10-23",
+   "last": "2026-09-06",
+   "n": 3241
+  },
+  "BICO": {
+   "exchange": "htx",
+   "symbol": "BICO/USDT",
+   "first": "2021-11-30",
+   "last": "2026-09-05",
+   "n": 1741
+  },
+  "UNI": {
+   "exchange": "htx",
+   "symbol": "UNI/USDT",
+   "first": "2020-09-16",
+   "last": "2026-09-05",
+   "n": 2181
+  },
+  "ADA": {
+   "exchange": "gate",
+   "symbol": "ADA/USDT",
+   "first": "2017-12-20",
+   "last": "2026-09-06",
+   "n": 3183
+  },
+  "LINK": {
+   "exchange": "gate",
+   "symbol": "LINK/USDT",
+   "first": "2017-11-10",
+   "last": "2026-09-06",
+   "n": 3223
+  },
+  "AAVE": {
+   "exchange": "mexc",
+   "symbol": "AAVE/USDT",
+   "first": "2020-10-03",
+   "last": "2026-09-06",
+   "n": 2165
+  },
+  "FIL": {
+   "exchange": "gate",
+   "symbol": "FIL/USDT",
+   "first": "2017-11-23",
+   "last": "2026-09-06",
+   "n": 3210
+  },
+  "ARB": {
+   "exchange": "htx",
+   "symbol": "ARB/USDT",
+   "first": "2023-03-22",
+   "last": "2026-09-05",
+   "n": 1264
+  },
+  "BCH": {
+   "exchange": "gate",
+   "symbol": "BCH/USDT",
+   "first": "2017-10-12",
+   "last": "2026-09-06",
+   "n": 3252
+  },
+  "NEAR": {
+   "exchange": "htx",
+   "symbol": "NEAR/USDT",
+   "first": "2020-10-13",
+   "last": "2026-09-05",
+   "n": 2154
+  },
+  "ONDO": {
+   "exchange": "htx",
+   "symbol": "ONDO/USDT",
+   "first": "2024-01-17",
+   "last": "2026-09-05",
+   "n": 963
+  },
+  "LTC": {
+   "exchange": "gate",
+   "symbol": "LTC/USDT",
+   "first": "2017-01-01",
+   "last": "2026-09-06",
+   "n": 3536
+  },
+  "AVAX": {
+   "exchange": "htx",
+   "symbol": "AVAX/USDT",
+   "first": "2020-09-21",
+   "last": "2026-09-05",
+   "n": 2176
+  },
+  "TAO": {
+   "exchange": "mexc",
+   "symbol": "TAO/USDT",
+   "first": "2023-03-03",
+   "last": "2026-09-06",
+   "n": 1284
+  },
+  "SHIB": {
+   "exchange": "mexc",
+   "symbol": "SHIB/USDT",
+   "first": "2021-04-16",
+   "last": "2026-09-06",
+   "n": 1970
+  },
+  "CRV": {
+   "exchange": "gate",
+   "symbol": "CRV/USDT",
+   "first": "2020-08-14",
+   "last": "2026-09-06",
+   "n": 2215
+  },
+  "OKB": {
+   "exchange": "okx",
+   "symbol": "OKB/USDT",
+   "first": "2018-03-23",
+   "last": "2026-09-06",
+   "n": 3090
+  },
+  "DOT": {
+   "exchange": "gate",
+   "symbol": "DOT/USDT",
+   "first": "2020-07-16",
+   "last": "2026-09-06",
+   "n": 2244
+  },
+  "TRX": {
+   "exchange": "gate",
+   "symbol": "TRX/USDT",
+   "first": "2017-11-17",
+   "last": "2026-09-06",
+   "n": 3216
+  },
+  "ZRO": {
+   "exchange": "htx",
+   "symbol": "ZRO/USDT",
+   "first": "2024-06-19",
+   "last": "2026-09-05",
+   "n": 809
+  },
+  "STX": {
+   "exchange": "gate",
+   "symbol": "STX/USDT",
+   "first": "2017-11-10",
+   "last": "2026-09-06",
+   "n": 3223
+  },
+  "ETC": {
+   "exchange": "gate",
+   "symbol": "ETC/USDT",
+   "first": "2017-10-12",
+   "last": "2026-09-06",
+   "n": 3252
+  },
+  "ORDI": {
+   "exchange": "gate",
+   "symbol": "ORDI/USDT",
+   "first": "2023-05-08",
+   "last": "2026-09-06",
+   "n": 1218
+  },
+  "OP": {
+   "exchange": "gate",
+   "symbol": "OP/USDT",
+   "first": "2022-05-31",
+   "last": "2026-09-06",
+   "n": 1560
+  },
+  "FARTCOIN": {
+   "exchange": "mexc",
+   "symbol": "FARTCOIN/USDT",
+   "first": "2024-10-21",
+   "last": "2026-09-06",
+   "n": 686
+  },
+  "POL": {
+   "exchange": "htx",
+   "symbol": "POL/USDT",
+   "first": "2021-01-05",
+   "last": "2026-09-05",
+   "n": 2070
+  },
+  "ETHFI": {
+   "exchange": "htx",
+   "symbol": "ETHFI/USDT",
+   "first": "2024-03-17",
+   "last": "2026-09-05",
+   "n": 903
+  },
+  "JTO": {
+   "exchange": "gate",
+   "symbol": "JTO/USDT",
+   "first": "2023-12-07",
+   "last": "2026-09-06",
+   "n": 1005
+  },
+  "WIF": {
+   "exchange": "mexc",
+   "symbol": "WIF/USDT",
+   "first": "2023-12-19",
+   "last": "2026-09-06",
+   "n": 993
+  },
+  "INJ": {
+   "exchange": "gate",
+   "symbol": "INJ/USDT",
+   "first": "2020-11-25",
+   "last": "2026-09-06",
+   "n": 2112
+  },
+  "APT": {
+   "exchange": "gate",
+   "symbol": "APT/USDT",
+   "first": "2022-01-11",
+   "last": "2026-09-06",
+   "n": 1700
+  },
+  "ICP": {
+   "exchange": "gate",
+   "symbol": "ICP/USDT",
+   "first": "2021-05-10",
+   "last": "2026-09-06",
+   "n": 1946
+  },
+  "ONT": {
+   "exchange": "gate",
+   "symbol": "ONT/USDT",
+   "first": "2018-03-08",
+   "last": "2026-09-06",
+   "n": 3105
+  },
+  "BONK": {
+   "exchange": "htx",
+   "symbol": "BONK/USDT",
+   "first": "2023-01-03",
+   "last": "2026-09-05",
+   "n": 1342
+  },
+  "HBAR": {
+   "exchange": "okx",
+   "symbol": "HBAR/USDT",
+   "first": "2020-01-01",
+   "last": "2026-09-06",
+   "n": 2441
+  },
+  "VIRTUAL": {
+   "exchange": "gate",
+   "symbol": "VIRTUAL/USDT",
+   "first": "2024-05-15",
+   "last": "2026-09-06",
+   "n": 845
+  },
+  "LDO": {
+   "exchange": "mexc",
+   "symbol": "LDO/USDT",
+   "first": "2021-08-06",
+   "last": "2026-09-06",
+   "n": 1858
+  },
+  "GRASS": {
+   "exchange": "htx",
+   "symbol": "GRASS/USDT",
+   "first": "2024-10-27",
+   "last": "2026-09-05",
+   "n": 679
+  },
+  "AUCTION": {
+   "exchange": "gate",
+   "symbol": "AUCTION/USDT",
+   "first": "2021-02-06",
+   "last": "2026-09-06",
+   "n": 2039
+  },
+  "TRB": {
+   "exchange": "htx",
+   "symbol": "TRB/USDT",
+   "first": "2020-08-14",
+   "last": "2026-09-05",
+   "n": 2214
+  },
+  "MORPHO": {
+   "exchange": "gate",
+   "symbol": "MORPHO/USDT",
+   "first": "2024-11-21",
+   "last": "2026-09-06",
+   "n": 655
+  },
+  "BIO": {
+   "exchange": "gate",
+   "symbol": "BIO/USDT",
+   "first": "2024-12-25",
+   "last": "2026-09-06",
+   "n": 621
+  },
+  "ATOM": {
+   "exchange": "htx",
+   "symbol": "ATOM/USDT",
+   "first": "2019-04-22",
+   "last": "2026-09-05",
+   "n": 2694
+  },
+  "SAND": {
+   "exchange": "htx",
+   "symbol": "SAND/USDT",
+   "first": "2020-09-10",
+   "last": "2026-09-05",
+   "n": 2187
+  },
+  "STRK": {
+   "exchange": "htx",
+   "symbol": "STRK/USDT",
+   "first": "2024-02-19",
+   "last": "2026-09-05",
+   "n": 930
+  },
+  "MERL": {
+   "exchange": "htx",
+   "symbol": "MERL/USDT",
+   "first": "2024-04-18",
+   "last": "2026-09-05",
+   "n": 871
+  },
+  "CORE": {
+   "exchange": "htx",
+   "symbol": "CORE/USDT",
+   "first": "2023-02-07",
+   "last": "2026-09-05",
+   "n": 1307
+  },
+  "AXS": {
+   "exchange": "htx",
+   "symbol": "AXS/USDT",
+   "first": "2021-03-29",
+   "last": "2026-09-05",
+   "n": 1987
+  },
+  "RENDER": {
+   "exchange": "gate",
+   "symbol": "RENDER/USDT",
+   "first": "2021-03-17",
+   "last": "2026-09-06",
+   "n": 2000
+  },
+  "ENS": {
+   "exchange": "htx",
+   "symbol": "ENS/USDT",
+   "first": "2021-11-08",
+   "last": "2026-09-05",
+   "n": 1763
+  },
+  "EGLD": {
+   "exchange": "okx",
+   "symbol": "EGLD/USDT",
+   "first": "2020-10-01",
+   "last": "2026-09-06",
+   "n": 2167
+  },
+  "AR": {
+   "exchange": "mexc",
+   "symbol": "AR/USDT",
+   "first": "2020-06-04",
+   "last": "2026-09-06",
+   "n": 2286
+  },
+  "CHZ": {
+   "exchange": "htx",
+   "symbol": "CHZ/USDT",
+   "first": "2020-09-29",
+   "last": "2026-09-05",
+   "n": 2168
+  },
+  "DYDX": {
+   "exchange": "gate",
+   "symbol": "DYDX/USDT",
+   "first": "2021-09-08",
+   "last": "2026-09-06",
+   "n": 1825
+  },
+  "ZK": {
+   "exchange": "htx",
+   "symbol": "ZK/USDT",
+   "first": "2024-06-16",
+   "last": "2026-09-05",
+   "n": 812
+  },
+  "SUSHI": {
+   "exchange": "gate",
+   "symbol": "SUSHI/USDT",
+   "first": "2020-08-30",
+   "last": "2026-09-06",
+   "n": 2199
+  },
+  "CRO": {
+   "exchange": "gate",
+   "symbol": "CRO/USDT",
+   "first": "2019-09-17",
+   "last": "2026-09-06",
+   "n": 2547
+  },
+  "APE": {
+   "exchange": "htx",
+   "symbol": "APE/USDT",
+   "first": "2022-03-16",
+   "last": "2026-09-05",
+   "n": 1635
+  },
+  "W": {
+   "exchange": "htx",
+   "symbol": "W/USDT",
+   "first": "2024-04-02",
+   "last": "2026-09-05",
+   "n": 887
+  },
+  "COMP": {
+   "exchange": "mexc",
+   "symbol": "COMP/USDT",
+   "first": "2020-06-16",
+   "last": "2026-09-06",
+   "n": 2274
+  },
+  "GAS": {
+   "exchange": "gate",
+   "symbol": "GAS/USDT",
+   "first": "2017-11-14",
+   "last": "2026-09-06",
+   "n": 3219
+  },
+  "RAY": {
+   "exchange": "gate",
+   "symbol": "RAY/USDT",
+   "first": "2021-02-23",
+   "last": "2026-09-06",
+   "n": 2022
+  },
+  "RVN": {
+   "exchange": "mexc",
+   "symbol": "RVN/USDT",
+   "first": "2019-06-26",
+   "last": "2026-09-06",
+   "n": 2630
+  },
+  "LPT": {
+   "exchange": "gate",
+   "symbol": "LPT/USDT",
+   "first": "2021-01-22",
+   "last": "2026-09-06",
+   "n": 2054
+  },
+  "ZIL": {
+   "exchange": "gate",
+   "symbol": "ZIL/USDT",
+   "first": "2018-01-26",
+   "last": "2026-09-06",
+   "n": 3146
+  },
+  "SSV": {
+   "exchange": "gate",
+   "symbol": "SSV/USDT",
+   "first": "2021-10-19",
+   "last": "2026-09-06",
+   "n": 1784
+  },
+  "MINA": {
+   "exchange": "gate",
+   "symbol": "MINA/USDT",
+   "first": "2021-06-01",
+   "last": "2026-09-06",
+   "n": 1924
+  },
+  "ARKM": {
+   "exchange": "mexc",
+   "symbol": "ARKM/USDT",
+   "first": "2023-07-18",
+   "last": "2026-09-06",
+   "n": 1147
+  },
+  "IOTA": {
+   "exchange": "gate",
+   "symbol": "IOTA/USDT",
+   "first": "2017-12-18",
+   "last": "2026-09-06",
+   "n": 3185
+  },
+  "IMX": {
+   "exchange": "htx",
+   "symbol": "IMX/USDT",
+   "first": "2021-11-04",
+   "last": "2026-09-05",
+   "n": 1767
+  },
+  "AGLD": {
+   "exchange": "htx",
+   "symbol": "AGLD/USDT",
+   "first": "2021-09-02",
+   "last": "2026-09-05",
+   "n": 1830
+  },
+  "MANA": {
+   "exchange": "gate",
+   "symbol": "MANA/USDT",
+   "first": "2017-12-06",
+   "last": "2026-09-06",
+   "n": 3197
+  },
+  "BAT": {
+   "exchange": "gate",
+   "symbol": "BAT/USDT",
+   "first": "2017-10-24",
+   "last": "2026-09-06",
+   "n": 3240
+  },
+  "KSM": {
+   "exchange": "mexc",
+   "symbol": "KSM/USDT",
+   "first": "2019-12-07",
+   "last": "2026-09-06",
+   "n": 2466
+  },
+  "GMT": {
+   "exchange": "gate",
+   "symbol": "GMT/USDT",
+   "first": "2022-03-10",
+   "last": "2026-09-06",
+   "n": 1642
+  },
+  "MASK": {
+   "exchange": "kucoin",
+   "symbol": "MASK/USDT",
+   "first": "2021-02-24",
+   "last": "2026-09-06",
+   "n": 2021
+  },
+  "THETA": {
+   "exchange": "gate",
+   "symbol": "THETA/USDT",
+   "first": "2018-01-16",
+   "last": "2026-09-06",
+   "n": 3156
+  }
+ }
+}

@@ -241,11 +241,12 @@ def fetch(syms, tfs):
         print(f"[fetch] {tf} {win}일 {ok}/{len(syms)} ({time.time()-t0:.0f}s)", flush=True)
 
 
-def load_tf(syms, tf):
+def load_tf(syms, tf, long=False):
+    """long=True 면 1d 를 data_long(2017~)과 이어 읽는다(detlib.load_ohlcv_long). 4h/1h 는 무관."""
     out = {}
     for s in syms:
         try:
-            rows = detlib.load_ohlcv(s, tf)
+            rows = detlib.load_ohlcv_long(s, tf) if (long and tf == "1d") else detlib.load_ohlcv(s, tf)
             if rows:
                 out[s] = rows
         except Exception:

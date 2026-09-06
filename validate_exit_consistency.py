@@ -47,6 +47,7 @@ from validate_regime_split import turnover_rank
 from validate_revival import _tnum, equity as _equity, HOLDOUT_MIN_N
 from validate_late_entry import gate_v2, _f
 from validate_exit_1w import outcome_close_rule, HOLD_A, CAT_STOP, STOP_CLOSE
+import frame_v3 as fv
 
 SEED, BOOT_N, POOL_CAP = 42, 1000, 20000
 HOLD_D, STOP_D = ms.MAX_HOLD, ms.STOP
@@ -209,10 +210,26 @@ def main(argv=None):
         pv = paired(sig_by["A_label"], sig_by["D"])
         pv_nc = paired(sig_by["A_nocat"], sig_by["D"])
         verdict = judge(cf_by["D"]["ok"], cf_by["A_label"]["ok"], pv) if judged else "REFERENCE"
+        # v3 (2026-09-06): D arm 을 국면 기준 홀드아웃·에피소드 OOS 로 병기 — 레짐 조건부 셀(three_soldiers_4h bull)
+        # 이 달력 홀드아웃(bear 해) 하나로 탈락한 것을 v3 로 다시 본다. 4h 데이터는 장기 이력이 없어 커버리지
+        # 부족이면 INCONCLUSIVE 로 남긴다. 셀 레짐이 둘(bull_btc/bull_altseason)이면 홀드아웃·에피소드는
+        # 두 라벨을 합친 'BULL' 국면으로 잡는다(합성 regmap). 판정(verdict)은 종전 규칙 그대로, v3 는 병기.
+        if regimes and len(regimes) > 1:
+            reg3 = {d: ("BULL" if r in regimes else r) for d, r in regmap.items()}; g3 = "BULL"
+        elif regimes:
+            reg3, g3 = regmap, regimes[0]
+        else:
+            reg3, g3 = regmap, "ALL"
+        v3 = fv.judge(sig_by["D"], pool("D", cs, rows_by, regmap, regimes), reg3, g3,
+                      equity_fn=lambda tr, span: _equity(tr, span))
+        print(f"  v3(D, 홀드아웃 기준 {g3}) => **{v3['verdict']}** | C1성능 {v3['c1_perf']} | E {v3['E']['positive']}/{v3['E']['qualifying']} "
+              f"| holdout(국면 {v3['holdout']['days']}일) n={v3['holdout']['n']} mean={_f(v3['holdout']['mean'])} | C2b train n={v3['train']['n']} {v3['c2b_train']}({'/'.join(v3['train']['gate'].get('fails', [])) or 'ok'}) "
+              f"| C3 Calmar {(v3['equity'] or {}).get('calmar', 0):.2f} | COV {v3['coverage']}")
+        print(fv.fmt_episodes(v3["episodes"]))
         print(f"  짝지음 A_label−D: n={pv['n']} {pv['mean_diff']*100:+.2f}%p t={pv['t']:.2f} 우위 {pv['win_share']*100:.0f}% "
               f"| A_nocat−D {pv_nc['mean_diff']*100:+.2f}%p t={pv_nc['t']:.2f}  => {verdict}")
         results[cid] = dict(tf=tf, cohort=cohort, regimes=regimes, judged=judged, arms=cf_by,
-                            paired_A_vs_D=pv, paired_Anocat_vs_D=pv_nc, verdict=verdict)
+                            paired_A_vs_D=pv, paired_Anocat_vs_D=pv_nc, verdict=verdict, v3_D=v3)
     print("\n" + "=" * 100)
     for cid, r in results.items():
         d, a = r["arms"]["D"]["gate"], r["arms"]["A_label"]["gate"]
