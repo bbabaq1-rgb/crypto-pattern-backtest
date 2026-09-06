@@ -37,15 +37,26 @@ import regime_switch as rs
 OUT_DIR = "data_long"
 SINCE = "2017-01-01"
 # 시도 순서 — okx 는 러너에서 검증된 소스라 먼저. 나머지는 미국 IP 허용 거래소.
-EXCHANGES = ["okx", "coinbase", "kraken", "kucoin", "gateio", "mexc", "bitget", "htx", "cryptocom"]
-QUOTES = {"coinbase": ["USDT", "USD"], "kraken": ["USDT", "USD"]}
+EXCHANGES = ["okx", "coinbaseexchange", "coinbase", "kucoin", "gate", "htx", "mexc", "bitget", "cryptocom", "kraken"]
+# kraken 은 공개 OHLC 가 최근 720봉만 돌려줘 장기 이력에 못 쓴다 — 최후 순위. (1차 실행 2026-09-06 에서
+# kraken 만 통과해 전 종목 2024-09 시작이 됐다. 원인: probe 가 since=2017 빈 응답을 '불가'로 봤고
+# gate 의 ccxt id 를 'gateio' 로 잘못 썼다.)
+QUOTES = {"coinbaseexchange": ["USDT", "USD"], "coinbase": ["USDT", "USD"], "kraken": ["USDT", "USD"]}
 DEFAULT_QUOTES = ["USDT"]
 EARLY_ENOUGH = "2018-06-30"     # 이 날짜 이전에서 시작하는 소스를 찾으면 다른 거래소는 안 본다
 PROBE_SYMBOL = "BTC"
+# 거래소 대부분은 상장 전 since 에 빈 응답을 준다 → 시작점을 앞에서부터 더듬어 찾는다.
+START_CANDIDATES = ["2017-01-01", "2017-07-01", "2018-01-01", "2018-07-01", "2019-01-01", "2019-07-01",
+                    "2020-01-01", "2020-07-01", "2021-01-01", "2021-07-01", "2022-01-01", "2023-01-01",
+                    "2024-01-01", "2025-01-01"]
 
 
 def _iso(ts):
     return datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+
+
+def _ms(day):
+    return int(datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp() * 1000)
 
 
 def universe_symbols():
@@ -71,24 +82,43 @@ def market_symbol(ex, exid, base):
     return None
 
 
+def earliest_start(ex, sym, since_ms):
+    """since 이후 첫 봉 ts. 후보 시작일을 앞에서부터 시도해 처음 비어 있지 않은 응답의 첫 봉."""
+    for cand in START_CANDIDATES:
+        ms = _ms(cand)
+        if ms < since_ms:
+            continue
+        try:
+            rows = ex.fetch_ohlcv(sym, "1d", since=ms, limit=10)
+        except Exception:
+            rows = None
+        if rows:
+            return rows[0][0]
+        time.sleep(ex.rateLimit / 1000)
+    return None
+
+
 def probe(exid, since_ms):
-    """거래소 도달 가능 여부 + BTC 1d 최초 봉 날짜. 실패 시 None."""
+    """거래소 도달 가능 여부(최근 봉 조회) + BTC 최초 봉. 실패 시 None."""
     try:
         ex = make_exchange(exid)
         sym = market_symbol(ex, exid, PROBE_SYMBOL)
         if not sym:
+            print(f"  [probe] {exid} BTC 마켓 없음", flush=True)
             return None
-        rows = ex.fetch_ohlcv(sym, "1d", since=since_ms, limit=100)
-        if not rows:
+        recent = ex.fetch_ohlcv(sym, "1d", limit=5)
+        if not recent:
+            print(f"  [probe] {exid} 최근 봉 없음", flush=True)
             return None
-        return dict(exchange=ex, symbol=sym, first=_iso(rows[0][0]))
+        first_ts = earliest_start(ex, sym, since_ms)
+        return dict(exchange=ex, symbol=sym, first=_iso(first_ts) if first_ts else None)
     except Exception as e:
         print(f"  [probe] {exid} 불가: {str(e)[:80]}", flush=True)
         return None
 
 
-def fetch_full(ex, exid, sym, since_ms):
-    rows, _ = fetch_data.fetch_ohlcv_all(exid, sym, "1d", since_ms, limit=1000, max_retries=2,
+def fetch_full(ex, exid, sym, start_ms):
+    rows, _ = fetch_data.fetch_ohlcv_all(exid, sym, "1d", start_ms, limit=1000, max_retries=2,
                                          exchange=ex, quiet=True)
     return rows
 
@@ -115,23 +145,29 @@ def main(argv=None):
     for exid in EXCHANGES:
         p = probe(exid, since_ms)
         if p:
-            reachable.append((exid, p["exchange"]))
-            print(f"  [probe] {exid:<10} OK  BTC 최초 봉 {p['first']} ({p['symbol']})", flush=True)
+            reachable.append((exid, p["exchange"], p["first"] or "9999"))
+            print(f"  [probe] {exid:<16} OK  BTC 최초 봉 {p['first']} ({p['symbol']})", flush=True)
     if not reachable:
         sys.exit("[오류] 도달 가능한 거래소 없음")
+    reachable.sort(key=lambda t: t[2])          # BTC 이력이 긴 거래소부터
+    print(f"  [probe] 시도 순서: {[e for e, _, _ in reachable]}", flush=True)
 
     manifest = dict(since=since, built_at=datetime.now(timezone.utc).isoformat(),
                     exchanges=[e for e, _ in reachable], symbols={})
     t_all = time.time()
     for i, s in enumerate(syms, 1):
         best = None
-        for exid, ex in reachable:
+        for exid, ex, _ in reachable:
             sym = market_symbol(ex, exid, s)
             if not sym:
                 continue
             try:
-                t0 = time.time()
-                rows = fetch_full(ex, exid, sym, since_ms)
+                start_ts = earliest_start(ex, sym, since_ms)
+                if start_ts is None:
+                    continue
+                if best is not None and _iso(start_ts) >= best["first"]:
+                    continue                    # 이미 더 이른 소스가 있으면 받지 않는다
+                rows = fetch_full(ex, exid, sym, start_ts)
             except Exception as e:
                 print(f"    {s} @{exid} 실패: {str(e)[:60]}", flush=True)
                 continue

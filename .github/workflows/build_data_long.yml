@@ -12,6 +12,7 @@ on:
       - "claude/7day-trading-signals-2bk3yq"
     paths:
       - ".github/workflows/build_data_long.yml"
+      - "build_data_long.py"
   workflow_dispatch:
     inputs:
       since:
