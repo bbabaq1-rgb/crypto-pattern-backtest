@@ -53,6 +53,7 @@ import validate_regime_split_all as va
 import validate_revival as vr
 from validate_regime_split import turnover_rank
 import detector_ma180_breakout as det
+import frame_v3 as fv
 
 TF = "1d"
 DIRECTION = "long"
@@ -95,12 +96,17 @@ def confirm_ma180(cells, cutoff, span_train, pool_rets):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     syms = va._syms()
-    print(f"MA 장기 이평 돌파 사전 등록 시험 | 유니버스 {len(syms)} | TF {TF} | 주 판정 셀 {PRIMARY} @{CONFIRM_COHORT}")
+    frame = argv[argv.index("--frame") + 1] if "--frame" in argv else "v3"    # 2026-09-06: v3 기본(frame_v3.py)
+    long_1d = "--long" in argv
+    print(f"MA 장기 이평 돌파 사전 등록 시험 | 유니버스 {len(syms)} | TF {TF} | 주 판정 셀 {PRIMARY} @{CONFIRM_COHORT} | frame {frame} | long {long_1d}")
     print(f"[성격] 기록용 — 통과해도 실거래 반영 없음(DEPLOY_ON_PASS={DEPLOY_ON_PASS}). 배포는 사용자 결정.")
     if "--no-fetch" not in argv:
         va.fetch(syms, [TF])
-    regmap = rs.build_regime_map()
-    rows_by = va.load_tf(syms, TF)
+    rows_by = va.load_tf(syms, TF, long=long_1d)
+    regmap = rs.build_regime_map(rows_by=rows_by) if long_1d else rs.build_regime_map()
+    if long_1d:
+        print(f"[long] 최초 {min(r['date'] for rows in rows_by.values() for r in rows)} | 2021 이전 시작 "
+              f"{sum(1 for rows in rows_by.values() if rows[0]['date'] < '2021-01-01')}/{len(rows_by)} | 레짐 라벨 {min(regmap)}~{max(regmap)}")
     ranked = turnover_rank(rows_by)
     cohorts = {"all": set(rows_by), "top30": set(s for s in ranked[:30] if s in rows_by)}
     pools, atrs = vr.build_context(TF, rows_by, cohorts, regmap)
@@ -143,25 +149,43 @@ def main(argv=None):
             cf = confirm_ma180(cells, cutoff, span_train, pool_rets[(CONFIRM_COHORT, g)])
             eq = cf["equity"] or {}
             tg = cf["train_gate"]
-            print(f"    => {'CONFIRMED' if cf['confirmed'] else 'not confirmed'}{' (판정)' if judged else ' (진단, 판정 아님)'} "
+            cf3 = None
+            if frame == "v3":
+                cf3 = fv.judge(cells[CONFIRM_COHORT]["sigs"], pool_rets[(CONFIRM_COHORT, g)], regmap, g,
+                               equity_fn=lambda tr, span: vr.equity(tr, span))
+                eq3 = cf3["equity"] or {}; E = cf3["E"]
+                share_s = "n/a" if E["max_share"] is None else f"{E['max_share']*100:.0f}%"
+                print(f"    => v3 **{cf3['verdict']}**{' (판정)' if judged else ' (진단)'} | C1성능 {cf3['c1_perf']} {'/'.join(cf3['c1']['fails']) or 'ok'} "
+                      f"| E 적격 {E['qualifying']} 양수 {E['positive']} 최대비중 {share_s} {E['ok']} "
+                      f"| C2 홀드아웃(국면 {cf3['holdout']['days']}일) n={cf3['holdout']['n']} mean={vr._f(cf3['holdout']['mean'])} {cf3['c2_holdout']} "
+                      f"| C2b train n={cf3['train']['n']} {cf3['c2b_train']} | C3 CAGR {vr._f(eq3.get('cagr'))} MDD {vr._f(eq3.get('mdd'))} "
+                      f"Calmar {eq3.get('calmar', 0):.2f} {cf3['c3_equity']} | COV {cf3['coverage']}")
+                print(fv.fmt_episodes(cf3["episodes"]))
+            print(f"    => v2 {'CONFIRMED' if cf['confirmed'] else 'not confirmed'}{' (판정)' if judged else ' (진단, 판정 아님)'} "
                   f"| C1 {cf['c1_live_cohort']} | C2 holdout n={cf['holdout']['n']} mean={vr._f(cf['holdout']['mean'])} {cf['c2_holdout']} "
                   f"| C2b train n={cf['train_n']} {tg['verdict']} {c2b_note(tg)} {cf['c2b_train']} "
                   f"| C3 CAGR {vr._f(eq.get('cagr'))} MDD {vr._f(eq.get('mdd'))} Calmar {eq.get('calmar', 0):.2f} {cf['c3_equity']}")
             results[f"{cid}|{g}"] = dict(cid=cid, ma_n=ma_n, filt=filt, regime=g, tf=TF, direction=DIRECTION,
-                                         judged=judged, cells={c: cells[c]["gate"] for c in cells}, confirm=cf)
+                                         judged=judged, cells={c: cells[c]["gate"] for c in cells}, confirm=cf, confirm_v3=cf3)
 
     pk = f"{PRIMARY[0]}|{PRIMARY[1]}"
     prim = results[pk]
-    verdict = "CONFIRMED_RECORD_ONLY" if prim["confirm"]["confirmed"] else "REJECTED"
+    if frame == "v3":
+        v3v = prim["confirm_v3"]["verdict"]
+        verdict = "CONFIRMED_RECORD_ONLY" if v3v == "CONFIRMED" else v3v
+    else:
+        verdict = "CONFIRMED_RECORD_ONLY" if prim["confirm"]["confirmed"] else "REJECTED"
     print("\n" + "=" * 100)
     print(f"[판정] 주 셀 {pk} @{CONFIRM_COHORT} -> {verdict}")
     print("  기록용 시험 — 통과여도 실거래 반영 없음. 배포는 사용자 결정.")
-    diag = [k for k, v in results.items() if not v["judged"] and v["confirm"]["confirmed"]]
+    diag = [k for k, v in results.items() if not v["judged"]
+            and ((v["confirm_v3"]["verdict"] == "CONFIRMED") if frame == "v3" else v["confirm"]["confirmed"])]
     print(f"  진단 셀 중 기준 충족: {diag if diag else '없음'} (사후 선택 금지 — 추격하지 않는다)")
-    json.dump(dict(primary=pk, verdict=verdict, deploy_on_pass=DEPLOY_ON_PASS, cutoff=cutoff, results=results),
-              open("_ma180.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
-    print("[저장] _ma180.json")
-    print("RESULT_JSON: " + json.dumps(dict(primary=pk, verdict=verdict, diagnostic_pass=diag), ensure_ascii=False))
+    out = "_ma180_v3.json" if frame == "v3" else "_ma180.json"
+    json.dump(dict(primary=pk, verdict=verdict, frame=frame, long=long_1d, deploy_on_pass=DEPLOY_ON_PASS, cutoff=cutoff, results=results),
+              open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
+    print(f"[저장] {out}")
+    print("RESULT_JSON: " + json.dumps(dict(primary=pk, verdict=verdict, frame=frame, diagnostic_pass=diag), ensure_ascii=False))
 
 
 def c2b_note(tg):

@@ -761,6 +761,23 @@
     MAE 중앙 −19% · 20일 내 MA 재하향 73% 와 같은 성질. 재시험은 bull_btc 국면이 누적돼 holdout n≥10 이 될 때.
     실거래 변경 없음, 복귀 후보 없음.
     detector_ma180_breakout.py / validate_ma180.py / test_ma180.py(33건) / ma180.yml
+- **확인 프레임 v3 — 국면 기준 홀드아웃 + 장기 이력 (2026-09-06, 사용자 지시 "1~3번 전부 진행 / 홀드아웃에서만 탈락한 것 전부 다시 검증")**:
+  사용자 지적 — "지난 1년은 최악의 하락기였는데 홀드아웃을 거기서 하니 통과를 못 한다. 방향성이 중요하다. 4년 주기로 더 공정하게,
+  데이터가 모자라면 끌어와서." v2 홀드아웃(달력 마지막 365일)은 레짐 조건부 셀에서 그 1년의 국면이 결과를 먼저 정한다 —
+  MA180 bull_btc 셀이 정확히 그 사례(신호 6건 전부 손절 → '판정 불가'가 REJECTED 로 기록).
+  · **frame_v3.py (동결)**: 에피소드 = 레짐 연속 구간(30일 이하 끊김 병합, ALL 은 달력 연도) · 홀드아웃 = **셀 레짐으로 라벨된 날 중
+    가장 최근 365일**(달력상 비연속; ALL 은 종전 달력 365일) · **E 에피소드 OOS** = 적격(n≥5) 에피소드 ≥2, 양수 ≥2 이며 과반
+    (v2 G5 4분위 대체) · COV = 적격 에피소드 ≥2 & holdout n≥10 & train n≥20. **판정 우선순위**: 성능(mean/승률/boot_p/holdout
+    mean/train/C3) 실패 → REJECTED / 성능 통과·COV 실패 → **INCONCLUSIVE**(기각 아님) / E 실패 → REJECTED / 전부 → CONFIRMED.
+    4년 주기는 예측 가정이 아니라 커버리지 요건(독립 국면 ≥2)으로만 쓴다.
+  · **장기 데이터 data_long/ (2017~, 1d 만)**: 러너에서 okx/coinbaseexchange/kucoin/gate/htx… 순으로 probe 해 종목별 가장 이른
+    소스를 gzip CSV 로 브랜치 data-long 에 커밋(build_data_long.py). `detlib.load_ohlcv_long` 이 OKX 첫 봉 이전만 장기 소스로 채움
+    (겹치면 OKX). `regime_switch.build_regime_map(rows_by=)` 로 장기 라벨(365일 밖은 종전과 같은 프록시). 스케줄러 무관.
+    **한계**: 생존 편향 · 현물/무기한 혼합 · 4h/1h 는 장기 이력 없음(그 셀은 기존 범위에서 v3 → 에피소드 부족이면 INCONCLUSIVE).
+    1차 수집(run 34015653158)은 probe 결함으로 kraken 720봉뿐 → 폐기·재실행.
+  · **적용 범위**: 프레임 변경은 후보 전체(게이트 v2 전환 원칙) — validate_revival 전 후보+신규 4종 / validate_ma180 /
+    validate_exit_consistency(three_soldiers_4h D arm 병기). `--frame v3 --long`. v2 수치도 나란히 찍어 어느 셀이 홀드아웃 설계로
+    뒤집혔는지 보고한다. test_frame_v3.py(33건).
 - **BTC.D 오늘 점 척도 정정 (2026-09-05 저녁)**: `_fetch_btcd_from_cg` 가 365일 시계열은 5종(BTC/ETH/SOL/XRP/ADA)
   시총 합산 비율(≈78%)로 만들고 **오늘 점만 /global 전체시장 BTC 점유율(≈59%)** 을 넣어 실행 로그에 77.8% 와 59.1% 가
   같은 지표로 찍혔다. **라벨 영향 없음** — build_regime_map 은 닫힌 봉 날짜만 쓰고 오늘 점은 어느 날짜의 기울기에도

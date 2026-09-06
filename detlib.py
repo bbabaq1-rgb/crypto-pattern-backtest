@@ -61,6 +61,42 @@ def load_ohlcv(sym, tf="1d"):
     return rows
 
 
+LONG_DIR = "data_long"     # build_data_long.py 산출물(2017~ 일봉, gzip). 연구 전용 — 스케줄러는 읽지 않는다.
+
+
+def load_ohlcv_long(sym, tf="1d"):
+    """
+    장기 이력 로더(연구 전용, 2026-09-06). data_long/{sym}_1d.csv.gz 의 오래된 구간 + data/ 의 OKX
+    최근 구간을 잇는다 — **겹치는 날짜는 OKX(실거래 소스)를 쓰고**, 장기 소스는 OKX 첫 봉 이전만
+    채운다. 둘 중 하나만 있으면 그것을 그대로 돌려준다. 1w/1M 은 잇고 나서 리샘플.
+    """
+    import gzip, os
+    if tf in ("1w", "1M"):
+        return resample_rows(load_ohlcv_long(sym, "1d"), tf)
+    if tf != "1d":
+        return load_ohlcv(sym, tf)
+    try:
+        recent = load_ohlcv(sym, "1d")
+    except FileNotFoundError:
+        recent = []
+    path = f"{LONG_DIR}/{sym.lower()}_1d.csv.gz"
+    if not os.path.exists(path):
+        if not recent:
+            raise FileNotFoundError(path)
+        return recent
+    old = []
+    with gzip.open(path, "rt", encoding="utf-8", newline="") as f:
+        for r in csv.DictReader(f):
+            ts = int(float(r["timestamp"]))
+            d = datetime.fromtimestamp(ts / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            old.append(dict(ts=ts, date=d, o=float(r["open"]), h=float(r["high"]),
+                            l=float(r["low"]), c=float(r["close"]), v=float(r["volume"])))
+    if not recent:
+        return old
+    first_recent = recent[0]["date"]
+    return [r for r in old if r["date"] < first_recent] + recent
+
+
 def outcome(rows, si, direction="long"):
     """트리플배리어. direction='short'이면 라벨/수익 반전(하락 선도달=real)."""
     base = rows[si]["c"]

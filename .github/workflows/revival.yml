@@ -21,6 +21,7 @@ on:
       - "detector_down_streak3.py"
       - "detector_donchian20.py"
       - "regime_axis.py"
+      - "frame_v3.py"
       - ".github/workflows/revival.yml"
 
 jobs:
@@ -42,10 +43,12 @@ jobs:
         run: |
           python test_revival.py
           python test_regime_axis.py
-      - name: 1) STRICT 후보 실거래 프레임 확인
-        run: python validate_revival.py
-      - name: 2) 신규 진입 후보 4종 전 셀
-        run: python validate_revival.py --new --no-fetch --tf 1d
+          python test_frame_v3.py
+      # 2026-09-06 프레임 v3(frame_v3.py) + 장기 1d 이력(data_long/, --long). v2 수치도 함께 찍힌다.
+      - name: 1) 후보 전체 — 확인 프레임 v3 + 장기 이력
+        run: python validate_revival.py --frame v3 --long
+      - name: 2) 신규 진입 후보 4종 전 셀 — v3 + 장기 이력
+        run: python validate_revival.py --new --no-fetch --tf 1d --frame v3 --long
       - name: 3) beta_slope vs avg_cap 상관 (유니버스 80)
         run: python regime_axis.py --no-fetch --universe --corr
       - name: Upload results
@@ -56,5 +59,7 @@ jobs:
           path: |
             _revival.json
             _revival_new.json
+            _revival_v3.json
+            _revival_new_v3.json
             regime_axis.json
           if-no-files-found: ignore

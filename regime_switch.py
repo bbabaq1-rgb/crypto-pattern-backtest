@@ -385,26 +385,38 @@ def _closed_rows(rows, tf_ms=86_400_000, now_ms=None):
     return rows[:-1] if rows[-1]["ts"] + tf_ms > now_ms else rows
 
 
-def build_regime_map(now_ms=None):
+def build_regime_map(now_ms=None, rows_by=None):
     """
     date -> regime  (3-signal majority vote with hysteresis)
     스케줄러가 호출하는 공개 함수. 기존 인터페이스 유지.
+
+    rows_by: {sym: rows} 를 주면 data/ 대신 그 봉을 쓴다(연구 전용 — 장기 이력 data_long 으로
+    2017~ 라벨을 만들 때). 스케줄러·실거래는 인자 없이 호출하므로 동작 불변. CoinGecko BTC.D 는
+    최근 365일만 있고 그 전은 알트 바스켓 프록시라, 장기 구간 라벨은 종전과 같은 프록시 규칙이다.
 
     2026-09-03: **닫힌 봉만** 으로 라벨을 만든다. 종전엔 형성 중인 오늘 일봉이 표에
     들어가 09시 라벨이 13시에 뒤집히고 종가에 되돌아오는 일이 가능했고, eval_D 가
     그걸 레짐 전환으로 읽어 청산할 수 있었다. 오늘 날짜의 라벨은 마지막 닫힌 봉의
     라벨을 그대로 잇는다(forward-fill) — 하루 안에서는 라벨이 바뀌지 않는다.
     """
-    btc = detlib.load_ohlcv(MARKET, TF)
+    def _load(sym):
+        if rows_by is not None:
+            rows = rows_by.get(sym)
+            if rows is None:
+                raise FileNotFoundError(sym)
+            return rows
+        return detlib.load_ohlcv(sym, TF)
+
+    btc = _load(MARKET)
     forming_date = btc[-1]["date"] if btc else None
     btc = _closed_rows(btc, now_ms=now_ms)
     if btc and forming_date == btc[-1]["date"]:
         forming_date = None                       # 마지막 봉이 이미 닫힘
-    eth = _closed_rows(detlib.load_ohlcv("ETH", TF), now_ms=now_ms)
+    eth = _closed_rows(_load("ETH"), now_ms=now_ms)
     alts_rows = {}
     for a in ALTS:
         try:
-            alts_rows[a] = _closed_rows(detlib.load_ohlcv(a, TF), now_ms=now_ms)
+            alts_rows[a] = _closed_rows(_load(a), now_ms=now_ms)
         except FileNotFoundError:
             pass
 
