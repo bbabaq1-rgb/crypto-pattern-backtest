@@ -775,10 +775,14 @@
   근거: 코호트 분석 — engulfing top20까지 엣지 유지(+2.65%/중앙+9.9%), fvg top30이
   전체보다 질 우위(+2.36%/중앙+6.5%), ih·marubozu는 top7 밖 급감/불안정.
   하모닉 4h·1h 패턴은 기존 검증 유니버스 유지. 경계 과적합 주의 — 분기별 재점검 권장
-- **자동화**: `daily_scheduler.yml` **4h**(`0 */4`, --slow, oncefull@UTC00:00) +
-  `fast_scheduler.yml` (--fast, exit_spec 패턴만, **schedule 없음**). 2026-09-02 분리.
-  **발화는 Supabase pg_cron → workflow_dispatch**(fast 매시 :03 / daily 정각) —
-  daily 만 GitHub schedule 폴백 유지. 발화율 측정 시 dispatch 이벤트 포함
+- **자동화**: `daily_scheduler.yml` (--slow, oncefull@UTC00:00) + `fast_scheduler.yml`
+  (--fast, exit_spec 패턴만). 2026-09-02 분리. **발화는 Supabase pg_cron → workflow_dispatch
+  전용**(daily UTC 00/04/08/12/16/20 정각 / fast 매시 :03) — **두 워크플로 다 GitHub schedule 없음
+  (2026-09-06 사용자 결정 "폴백 제거해줘")**. daily 폴백은 9/05~9/06 에 5회 연속 지각(최대 2시간
+  19분)하며 이미 돈 느린틱을 재실행했고, 지각한 폴백은 같은 concurrency 그룹의 pending 을
+  취소시킬 수 있다(fast 쪽 실측). **대가: 발화 경로가 하나뿐** — pg_cron 이 멈추면 진입·청산·
+  손절 점검이 전부 정지한다(PAT 만료는 gh_dispatch_log 401 로 드러남, 복구는 수동 dispatch).
+  발화 시각 집합·모드·패턴 케이던스는 불변. 발화율 측정 시 dispatch 이벤트 포함
 - **실거래 안전장치** (2026-07-06): MAX_LIVE_POS **16**(사용자 승인 5→12 2026-07-06 → 16 2026-09-05, 슬롯 격자 근거 —
   12→16 슬롯 스킵 462→47·Calmar 1.84→1.85·MDD −2%p, equity $400 에서 16슬롯 증거금 $400 이라 그 아래면 증거금이 먼저 막음) ·
   킬스위치(equity < $100 → 신규 진입 중지, paper_executor.EQUITY_FLOOR —
