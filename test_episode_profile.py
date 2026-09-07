@@ -37,6 +37,31 @@ check("두 상승 라벨 합집합 + 30일 이하 끊김 병합 → 하나의 �
 check("지배 라벨 = 일수 많은 쪽(bull_btc 80 > altseason 50), 길이 140일", eps[0][2] == "bull_btc" and eps[0][3] == 140)
 check("최소 길이 낮추면 2개", len(ve.bull_episodes(reg_map, min_days=20)) == 2)
 
+# ── 2b. 알트 폭 에피소드 (사전 등록 2026-09-07) ─────────────────────────────────────────────
+check("알트 폭 동결: MA180 · 문턱 0.5 · 최소 코인 15", ve.BREADTH_MA == 180 and ve.BREADTH_THR == 0.5 and ve.BREADTH_MIN_COINS == 15)
+regb = json.load(open("registry.json", encoding="utf-8"))["episode_profile_breadth_prereg_2026_09_07"]
+check("registry 폭 사전 등록과 일치", regb["breadth"]["ma"] == 180 and regb["breadth"]["threshold"] == 0.5 and regb["breadth"]["min_coins"] == 15 and regb["same_as_regime_frame"] is True)
+def mk0(closes, start):
+    d0 = date.fromisoformat(start); out = []
+    for i, c in enumerate(closes):
+        o = closes[i - 1] if i else c
+        out.append(dict(date=(d0 + timedelta(days=i)).isoformat(), ts=None, o=o, h=max(o, c) * 1.01, l=min(o, c) * 0.99, c=c, v=100.0))
+    return out
+# 20 코인: 앞 300일 하락(MA 아래) → 뒤 300일 상승(MA 위). 폭은 이력 180봉부터 계산.
+bset = {f"c{k}": mk0([100 * 0.998 ** i for i in range(300)] + [100 * 0.998 ** 299 * 1.01 ** i for i in range(1, 301)], "2022-01-01") for k in range(20)}
+bs = ve.breadth_series(bset)
+last_d = bset["c0"][-1]["date"]
+check("폭: 이력 180봉 전 날짜 없음, 하락 구간 0%, 상승 후반 100%", "2022-06-28" not in bs and bs["2022-06-29"][0] == 0.0 and bs[last_d] == (1.0, 20))
+bs_small = ve.breadth_series({k: v for k, v in list(bset.items())[:10]})
+check("폭 계산 대상 코인 < 15 → 그날 제외", bs_small == {})
+alt = {k: [dict(r) for r in v] for k, v in bset.items()}
+for v in alt.values():
+    for r in v[500:]: r["c"] *= 0.1
+check("폭 인과성: 미래 봉 변경이 그 이전 날짜 폭을 바꾸지 않음", ve.breadth_series(alt)["2023-01-31"] == bs["2023-01-31"] and ve.breadth_series(alt)[last_d] != bs[last_d])
+beps = ve.breadth_episodes(bset)
+check("폭 에피소드: 과반 위 구간 하나(상승 전환 뒤), 라벨 'breadth', 60일 이상", len(beps) == 1 and beps[0][2] == "breadth" and beps[0][3] >= 60 and beps[0][0] > "2022-10-27")
+check("문턱을 넘는 날이 없으면 에피소드 없음", ve.breadth_episodes({k: v[:400] for k, v in bset.items()}) == [] or all(e[3] >= 60 for e in ve.breadth_episodes({k: v[:400] for k, v in bset.items()})))
+
 # ── 3. 행 구성 — 시작 봉·결과·이력 요건 ────────────────────────────────────────────────────
 def mk(closes, start):
     d0 = date.fromisoformat(start); out = []
@@ -121,7 +146,7 @@ check("실거래·배포 코드 없음", "import paper_executor" not in src and 
 sched = open("scheduler.py", encoding="utf-8").read() + open("paper_executor.py", encoding="utf-8").read()
 check("스케줄러·실행기가 episode 모듈을 읽지 않음", "validate_episode_profile" not in sched and "xsec_features" not in sched)
 wf = open(".github/workflows/episode_profile.yml", encoding="utf-8").read()
-check("워크플로: data-long 브랜치 체크아웃 + 테스트 선행 + 실행", "data-long" in wf and "python test_episode_profile.py" in wf and "python validate_episode_profile.py" in wf)
+check("워크플로: data-long 브랜치 체크아웃 + 테스트 선행 + 실행(레짐·폭 두 판)", "data-long" in wf and "python test_episode_profile.py" in wf and "python validate_episode_profile.py" in wf and "--episodes breadth" in wf)
 check("tests.yml 등재", "test_episode_profile.py" in open(".github/workflows/tests.yml", encoding="utf-8").read())
 
 print(f"\n{'ALL PASS' if not fails else 'FAILED: ' + ', '.join(fails)} ({len(fails)} fail)")
