@@ -841,6 +841,25 @@
     OOS −1.70%(p .767) vs 비-bull −0.18% → 2025~ 역전. **D2** BTC fwd3m 은 OOS 에서도 bull +2.3%(양수 58%) vs bear −9.4%(24%) 로 분리 —
     라벨은 BTC 방향은 가르지만 **알트 롱 수익은 못 가른다**(bull_btc = BTC 주도 국면, 알트 지체). sideways 라벨 일수 0(라벨러가 사실상 안 냄).
   · D4 실거래 행 4건(패턴당 1) — 표본 없음. 그림자 2 셀 유지, 관찰 2 셀 10/06 까지 유지.
+- **상승 에피소드 승자 프로필 + 신호봉 승자 프로필 (2026-09-07, 사용자 지시 "2021 불장에서 많이 오른 코인은 시작 시점에 뭐가 달랐나, 전체 코인으로" + 승인 "신호봉 시험 사전 등록해서 돌려줘")**:
+  registry `episode_profile_prereg_2026_09_07`(run 34090039511) / `signal_profile_prereg_2026_09_07`(run 34089345934). **실거래 무변경.**
+  · **데이터 확장**: build_data_long `--okx-all` 6샤드 병렬(run 34088487916) → data-long 브랜치 **248코인**(OKX 무기한 456 중 이력 소스 있는 것,
+    2021 이전 시작 73). master 의 data_long/ 은 81 그대로 — 연구 워크플로가 data-long 브랜치를 체크아웃. build_data_long.yml 은 dispatch 전용.
+  · **에피소드 프로필**: 레짐 bull_btc∪bull_altseason 연속 구간(≥60일) 5개, 시작 시점 35 변수(24 + 볼밴 %B·폭·수축/ADX/ATH 낙폭·경과/이력/BTC 상관/
+    1년 최대낙폭/양봉비율/MA180 연속일) vs 에피소드 수익. 에피소드 내 순열 p·Holm·일관성 75%. **PROFILE 5 / EPISODE_DEPENDENT 2 / NONE 28 / REVERSED 1.**
+    · **핵심 발견 — 레짐 bull_btc ≠ 알트 불장.** 코인 상승 비율: 2019 9% / **2021 98%**(중앙 +318%) / 2023-24 48%(중앙 −4%, BTC +185%) / 2024-25 **16%**
+      (388일 bull 라벨, 중앙 −54%, BTC +27%). 알트가 실제로 오른 에피소드는 2021 하나.
+    · PROFILE = beta_btc_60(−, 4/4) · max_dd_1y(+) · ret_1w(+) · rvol20(−) · age_bars(+) — **'알트가 안 오른 3 에피소드에서 누가 덜 떨어졌나'의 방어적
+      프로필**. 유일한 알트 불장 2021 에서는 **부호가 반대**(rvol20 +0.32, age −0.43: 젊고 변동성 크고 볼밴 확장 중·ADX 높은 코인이 이김). 알트 불장
+      표본이 1개라 '올랐을 때의 공통점'은 통계로 못 세운다 — 다음 알트 불장이 전향 시험. 생존 편향 큼(2021 n=42 = 당시 상장+현재 OKX 교집합).
+    · REVERSED vol_ratio_30_90: 세 연구 모두 '최근 거래대금 증가 → 이후 나쁨'.
+  · **신호봉 프로필**: 배포 1d 롱 4셀 신호봉 n=1,936(train 1,557/OOS 379) 35 변수 vs 방식D 수익, 월 클러스터 부트·Holm·OOS. **CANDIDATE 5**
+    (rvol20 −/bb_width −/bb_squeeze −/adx14 −/corr_btc_60 +) **/ TRAIN_ONLY 8 / REVERSED 6**(mom_1m·mom_3m·ma_align·ma180_slope·ichi_tk·vol_ratio —
+    반전 패턴 거래 안에선 신호봉 추세·모멘텀이 강할수록 나쁨). 손절 비율 저/중/고변동 42/58/77%.
+    · **주의: 월 demean(같은 달 안) rho 는 −0.05~−0.09** 로 풀 rho(.13~.28)의 1/3 이하 — 대부분 '조용한 달이 좋은 달' 시간 효과. 슬롯 우선순위는 같은
+      시점 비교라 실효 상한이 그 크기. rvol20 은 채택된 변동성 타겟팅과 같은 규칙, bb_width·adx14 는 근사 중복 — 새 정보는 '신호봉 ADX' 하나.
+    · 후속 후보(사용자 결정): 라우팅 복제 프레임에서 'adx14 상위 1/3 사이징 ×0.5' 짝지음 시험. 기대 효과 작음.
+  xsec_features.EXTRA / validate_episode_profile.py / test_episode_profile.py(38) / episode_profile.yml / validate_signal_profile.py / test_signal_profile.py(22) / signal_profile.yml
 - **횡단면 특성 연구 — 24변수 중 저변동(rvol20) 하나만 순위 예측, 선택 규칙 승격 없음 (2026-09-07, 사용자 지시 "패턴 말고 다른 방향 … 어떤 조건에 있던 코인이 더 많이 빠르게 올랐나" + "일목·다이버전스·60/120/180선 위치 등 싹 다", run 34085937594)**:
   registry `xsec_chars_prereg_2026_09_07`. 월말 PIT liquid 유니버스(2017~, data_long)에서 상태 변수 24종의 fwd20 스피어만 IC — train(<2025-01) Holm 적격
   (연도 일관성·최고 연도 제외) → OOS 재현(IC·p·TOP 상대/절대 − 비용 0.4%). 코인 80 · 코인-월 5,267 · 114개월. **CONFIRMED 1 / REJECTED 23 / REVERSED 1. 실거래 무변경.**
@@ -1091,6 +1110,8 @@
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - method_b.py: beta_slope 오버레이(B_skip/B_size) 짝지음 시험 — 기각 기록용. report_beta_overlay.md
+- validate_episode_profile.py / validate_signal_profile.py: 상승 에피소드 승자 프로필(전 코인, data-long) / 신호봉 승자 프로필(배포 셀). 서술·후보 탐색용, 규칙 승격 없음
+- build_data_long.py: 장기 1d 수집 — `--okx-all --shard i/n --skip-existing --out` 로 OKX 무기한 전 종목 병렬 수집(data-long 브랜치 248코인). master data_long/ 은 81
 - xsec_features.py / validate_xsec_chars.py: 횡단면 특성 연구(24 상태 변수 fwd20 순위 IC, 인과 피처·PIT 유니버스·월 부트·Holm). rvol20 만 순위 예측, 선택 규칙 승격 없음. test_xsec_chars.py(57)
 - validate_pit_cohort.py: PIT 코호트(월말 30일 거래대금 → 다음 달 적용) static vs PIT 재검증 + 코인별 분산 + 무조건부 스캔. test_pit_cohort.py(25)
 - validate_guard_v4.py: 확인 프레임 v4 = 3중 대조(A 레짐·코호트 / B 같은 코인·월·레짐 / C 시간 OOS 2025-01-01) + 월 클러스터 부트 + Holm +
