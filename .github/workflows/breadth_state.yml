@@ -1,0 +1,46 @@
+name: Research — alt-breadth state (pre-registered, live-usable frame)
+
+# 알트 폭 상태(몇 개가 · 며칠째 · 몇 % 이상 유지) → 이후 60봉 횡단면. 관측 단위가 에피소드가 아니라 '하루'라
+# 에피소드 진행 중에 적용할 수 있다. 사전 등록 registry breadth_state_prereg_2026_09_07. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_breadth_state.py"
+      - "test_breadth_state.py"
+      - ".github/workflows/breadth_state.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: |
+          python test_episode_profile.py
+          python test_breadth_state.py
+      - name: Validate (breadth state)
+        run: python validate_breadth_state.py --data-long-only
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: breadth-state-${{ github.run_number }}
+          path: _breadth_state.json
+          if-no-files-found: ignore

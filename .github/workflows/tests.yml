@@ -58,6 +58,7 @@ jobs:
                    test_pit_cohort.py \
                    test_xsec_chars.py \
                    test_episode_profile.py \
+                   test_breadth_state.py \
                    test_signal_profile.py \
                    test_executor_safety.py \
                    test_regime_determinism.py \
