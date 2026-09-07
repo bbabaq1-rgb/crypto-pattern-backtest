@@ -3094,5 +3094,30 @@
    ],
    "live_change": "없음 (관찰 기간 ~2026-10-06)"
   }
+ },
+ "regime_altside_prereg_2026_09_07": {
+  "status": "PREREGISTERED (2026-09-07, 사용자 지시 '사전등록하고 돌려줘') — 실행 전 고정. regime_alt.py 후보 추가 + regime_quality/method_q 재실행",
+  "question": "사용자 지적(2026-09-07): 'BTC 가격이 상승일 때뿐 아니라 횡보일 때도 도미넌스가 하락하면 알트불장으로 봐야 하지 않나'. 현행 라벨러는 BTC 200일선 20일 기울기가 첫 관문이고 도미넌스는 up 구간에서만 표결에 쓴다. 기울기 띠(±0.1%)가 좁아 sideways 라벨 일수가 5년간 0 이라, '횡보+도미넌스 하락' 국면은 직전 추세 부호에 따라 bull_altseason 또는 bear 로 갈린다",
+  "frozen_params": {
+   "SIDE_THR": "0.01 (±1%) — 넓힌 횡보 띠. 현행 SLOPE_THR 0.001. **값 하나만 시험, 스윕 없음**",
+   "alt_side (주 판정 셀)": "p=='down'→bear / p=='up'→현행 규칙 그대로 / p=='side'→ alt_v>btc_v 면 bull_altseason 아니면 sideways. alt_v=(eb=='up')+(dom=='down'), btc_v=(eb=='down')+(dom=='up')",
+   "히스테리시스": "현행과 같은 2표 규칙. 단 alt_side 에서 cand==bull_altseason 이고 p=='side' 이면 가격 신호를 지지 +1 로 센다 — 이 라벨러에서는 '횡보'가 알트불장 정의의 일부이기 때문. 그 외에는 rs._signal_support 그대로",
+   "wide_side (진단 전용)": "띠만 ±1% 로 넓히고 후보 규칙은 현행 — 띠 효과와 규칙 효과를 분리하기 위한 대조",
+   "기타": "MA 200봉·기울기 lookback 20봉·ETH/BTC·BTC.D 신호 정의·닫힌 봉만 사용은 현행 그대로"
+  },
+  "judgement_frozen": {
+   "stage1": "regime_quality.beats_current 4조건 그대로 (a 분리폭>current, b 연도별 분리폭 n>=30 해에서 양수 3/4 이상, c 전환지연<=current, d flips/yr <= current x1.5)",
+   "stage2": "method_q — D_alt_side / RL_alt_side / F_alt_side arm 을 method_r.verdict 7기준으로. 채택 후보 = stage1 통과 AND stage2 PASS",
+   "primary_cell": "alt_side 한 셀. wide_side 는 진단(사후에 wide_side 가 좋았다고 골라 쓰지 않는다)",
+   "known_limitation_recorded_before_run": "1단계는 라벨의 **예측력**(20일 선행수익 분리폭)을 잰다. 2026-09-04 연구에서 현행 라벨러의 20일 방향 적중은 49%로 예측력 ≈0 이었다. 즉 (a) 조건은 절대 기준으로는 낮은 문턱이고, 이 시험이 답하는 것은 '분류 정의가 더 나은가'가 아니라 '같은 잣대에서 현행보다 나은가'다"
+  },
+  "diagnostics_not_judgement": [
+   "현행 대비 라벨이 바뀌는 날 수·기간, 라벨별 일수 분포(sideways 가 실제로 발화하는지)",
+   "불일치 날의 알트 바스켓 − BTC 20일 선행 상대수익 (사용자 정의가 실제 알트 강세 국면을 집는지)",
+   "불일치 날의 유니버스 롱 무작위 20일 기대값 (그 라벨 아래 롱이 유리한지)",
+   "라우팅 영향: 라벨이 bull_altseason 으로 바뀌는 날이면 engulfing 롱→숏 / fvg 방향이 어떻게 달라지는지 일수"
+  ],
+  "live_change": "없음. 결과와 무관하게 실거래 라벨러·라우팅·청산 무변경(관찰 기간 ~2026-10-06). 라벨러 교체는 라우팅 표·방식D 레짐 청산·레짐별 검증 셀 세 곳을 동시에 흔들므로 채택은 사용자 결정이고, 채택 시 세 곳 재검증이 선결",
+  "not_changed_by_results": "띠 폭(0.01)·후보 규칙·지지 규칙·판정 기준. 결과를 본 뒤 바꾸지 않는다"
  }
 }
