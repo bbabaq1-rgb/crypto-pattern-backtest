@@ -56,6 +56,37 @@ def forward_returns(rows_by, fwd=FWD):
     return {d: st.mean(v) for d, v in acc.items()}
 
 
+def alt_rel_forward(rows_by, fwd=FWD):
+    """date -> (알트 바스켓 fwd 선행수익 중앙값) − (BTC fwd 선행수익).
+    '그 날이 실제로 알트 강세 국면이었나'를 라벨과 무관하게 직접 본다 (2026-09-07 진단)."""
+    def fr(rows):
+        return {rows[i]["date"]: rows[i + fwd]["c"] / rows[i]["c"] - 1 for i in range(len(rows) - fwd)}
+    btc = fr(rows_by[ra.rs.MARKET]) if ra.rs.MARKET in rows_by else {}
+    alts = [fr(rows_by[a]) for a in ra.rs.ALTS if a in rows_by]
+    out = {}
+    for d, b in btc.items():
+        v = [m[d] for m in alts if d in m]
+        if v:
+            out[d] = st.median(v) - b
+    return out
+
+
+def disagreement(cur, cand, fwd_uni, fwd_rel):
+    """현행 → 후보 라벨 전이 행렬. 칸마다 일수와 그 날들의 선행 지표(유니버스 롱 / 알트 상대)."""
+    dates = sorted(set(cur) & set(cand))
+    mat = {}
+    for d in dates:
+        mat.setdefault(f"{cur[d]}→{cand[d]}", []).append(d)
+    rows = []
+    for k, ds in sorted(mat.items(), key=lambda kv: -len(kv[1])):
+        u = [fwd_uni[d] for d in ds if d in fwd_uni]
+        rl = [fwd_rel[d] for d in ds if d in fwd_rel]
+        a, b = k.split("→")
+        rows.append(dict(transition=k, days=len(ds), changed=a != b, first=ds[0], last=ds[-1],
+                         uni_fwd=(st.mean(u) if u else None), alt_rel_fwd=(st.mean(rl) if rl else None)))
+    return rows
+
+
 def truth_series(btc, fwd=TRUTH_FWD, thr=TRUTH_THR):
     """사후 진실: date -> 'bull'/'bear'/None (BTC fwd 일 선행수익 ±thr)."""
     out = {}
@@ -220,10 +251,34 @@ def main(argv=None):
             x = r["by_horizon"].get(str(h))
             cells.append(f"{x['separation']*100:>+8.2f}%{x['hit_rate']*100:>5.0f}%" if x else f"{'n/a':>9}{'':>6}")
         print(f"  {name:<14}" + "".join(cells))
+    # ── 진단 (판정 아님) — 2026-09-07 사용자 정의 후보가 무엇을 바꾸는가 ────────────────
+    fwd_rel = alt_rel_forward(rows_by)
+    diag = {}
+    print("\n" + "=" * 120)
+    print(f"[진단] 현행 → 후보 라벨 전이 (SIDE_THR {ra.SIDE_THR}). uni_fwd = 그 날들의 유니버스 롱 {FWD}일 선행수익 평균,")
+    print(f"       alt_rel = 알트 바스켓 − BTC {FWD}일 선행수익 (양수면 실제로 알트 강세 국면). **판정 아님**")
+    for name in ("wide_side", "alt_side"):
+        if name not in ctx["labels"]:
+            continue
+        rows_ = disagreement(ctx["labels"]["current"], ctx["labels"][name], fwd_uni, fwd_rel)
+        diag[name] = rows_
+        chg = sum(r["days"] for r in rows_ if r["changed"])
+        tot = sum(r["days"] for r in rows_)
+        print(f"  [{name}] 라벨이 바뀌는 날 {chg}/{tot} ({chg/max(1,tot)*100:.0f}%)")
+        for r in rows_:
+            if not r["changed"] and r["days"] < tot * 0.02:
+                continue
+            u = "n/a" if r["uni_fwd"] is None else f"{r['uni_fwd']*100:+.2f}%"
+            a = "n/a" if r["alt_rel_fwd"] is None else f"{r['alt_rel_fwd']*100:+.2f}%"
+            mark = "  ←변경" if r["changed"] else ""
+            print(f"    {r['transition']:<34} {r['days']:>5}일  uni_fwd {u:>8}  alt_rel {a:>8}  {r['first']}~{r['last']}{mark}")
+
     cands = [n for n, v in verdicts.items() if v and v["pass_"]]
     json.dump(dict(rule=dict(fwd=FWD, truth_fwd=TRUTH_FWD, truth_thr=TRUTH_THR, lag_cap=LAG_CAP,
-                             beats="sep>current & years>=3/4 pos & lag<=current & flips<=1.5x"),
-                   horizons=HORIZONS, results=res, verdicts=verdicts, candidates=cands, funding_days=ctx["funding_days"]),
+                             beats="sep>current & years>=3/4 pos & lag<=current & flips<=1.5x",
+                             side_thr=ra.SIDE_THR, primary_cell="alt_side", diagnostic_cell="wide_side"),
+                   horizons=HORIZONS, results=res, verdicts=verdicts, candidates=cands,
+                   diagnostics=diag, funding_days=ctx["funding_days"]),
               open("_regime_quality.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     print(f"\n[후보] current 를 이긴 라벨러: {cands or '없음'}")
     print("RESULT_JSON: " + json.dumps(dict(candidates=cands,
