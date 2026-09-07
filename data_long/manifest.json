@@ -573,6 +573,1398 @@
    "first": "2018-01-16",
    "last": "2026-09-06",
    "n": 3156
+  },
+  "0G": {
+   "exchange": "kraken",
+   "symbol": "0G/USD",
+   "first": "2025-09-22",
+   "last": "2026-09-07",
+   "n": 351
+  },
+  "AEHR": null,
+  "AIXBT": {
+   "exchange": "bitget",
+   "symbol": "AIXBT/USDT",
+   "first": "2024-12-01",
+   "last": "2026-09-07",
+   "n": 645
+  },
+  "AMD": null,
+  "APLD": null,
+  "AT": null,
+  "AVNT": {
+   "exchange": "kraken",
+   "symbol": "AVNT/USD",
+   "first": "2025-09-09",
+   "last": "2026-09-07",
+   "n": 364
+  },
+  "BARD": null,
+  "BEAT": null,
+  "BLEND": {
+   "exchange": "kraken",
+   "symbol": "BLEND/USD",
+   "first": "2026-04-24",
+   "last": "2026-09-07",
+   "n": 137
+  },
+  "BOT": null,
+  "CC": {
+   "exchange": "kraken",
+   "symbol": "CC/USDT",
+   "first": "2025-11-10",
+   "last": "2026-09-07",
+   "n": 302
+  },
+  "CIEN": null,
+  "CSOPSKHYNIX2L": null,
+  "DELL": null,
+  "EIGEN": {
+   "exchange": "htx",
+   "symbol": "EIGEN/USDT",
+   "first": "2024-09-30",
+   "last": "2026-09-06",
+   "n": 707
+  },
+  "EWY": null,
+  "FLNC": null,
+  "GALA": {
+   "exchange": "mexc",
+   "symbol": "GALA/USDT",
+   "first": "2021-06-07",
+   "last": "2026-09-07",
+   "n": 1919
+  },
+  "GME": {
+   "exchange": "mexc",
+   "symbol": "GME/USDT",
+   "first": "2024-05-14",
+   "last": "2026-09-07",
+   "n": 847
+  },
+  "GRAM": {
+   "exchange": "bitget",
+   "symbol": "GRAM/USDT",
+   "first": "2022-03-18",
+   "last": "2026-09-07",
+   "n": 1631
+  },
+  "HIMS": null,
+  "HYPE": {
+   "exchange": "gate",
+   "symbol": "HYPE/USDT",
+   "first": "2024-10-18",
+   "last": "2026-09-07",
+   "n": 690
+  },
+  "INFQ": null,
+  "IOST": {
+   "exchange": "htx",
+   "symbol": "IOST/USDT",
+   "first": "2018-01-22",
+   "last": "2026-09-06",
+   "n": 3150
+  },
+  "JELLYJELLY": null,
+  "KGEN": {
+   "exchange": "kraken",
+   "symbol": "KGEN/USD",
+   "first": "2025-10-22",
+   "last": "2026-09-07",
+   "n": 321
+  },
+  "KORU": null,
+  "LLY": null,
+  "LUNR": null,
+  "ME": {
+   "exchange": "gate",
+   "symbol": "ME/USDT",
+   "first": "2024-11-22",
+   "last": "2026-09-07",
+   "n": 655
+  },
+  "METIS": {
+   "exchange": "gate",
+   "symbol": "METIS/USDT",
+   "first": "2021-05-13",
+   "last": "2026-09-07",
+   "n": 1944
+  },
+  "MOODENG": {
+   "exchange": "mexc",
+   "symbol": "MOODENG/USDT",
+   "first": "2024-09-19",
+   "last": "2026-09-07",
+   "n": 719
+  },
+  "MRVL": null,
+  "MVLL": null,
+  "NET": null,
+  "NOT": {
+   "exchange": "gate",
+   "symbol": "NOT/USDT",
+   "first": "2024-05-16",
+   "last": "2026-09-07",
+   "n": 845
+  },
+  "ONE": {
+   "exchange": "gate",
+   "symbol": "ONE/USDT",
+   "first": "2019-08-20",
+   "last": "2026-09-07",
+   "n": 2576
+  },
+  "ORCL": null,
+  "PENDLE": {
+   "exchange": "cryptocom",
+   "symbol": "PENDLE/USDT",
+   "first": "2021-07-26",
+   "last": "2026-09-07",
+   "n": 1868
+  },
+  "PIEVERSE": {
+   "exchange": "kraken",
+   "symbol": "PIEVERSE/USD",
+   "first": "2026-05-20",
+   "last": "2026-09-07",
+   "n": 111
+  },
+  "PUMP": {
+   "exchange": "kraken",
+   "symbol": "PUMP/USD",
+   "first": "2025-07-14",
+   "last": "2026-09-07",
+   "n": 421
+  },
+  "QQQ": null,
+  "RDW": null,
+  "RIVER": {
+   "exchange": "kraken",
+   "symbol": "RIVER/USD",
+   "first": "2025-11-04",
+   "last": "2026-09-07",
+   "n": 308
+  },
+  "RSR": {
+   "exchange": "htx",
+   "symbol": "RSR/USDT",
+   "first": "2019-05-21",
+   "last": "2026-09-06",
+   "n": 2666
+  },
+  "SAPIEN": {
+   "exchange": "kraken",
+   "symbol": "SAPIEN/USD",
+   "first": "2025-08-20",
+   "last": "2026-09-07",
+   "n": 384
+  },
+  "SHELL": null,
+  "SKDD": null,
+  "SMCI": null,
+  "SOFTBANK": null,
+  "SOXS": null,
+  "SPY": null,
+  "TRUMP": {
+   "exchange": "kraken",
+   "symbol": "TRUMP/USDT",
+   "first": "2025-01-19",
+   "last": "2026-09-07",
+   "n": 597
+  },
+  "TSLL": null,
+  "UB": null,
+  "URNM": null,
+  "WDC": null,
+  "WMT": null,
+  "XIAOMI": null,
+  "ZBT": {
+   "exchange": "kraken",
+   "symbol": "ZBT/USD",
+   "first": "2025-10-17",
+   "last": "2026-09-07",
+   "n": 326
+  },
+  "1INCH": {
+   "exchange": "htx",
+   "symbol": "1INCH/USDT",
+   "first": "2020-12-24",
+   "last": "2026-09-06",
+   "n": 2083
+  },
+  "ACH": {
+   "exchange": "htx",
+   "symbol": "ACH/USDT",
+   "first": "2020-09-06",
+   "last": "2026-09-06",
+   "n": 2192
+  },
+  "AEON": null,
+  "ALAB": null,
+  "AMZN": null,
+  "APP": null,
+  "ARM": null,
+  "ATH": {
+   "exchange": "htx",
+   "symbol": "ATH/USDT",
+   "first": "2024-06-11",
+   "last": "2026-09-06",
+   "n": 818
+  },
+  "BASED": {
+   "exchange": "kraken",
+   "symbol": "BASED/USD",
+   "first": "2026-03-30",
+   "last": "2026-09-07",
+   "n": 162
+  },
+  "BERA": {
+   "exchange": "kraken",
+   "symbol": "BERA/USDT",
+   "first": "2025-02-06",
+   "last": "2026-09-07",
+   "n": 579
+  },
+  "BLUR": {
+   "exchange": "gate",
+   "symbol": "BLUR/USDT",
+   "first": "2023-02-14",
+   "last": "2026-09-07",
+   "n": 1302
+  },
+  "BRETT": {
+   "exchange": "bitget",
+   "symbol": "BRETT/USDT",
+   "first": "2024-03-16",
+   "last": "2026-09-07",
+   "n": 904
+  },
+  "BX": null,
+  "CELO": {
+   "exchange": "okx",
+   "symbol": "CELO/USDT",
+   "first": "2020-07-18",
+   "last": "2026-09-07",
+   "n": 2243
+  },
+  "CL": null,
+  "COST": null,
+  "CVX": {
+   "exchange": "gate",
+   "symbol": "CVX/USDT",
+   "first": "2021-06-02",
+   "last": "2026-09-07",
+   "n": 1924
+  },
+  "DGAI": {
+   "exchange": "kraken",
+   "symbol": "DGAI/USD",
+   "first": "2026-08-24",
+   "last": "2026-09-07",
+   "n": 15
+  },
+  "DRAM": null,
+  "ENA": {
+   "exchange": "htx",
+   "symbol": "ENA/USDT",
+   "first": "2024-04-01",
+   "last": "2026-09-06",
+   "n": 889
+  },
+  "EWZ": null,
+  "FLOKI": {
+   "exchange": "gate",
+   "symbol": "FLOKI/USDT",
+   "first": "2021-09-16",
+   "last": "2026-09-07",
+   "n": 1818
+  },
+  "HMSTR": {
+   "exchange": "gate",
+   "symbol": "HMSTR/USDT",
+   "first": "2024-07-31",
+   "last": "2026-09-07",
+   "n": 769
+  },
+  "HYUNDAI": null,
+  "INIT": {
+   "exchange": "kraken",
+   "symbol": "INIT/USD",
+   "first": "2025-04-24",
+   "last": "2026-09-07",
+   "n": 502
+  },
+  "JNJ": null,
+  "KIOXIA": null,
+  "KR200": null,
+  "LIGHT": null,
+  "LYTE": null,
+  "MEGA": {
+   "exchange": "kraken",
+   "symbol": "MEGA/USD",
+   "first": "2026-04-30",
+   "last": "2026-09-07",
+   "n": 131
+  },
+  "MEW": {
+   "exchange": "gate",
+   "symbol": "MEW/USDT",
+   "first": "2024-03-30",
+   "last": "2026-09-07",
+   "n": 892
+  },
+  "MOONSHOT": null,
+  "MSFT": null,
+  "NBIS": null,
+  "NFLX": null,
+  "NOW": null,
+  "OKTA": null,
+  "ORDER": {
+   "exchange": "htx",
+   "symbol": "ORDER/USDT",
+   "first": "2024-08-25",
+   "last": "2026-09-06",
+   "n": 743
+  },
+  "PENG": null,
+  "PIPPIN": {
+   "exchange": "mexc",
+   "symbol": "PIPPIN/USDT",
+   "first": "2024-11-11",
+   "last": "2026-09-07",
+   "n": 666
+  },
+  "PONS": null,
+  "PURR": null,
+  "QTUM": {
+   "exchange": "gate",
+   "symbol": "QTUM/USDT",
+   "first": "2017-10-12",
+   "last": "2026-09-07",
+   "n": 3253
+  },
+  "RE": {
+   "exchange": "kraken",
+   "symbol": "RE/USD",
+   "first": "2026-06-18",
+   "last": "2026-09-07",
+   "n": 82
+  },
+  "RIVN": null,
+  "SATS": {
+   "exchange": "gate",
+   "symbol": "SATS/USDT",
+   "first": "2023-11-09",
+   "last": "2026-09-07",
+   "n": 1034
+  },
+  "SKHY": null,
+  "SMH": null,
+  "SPACE": {
+   "exchange": "kraken",
+   "symbol": "SPACE/USD",
+   "first": "2026-01-23",
+   "last": "2026-09-07",
+   "n": 228
+  },
+  "SQQQ": null,
+  "SUI": {
+   "exchange": "htx",
+   "symbol": "SUI/USDT",
+   "first": "2023-05-02",
+   "last": "2026-09-06",
+   "n": 1224
+  },
+  "TIA": {
+   "exchange": "gate",
+   "symbol": "TIA/USDT",
+   "first": "2023-10-31",
+   "last": "2026-09-07",
+   "n": 1043
+  },
+  "TRUST": {
+   "exchange": "kraken",
+   "symbol": "TRUST/USD",
+   "first": "2025-11-05",
+   "last": "2026-09-07",
+   "n": 307
+  },
+  "TSM": null,
+  "UMA": {
+   "exchange": "mexc",
+   "symbol": "UMA/USDT",
+   "first": "2020-06-30",
+   "last": "2026-09-07",
+   "n": 2261
+  },
+  "USAR": null,
+  "VRT": null,
+  "WEN": {
+   "exchange": "mexc",
+   "symbol": "WEN/USDT",
+   "first": "2024-01-27",
+   "last": "2026-09-07",
+   "n": 955
+  },
+  "WOO": {
+   "exchange": "htx",
+   "symbol": "WOO/USDT",
+   "first": "2020-10-29",
+   "last": "2026-09-06",
+   "n": 2139
+  },
+  "XLE": null,
+  "XTZ": {
+   "exchange": "gate",
+   "symbol": "XTZ/USDT",
+   "first": "2017-12-23",
+   "last": "2026-09-07",
+   "n": 3181
+  },
+  "ZEC": {
+   "exchange": "gate",
+   "symbol": "ZEC/USDT",
+   "first": "2017-10-12",
+   "last": "2026-09-07",
+   "n": 3253
+  },
+  "ZKP": {
+   "exchange": "kraken",
+   "symbol": "ZKP/USD",
+   "first": "2025-12-19",
+   "last": "2026-09-07",
+   "n": 263
+  },
+  "2Z": {
+   "exchange": "kraken",
+   "symbol": "2Z/USD",
+   "first": "2025-10-02",
+   "last": "2026-09-07",
+   "n": 341
+  },
+  "ACT": {
+   "exchange": "mexc",
+   "symbol": "ACT/USDT",
+   "first": "2024-10-24",
+   "last": "2026-09-07",
+   "n": 684
+  },
+  "AERO": {
+   "exchange": "coinbaseexchange",
+   "symbol": "AERO/USD",
+   "first": "2024-02-06",
+   "last": "2026-09-07",
+   "n": 945
+  },
+  "ALGO": {
+   "exchange": "htx",
+   "symbol": "ALGO/USDT",
+   "first": "2019-06-20",
+   "last": "2026-09-06",
+   "n": 2636
+  },
+  "ANIME": {
+   "exchange": "kraken",
+   "symbol": "ANIME/USD",
+   "first": "2025-10-20",
+   "last": "2026-09-07",
+   "n": 323
+  },
+  "APR": {
+   "exchange": "kraken",
+   "symbol": "APR/USD",
+   "first": "2025-10-23",
+   "last": "2026-09-07",
+   "n": 320
+  },
+  "ARX": {
+   "exchange": "kraken",
+   "symbol": "ARX/USD",
+   "first": "2026-06-22",
+   "last": "2026-09-07",
+   "n": 78
+  },
+  "AXTI": null,
+  "BMNR": null,
+  "BREV": {
+   "exchange": "kraken",
+   "symbol": "BREV/USD",
+   "first": "2026-01-06",
+   "last": "2026-09-07",
+   "n": 245
+  },
+  "BZ": null,
+  "CFX": {
+   "exchange": "mexc",
+   "symbol": "CFX/USDT",
+   "first": "2020-11-08",
+   "last": "2026-09-07",
+   "n": 2130
+  },
+  "COAI": null,
+  "CP": null,
+  "CRWD": null,
+  "CXMT": null,
+  "DKNG": null,
+  "ENJ": {
+   "exchange": "cryptocom",
+   "symbol": "ENJ/USDT",
+   "first": "2020-09-22",
+   "last": "2026-09-07",
+   "n": 2177
+  },
+  "F": {
+   "exchange": "gate",
+   "symbol": "F/USDT",
+   "first": "2024-12-06",
+   "last": "2026-09-07",
+   "n": 641
+  },
+  "FLOW": {
+   "exchange": "htx",
+   "symbol": "FLOW/USDT",
+   "first": "2021-02-01",
+   "last": "2026-09-06",
+   "n": 2044
+  },
+  "GEV": null,
+  "GMX": {
+   "exchange": "mexc",
+   "symbol": "GMX/USDT",
+   "first": "2022-05-06",
+   "last": "2026-09-07",
+   "n": 1586
+  },
+  "GRT": {
+   "exchange": "htx",
+   "symbol": "GRT/USDT",
+   "first": "2020-12-17",
+   "last": "2026-09-06",
+   "n": 2090
+  },
+  "HOME": null,
+  "IBM": null,
+  "IREN": null,
+  "KITE": null,
+  "LINEA": {
+   "exchange": "kraken",
+   "symbol": "LINEA/USD",
+   "first": "2025-09-11",
+   "last": "2026-09-07",
+   "n": 362
+  },
+  "LQTY": {
+   "exchange": "mexc",
+   "symbol": "LQTY/USDT",
+   "first": "2021-04-09",
+   "last": "2026-09-07",
+   "n": 1978
+  },
+  "MAGIC": {
+   "exchange": "mexc",
+   "symbol": "MAGIC/USDT",
+   "first": "2021-12-28",
+   "last": "2026-09-07",
+   "n": 1715
+  },
+  "MEME": {
+   "exchange": "htx",
+   "symbol": "MEME/USDT",
+   "first": "2023-11-02",
+   "last": "2026-09-06",
+   "n": 1040
+  },
+  "MSTR": null,
+  "NG": null,
+  "NVDA": null,
+  "OL": {
+   "exchange": "gate",
+   "symbol": "OL/USDT",
+   "first": "2024-11-19",
+   "last": "2026-09-07",
+   "n": 658
+  },
+  "PENGU": {
+   "exchange": "gate",
+   "symbol": "PENGU/USDT",
+   "first": "2024-12-17",
+   "last": "2026-09-07",
+   "n": 630
+  },
+  "PLTR": null,
+  "POPCAT": {
+   "exchange": "gate",
+   "symbol": "POPCAT/USDT",
+   "first": "2024-03-15",
+   "last": "2026-09-07",
+   "n": 907
+  },
+  "PYPL": null,
+  "RAM": null,
+  "RECALL": null,
+  "RKLB": null,
+  "S": {
+   "exchange": "gate",
+   "symbol": "S/USDT",
+   "first": "2019-08-08",
+   "last": "2026-09-07",
+   "n": 2588
+  },
+  "SEI": {
+   "exchange": "htx",
+   "symbol": "SEI/USDT",
+   "first": "2023-08-14",
+   "last": "2026-09-06",
+   "n": 1120
+  },
+  "SHLD": null,
+  "SKHYNIX": null,
+  "SNDK": null,
+  "SONY": null,
+  "SPCH": null,
+  "TMF": null,
+  "TRUTH": null,
+  "TTMI": null,
+  "UNH": null,
+  "USELESS": {
+   "exchange": "kraken",
+   "symbol": "USELESS/USD",
+   "first": "2025-08-13",
+   "last": "2026-09-07",
+   "n": 391
+  },
+  "VVV": {
+   "exchange": "kraken",
+   "symbol": "VVV/USD",
+   "first": "2025-02-27",
+   "last": "2026-09-07",
+   "n": 558
+  },
+  "WET": null,
+  "XAG": null,
+  "XLM": {
+   "exchange": "gate",
+   "symbol": "XLM/USDT",
+   "first": "2018-02-13",
+   "last": "2026-09-07",
+   "n": 3129
+  },
+  "YB": {
+   "exchange": "kraken",
+   "symbol": "YB/USD",
+   "first": "2025-10-15",
+   "last": "2026-09-07",
+   "n": 328
+  },
+  "ZEN": {
+   "exchange": "mexc",
+   "symbol": "ZEN/USDT",
+   "first": "2020-11-23",
+   "last": "2026-09-07",
+   "n": 2115
+  },
+  "ZM": null,
+  "A": {
+   "exchange": "gate",
+   "symbol": "A/USDT",
+   "first": "2017-10-22",
+   "last": "2026-09-07",
+   "n": 3243
+  },
+  "ACU": {
+   "exchange": "kraken",
+   "symbol": "ACU/USD",
+   "first": "2026-01-20",
+   "last": "2026-09-07",
+   "n": 231
+  },
+  "AEVO": {
+   "exchange": "htx",
+   "symbol": "AEVO/USDT",
+   "first": "2024-03-12",
+   "last": "2026-09-06",
+   "n": 909
+  },
+  "ALLO": {
+   "exchange": "kraken",
+   "symbol": "ALLO/USD",
+   "first": "2025-11-11",
+   "last": "2026-09-07",
+   "n": 301
+  },
+  "ANTHROPIC": null,
+  "ASML": null,
+  "AZTEC": {
+   "exchange": "kraken",
+   "symbol": "AZTEC/USD",
+   "first": "2026-02-12",
+   "last": "2026-09-07",
+   "n": 208
+  },
+  "BB": {
+   "exchange": "htx",
+   "symbol": "BB/USDT",
+   "first": "2024-05-12",
+   "last": "2026-09-06",
+   "n": 848
+  },
+  "BIGTIME": {
+   "exchange": "mexc",
+   "symbol": "BIGTIME/USDT",
+   "first": "2023-10-11",
+   "last": "2026-09-07",
+   "n": 1063
+  },
+  "BNB": {
+   "exchange": "gate",
+   "symbol": "BNB/USDT",
+   "first": "2018-06-16",
+   "last": "2026-09-07",
+   "n": 3006
+  },
+  "BRKB": null,
+  "CAP": {
+   "exchange": "kraken",
+   "symbol": "CAP/USD",
+   "first": "2026-06-26",
+   "last": "2026-09-07",
+   "n": 74
+  },
+  "CGNX": null,
+  "COHR": null,
+  "CRCL": null,
+  "CRWV": null,
+  "DASH": {
+   "exchange": "gate",
+   "symbol": "DASH/USDT",
+   "first": "2017-10-12",
+   "last": "2026-09-07",
+   "n": 3253
+  },
+  "DOGE": {
+   "exchange": "gate",
+   "symbol": "DOGE/USDT",
+   "first": "2017-10-23",
+   "last": "2026-09-07",
+   "n": 3242
+  },
+  "EDEN": null,
+  "ETHW": {
+   "exchange": "mexc",
+   "symbol": "ETHW/USDT",
+   "first": "2022-08-08",
+   "last": "2026-09-07",
+   "n": 1492
+  },
+  "FLY": null,
+  "GIGGLE": null,
+  "GOOGL": null,
+  "GRVT": null,
+  "HOOD": null,
+  "INTC": null,
+  "IRYS": null,
+  "JUP": {
+   "exchange": "coinbaseexchange",
+   "symbol": "JUP/USD",
+   "first": "2022-06-23",
+   "last": "2023-09-06",
+   "n": 441
+  },
+  "KLAC": null,
+  "LA": null,
+  "LRCX": null,
+  "MINIMAX": null,
+  "MOVE": {
+   "exchange": "gate",
+   "symbol": "MOVE/USDT",
+   "first": "2024-12-09",
+   "last": "2026-09-07",
+   "n": 638
+  },
+  "MU": null,
+  "NEIRO": {
+   "exchange": "gate",
+   "symbol": "NEIRO/USDT",
+   "first": "2024-07-28",
+   "last": "2026-09-07",
+   "n": 772
+  },
+  "NIGHT": {
+   "exchange": "kraken",
+   "symbol": "NIGHT/USD",
+   "first": "2025-12-09",
+   "last": "2026-09-07",
+   "n": 273
+  },
+  "NVDL": null,
+  "ON": null,
+  "OPENAI": null,
+  "OSCR": null,
+  "PEOPLE": {
+   "exchange": "mexc",
+   "symbol": "PEOPLE/USDT",
+   "first": "2021-11-26",
+   "last": "2026-09-07",
+   "n": 1747
+  },
+  "PLUME": {
+   "exchange": "kraken",
+   "symbol": "PLUME/USD",
+   "first": "2025-04-23",
+   "last": "2026-09-07",
+   "n": 503
+  },
+  "POPMART": null,
+  "PYTH": {
+   "exchange": "htx",
+   "symbol": "PYTH/USDT",
+   "first": "2023-11-19",
+   "last": "2026-09-06",
+   "n": 1023
+  },
+  "RAVE": null,
+  "RLS": {
+   "exchange": "kraken",
+   "symbol": "RLS/USD",
+   "first": "2025-12-01",
+   "last": "2026-09-07",
+   "n": 281
+  },
+  "SAHARA": {
+   "exchange": "kraken",
+   "symbol": "SAHARA/USD",
+   "first": "2025-06-26",
+   "last": "2026-09-07",
+   "n": 439
+  },
+  "SENT": {
+   "exchange": "kraken",
+   "symbol": "SENT/USD",
+   "first": "2026-01-22",
+   "last": "2026-09-07",
+   "n": 229
+  },
+  "SHOP": null,
+  "SKUU": null,
+  "SNOW": null,
+  "SOON": {
+   "exchange": "kraken",
+   "symbol": "SOON/USD",
+   "first": "2025-09-26",
+   "last": "2026-09-07",
+   "n": 347
+  },
+  "SPCX": null,
+  "STABLE": {
+   "exchange": "kraken",
+   "symbol": "STABLE/USD",
+   "first": "2025-12-08",
+   "last": "2026-09-07",
+   "n": 274
+  },
+  "SYRUP": {
+   "exchange": "kraken",
+   "symbol": "SYRUP/USD",
+   "first": "2024-11-13",
+   "last": "2026-09-07",
+   "n": 664
+  },
+  "TQQQ": null,
+  "TTWO": null,
+  "USO": null,
+  "XAU": null,
+  "XPD": null,
+  "YFI": {
+   "exchange": "mexc",
+   "symbol": "YFI/USDT",
+   "first": "2020-07-25",
+   "last": "2026-09-07",
+   "n": 2236
+  },
+  "ZETA": {
+   "exchange": "gate",
+   "symbol": "ZETA/USDT",
+   "first": "2024-02-01",
+   "last": "2026-09-07",
+   "n": 950
+  },
+  "ZORA": {
+   "exchange": "kraken",
+   "symbol": "ZORA/USD",
+   "first": "2025-04-23",
+   "last": "2026-09-07",
+   "n": 503
+  },
+  "AAOI": null,
+  "AMAT": null,
+  "ASTER": {
+   "exchange": "kraken",
+   "symbol": "ASTER/USD",
+   "first": "2025-10-20",
+   "last": "2026-09-07",
+   "n": 323
+  },
+  "BABY": {
+   "exchange": "kraken",
+   "symbol": "BABY/USD",
+   "first": "2025-04-17",
+   "last": "2026-09-07",
+   "n": 509
+  },
+  "BILL": {
+   "exchange": "kraken",
+   "symbol": "BILL/USD",
+   "first": "2026-05-04",
+   "last": "2026-09-07",
+   "n": 127
+  },
+  "BOME": {
+   "exchange": "htx",
+   "symbol": "BOME/USDT",
+   "first": "2024-03-14",
+   "last": "2026-09-06",
+   "n": 907
+  },
+  "BSB": null,
+  "CASHCAT": null,
+  "CHIP": {
+   "exchange": "kraken",
+   "symbol": "CHIP/USD",
+   "first": "2026-04-22",
+   "last": "2026-09-07",
+   "n": 139
+  },
+  "COIN": null,
+  "CRDO": null,
+  "CSCO": null,
+  "DATA": null,
+  "DOOD": null,
+  "EDGE": {
+   "exchange": "kraken",
+   "symbol": "EDGE/USD",
+   "first": "2025-04-02",
+   "last": "2026-09-07",
+   "n": 524
+  },
+  "ENSO": {
+   "exchange": "kraken",
+   "symbol": "ENSO/USD",
+   "first": "2025-10-14",
+   "last": "2026-09-07",
+   "n": 329
+  },
+  "EWJ": null,
+  "FET": {
+   "exchange": "mexc",
+   "symbol": "FET/USDT",
+   "first": "2019-02-27",
+   "last": "2026-09-07",
+   "n": 2750
+  },
+  "FOGO": null,
+  "GLM": {
+   "exchange": "htx",
+   "symbol": "GLM/USDT",
+   "first": "2018-01-07",
+   "last": "2026-09-06",
+   "n": 3165
+  },
+  "GPRO": null,
+  "H": null,
+  "HPE": null,
+  "ICX": {
+   "exchange": "gate",
+   "symbol": "ICX/USDT",
+   "first": "2017-12-28",
+   "last": "2026-09-07",
+   "n": 3176
+  },
+  "INTW": null,
+  "ISRG": null,
+  "KAITO": {
+   "exchange": "kraken",
+   "symbol": "KAITO/USD",
+   "first": "2025-02-20",
+   "last": "2026-09-07",
+   "n": 565
+  },
+  "KMNO": {
+   "exchange": "gate",
+   "symbol": "KMNO/USDT",
+   "first": "2024-04-30",
+   "last": "2026-09-07",
+   "n": 861
+  },
+  "LAB": null,
+  "LIT": {
+   "exchange": "coinbaseexchange",
+   "symbol": "LIT/USD",
+   "first": "2022-12-06",
+   "last": "2025-05-16",
+   "n": 893
+  },
+  "MARA": null,
+  "MET": {
+   "exchange": "kraken",
+   "symbol": "MET/USD",
+   "first": "2025-11-03",
+   "last": "2026-09-07",
+   "n": 309
+  },
+  "MMT": null,
+  "MRK": null,
+  "MUBARAK": {
+   "exchange": "kraken",
+   "symbol": "MUBARAK/USD",
+   "first": "2025-04-30",
+   "last": "2026-09-07",
+   "n": 496
+  },
+  "NEO": {
+   "exchange": "gate",
+   "symbol": "NEO/USDT",
+   "first": "2017-11-14",
+   "last": "2026-09-07",
+   "n": 3220
+  },
+  "NMR": {
+   "exchange": "mexc",
+   "symbol": "NMR/USDT",
+   "first": "2020-08-17",
+   "last": "2026-09-07",
+   "n": 2213
+  },
+  "O": null,
+  "OPG": null,
+  "OUST": null,
+  "PEPE": {
+   "exchange": "htx",
+   "symbol": "PEPE/USDT",
+   "first": "2023-04-18",
+   "last": "2026-09-06",
+   "n": 1238
+  },
+  "PNUT": {
+   "exchange": "mexc",
+   "symbol": "PNUT/USDT",
+   "first": "2024-11-03",
+   "last": "2026-09-07",
+   "n": 674
+  },
+  "PROS": {
+   "exchange": "kraken",
+   "symbol": "PROS/USD",
+   "first": "2026-04-28",
+   "last": "2026-09-07",
+   "n": 133
+  },
+  "QCOM": null,
+  "RESOLV": null,
+  "ROBO": {
+   "exchange": "kraken",
+   "symbol": "ROBO/USD",
+   "first": "2026-03-03",
+   "last": "2026-09-07",
+   "n": 189
+  },
+  "SAMSUNG": null,
+  "SHAZ": null,
+  "SIGN": {
+   "exchange": "kraken",
+   "symbol": "SIGN/USD",
+   "first": "2026-04-17",
+   "last": "2026-09-07",
+   "n": 144
+  },
+  "SKY": {
+   "exchange": "kucoin",
+   "symbol": "SKY/USDT",
+   "first": "2024-10-02",
+   "last": "2026-09-07",
+   "n": 706
+  },
+  "SNX": {
+   "exchange": "kucoin",
+   "symbol": "SNX/USDT",
+   "first": "2018-05-22",
+   "last": "2026-09-07",
+   "n": 2943
+  },
+  "SOPH": null,
+  "SPK": {
+   "exchange": "kraken",
+   "symbol": "SPK/USD",
+   "first": "2025-06-20",
+   "last": "2026-09-07",
+   "n": 445
+  },
+  "STRC": null,
+  "TSEM": null,
+  "TURBO": {
+   "exchange": "htx",
+   "symbol": "TURBO/USDT",
+   "first": "2023-05-04",
+   "last": "2026-09-06",
+   "n": 1222
+  },
+  "UNITREE": null,
+  "UVXY": null,
+  "WAL": {
+   "exchange": "kraken",
+   "symbol": "WAL/USD",
+   "first": "2025-03-27",
+   "last": "2026-09-07",
+   "n": 530
+  },
+  "WLD": {
+   "exchange": "htx",
+   "symbol": "WLD/USDT",
+   "first": "2023-07-23",
+   "last": "2026-09-06",
+   "n": 1142
+  },
+  "XBI": null,
+  "XPL": {
+   "exchange": "kraken",
+   "symbol": "XPL/USD",
+   "first": "2025-09-25",
+   "last": "2026-09-07",
+   "n": 348
+  },
+  "YGG": {
+   "exchange": "gate",
+   "symbol": "YGG/USDT",
+   "first": "2021-07-28",
+   "last": "2026-09-07",
+   "n": 1868
+  },
+  "ZHIPU": null,
+  "AAPL": null,
+  "ADBE": null,
+  "AI": {
+   "exchange": "htx",
+   "symbol": "AI/USDT",
+   "first": "2024-01-03",
+   "last": "2026-09-06",
+   "n": 978
+  },
+  "AMC": {
+   "exchange": "gate",
+   "symbol": "AMC/USDT",
+   "first": "2023-07-07",
+   "last": "2026-09-07",
+   "n": 1159
+  },
+  "API3": {
+   "exchange": "mexc",
+   "symbol": "API3/USDT",
+   "first": "2020-12-01",
+   "last": "2026-09-07",
+   "n": 2107
+  },
+  "ASTS": null,
+  "AVGO": null,
+  "BAND": {
+   "exchange": "htx",
+   "symbol": "BAND/USDT",
+   "first": "2020-08-09",
+   "last": "2026-09-06",
+   "n": 2220
+  },
+  "BE": null,
+  "BSP": null,
+  "CBRS": null,
+  "CRM": null,
+  "CSOPSAMSUNG2L": null,
+  "DDOG": null,
+  "DOS": {
+   "exchange": "kraken",
+   "symbol": "DOS/USD",
+   "first": "2026-08-10",
+   "last": "2026-09-07",
+   "n": 29
+  },
+  "ESP": {
+   "exchange": "kraken",
+   "symbol": "ESP/USD",
+   "first": "2026-02-12",
+   "last": "2026-09-07",
+   "n": 208
+  },
+  "EWT": {
+   "exchange": "kucoin",
+   "symbol": "EWT/USDT",
+   "first": "2020-08-26",
+   "last": "2026-09-07",
+   "n": 2204
+  },
+  "FWDI": null,
+  "GLW": null,
+  "GPS": null,
+  "HUMA": null,
+  "IONQ": null,
+  "IWM": null,
+  "KAT": {
+   "exchange": "kraken",
+   "symbol": "KAT/USD",
+   "first": "2026-03-18",
+   "last": "2026-09-07",
+   "n": 174
+  },
+  "KO": null,
+  "LAYER": {
+   "exchange": "kraken",
+   "symbol": "LAYER/USD",
+   "first": "2025-03-04",
+   "last": "2026-09-07",
+   "n": 553
+  },
+  "LITE": null,
+  "LUNA": {
+   "exchange": "gate",
+   "symbol": "LUNA/USDT",
+   "first": "2020-12-19",
+   "last": "2026-09-07",
+   "n": 2089
+  },
+  "META": null,
+  "MON": {
+   "exchange": "kraken",
+   "symbol": "MON/USD",
+   "first": "2025-11-24",
+   "last": "2026-09-07",
+   "n": 288
+  },
+  "MRNA": null,
+  "MUU": null,
+  "NES": {
+   "exchange": "kraken",
+   "symbol": "NES/USD",
+   "first": "2026-06-24",
+   "last": "2026-09-07",
+   "n": 76
+  },
+  "NOK": null,
+  "OFC": null,
+  "ONDS": null,
+  "OPN": {
+   "exchange": "kraken",
+   "symbol": "OPN/USD",
+   "first": "2026-03-05",
+   "last": "2026-09-07",
+   "n": 187
+  },
+  "PARTI": {
+   "exchange": "kraken",
+   "symbol": "PARTI/USD",
+   "first": "2025-07-08",
+   "last": "2026-09-07",
+   "n": 427
+  },
+  "PI": {
+   "exchange": "kraken",
+   "symbol": "PI/USD",
+   "first": "2026-03-13",
+   "last": "2026-09-07",
+   "n": 179
+  },
+  "POET": null,
+  "PROVE": {
+   "exchange": "kraken",
+   "symbol": "PROVE/USD",
+   "first": "2025-08-29",
+   "last": "2026-09-07",
+   "n": 375
+  },
+  "QNT": {
+   "exchange": "gate",
+   "symbol": "QNT/USDT",
+   "first": "2021-02-03",
+   "last": "2026-09-07",
+   "n": 2043
+  },
+  "RDDT": null,
+  "RIOT": null,
+  "ROK": null,
+  "SHEIN": null,
+  "SIMO": null,
+  "SLX": {
+   "exchange": "kraken",
+   "symbol": "SLX/USD",
+   "first": "2026-05-25",
+   "last": "2026-09-07",
+   "n": 106
+  },
+  "SNXX": null,
+  "SOXL": null,
+  "SPX": {
+   "exchange": "mexc",
+   "symbol": "SPX/USDT",
+   "first": "2024-10-10",
+   "last": "2026-09-07",
+   "n": 698
+  },
+  "TER": null,
+  "TRIA": {
+   "exchange": "kraken",
+   "symbol": "TRIA/USD",
+   "first": "2026-02-03",
+   "last": "2026-09-07",
+   "n": 217
+  },
+  "TSLA": null,
+  "TWLO": null,
+  "UP": {
+   "exchange": "kraken",
+   "symbol": "UP/USD",
+   "first": "2026-02-10",
+   "last": "2026-09-07",
+   "n": 210
+  },
+  "VANA": {
+   "exchange": "gate",
+   "symbol": "VANA/USDT",
+   "first": "2024-12-16",
+   "last": "2026-09-07",
+   "n": 631
+  },
+  "WCT": {
+   "exchange": "kraken",
+   "symbol": "WCT/USD",
+   "first": "2025-04-15",
+   "last": "2026-09-07",
+   "n": 511
+  },
+  "WLFI": {
+   "exchange": "kraken",
+   "symbol": "WLFI/USD",
+   "first": "2025-09-01",
+   "last": "2026-09-07",
+   "n": 372
+  },
+  "XCU": null,
+  "XPT": null,
+  "ZAMA": {
+   "exchange": "kraken",
+   "symbol": "ZAMA/USD",
+   "first": "2026-02-02",
+   "last": "2026-09-07",
+   "n": 218
+  },
+  "ZRX": {
+   "exchange": "gate",
+   "symbol": "ZRX/USDT",
+   "first": "2017-10-23",
+   "last": "2026-09-07",
+   "n": 3242
   }
- }
+ },
+ "merged_from": [
+  "data-long-shard-0",
+  "data-long-shard-1",
+  "data-long-shard-2",
+  "data-long-shard-3",
+  "data-long-shard-4",
+  "data-long-shard-5"
+ ]
 }
