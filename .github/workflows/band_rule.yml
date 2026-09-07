@@ -1,0 +1,44 @@
+name: Research — fixed-band rule execution frictions (pre-registered)
+
+# 사용자 제안 규칙(손절 → 진입가 복귀 시 재매수)의 체결 마찰 3종: 지연 비용 / 장중 재교차 / 바스켓.
+# 사전 등록 registry band_rule_prereg_2026_09_07. DEPLOY_ON_PASS=False — 매매·DB 무관. 1h 데이터를 새로 받는다.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_band_rule.py"
+      - "test_band_rule.py"
+      - ".github/workflows/band_rule.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: python test_band_rule.py
+      - name: Validate (band rule frictions — fetches 1h)
+        run: python validate_band_rule.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: band-rule-${{ github.run_number }}
+          path: _band_rule.json
+          if-no-files-found: ignore
