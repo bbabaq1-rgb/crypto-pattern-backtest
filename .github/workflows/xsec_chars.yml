@@ -1,0 +1,42 @@
+name: Research — cross-sectional characteristics (pre-registered, diagnostic)
+
+# 횡단면 특성 연구: 월말 PIT liquid 유니버스에서 상태 변수 24종(모멘텀·MA 위치·일목·RSI 다이버전스·거래량·변동성·가격위치·베타)의
+# fwd20 순위 IC — train(<2025-01) Holm 적격 → OOS 재현. 사전 등록 registry xsec_chars_prereg_2026_09_07. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_xsec_chars.py"
+      - "xsec_features.py"
+      - "test_xsec_chars.py"
+      - ".github/workflows/xsec_chars.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_pit_cohort.py
+          python test_xsec_chars.py
+      - name: Validate (cross-sectional characteristics, 1d + data_long)
+        run: python validate_xsec_chars.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xsec-chars-${{ github.run_number }}
+          path: _xsec_chars.json
+          if-no-files-found: ignore
