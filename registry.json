@@ -3096,7 +3096,7 @@
   }
  },
  "regime_altside_prereg_2026_09_07": {
-  "status": "PREREGISTERED (2026-09-07, 사용자 지시 '사전등록하고 돌려줘') — 실행 전 고정. regime_alt.py 후보 추가 + regime_quality/method_q 재실행",
+  "status": "EXECUTED 2026-09-07 (run 34082489857) — alt_side REJECTED (1단계 ✗b, 2단계 3 arm 전부). 실거래 무변경",
   "question": "사용자 지적(2026-09-07): 'BTC 가격이 상승일 때뿐 아니라 횡보일 때도 도미넌스가 하락하면 알트불장으로 봐야 하지 않나'. 현행 라벨러는 BTC 200일선 20일 기울기가 첫 관문이고 도미넌스는 up 구간에서만 표결에 쓴다. 기울기 띠(±0.1%)가 좁아 sideways 라벨 일수가 5년간 0 이라, '횡보+도미넌스 하락' 국면은 직전 추세 부호에 따라 bull_altseason 또는 bear 로 갈린다",
   "frozen_params": {
    "SIDE_THR": "0.01 (±1%) — 넓힌 횡보 띠. 현행 SLOPE_THR 0.001. **값 하나만 시험, 스윕 없음**",
@@ -3118,6 +3118,39 @@
    "라우팅 영향: 라벨이 bull_altseason 으로 바뀌는 날이면 engulfing 롱→숏 / fvg 방향이 어떻게 달라지는지 일수"
   ],
   "live_change": "없음. 결과와 무관하게 실거래 라벨러·라우팅·청산 무변경(관찰 기간 ~2026-10-06). 라벨러 교체는 라우팅 표·방식D 레짐 청산·레짐별 검증 셀 세 곳을 동시에 흔들므로 채택은 사용자 결정이고, 채택 시 세 곳 재검증이 선결",
-  "not_changed_by_results": "띠 폭(0.01)·후보 규칙·지지 규칙·판정 기준. 결과를 본 뒤 바꾸지 않는다"
+  "not_changed_by_results": "띠 폭(0.01)·후보 규칙·지지 규칙·판정 기준. 결과를 본 뒤 바꾸지 않는다",
+  "result_2026_09_07": {
+   "run": 34082489857,
+   "days": 1559,
+   "stage1_candidates": [],
+   "stage1_alt_side": {
+    "separation": "+1.38% (current +0.59%) — (a) 통과, 후보 중 fast_slope +1.79% 다음",
+    "hit_rate": "50% (current 49%)",
+    "lag_mean": "50.2 (current 50.2) — (c) 통과",
+    "lag_median": "88.0 (current 72.5) — 악화",
+    "flips_per_year": "10.6 (current 11.1) — (d) 통과",
+    "composition_pct": "bull_btc 55 / altseason 12 / bear 33 / sideways 1 (current 53/11/36/0)",
+    "by_year": "2022 +1.5 / 2023 −31.7 / 2024 +3.8 / 2025 −10.5 / 2026 +2.8 → 양수 3/5 = 60% < 75% → **(b) 탈락**",
+    "verdict": "✗b — 연도 일관성. 참고: current 자신은 2/5(40%)로 더 나쁘지만 기준은 절대값 75%"
+   },
+   "stage1_all": "9 라벨러 중 (a)(b)(c)(d) 전부 통과 = 0. 전 후보 ✗b (연도 일관성). 2026-09-04 실행과 같은 결론",
+   "stage2_alt_side": {
+    "D_alt_side": "train −0.222%p t −1.34 boot_p 1.000, CAGR우위 3/7, 분기 62건 승률 43%, holdout −0.164%p → REJECT",
+    "RL_alt_side": "train +0.542%p t 1.09 boot_p .088, CAGR우위 3/7, 분기 203건 승률 42%, holdout +0.182%p → REJECT",
+    "F_alt_side": "train −0.555%p t −1.31, holdout +1.198%p (train 음수라 탈락) → REJECT",
+    "note": "26 arm 중 PASS 는 RL_vote4 하나뿐이고 그마저 1단계 미통과 → adopt 0"
+   },
+   "diagnostics": {
+    "핵심 — 사용자 정의가 겨냥한 칸": "bear→bull_altseason **12일** (1,579일 중 0.8%). 그 날들의 유니버스 롱 20일 선행수익 **+6.41%**, 알트바스켓−BTC **+1.23%**. 현행 bear 라벨 전체 평균은 +0.25% / −0.92%. **방향은 사용자 지적대로 맞다 — 그러나 12일은 어떤 판정 지표도 움직이지 못한다**",
+    "규칙 효과 vs 띠 효과": "wide_side(띠만) 와 alt_side 의 차이는 17일뿐 — bear→bull_altseason 12 + bull_btc→bull_altseason 5. 나머지 변경(bear→bull_btc 47일, bull_btc→sideways 5일 등)은 양쪽 공통 = **띠 효과**",
+    "bull_btc→bull_altseason 5일": "uni_fwd +14.96% 이나 alt_rel −3.11% — 알트가 아니라 BTC 가 끈 구간. 이 5일은 사용자 정의가 틀리게 집은 쪽",
+    "긴 지평에서는 넓은 띠가 확실히 낫다": "sep40d current −2.55% → alt_side +3.38% / sep60d −1.74% → +5.62% / sep90d +3.73% → +8.41%. wide_side 도 거의 같음(+3.42/+5.47/+8.41) → **도미넌스 규칙이 아니라 띠 효과**. 판정 지평은 20일 고정(사전 등록)이라 이 관찰은 진단",
+    "라벨별 선행 20일": "alt_side bear −0.31%(현행 bear +0.25%) / altseason −1.15%(현행 −1.92%) / bull_btc +1.55%(현행 +1.42%) — 세 라벨 전부 방향이 더 선명. 분리폭 개선의 출처",
+    "sideways": "alt_side 8일(0.5%)·wide_side 8일 — 실행 전 기록한 대로 띠를 넓혀도 거의 발화하지 않는다. 히스테리시스가 sideways 후보에 2표를 요구하고 eb/dom 이 'side' 인 날이 드물기 때문"
+   },
+   "interpretation": "사용자 지적은 **국소적으로 옳다** — 현행이 bear 로 부르는 날 중 도미넌스가 알트 쪽인 12일은 실제로 알트가 BTC 를 이겼고 유니버스 롱이 +6.4% 였다. 그러나 (1) 12일은 표본의 0.8% 라 라벨 품질 지표를 못 움직이고, (2) 연도 일관성(2023 −31.7%)이 현행보다 더 나쁜 해가 있어 (b) 를 못 넘으며, (3) 거래로 옮기면 세 arm 전부 개선이 없다. 분리폭이 오른 진짜 원인은 도미넌스 규칙이 아니라 **횡보 띠 확대**(wide_side 가 거의 같은 수치)",
+   "live_change": "없음 (관찰 기간 ~2026-10-06). 채택 후보 0",
+   "followup_not_registered": "긴 지평(40~90일)에서 넓은 띠가 일관되게 나은 것은 이번 사전 등록 밖의 관찰이다. 추격하려면 '판정 지평을 왜 20일에서 바꾸는가'를 먼저 정하고 별도 사전 등록해야 한다 — 사후에 지평을 골라 통과시키지 않는다"
+  }
  }
 }
