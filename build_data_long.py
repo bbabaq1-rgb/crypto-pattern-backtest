@@ -19,6 +19,11 @@ GitHub Actions 러너(미국 IP — binance/bybit 는 빈 응답, okx/coinbase/k
 
 출력: data_long/{sym}_1d.csv.gz (fetch_data.save_csv 와 같은 컬럼) + data_long/manifest.json
 실행: python build_data_long.py [--symbols BTC,ETH] [--since 2017-01-01]
+      [--okx-all] [--shard i/n] [--skip-existing] [--out DIR]
+  --okx-all       OKX USDT 무기한 전 종목(스테이블 제외) ∪ 유니버스 — 에피소드 프로필 연구용(2026-09-07)
+  --shard i/n     종목을 n 개로 나눠 i 번째만(0 기준). Actions 매트릭스 병렬 수집용
+  --skip-existing data_long/ 에 이미 있는 종목은 건너뜀
+  --out DIR       산출 폴더(기본 data_long). 샤드는 별도 폴더에 쓰고 collect 단계에서 합친다
 """
 import csv
 import gzip
@@ -57,6 +62,24 @@ def _iso(ts):
 
 def _ms(day):
     return int(datetime.fromisoformat(day).replace(tzinfo=timezone.utc).timestamp() * 1000)
+
+
+STABLE = {"USDT", "USDC", "DAI", "BUSD", "TUSD", "FDUSD", "PYUSD", "USDE", "USD1", "USDD", "USDP", "GUSD", "FRAX"}
+
+
+def okx_all_symbols():
+    """OKX USDT 무기한(활성) 기초자산 전부 — 스테이블 제외. 유니버스·레짐 종목과 합집합."""
+    ex = ccxt.okx({"enableRateLimit": True})
+    mk = ex.load_markets()
+    bases = {m["base"] for m in mk.values() if m.get("swap") and m.get("quote") == "USDT"
+             and m.get("active") and m.get("settle") == "USDT"}
+    bases = {b for b in bases if b and b.upper() not in STABLE}
+    return sorted(bases | set(universe_symbols()))
+
+
+def shard(syms, spec):
+    i, n = (int(x) for x in spec.split("/"))
+    return [s for k, s in enumerate(sorted(syms)) if k % n == i]
 
 
 def universe_symbols():
@@ -162,8 +185,18 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     since = argv[argv.index("--since") + 1] if "--since" in argv else SINCE
     since_ms = int(datetime.fromisoformat(since).replace(tzinfo=timezone.utc).timestamp() * 1000)
-    syms = argv[argv.index("--symbols") + 1].split(",") if "--symbols" in argv else universe_symbols()
-    print(f"장기 1d 수집 | 종목 {len(syms)} | since {since} | 거래소 후보 {EXCHANGES}", flush=True)
+    out_dir = argv[argv.index("--out") + 1] if "--out" in argv else OUT_DIR
+    if "--symbols" in argv:
+        syms = argv[argv.index("--symbols") + 1].split(",")
+    elif "--okx-all" in argv:
+        syms = okx_all_symbols()
+    else:
+        syms = universe_symbols()
+    if "--shard" in argv:
+        syms = shard(syms, argv[argv.index("--shard") + 1])
+    if "--skip-existing" in argv:
+        syms = [s for s in syms if not os.path.exists(f"{OUT_DIR}/{s.lower()}_1d.csv.gz")]
+    print(f"장기 1d 수집 | 종목 {len(syms)} | since {since} | out {out_dir} | 거래소 후보 {EXCHANGES}", flush=True)
 
     reachable = []
     for exid in EXCHANGES:
@@ -206,10 +239,11 @@ def main(argv=None):
             print(f"  [{i:>2}/{len(syms)}] {s:<9} 소스 없음", flush=True)
             manifest["symbols"][s] = None
             continue
-        save_gz(best["rows"], f"{OUT_DIR}/{s.lower()}_1d.csv.gz")
+        save_gz(best["rows"], f"{out_dir}/{s.lower()}_1d.csv.gz")
         manifest["symbols"][s] = {k: best[k] for k in ("exchange", "symbol", "first", "last", "n")}
         print(f"  [{i:>2}/{len(syms)}] {s:<9} {best['exchange']:<9} {best['first']} ~ {best['last']}  {best['n']}봉", flush=True)
-    json.dump(manifest, open(f"{OUT_DIR}/manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    os.makedirs(out_dir, exist_ok=True)
+    json.dump(manifest, open(f"{out_dir}/manifest.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     ok = sum(1 for v in manifest["symbols"].values() if v)
     pre2019 = sum(1 for v in manifest["symbols"].values() if v and v["first"] < "2019-01-01")
     pre2021 = sum(1 for v in manifest["symbols"].values() if v and v["first"] < "2021-01-01")

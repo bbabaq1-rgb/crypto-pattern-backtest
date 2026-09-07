@@ -3,30 +3,51 @@ name: Build long 1d history (data_long)
 # 연구 데이터 확보 전용 — 매매/DB 무관. 러너에서 2017~ 일봉을 거래소별로 받아
 # data_long/ 에 gzip CSV 로 저장하고 브랜치 `data-long` 에 커밋한다.
 # 스케줄러·실거래는 이 폴더를 읽지 않는다.
+#
+# 2026-09-07: scope=okx_all 은 OKX USDT 무기한 전 종목(약 450)을 N 샤드로 병렬 수집(종목당 약 30초라
+# 단일 잡은 시간 초과). 각 샤드는 data_long_new/ 에 쓰고 collect 잡이 합쳐 data-long 브랜치에 커밋한다.
+# 기존 data_long/ 81 종목은 --skip-existing 으로 건너뛴다(재수집하려면 scope=universe).
+# dispatch 전용 — push 트리거는 뺐다(워크플로 파일 수정마다 45분짜리 수집이 도는 것을 막기 위해).
 
 on:
-  # dispatch 전용 워크플로는 기본 브랜치에 없으면 GitHub 가 등록하지 않아 404 가 난다 —
-  # 다른 연구 워크플로처럼 자기 파일 push 에도 반응하게 둔다(처음 한 번 돌리기 위해).
-  push:
-    branches:
-      - "claude/7day-trading-signals-2bk3yq"
-    paths:
-      - ".github/workflows/build_data_long.yml"
-      - "build_data_long.py"
   workflow_dispatch:
     inputs:
       since:
         description: '수집 시작일 (YYYY-MM-DD)'
         required: false
         default: '2017-01-01'
+      scope:
+        description: 'universe(80종 재수집) | okx_all(OKX 무기한 전 종목, 기존 건너뜀)'
+        required: false
+        default: 'okx_all'
+      shards:
+        description: '샤드 수 (okx_all 만)'
+        required: false
+        default: '6'
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    outputs:
+      matrix: ${{ steps.mk.outputs.matrix }}
+    steps:
+      - id: mk
+        run: |
+          n="${{ github.event.inputs.shards || '6' }}"
+          if [ "${{ github.event.inputs.scope || 'okx_all' }}" = "universe" ]; then n=1; fi
+          echo "matrix=$(python3 -c "import json;print(json.dumps(list(range(int('$n')))))")" >> "$GITHUB_OUTPUT"
+
+  fetch:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,19 +55,58 @@ jobs:
           python-version: '3.11'
       - name: Install deps
         run: pip install -r requirements.txt
-      - name: Fetch long history
-        run: python build_data_long.py --since "${{ github.event.inputs.since || '2017-01-01' }}"
+      - name: Fetch long history (shard ${{ matrix.shard }})
+        run: |
+          n="${{ github.event.inputs.shards || '6' }}"
+          if [ "${{ github.event.inputs.scope || 'okx_all' }}" = "universe" ]; then
+            python build_data_long.py --since "${{ github.event.inputs.since || '2017-01-01' }}" --out data_long_new
+          else
+            python build_data_long.py --since "${{ github.event.inputs.since || '2017-01-01' }}" --okx-all --skip-existing --shard "${{ matrix.shard }}/$n" --out data_long_new
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: data-long-shard-${{ matrix.shard }}
+          path: data_long_new
+          if-no-files-found: warn
+
+  collect:
+    needs: fetch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: data-long-shard-*
+          path: _shards
+      - name: Merge shards into data_long
+        run: |
+          python3 - <<'PY'
+          import glob, json, os, shutil
+          os.makedirs("data_long", exist_ok=True)
+          man_path = "data_long/manifest.json"
+          man = json.load(open(man_path)) if os.path.exists(man_path) else dict(symbols={})
+          added = 0
+          for d in sorted(glob.glob("_shards/data-long-shard-*")):
+              for f in glob.glob(f"{d}/*_1d.csv.gz"):
+                  shutil.copy(f, "data_long/"); added += 1
+              mp = f"{d}/manifest.json"
+              if os.path.exists(mp):
+                  sm = json.load(open(mp))
+                  man["symbols"].update(sm.get("symbols", {}))
+                  man["merged_from"] = man.get("merged_from", []) + [os.path.basename(d)]
+          json.dump(man, open(man_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+          ok = sum(1 for v in man["symbols"].values() if v)
+          print(f"merged {added} files; manifest symbols ok {ok}/{len(man['symbols'])}")
+          PY
       - name: Commit to data-long branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -B data-long
           git add data_long
-          git commit -m "data: long 1d history (data_long) built $(date -u +%Y-%m-%dT%H:%MZ)" || echo "no changes"
+          git commit -m "data: long 1d history (data_long) built $(date -u +%Y-%m-%dT%H:%MZ) scope=${{ github.event.inputs.scope || 'okx_all' }}" || echo "no changes"
           git push -f origin data-long
-      - name: Upload manifest
-        if: always()
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: data-long-manifest-${{ github.run_number }}
           path: data_long/manifest.json
