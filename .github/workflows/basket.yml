@@ -1,0 +1,46 @@
+name: Research — basket construction for the band rule (pre-registered)
+
+# 띠 규칙을 실제로 운용할 바스켓: 몇 종목 · 어떤 기준 · 어떤 재구성 주기.
+# 사전 등록 registry basket_prereg_2026_09_07. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_basket.py"
+      - "test_basket.py"
+      - ".github/workflows/basket.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: |
+          python test_band_rule.py
+          python test_basket.py
+      - name: Validate (basket construction)
+        run: python validate_basket.py --no-fetch
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: basket-${{ github.run_number }}
+          path: _basket.json
+          if-no-files-found: ignore
