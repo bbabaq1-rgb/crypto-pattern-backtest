@@ -87,7 +87,7 @@ alts = {a: rows_of(900, 20 + k, drift=0.0005) for k, a in enumerate(rs.ALTS)}
 uni = {**alts, "BTC": btc, "ETH": eth}
 cur_direct = ra._vote(*ra.base_signals(btc, eth, alts))
 labs, sigs = ra.build_all(btc, eth, alts, uni, fund_daily=fund, current=cur_direct)
-check("라벨러 7종 전부 생성", set(labs) == set(ra.LABELERS), str(set(labs)))
+check("라벨러 전종 생성", set(labs) == set(ra.LABELERS), str(set(labs)))
 check("current 는 넘긴 맵 그대로", labs["current"] == cur_direct)
 check("모든 라벨이 4레짐 안", all(v in rs.REGIMES for m in labs.values() for v in m.values()))
 diff_fc = {d for d in labs["current"] if labs["funding_cap"][d] != labs["current"][d]}
@@ -108,6 +108,76 @@ check("breadth_only: 뒤집힘 >= breadth_price (히스테리시스 없음)",
       flips(labs["breadth_only"]) >= flips(labs["breadth_price"]))
 # fast_slope 는 rs.SLOPE_LB 를 복원한다
 check("fast_slope: rs.SLOPE_LB 복원", rs.SLOPE_LB == 20)
+
+# 3b. alt_side / wide_side (2026-09-07 사용자 정의, 사전 등록 regime_altside_prereg_2026_09_07)
+check("동결: SIDE_THR 0.01 · 후보 2종 등재", ra.SIDE_THR == 0.01
+      and {"wide_side", "alt_side"} <= set(ra.LABELERS))
+_reg = json.load(open("registry.json", encoding="utf-8"))["regime_altside_prereg_2026_09_07"]
+check("registry 사전 등록과 일치(띠 0.01·주 판정 alt_side)",
+      "0.01" in _reg["frozen_params"]["SIDE_THR"] and "alt_side" in _reg["judgement_frozen"]["primary_cell"])
+check("base_signals(slope_thr=): rs.SLOPE_THR 복원", rs.SLOPE_THR == 0.001)
+_pn, _, _ = ra.base_signals(btc, eth, alts)
+_pw, _, _ = ra.base_signals(btc, eth, alts, slope_thr=ra.SIDE_THR)
+check("넓힌 띠: side 날이 늘고 up/down 은 줄어든다",
+      sum(1 for v in _pw.values() if v == "side") > sum(1 for v in _pn.values() if v == "side")
+      and set(_pw) == set(_pn))
+check("넓힌 띠: 좁은 띠의 side 는 전부 넓은 띠에서도 side",
+      all(_pw[d] == "side" for d, v in _pn.items() if v == "side"))
+# 후보 규칙
+check("_candidate_altside: down→bear, up 은 현행과 동일",
+      ra._candidate_altside("down", "up", "down") == "bear"
+      and all(ra._candidate_altside("up", e, m) == ra._candidate("up", e, m)
+              for e in ("up", "down", "side") for m in ("up", "down", "side")))
+check("_candidate_altside: 횡보+도미넌스 하락 → bull_altseason (사용자 정의)",
+      ra._candidate_altside("side", "side", "down") == "bull_altseason"
+      and ra._candidate_altside("side", "up", "down") == "bull_altseason")
+check("_candidate_altside: 횡보+도미넌스 상승/중립 → sideways",
+      ra._candidate_altside("side", "side", "up") == "sideways"
+      and ra._candidate_altside("side", "side", "side") == "sideways"
+      and ra._candidate_altside("side", "down", "down") == "sideways")
+# 지지 규칙
+check("_support_altside: 횡보 알트불장은 가격을 +1 로 (2표 가능)",
+      ra._support_altside("bull_altseason", "side", "side", "down") == 2
+      and ra._support_altside("bull_altseason", "side", "up", "down") == 3)
+check("_support_altside: 그 외는 현행과 동일",
+      all(ra._support_altside(c, p, e, m) == rs._signal_support(c, p, e, m)
+          for c in ("bear", "sideways", "bull_btc") for p in ("up", "down", "side")
+          for e in ("up", "down", "side") for m in ("up", "down", "side")))
+# _vote 기본 동작 불변
+check("_vote: cand_fn/sup_fn 미지정 시 종전과 동일", ra._vote(_pn, sigs["ethbtc"], sigs["dom"]) == labs["current"])
+# 라벨 관계
+_alt, _wide = labs["alt_side"], labs["wide_side"]
+# 주의: 넓힌 띠만으로 sideways 가 발화하지는 않는다 — 히스테리시스가 'sideways' 후보에 2표를 요구하고
+# eb/dom 이 'side' 인 날이 드물기 때문(현행 sideways 0일과 같은 구조적 이유). 규칙이 보장하는 것만 고정한다.
+check("alt_side: 넓은 띠 횡보날을 bull_btc 로 부르지 않는다(사용자 정의의 핵심)",
+      all(_alt[d] != "bull_btc" for d in _alt if _pw.get(d) == "side"
+          and ra._candidate_altside(_pw[d], sigs["ethbtc"].get(d, "side"), sigs["dom"].get(d, "side")) != "bull_btc"
+          and ra._support_altside(ra._candidate_altside(_pw[d], sigs["ethbtc"].get(d, "side"), sigs["dom"].get(d, "side")),
+                                  _pw[d], sigs["ethbtc"].get(d, "side"), sigs["dom"].get(d, "side")) >= 2))
+check("alt_side: 횡보+도미넌스 하락(eb 하락 아님) 날은 반드시 bull_altseason — 히스테리시스 통과",
+      all(_alt[d] == "bull_altseason" for d in _alt
+          if _pw.get(d) == "side" and sigs["dom"].get(d, "side") == "down"
+          and sigs["ethbtc"].get(d, "side") != "down"))
+check("alt_side: 현행과 다른 날은 전부 넓은 띠 기준으로 up 이 아니다",
+      all(_pw.get(d) != "up" for d in _alt if d in labs["current"] and _alt[d] != labs["current"][d]))
+check("alt_side: bear 는 넓은 띠 down 에서만(히스테리시스 유지분 제외 규칙 확인용 후보)",
+      all(ra._candidate_altside(_pw[d], sigs["ethbtc"].get(d, "side"), sigs["dom"].get(d, "side")) != "bear"
+          for d in _pw if _pw[d] != "down"))
+check("wide_side: 후보 규칙은 현행과 같다(띠만 다름)",
+      _wide == ra._vote(_pw, sigs["ethbtc"], sigs["dom"]))
+check("signals 에 진단용 원신호 병기", {"price", "price_wide", "dom", "ethbtc"} <= set(sigs))
+
+# 3c. 진단 함수 (판정 아님)
+_rel = rq.alt_rel_forward({"BTC": up[:100], "ETH": dn[:100]}, fwd=20)
+check("alt_rel_forward: 알트 − BTC 선행수익",
+      abs(_rel[up[0]["date"]] - ((dn[20]["c"] / dn[0]["c"] - 1) - (up[20]["c"] / up[0]["c"] - 1))) < 1e-12)
+_dg = rq.disagreement({"d1": "bear", "d2": "bear", "d3": "bull_btc"},
+                      {"d1": "bull_altseason", "d2": "bear", "d3": "bull_btc"},
+                      {"d1": 0.10, "d2": -0.02, "d3": 0.01}, {"d1": 0.05, "d2": 0.0, "d3": 0.0})
+_ch = [r for r in _dg if r["changed"]]
+check("disagreement: 바뀐 칸만 changed=True, 일수·선행 평균",
+      len(_ch) == 1 and _ch[0]["transition"] == "bear→bull_altseason" and _ch[0]["days"] == 1
+      and abs(_ch[0]["uni_fwd"] - 0.10) < 1e-12 and abs(_ch[0]["alt_rel_fwd"] - 0.05) < 1e-12)
 
 # 4. 벤치마크 지표
 fwd = rq.forward_returns({"A": up[:100]})
@@ -177,8 +247,9 @@ with tempfile.TemporaryDirectory() as td:
         m = json.load(open("method_q.json", encoding="utf-8"))
     finally:
         os.chdir(cwd)
-check("e2e quality: 7 라벨러 결과", set(q["results"]) == set(ra.LABELERS), str(set(q["results"])))
-check("e2e quality: verdicts 에 current 제외 6", sum(1 for v in q["verdicts"].values() if v) == 6)
+check("e2e quality: 전 라벨러 결과", set(q["results"]) == set(ra.LABELERS), str(set(q["results"])))
+check("e2e quality: verdicts 는 current 제외 전부", sum(1 for v in q["verdicts"].values() if v) == len(ra.LABELERS) - 1,
+      f'{sum(1 for v in q["verdicts"].values() if v)} vs {len(ra.LABELERS) - 1}')
 check("e2e quality: candidates 는 리스트", isinstance(q["candidates"], list))
 check("e2e quality: 지평별 진단 20/40/60/90", all(set(r["by_horizon"]) == {"20", "40", "60", "90"} for r in q["results"].values()))
 check("e2e quality: 20일 지평 분리폭 == 주 지표", all(abs(r["by_horizon"]["20"]["separation"] - r["separation"]) < 1e-12 for r in q["results"].values()))
@@ -186,7 +257,8 @@ check("e2e method_q: 패턴 결과 + _verdicts", "_verdicts" in m and any(not k.
 check("e2e method_q: 1단계 미통과 라벨러 arm 은 adopt=False",
       all(not v["adopt"] for a, v in m["_verdicts"].items() if "_" in a and a.split("_", 1)[1] not in q["candidates"]))
 check("e2e method_q: RL(현행) arm 은 1단계 무관하게 stage1_ok", m["_verdicts"]["RL"]["stage1_ok"])
-check("e2e method_q: arm 수 = 2 + 3x6", len(m["_config"]["arms"]) == 2 + 3 * 6, str(len(m["_config"]["arms"])))
+check("e2e method_q: arm 수 = 2 + 3x(라벨러-1)", len(m["_config"]["arms"]) == 2 + 3 * (len(ra.LABELERS) - 1),
+      str(len(m["_config"]["arms"])))
 
 print("\n" + ("ALL PASS" if not fails else f"FAILS: {fails}"))
 sys.exit(1 if fails else 0)

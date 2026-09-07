@@ -22,6 +22,15 @@ ETH/BTC 20일 기울기(eb), BTC.D 20일 기울기(dom), 2/3 지지 히스테리
   funding_cap   : 현행 + funding hot 이면 bull_* → sideways (과열 구간 롱 금지).
   breadth_only  : breadth 가 price 역할(up/down/side)이고 eb/dom 은 현행. = breadth_price 와
                   같은 구조지만 히스테리시스 없이 매일 후보 그대로(전환 지연 0 의 상한).
+
+2026-09-07 추가 (사용자 지적 "BTC 상승일 때뿐 아니라 횡보일 때도 도미넌스가 하락하면 알트불장 아닌가"):
+  wide_side     : 가격 기울기 횡보 띠만 ±0.1% → ±1%(SIDE_THR). 후보 규칙은 현행 그대로.
+                  **진단 전용** — 띠 효과와 규칙 효과를 분리하는 대조군.
+  alt_side      : wide_side 의 넓은 띠 + 사용자 정의. p=='side' 일 때 alt_v>btc_v 면 bull_altseason,
+                  아니면 sideways. p=='up'/'down' 은 현행과 동일. **주 판정 셀.**
+                  히스테리시스 지지 계산에서 cand==bull_altseason 이고 p=='side' 면 가격을 +1 로
+                  센다 — 이 라벨러에서는 '횡보'가 알트불장 정의의 일부이기 때문.
+사전 등록: registry regime_altside_prereg_2026_09_07. 실거래 무변경.
 """
 import json
 import math
@@ -39,7 +48,9 @@ FUND_LB, FUND_PCT_WIN = 30, 365
 FUND_HOT, FUND_COLD = 0.80, 0.20
 FUNDING_CACHE = "funding_history_btc.json"
 BREADTH_MIN_N = 10
-LABELERS = ["current", "fast_slope", "breadth_price", "vote4", "vol_side", "funding_cap", "breadth_only"]
+SIDE_THR = 0.01          # 넓힌 횡보 띠 (현행 rs.SLOPE_THR = 0.001). 사전 등록값, 스윕 없음
+LABELERS = ["current", "fast_slope", "breadth_price", "vote4", "vol_side", "funding_cap", "breadth_only",
+            "wide_side", "alt_side"]
 
 
 # ── 추가 신호 ────────────────────────────────────────────────────────────────
@@ -167,17 +178,20 @@ def fetch_funding_history(inst="BTC-USDT-SWAP", days=1800, cache=FUNDING_CACHE, 
 
 
 # ── 현행 신호 재사용 ────────────────────────────────────────────────────────
-def base_signals(btc, eth, alts_rows, slope_lb=None):
-    """현행 3신호(date->up/down/side). slope_lb 로 가격 기울기 lookback 만 바꿀 수 있다."""
-    if slope_lb is None:
+def base_signals(btc, eth, alts_rows, slope_lb=None, slope_thr=None):
+    """현행 3신호(date->up/down/side). slope_lb(기울기 lookback)·slope_thr(횡보 띠)만 바꿀 수 있다."""
+    if slope_lb is None and slope_thr is None:
         price = rs._price_signal(btc)
     else:
-        old = rs.SLOPE_LB
-        rs.SLOPE_LB = slope_lb
+        old_lb, old_thr = rs.SLOPE_LB, rs.SLOPE_THR
+        if slope_lb is not None:
+            rs.SLOPE_LB = slope_lb
+        if slope_thr is not None:
+            rs.SLOPE_THR = slope_thr
         try:
             price = rs._price_signal(btc)
         finally:
-            rs.SLOPE_LB = old
+            rs.SLOPE_LB, rs.SLOPE_THR = old_lb, old_thr
     return price, rs._ethbtc_signal(btc, eth), rs._dom_signal_hybrid(btc, alts_rows)
 
 
@@ -191,14 +205,36 @@ def _candidate(p, eb, dom):
     return "bull_altseason" if alt_v > btc_v else "bull_btc"
 
 
-def _vote(price, ethbtc, dom, extra=None, need=2, hysteresis=True):
-    """현행 build_regime_map 의 투표 루프. extra(d)->추가 지지(0/1) 를 얹을 수 있다."""
+def _candidate_altside(p, eb, dom):
+    """사용자 정의(2026-09-07): 가격 횡보 구간에서도 도미넌스가 알트 쪽이면 알트불장.
+    p=='up'/'down' 은 현행과 동일. p=='side' 는 alt_v>btc_v 면 bull_altseason, 아니면 sideways."""
+    if p == "down":
+        return "bear"
+    if p == "up":
+        return _candidate(p, eb, dom)
+    alt_v = int(eb == "up") + int(dom == "down")
+    btc_v = int(eb == "down") + int(dom == "up")
+    return "bull_altseason" if alt_v > btc_v else "sideways"
+
+
+def _support_altside(cand, p, eb, dom):
+    """alt_side 전용 지지 점수 — 이 정의에서는 '횡보'가 알트불장의 일부라 가격을 +1 로 센다."""
+    if cand == "bull_altseason" and p == "side":
+        return 1 + int(eb == "up") + int(dom == "down")
+    return rs._signal_support(cand, p, eb, dom)
+
+
+def _vote(price, ethbtc, dom, extra=None, need=2, hysteresis=True, cand_fn=None, sup_fn=None):
+    """현행 build_regime_map 의 투표 루프. extra(d)->추가 지지(0/1) 를 얹을 수 있다.
+    cand_fn/sup_fn 미지정 시 현행 규칙(_candidate / rs._signal_support) — 기본 동작 불변."""
+    cand_fn = cand_fn or _candidate
+    sup_fn = sup_fn or rs._signal_support
     dates = sorted(set(price) & set(ethbtc))
     reg, prev = {}, None
     for d in dates:
         p, eb, dm = price.get(d, "side"), ethbtc.get(d, "side"), dom.get(d, "side")
-        cand = _candidate(p, eb, dm)
-        sup = rs._signal_support(cand, p, eb, dm) + (extra(d, cand) if extra else 0)
+        cand = cand_fn(p, eb, dm)
+        sup = sup_fn(cand, p, eb, dm) + (extra(d, cand) if extra else 0)
         if not hysteresis or prev is None or sup >= need:
             reg[d] = cand
         else:
@@ -244,7 +280,12 @@ def build_all(btc, eth, alts_rows, rows_by_sym, fund_daily=None, current=None):
                 fc[d] = "sideways"
         out["funding_cap"] = fc
     out["breadth_only"] = _vote(bp, eb, dom, hysteresis=False)
-    return out, dict(breadth=bsig, vol=vst)
+    # 2026-09-07 사용자 정의 (사전 등록 regime_altside_prereg_2026_09_07)
+    pw, _, _ = base_signals(btc, eth, alts_rows, slope_thr=SIDE_THR)
+    out["wide_side"] = _vote(pw, eb, dom)                                  # 띠만 넓힘 (진단)
+    out["alt_side"] = _vote(pw, eb, dom, cand_fn=_candidate_altside,       # 주 판정 셀
+                            sup_fn=_support_altside)
+    return out, dict(breadth=bsig, vol=vst, price_wide=pw, price=price, dom=dom, ethbtc=eb)
 
 
 # ── 공통 컨텍스트 로더 (regime_quality / method_q 공용) ──────────────────────
