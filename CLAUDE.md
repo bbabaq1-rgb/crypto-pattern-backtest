@@ -841,6 +841,20 @@
     OOS −1.70%(p .767) vs 비-bull −0.18% → 2025~ 역전. **D2** BTC fwd3m 은 OOS 에서도 bull +2.3%(양수 58%) vs bear −9.4%(24%) 로 분리 —
     라벨은 BTC 방향은 가르지만 **알트 롱 수익은 못 가른다**(bull_btc = BTC 주도 국면, 알트 지체). sideways 라벨 일수 0(라벨러가 사실상 안 냄).
   · D4 실거래 행 4건(패턴당 1) — 표본 없음. 그림자 2 셀 유지, 관찰 2 셀 10/06 까지 유지.
+- **횡단면 특성 연구 — 24변수 중 저변동(rvol20) 하나만 순위 예측, 선택 규칙 승격 없음 (2026-09-07, 사용자 지시 "패턴 말고 다른 방향 … 어떤 조건에 있던 코인이 더 많이 빠르게 올랐나" + "일목·다이버전스·60/120/180선 위치 등 싹 다", run 34085937594)**:
+  registry `xsec_chars_prereg_2026_09_07`. 월말 PIT liquid 유니버스(2017~, data_long)에서 상태 변수 24종의 fwd20 스피어만 IC — train(<2025-01) Holm 적격
+  (연도 일관성·최고 연도 제외) → OOS 재현(IC·p·TOP 상대/절대 − 비용 0.4%). 코인 80 · 코인-월 5,267 · 114개월. **CONFIRMED 1 / REJECTED 23 / REVERSED 1. 실거래 무변경.**
+  · **rvol20(−, 저변동 → 높은 순위) CONFIRMED**: train IC +0.098 ICIR 3.77 Holm .000 연도 7/7, OOS IC +0.150 p .003 TOP +1.30%p. 레짐 무관·top30 에서 더 강함.
+    **그러나 순위 예측이지 평균수익이 아니다** — train 에서 저변동 TOP − 유니버스 **−0.82%p**, 저변동−고변동 스프레드 **−3.2%p**(고변동은 중앙값이 낮아도 소수 대박으로 평균이 높다).
+    OOS 스프레드 +2.2%p 는 2025~26 bear 단일 국면. 40봉 내 +20% 도달률은 저변동 43% vs 50% — **'빠르게 오르는 코인'은 고변동 쪽이고 그것들이 크게 깨지기도 한다.**
+    이미 채택된 변동성 타겟팅 사이징과 같은 방향의 독립 증거로만 기록. 진입·선택 규칙 승격 없음.
+  · **REVERSED vol_ratio_30_90**: '거래량 각성 +' 예상이 train IC −0.051(ICIR −2.27, 연도 양수 1/7) OOS −0.022 — 최근 거래대금이 늘어난 코인이 이후 더 나쁘다. 추격하려면 별도 사전 등록.
+  · **나머지 전부 무정보**: 모멘텀 5·MA60/120/180 거리·정배열·기울기 5·일목 4·RSI14·RSI 다이버전스·가격위치 2·거래대금 수준: |IC| ≤ 0.03, Holm 1.000. 사용자가 지목한 일목·다이버전스·이평 위치는
+    월 단위 횡단면에서 예측 정보 없음. MA 거리·모멘텀·RSI 는 서로 ρ .7~.9(같은 정보). 근접 셀 dd_1y(p .022)·저베타(p .034, train TOP +4.87%p)는 Holm 미통과 — 사후 선택 안 함.
+  · D5(사용자 원 질문 그대로, 최근 365일): n=80 전부 하락(Q1 −81%/Q4 −34%), mom_12m ρ .42·dd_1y ρ .39 — 단일 bear 해 횡단면이라 증거 아님(월 프레임 mom_12m IC .03 비유의).
+  · 공개: 커밋 전 로컬 스모크 1회에서 결과를 봤고 그 뒤 rs_btc_1m 제거(횡단면에서 BTC 수익은 상수 → mom_1m 과 순위 동일) 외 무변경. 설계 메모: train 에 TOP 평균 조건을 안 걸어
+    '순위 통과·평균 실패' 셀이 CONFIRMED 로 찍힌다 — 다음 프레임은 train 에도 TOP−유니버스 > 0 요구(사후 변경 안 함).
+  xsec_features.py / validate_xsec_chars.py / test_xsec_chars.py(57) / xsec_chars.yml
 - **레짐 라벨러 alt_side 기각 (2026-09-07, 사용자 지적 "BTC 상승일 때뿐 아니라 횡보일 때도 도미넌스가 하락하면 알트불장 아닌가", run 34082489857)**:
   registry `regime_altside_prereg_2026_09_07`. 횡보 띠 ±0.1%→**±1%**(SIDE_THR) + p=='side' 에서 alt_v>btc_v 면 bull_altseason.
   히스테리시스도 이 라벨러에서만 '횡보'를 알트불장 지지 1표로 센다(안 그러면 도미넌스 단독 하락이 2표를 못 채워 정의가 무력화).
@@ -1077,6 +1091,7 @@
 - regime_alt.py / regime_quality.py / method_q.py: 레짐 라벨러 후보·라벨 품질 벤치마크·짝지음 시험(기각 기록용). report_regime_quality.md
 - validate_regime_split.py / validate_regime_split_all.py: 레짐별 분리 게이트(배포 6종 / 기각·정지 55종). report_regime_split(_all).md
 - method_b.py: beta_slope 오버레이(B_skip/B_size) 짝지음 시험 — 기각 기록용. report_beta_overlay.md
+- xsec_features.py / validate_xsec_chars.py: 횡단면 특성 연구(24 상태 변수 fwd20 순위 IC, 인과 피처·PIT 유니버스·월 부트·Holm). rvol20 만 순위 예측, 선택 규칙 승격 없음. test_xsec_chars.py(57)
 - validate_pit_cohort.py: PIT 코호트(월말 30일 거래대금 → 다음 달 적용) static vs PIT 재검증 + 코인별 분산 + 무조건부 스캔. test_pit_cohort.py(25)
 - validate_guard_v4.py: 확인 프레임 v4 = 3중 대조(A 레짐·코호트 / B 같은 코인·월·레짐 / C 시간 OOS 2025-01-01) + 월 클러스터 부트 + Holm +
   비용 스트레스 + 진단 D1~D4. 사전 등록 registry guard_v4_prereg_draft_2026_09_06. DEPLOY_ON_PASS=False. test_guard_v4.py(41)

@@ -56,6 +56,7 @@ jobs:
                    test_diag_bull_phase.py \
                    test_guard_v4.py \
                    test_pit_cohort.py \
+                   test_xsec_chars.py \
                    test_executor_safety.py \
                    test_regime_determinism.py \
                    test_method_m.py \
