@@ -38,7 +38,15 @@ validate_episode_profile.py — 상승 국면(에피소드) 안에서 '많이 �
 2021 의 '안 오른' 쪽은 살아남은 코인만 남아 실제보다 좋게 보인다) · 2017~2019 에피소드는 코인 수가 적어 통계 제외될 수
 있음 · 상장 전 코인은 그 에피소드에 없음 · 에피소드 4~6개뿐이라 일관성 기준의 검정력이 낮다.
 
-실행: python validate_episode_profile.py [--no-fetch] [--data-long-only]       출력: _episode_profile.json + RESULT_JSON
+## 알트 폭 에피소드 (2026-09-07 사용자 지시 "에피소드 정의를 레짐 라벨이 아니라 알트 폭으로", `--episodes breadth`, 별도 사전 등록)
+  레짐 판의 발견: bull_btc 라벨 5 에피소드 중 코인 과반이 오른 건 2021 하나 — 라벨이 알트 불장을 못 가른다. 그래서 에피소드를
+  **알트 폭**으로 다시 정의한다: 그날 MA180 을 계산할 수 있는 코인(이력 >= 180봉) 중 종가 > MA180 인 비율(BREADTH_MA=180).
+  폭 >= BREADTH_THR(0.5) 인 날의 연속 구간(30일 이하 끊김 병합) 길이 >= 60일. 폭 계산 대상 코인 < BREADTH_MIN_COINS(15) 인 날은 제외.
+  폭은 그날 종가까지만 쓰므로 시작일은 실시간에 알 수 있다(끝은 사후). **나머지 규칙(변수 35·집단·순열·Holm·일관성·판정)은 레짐 판과 동일** —
+  바뀌는 건 에피소드 정의 하나. 출력 _episode_profile_breadth.json. 레짐 판 결과를 본 뒤 등록한 것이므로 '2021 이 알트 불장'임은
+  이미 알고 시작한다 — 이 판의 새 정보는 (a) 폭 기준으로 몇 개의 알트 불장이 잡히는가 (b) 그 안에서 승자 프로필이 에피소드 간 일관되는가.
+
+실행: python validate_episode_profile.py [--no-fetch] [--data-long-only] [--episodes regime|breadth]       출력: _episode_profile[_breadth].json + RESULT_JSON
 """
 import json
 import math
@@ -65,6 +73,7 @@ CONSIST_MIN_EP = 3
 DEPLOY_ON_PASS = False
 KEYS = xf.ALL_KEYS
 SIGN = xf.ALL_SIGN
+BREADTH_MA, BREADTH_THR, BREADTH_MIN_COINS = 180, 0.5, 15
 
 
 # ── 에피소드 ─────────────────────────────────────────────────────────────────────────────────
@@ -82,6 +91,37 @@ def bull_episodes(regmap, labels=EPISODE_LABELS, min_days=EP_MIN_DAYS):
                 cnt[g] = cnt.get(g, 0) + 1
         dom = max(cnt, key=cnt.get) if cnt else "bull"
         out.append((s, e, dom, days))
+    return out
+
+
+def breadth_series(rows_1d, ma=BREADTH_MA, min_coins=BREADTH_MIN_COINS):
+    """{date: (share_above_ma, n_eligible)} — 그날 MA 계산 가능한 코인(이력 >= ma 봉) 중 종가 > MA 비율. 인과(그날 종가까지)."""
+    above, total = {}, {}
+    for rows in rows_1d.values():
+        c = [r["c"] for r in rows]
+        s_ = 0.0
+        for i, r in enumerate(rows):
+            s_ += c[i]
+            if i >= ma:
+                s_ -= c[i - ma]
+            if i + 1 < ma:
+                continue
+            m = s_ / ma
+            d = r["date"]
+            total[d] = total.get(d, 0) + 1
+            above[d] = above.get(d, 0) + (c[i] > m)
+    return {d: (above[d] / n, n) for d, n in total.items() if n >= min_coins}
+
+
+def breadth_episodes(rows_1d, thr=BREADTH_THR, min_days=EP_MIN_DAYS):
+    """[(start, end, 'breadth', days)] — 폭 >= thr 인 날의 연속 구간(30일 이하 끊김 병합), 길이 >= min_days."""
+    bs = breadth_series(rows_1d)
+    lab = {d: ("bull" if v[0] >= thr else "off") for d, v in bs.items()}
+    out = []
+    for s_, e in f3.episodes(lab, "bull"):
+        days = f3._ord(e) - f3._ord(s_) + 1
+        if days >= min_days:
+            out.append((s_, e, "breadth", days))
     return out
 
 
@@ -276,10 +316,29 @@ def main(argv=None):
     long_syms = sorted({os.path.basename(p).split("_1d")[0].upper() for p in glob.glob(f"{__import__('detlib').LONG_DIR}/*_1d.csv.gz")})
     all_syms = sorted(set(syms) | set(long_syms))
     rows_1d = va.load_tf(all_syms, "1d", long=True)
+    mode = argv[argv.index("--episodes") + 1] if "--episodes" in argv else "regime"
     regmap = rs.build_regime_map(rows_by=rows_1d)
-    eps = bull_episodes(regmap)
-    print(f"[data] 코인 {len(rows_1d)} (유니버스 {len(syms)} + 장기 {len(long_syms)}) · 레짐 일수 {len(regmap)} {min(regmap)}~{max(regmap)}")
+    if mode == "breadth":
+        bs = breadth_series(rows_1d)
+        eps = breadth_episodes(rows_1d)
+        d_first, d_last = min(bs), max(bs)
+        print(f"[data] 코인 {len(rows_1d)} (유니버스 {len(syms)} + 장기 {len(long_syms)}) · 알트 폭 일수 {len(bs)} {d_first}~{d_last} · 폭 >= {BREADTH_THR} 일수 {sum(1 for v in bs.values() if v[0] >= BREADTH_THR)}")
+        yrs = {}
+        for d, (v, n) in bs.items():
+            yrs.setdefault(d[:4], []).append(v)
+        print("[breadth] 연도별 폭 중앙값: " + " ".join(f"{y}:{st.median(v)*100:.0f}%" for y, v in sorted(yrs.items())))
+    else:
+        eps = bull_episodes(regmap)
+        print(f"[data] 코인 {len(rows_1d)} (유니버스 {len(syms)} + 장기 {len(long_syms)}) · 레짐 일수 {len(regmap)} {min(regmap)}~{max(regmap)}")
     print("[episodes] " + " | ".join(f"#{i} {s}~{e} {dom} {d}d" for i, (s, e, dom, d) in enumerate(eps)))
+    if mode == "breadth":
+        # 진단: 각 폭 에피소드 안의 레짐 라벨 구성
+        for i, (s_, e, _, _) in enumerate(eps):
+            cnt = {}
+            for d, g in regmap.items():
+                if s_ <= d <= e:
+                    cnt[g] = cnt.get(g, 0) + 1
+            print(f"  [ep{i} 레짐 구성] " + " ".join(f"{g}:{n}" for g, n in sorted(cnt.items(), key=lambda kv: -kv[1])))
     rows = build_rows(rows_1d, eps)
     summ = episode_summary(rows, eps, rows_1d["BTC"])
     print("\n== D1 에피소드별 상승 분포 ==")
@@ -333,11 +392,11 @@ def main(argv=None):
     for k in KEYS:
         print(f"  {k:<18} D2 rb {_f(d2[k]['rb'])} (n {d2[k]['n_norise']}/{d2[k]['n_rise']})  D3 {_f(d3[k])}  D4 " + "  ".join(f"{dom} {_f(d4[dom].get(k))}" for dom in EPISODE_LABELS))
 
-    out = dict(frame="episode_profile", episodes=[dict(id=i, start=s, end=e, dom=dom, days=d) for i, (s, e, dom, d) in enumerate(eps)], summary=summ,
+    out = dict(frame="episode_profile" + ("_breadth" if mode == "breadth" else ""), mode=mode, episodes=[dict(id=i, start=s, end=e, dom=dom, days=d) for i, (s, e, dom, d) in enumerate(eps)], summary=summ,
                coins=len(rows_1d), rows=len(rows), counts=counts, results=recs, episode_stats={k: {str(e): v for e, v in es.items()} for k, es in eps_all.items()},
                d2=d2, d3=d3, d4=d4, d5_2021=d5, deploy_on_pass=DEPLOY_ON_PASS)
-    json.dump(out, open("_episode_profile.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
-    print("RESULT_JSON: " + json.dumps(dict(frame="episode_profile", coins=len(rows_1d), rows=len(rows), episodes=[(s, e, dom, d) for s, e, dom, d in eps], counts=counts,
+    json.dump(out, open("_episode_profile_breadth.json" if mode == "breadth" else "_episode_profile.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
+    print("RESULT_JSON: " + json.dumps(dict(frame=out["frame"], coins=len(rows_1d), rows=len(rows), episodes=[(s, e, dom, d) for s, e, dom, d in eps], counts=counts,
                                             verdicts={k: r["verdict"] + ("/REV" if r["reversed"] else "") for k, r in recs.items() if r["verdict"] != "NONE" or r["reversed"]},
                                             top=[(k, recs[k]["dir"], round(recs[k]["rho_dir"] or 0, 3), recs[k]["p_holm"], recs[k]["ep_share"]) for k in sorted(recs, key=lambda k: recs[k]["p_holm"] if recs[k]["p_holm"] is not None else 9)[:10]]),
                                        ensure_ascii=False, default=str))

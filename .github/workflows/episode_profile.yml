@@ -37,12 +37,16 @@ jobs:
         run: |
           python test_xsec_chars.py
           python test_episode_profile.py
-      - name: Validate (episode profile, data_long only)
+      - name: Validate (episode profile — regime episodes, data_long only)
         run: python validate_episode_profile.py --data-long-only
+      - name: Validate (episode profile — alt-breadth episodes, pre-registered 2026-09-07)
+        run: python validate_episode_profile.py --data-long-only --no-fetch --episodes breadth
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: episode-profile-${{ github.run_number }}
-          path: _episode_profile.json
+          path: |
+            _episode_profile.json
+            _episode_profile_breadth.json
           if-no-files-found: ignore
