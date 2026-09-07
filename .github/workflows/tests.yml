@@ -60,6 +60,7 @@ jobs:
                    test_episode_profile.py \
                    test_breadth_state.py \
                    test_band_rule.py \
+                   test_basket.py \
                    test_signal_profile.py \
                    test_executor_safety.py \
                    test_regime_determinism.py \

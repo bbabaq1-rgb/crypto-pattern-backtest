@@ -3697,5 +3697,52 @@
    "what_this_does_not_say": "'규칙을 채택하라'가 아니다. 이 시험은 마찰 셋만 봤고, **종목 선택 문제(어느 코인에 걸 것인가)는 그대로 미해결**이다. 바스켓 20종목 동일가중이 하나의 답이지만 그 자체를 사전 등록해 재지 않았다",
    "live_change": "없음"
   }
+ },
+ "basket_prereg_2026_09_07": {
+  "status": "PREREGISTERED 2026-09-07 — 실행 대기 (basket.yml)",
+  "question": "사용자 지시(2026-09-07) '바스켓 구성 규칙(몇 종목, 어떤 기준, 재구성 주기)을 사전 등록해서 돌려줘'. band_rule 시험(VIABLE)이 남긴 미해결 문제 — 띠 규칙을 어느 코인에 걸 것인가",
+  "prior": "**결과를 보기 전에 기록한다**: 레포의 기존 연구는 종목 선택이 잘 안 된다고 반복해서 말했다(xsec_chars 24변수 중 rvol20 하나만 순위 예측·평균은 음수 스프레드 / episode_profile 프로필 부호가 국면 세기에 따라 반전 / breadth_state 20셀 전부 방어 우위). 따라서 **가장 그럴듯한 결과는 NO_SELECTION_EDGE(= 거래대금 상위 N 을 쓰라)** 이고, 그렇게 나와도 실패가 아니라 답이다",
+  "frozen": {
+   "stop": 0.01,
+   "slip": 0.00141,
+   "slip_source": "band_rule 에서 측정한 1시간 지연 δ",
+   "fee_per_side": 0.001,
+   "pool": "형성일 직전 30봉 평균 거래대금 상위 60 (PIT, 이력 252봉 이상)",
+   "pool_n": 60,
+   "criteria": [
+    "liquidity(베이스라인)",
+    "lowvol(rvol20 최저)",
+    "defensive(방어 프로필 상위)",
+    "broad(넓은불장 프로필 상위)",
+    "random(귀무분포)"
+   ],
+   "profile_signs": "validate_breadth_state 의 BROAD/DEFENSIVE 를 그대로 사용(이미 고정된 부호, 재정의 안 함)",
+   "n_grid": [
+    5,
+    10,
+    20,
+    40
+   ],
+   "rebalance": {
+    "none": null,
+    "quarterly": 91,
+    "monthly": 30
+   },
+   "primary_cell": "N=20 · quarterly",
+   "period": "2019-06-01 ~ 2026-09-06 연속 자산곡선",
+   "metric": "Calmar = CAGR / |MDD|",
+   "random_draws": 200,
+   "seed": 42,
+   "pctile": 95
+  },
+  "judgement": {
+   "J1": "lowvol/defensive/broad 각각의 Calmar 가 random 200회 분포의 95백분위를 초과 (Holm 보정 3)",
+   "J2": "같은 셀에서 liquidity 베이스라인의 Calmar 를 초과",
+   "verdict": "J1·J2 모두 통과한 기준이 있으면 SELECTION_CONFIRMED(기준 이름), 없으면 NO_SELECTION_EDGE",
+   "n_and_rebalance": "**판정이 아니라 민감도 서술** — liquidity 기준 Calmar 표로 보고. 다중검정 부담을 선택 기준에만 걸고 규모·주기는 고르지 않고 보고한다"
+  },
+  "deploy_on_pass": false,
+  "live_change": "없음(관찰 기간 ~2026-10-06). 통과해도 실거래 반영 없음 — 기존 패턴 시스템과 별개 시스템이고 채택은 사용자 결정",
+  "known_limits": "**생존 편향이 이 시험에서 가장 크다** — data_long 은 현재 OKX 상장 코인만이라 2019 년 바스켓은 '그때 있었고 지금도 살아남은' 코인이다. 그리고 **생존은 저변동·방어 성격과 상관**이 있으므로 defensive/lowvol arm 이 구조적으로 유리하다. 따라서 **방어 계열이 이겨도 강한 증거가 아니다**(이 문장을 결과 전에 적는다) · 재구성 없음 arm 은 2019 에 존재한 코인만 써서 풀이 작다(주기 비교 교란) · 스프레드 미반영 · 분 단위 재교차 미반영"
  }
 }
