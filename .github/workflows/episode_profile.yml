@@ -3,6 +3,7 @@ name: Research — bull-episode winner profile (pre-registered, descriptive)
 # 상승 국면(레짐 에피소드) 안에서 '많이 오른 코인 vs 안 오른 코인'의 시작 시점 상태 변수(35종) 프로필.
 # 유니버스 80 이 아니라 data-long 브랜치의 전 코인(OKX 무기한 전 종목 장기 이력). 사전 등록 registry
 # episode_profile_prereg_2026_09_07. DEPLOY_ON_PASS=False — 매매·DB 무관.
+# 데이터: data-long 브랜치 build run 34088487916 (OKX 무기한 전 종목, 2026-09-07).
 
 on:
   workflow_dispatch:
