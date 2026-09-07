@@ -3351,7 +3351,7 @@
   "not_changed_by_results": "에피소드 정의·집단 분할·변수 가족·순열·Holm·일관성 문턱"
  },
  "signal_profile_prereg_2026_09_07": {
-  "status": "PREREGISTERED 2026-09-07 — 실행 대기 (Actions signal_profile.yml)",
+  "status": "EXECUTED 2026-09-07 (run 34089345934) — CANDIDATE 5 / TRAIN_ONLY 8 / NONE 22 / REVERSED 6. 실거래 무변경, 다음 단계(라우팅 복제 프레임 오버레이)는 사용자 결정",
   "question": "사용자 승인(2026-09-07 '응 사전등록해서 돌려줘'): 상태 변수를 월말이 아니라 우리 신호가 난 봉에서 재서, 이미 진입하는 거래의 승자/패자를 가르는가. 통과 변수는 새 진입 규칙이 아니라 슬롯 우선순위·사이징 층 후보",
   "frame_frozen": {
    "primary_family": "배포 1d 롱 4셀 풀링(engulfing|bull_btc · engulfing|bear · fvg|bull_btc · fvg|bull_altseason), 코호트 top30 정적(v4 와 같은 신호 집합). 셀별·숏 셀은 진단",
@@ -3373,6 +3373,22 @@
   "diagnostics_not_judgement": "D1 셀별 rho / D2 승자 vs 패자 rank-biserial / D3 피처 3분위 손절 비율 / D4 월 demean rho / D5 engulfing_short|bull_altseason",
   "next_step_if_candidate": "라우팅 복제 프레임(sizing_vol ROUTING_MODE)에서 '후보 변수 하위 1/3 슬롯 우선순위 낮춤/사이징 ×0.5' 짝지음 시험을 별도 사전 등록(method_b 교훈: 무조건부 프레임 금지). 그 전 실거래 반영 없음",
   "known_limits": "신호 n 수백(검정력 낮음) · 레짐 조건부 셀 안 국면 잔차(D4 보조) · 정적 코호트 · 4h 셀 제외(피처가 1d)",
-  "live_change": "없음(관찰 기간 ~2026-10-06)"
+  "live_change": "없음(관찰 기간 ~2026-10-06)",
+  "result_2026_09_07": {
+   "n": "주 가족 1d 롱 4셀 풀 n=1,936 (train 1,557 / OOS 379) — engulfing|bull_btc 110 · engulfing|bear 93 · fvg|bull_btc 1,239 · fvg|bull_altseason 494. 평균수익 train +9.88% / OOS −0.30%",
+   "candidate": {
+    "rvol20(−)": "train rho .282 Holm .000 3분위 스프레드 +8.0%p / OOS rho .240 p .002 스프레드 +1.9%p. 손절 비율 저/중/고변동 42/58/77%",
+    "bb_width(−)": "train .261 Holm .000 +3.6%p / OOS .220 p .002 +0.6%p. 손절 41/61/75%",
+    "bb_squeeze(−)": "train .151 Holm .048(경계) +2.1%p / OOS .201 p .000 +3.0%p",
+    "adx14(−)": "train .128 Holm .048(경계) +6.4%p / OOS .294 p .000 +3.9%p — 신호봉 추세강도 낮을수록 좋음(regime_axis 2026-09-04 '저ADX 우위' 재현)",
+    "corr_btc_60(+)": "train .143 Holm .000 인데 **train 스프레드 −1.3%p**(순위·평균 불일치) / OOS .242 p .025 +5.9%p — 신뢰 낮음"
+   },
+   "train_only": "dist_ma60/120/180(−: 이평 위로 멀수록 나쁨) · ret_1w(−) · vol_shock_5_30(−) · ath_dd(−: 고점 가까울수록 나쁨) · days_since_ath(+) · age_bars(+) — OOS 재현 실패",
+   "reversed": "mom_1m · mom_3m · ma_align · ma180_slope · ichi_tk · vol_ratio_30_90 — 전부 사전 부호 + 인데 train 음수 유의. **반전 패턴 거래 안에서는 신호봉의 추세·모멘텀이 강할수록 나쁘다**(눌림목 매수라 '더 눌린 것'이 낫다 — cap_score 역효과·저ADX 우위와 같은 기전)",
+   "key_caveat": "**D4 월 demean(같은 달 안 비교) rho 는 −0.05~−0.09 로 풀 rho(.13~.28)의 1/3 이하.** 풀 상관의 대부분이 '조용한 달이 좋은 달'이라는 시간 효과에서 온다. 슬롯 우선순위는 같은 시점 신호끼리 비교하므로 실효는 D4 크기가 상한. 또 rvol20 은 이미 채택된 변동성 타겟팅 사이징(σ 높을수록 명목가 축소 0.45×)이 사실상 같은 규칙 — bb_width·adx14 는 그 근사 중복. 진짜 새 정보는 '신호봉 ADX·추세 강도' 하나",
+   "d5_short": "engulfing_short|bull_altseason n=111: train 에서 거의 모든 추세·위치 변수가 음의 rho(−0.3~−0.5, 원부호) = 롱의 거울상(숏은 덜 오른 것이 낫다). OOS n=38 부호 불안정",
+   "next_step": "사전 등록 후보: 라우팅 복제 프레임(sizing_vol ROUTING_MODE)에서 'adx14 상위 1/3 사이징 ×0.5' 짝지음 시험(rvol20 은 변동성 타겟팅과 중복이라 제외). D4 크기(−0.07)를 볼 때 기대 효과 작음 — 실행 여부는 사용자 결정. 실거래 무변경",
+   "live_change": "없음"
+  }
  }
 }
