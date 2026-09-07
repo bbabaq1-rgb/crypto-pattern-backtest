@@ -257,3 +257,140 @@ def month_end_indices(rows):
     for k, r in enumerate(rows):
         out[r["date"][:7]] = k
     return out
+
+
+# ── 에피소드 프로필 연구 추가 변수 (2026-09-07 사전 등록) — FAMILY(24) 는 동결, 여기는 별도 목록 ──────────
+BB_N, BB_K, BB_SQZ_WIN = 20, 2.0, 120
+EXTRA = [
+    ("bb_pctb",           "bollinger", "?", "(종가 − 하단)/(상단 − 하단), 20봉·2σ"),
+    ("bb_width",          "bollinger", "?", "(상단 − 하단)/중심선"),
+    ("bb_squeeze",        "bollinger", "?", "현재 폭 / 최근 120봉 최소 폭 — 1 에 가까울수록 수축"),
+    ("adx14",             "trend",     "?", "Wilder ADX14"),
+    ("ath_dd",            "range",     "?", "종가/이력 내 최고 종가 − 1"),
+    ("days_since_ath",    "range",     "?", "최고 종가 이후 경과 봉"),
+    ("age_bars",          "meta",      "?", "이력 길이(봉) — 신규 상장 vs 오래된 코인"),
+    ("corr_btc_60",       "relative",  "?", "60봉 BTC 일수익 상관"),
+    ("max_dd_1y",         "range",     "?", "최근 252봉 내 최대 낙폭(음수)"),
+    ("up_days_20",        "momentum",  "?", "최근 20봉 중 양봉 비율"),
+    ("days_above_ma180",  "ma",        "?", "종가가 MA180 위(양)/아래(음)에 머문 연속 봉 수, ±120 상한"),
+]
+EXTRA_KEYS = [f[0] for f in EXTRA]
+EXTRA_SIGN = {f[0]: f[2] for f in EXTRA}
+EXTRA_GROUP = {f[0]: f[1] for f in EXTRA}
+ALL_KEYS = KEYS + EXTRA_KEYS
+ALL_SIGN = {**SIGN, **EXTRA_SIGN}
+ALL_GROUP = {**GROUP, **EXTRA_GROUP}
+
+
+def adx_series(rows, period=14):
+    """Wilder ADX — regime_axis.adx_series 와 같은 정의(인과: 확정 인덱스에만 값)."""
+    n = len(rows)
+    out = [None] * n
+    if n < period * 2 + 2:
+        return out
+    tr, pdm, ndm = [], [], []
+    for i in range(1, n):
+        h, l = rows[i]["h"], rows[i]["l"]
+        ph, pl, pc = rows[i - 1]["h"], rows[i - 1]["l"], rows[i - 1]["c"]
+        tr.append(max(h - l, abs(h - pc), abs(l - pc)))
+        up, dn = h - ph, pl - l
+        pdm.append(up if (up > dn and up > 0) else 0.0)
+        ndm.append(dn if (dn > up and dn > 0) else 0.0)
+    atr, ap, an = sum(tr[:period]), sum(pdm[:period]), sum(ndm[:period])
+    dx_list, adx_val = [], None
+    for k in range(period, len(tr)):
+        atr = atr - atr / period + tr[k]
+        ap = ap - ap / period + pdm[k]
+        an = an - an / period + ndm[k]
+        if atr <= 0:
+            dx = 0.0
+        else:
+            pdi, ndi = 100 * ap / atr, 100 * an / atr
+            tot = pdi + ndi
+            dx = 100 * abs(pdi - ndi) / tot if tot > 0 else 0.0
+        dx_list.append(dx)
+        if len(dx_list) == period:
+            adx_val = sum(dx_list) / period
+        elif len(dx_list) > period:
+            adx_val = (adx_val * (period - 1) + dx) / period
+        if adx_val is not None:
+            out[k + 1] = adx_val
+    return out
+
+
+def _bb(c, i, n=BB_N, k=BB_K):
+    if i + 1 < n:
+        return None
+    seg = c[i - n + 1:i + 1]
+    m = sum(seg) / n
+    sd = math.sqrt(sum((x - m) ** 2 for x in seg) / n)
+    return m, m + k * sd, m - k * sd
+
+
+def extra_at(fs, i):
+    """FeatureSeries fs 의 봉 i 에서 EXTRA 변수(인과)."""
+    c, h, l = fs.c, fs.h, fs.l
+    f = {k: None for k in EXTRA_KEYS}
+    ci = c[i]
+    if ci <= 0:
+        return f
+    bb = _bb(c, i)
+    if bb is not None:
+        m, up, dn = bb
+        if up > dn:
+            f["bb_pctb"] = (ci - dn) / (up - dn)
+            f["bb_width"] = (up - dn) / m if m > 0 else None
+            if i + 1 >= BB_N + BB_SQZ_WIN - 1 and f["bb_width"] is not None:
+                ws = []
+                for j in range(i - BB_SQZ_WIN + 1, i + 1):
+                    b2 = _bb(c, j)
+                    if b2 and b2[0] > 0:
+                        ws.append((b2[1] - b2[2]) / b2[0])
+                if ws and min(ws) > 0:
+                    f["bb_squeeze"] = f["bb_width"] / min(ws)
+    if not hasattr(fs, "_adx"):
+        fs._adx = adx_series(fs.rows)
+    f["adx14"] = fs._adx[i]
+    seg = c[:i + 1]
+    j_ath = max(range(i + 1), key=lambda j: seg[j])
+    f["ath_dd"] = ci / seg[j_ath] - 1 if seg[j_ath] > 0 else None
+    f["days_since_ath"] = float(i - j_ath)
+    f["age_bars"] = float(i + 1)
+    if i >= 251:
+        peak, mdd = 0.0, 0.0
+        for j in range(i - 251, i + 1):
+            peak = max(peak, h[j]); mdd = min(mdd, c[j] / peak - 1 if peak > 0 else 0.0)
+        f["max_dd_1y"] = mdd
+    if i >= 20:
+        f["up_days_20"] = sum(1 for j in range(i - 19, i + 1) if c[j] > c[j - 1]) / 20
+    m180 = fs._sma(i, 180)
+    if m180 is not None:
+        above = ci > m180
+        cnt = 0
+        for j in range(i, -1, -1):
+            mj = fs._sma(j, 180)
+            if mj is None or (c[j] > mj) != above or cnt >= 120:
+                break
+            cnt += 1
+        f["days_above_ma180"] = float(cnt if above else -cnt)
+    # BTC 상관 60
+    k = fs.btc_idx.get(fs.dates[i])
+    if k is not None and i >= 60 and k >= 60:
+        xs, ys = [], []
+        for t in range(60):
+            kb = fs.btc_idx.get(fs.dates[i - t])
+            if kb is None or kb < 1 or fs.lr[i - t] is None:
+                continue
+            xs.append(fs.btc_lr[kb]); ys.append(fs.lr[i - t])
+        if len(xs) >= 50:
+            mx, my = _mean(xs), _mean(ys)
+            sxx = sum((x - mx) ** 2 for x in xs); syy = sum((y - my) ** 2 for y in ys)
+            if sxx > 0 and syy > 0:
+                f["corr_btc_60"] = sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / math.sqrt(sxx * syy)
+    return f
+
+
+def all_at(fs, i):
+    out = fs.at(i)
+    out.update(extra_at(fs, i))
+    return out
