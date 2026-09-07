@@ -1,0 +1,42 @@
+name: Research — signal-bar winner profile (pre-registered, diagnostic)
+
+# 배포 1d 롱 4셀의 패턴 신호봉에서 잰 상태 변수 35종이 방식D 거래 수익을 가르는가(슬롯 우선순위·사이징 층 후보 탐색).
+# 사전 등록 registry signal_profile_prereg_2026_09_07. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_signal_profile.py"
+      - "test_signal_profile.py"
+      - ".github/workflows/signal_profile.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_guard_v4.py
+          python test_xsec_chars.py
+          python test_signal_profile.py
+      - name: Validate (signal-bar profile)
+        run: python validate_signal_profile.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: signal-profile-${{ github.run_number }}
+          path: _signal_profile.json
+          if-no-files-found: ignore

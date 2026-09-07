@@ -3349,5 +3349,30 @@
   "disclosure_before_run": "로컬 스모크는 오류·행 수만 확인하고 판정 표는 보지 않는다(출력을 파일로 보내 traceback·[data]·[episodes] 행만 읽음). 정식 실행 전 규칙·부호·가족 무변경",
   "live_change": "없음(관찰 기간 ~2026-10-06). 통과 변수도 규칙이 아니라 프로필 — 다음 상승 에피소드 전향 시험 통과 후 슬롯 우선순위/사이징 층으로 별도 사전 등록",
   "not_changed_by_results": "에피소드 정의·집단 분할·변수 가족·순열·Holm·일관성 문턱"
+ },
+ "signal_profile_prereg_2026_09_07": {
+  "status": "PREREGISTERED 2026-09-07 — 실행 대기 (Actions signal_profile.yml)",
+  "question": "사용자 승인(2026-09-07 '응 사전등록해서 돌려줘'): 상태 변수를 월말이 아니라 우리 신호가 난 봉에서 재서, 이미 진입하는 거래의 승자/패자를 가르는가. 통과 변수는 새 진입 규칙이 아니라 슬롯 우선순위·사이징 층 후보",
+  "frame_frozen": {
+   "primary_family": "배포 1d 롱 4셀 풀링(engulfing|bull_btc · engulfing|bear · fvg|bull_btc · fvg|bull_altseason), 코호트 top30 정적(v4 와 같은 신호 집합). 셀별·숏 셀은 진단",
+   "signals": "validate_guard_v4.collect_cell — 방식D 청산 수익(수수료 차감). 피처 = xsec_features.all_at(신호봉 i), 35 변수",
+   "stat": "풀 스피어만(피처, ret). p = 월 클러스터 부트스트랩 1000(시드 42, 신호 월 복원추출). 지정 부호 단측 / '?' 양측. Holm 35",
+   "split": "train < 2025-01-01 <= OOS",
+   "train_eligibility": "Holm p<.05 · 방향 정렬 rho>0 · n>=60",
+   "oos_reproduction": "n>=20 · 같은 방향 rho>0 · 부트 단측 p<.05(비보정) · 피처 상위 1/3 평균수익 − 하위 1/3 > 0",
+   "verdict": "CANDIDATE / TRAIN_ONLY / NONE (+REVERSED 표기)"
+  },
+  "family_size": 35,
+  "primary_cells": [
+   "engulfing|bull_btc",
+   "engulfing|bear",
+   "fvg|bull_btc",
+   "fvg|bull_altseason"
+  ],
+  "split": "2025-01-01",
+  "diagnostics_not_judgement": "D1 셀별 rho / D2 승자 vs 패자 rank-biserial / D3 피처 3분위 손절 비율 / D4 월 demean rho / D5 engulfing_short|bull_altseason",
+  "next_step_if_candidate": "라우팅 복제 프레임(sizing_vol ROUTING_MODE)에서 '후보 변수 하위 1/3 슬롯 우선순위 낮춤/사이징 ×0.5' 짝지음 시험을 별도 사전 등록(method_b 교훈: 무조건부 프레임 금지). 그 전 실거래 반영 없음",
+  "known_limits": "신호 n 수백(검정력 낮음) · 레짐 조건부 셀 안 국면 잔차(D4 보조) · 정적 코호트 · 4h 셀 제외(피처가 1d)",
+  "live_change": "없음(관찰 기간 ~2026-10-06)"
  }
 }
