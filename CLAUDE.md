@@ -1055,6 +1055,23 @@
   손절 algo 주문 매 실행 자동점검(ensure_stop_orders — 누락 시 재등록 +
   포지션 없는 고아 주문 취소, 주문은 reduceOnly 청산 전용. 2026-08-29) ·
   텔레그램 알림(notify.py — TELEGRAM_BOT_TOKEN/CHAT_ID secrets 등록 시 활성)
+- **무기한 펀딩비·OI 일별 적재 시작 (2026-09-08, 사용자 지시)**: registry `perp_accrual_2026_09_08`.
+  perp_accrual.py / supabase_schema_perp.sql / test_perp_accrual.py(27건). **적재 전용 — 매매 코드는 이 테이블을 읽지 않는다.**
+  · **왜 급한가**: 펀딩 이력은 OKX 가 약 3개월만 준다. **종목별 OI 는 스냅샷뿐 이력이 아예 없어** 지금 안 쌓으면 영구 손실이다
+    (통화 단위 rubik 일별만 180일 백필 가능).
+  · **호출이 싸다(실측)**: `funding-rate?instId=ANY` **1회로 458종목 전부**, `open-interest?instType=SWAP` 1회로 스냅샷 전부 —
+    느린틱마다 2회·**1.1초**. 백필(종목별 160회·**약 64초**)은 oncefull 에서만, 상한 240초.
+  · **[7] daily_summary 이후로 옮겼다** — 종전 funding_accrual 은 [2.5](주문 앞)에 있어 무거워지면 진입이 늦어진다.
+    적재는 늦어도 되지만 주문은 아니다.
+  · **두 OI 를 섞지 않는다**: `oi_snap_*`(그 종목 USDT 무기한 스냅샷·이력 없음) vs `oi_day_*`(rubik 통화 일별 = 해당 통화
+    **모든 계약** 합산). 펀딩도 `funding_rate`(정산 평균)·`funding_n` vs `funding_snap`(현재기간 예상)로 구분.
+  · **업서트 3분할** — 스냅샷/펀딩백필/OI백필을 컬럼이 겹치지 않게 따로 보낸다. 한 번에 섞으면 PostgREST 가 payload 키
+    합집합으로 컬럼을 잡아 빠진 값이 NULL 로 덮인다.
+  · **스모크에서 잡은 버그**: `_sym` 이 `[:-11]` 하드코딩이라(접미사는 10자) **'ETHW-USDT-SWAP' 이 'ETH' 로 잡혀 다른 종목
+    데이터가 섞였다.** 80종목 중 5개만 매칭되던 게 단서. `len(SWAP_SUFFIX)` 로 교정 → 80/80.
+  · **선결(사용자 실행)**: `supabase_schema_perp.sql` 을 Supabase SQL Editor 에서 1회. 그 전까지 매 실행 '테이블 없음' 안내만
+    나오고 아무것도 안 쌓인다 — 2026-09-04 의 supabase_schema_funding.sql 이 끝내 실행되지 않아 나흘간 적재가 0이었다.
+    새 SQL 이 funding_daily 도 함께 만든다.
 - **스테이블코인 신호 소스 교체 — CoinGecko → DefiLlama (2026-09-08, 사용자 승인)**: registry
   `stablecoin_source_swap_2026_09_08`. CoinGecko `/coins/{id}/market_chart` 가 무료 티어에서 막혀 매 실행
   `7d=None%` 로 찍히고 있었다 — **신호가 사실상 죽어 있었다**. DefiLlama `stablecoincharts` 는 키 없이 열리고
@@ -1134,7 +1151,8 @@
 - [ ] **beta_slope vs avg_cap 상관 확인** — 레짐 축 진단에서 beta_slope 만 생존했으나 현행 avg_cap 이
       더 강하다(스프레드 +4.48 vs −4.73%p). 부호가 반대인 두 알트강세 축이 상충인지 상보인지 먼저.
       상관 높으면 재포장일 뿐 → 2단계 arm 제작 전 선결
-- [ ] **supabase_schema_funding.sql 실행** (사용자) — 실행 전까지 펀딩 이력이 안 쌓인다(6개월 뒤 시험)
+- [ ] **supabase_schema_perp.sql 실행** (사용자, SQL Editor 1회) — 펀딩비·OI 적재의 **유일한 선결 조건**.
+      실행 전까지 아무것도 안 쌓인다(종전 supabase_schema_funding.sql 을 대체·포함)
 - [ ] **MAX_POS(12) 슬롯 격자 결과 판독** (2026-09-05 사전 등록·실행, quant_batch1 `--slots`) — 숫자를 사용자에게
       보고, 채택은 사용자 결정. 이 표본에서 진입을 막는 건 증거금이 아니라 슬롯(391건)이었음
 - [ ] **고변동 신호 스킵 관찰** — 현 계좌 $276 에서 실측 약 12~15% 스킵(σ>약 124%/yr). **equity

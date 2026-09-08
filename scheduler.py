@@ -587,18 +587,6 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
     print(f"    현재 레짐(primary): {regime} ({latest})")
 
     print("[2.5] 온체인 보조 신호 수집 (표시 전용)...")
-    # 펀딩비 일별 이력 적재 (2026-09-04) — **매매 무관, 데이터 축적 전용**.
-    # OKX 이력이 94일뿐이라 '펀딩비 극단 청산'을 지금 시험할 수 없다. 6개월 뒤 시험이
-    # 가능하도록 지금부터 쌓아 둔다. 어떤 실패도 매매를 막지 않는다(모듈이 예외를 삼킨다).
-    try:
-        import funding_accrual as _fa
-        _n, _msg = _fa.accrue(quiet=True)
-        if _n:
-            print(f"    [funding 적재] {_n}일 (시험용 축적, 매매 미사용)")
-        elif "테이블 없음" in _msg:
-            print(f"    [funding 적재] 건너뜀 — {_msg}")
-    except Exception as _e:
-        print(f"    [funding 적재] 건너뜀 ({str(_e)[:50]})")
     # 2026-09-03: 온체인 조정(bear/bull_btc → sideways)은 어떤 검증도 거치지 않은 실거래
     # 전용 필터였다(orchestrator/method_* 미참조). 라우팅·게이팅은 raw 레짐만 쓰고,
     # 조정값은 로그·대시보드 표시로만 남긴다(RS 필터 폐기 2026-07-08 과 같은 원칙).
@@ -952,6 +940,27 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
             print("    DB 미설정 - daily_summary 스킵(로컬 JSON 유지)")
     except Exception as e:
         print("    daily_summary 실패(무시):", str(e)[:80])
+
+    # [8] 무기한 펀딩비·OI 일별 적재 (2026-09-08 사용자 지시) — **매매 무관, 데이터 축적 전용**.
+    #  · 여기(주문·청산이 모두 끝난 뒤)에 두는 이유: 무거운 틱은 종목별 호출 160회(약 70초)라
+    #    [2.5] 에 두면 진입 시점을 그만큼 늦춘다. 적재는 늦어도 되지만 주문은 아니다.
+    #  · 느린틱은 스냅샷만(2회 호출·약 1초), oncefull 만 백필까지.
+    #  · 펀딩 이력 3개월·rubik OI 180일은 **백필 가능**하므로 하루를 통째로 놓쳐도 다음 무거운
+    #    틱이 메운다. 반대로 종목별 OI 스냅샷은 이력이 없어 놓치면 영구 손실이다.
+    #  · 어떤 실패도 예외를 밖으로 내지 않는다(모듈이 삼킨다). 매매 코드는 이 테이블을 읽지 않는다.
+    if slow_tick:
+        print("[8] 무기한 펀딩비·OI 적재 (시험용 축적, 매매 미사용)...")
+        # 백필(무거운 틱)은 oncefull 에서만 — quick=False 이고 fetch 를 도는 실행이다.
+        for _mod, _kw in (("funding_accrual", {}), ("perp_accrual", {"full": bool(do_fetch and not quick)})):
+            try:
+                _m = __import__(_mod)
+                _n, _msg = _m.accrue(quiet=True, **_kw)
+                if _n:
+                    print(f"    [{_mod}] {_n}행 — {_msg}")
+                else:
+                    print(f"    [{_mod}] 건너뜀 — {_msg}")
+            except Exception as _e:
+                print(f"    [{_mod}] 건너뜀 ({str(_e)[:60]})")
     return out
 
 
