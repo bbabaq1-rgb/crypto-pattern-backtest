@@ -3841,6 +3841,13 @@
     "not_verified": "3행의 실제 구성(유령인지 페이퍼 전용인지)은 미확인 — 트레이딩 Supabase 는 이 세션 MCP 접근 밖이고 Actions 아티팩트 다운로드는 egress 프록시가 403 으로 막는다",
     "change_applied": "`ledger_breakdown(positions)` 순수 헬퍼 + 진입 루프 직전 `[장부]` 한 줄 출력(행 수 / 실거래 / 페이퍼 / OKX 실포지션 수 / 슬롯 / 유령 행 심볼). `live_dir_keys` 는 거래소 집합을 별도 변수로 잡되 최종 값은 종전과 **동일**",
     "not_changed": "live_open_count 정의 · live_dir_keys 최종 값 · 진입/청산/사이징/주문 경로 전부 불변. test_executor_safety 7건이 이를 고정",
-    "options_left": "(A) 사용자 DB 직접 확인 (C) live_open_count·live_dir_keys 에서 d_closed 제외 — C 는 지금 막혀 있는 진입을 여는 **거래 동작 변경**이라 관찰 기간 중 적용은 사용자 결정. 다음 실행 로그의 `[장부]` 줄로 유령 유무를 먼저 확인한다"
+    "options_left": "(A) 사용자 DB 직접 확인 (C) live_open_count·live_dir_keys 에서 d_closed 제외 — C 는 지금 막혀 있는 진입을 여는 **거래 동작 변경**이라 관찰 기간 중 적용은 사용자 결정. 다음 실행 로그의 `[장부]` 줄로 유령 유무를 먼저 확인한다",
+    "resolved_2026_09_08": {
+      "how": "네트워크 개방 후 00:00Z 실행 아티팩트 paper_positions.json 직접 판독(run 34171859359)",
+      "composition": "장부 16행 = **실포지션 13** + **유령 1**(ADA marubozu 1d 9/03 진입, live_mode=True·d_closed=True·a_closed=False) + **페이퍼 전용 2**(BTC marubozu 8/21, BTC inverted_hammer 8/28 — 둘 다 live_mode=False·d_closed=True). 사용자가 OKX 앱에서 본 13 과 정확히 일치",
+      "ghost_confirmed": "**유령 슬롯 실재.** ADA 행은 실포지션이 없는데 live_open_count 에 계상(14 = 13+1)되고 live_dir_keys 에 (ADA, long) 이 들어가 ADA 롱 재진입을 막는다. 페이퍼 2행은 live_mode=False 라 슬롯·중복방어 무관",
+      "a_only_open": "NEAR/DOT/TAO 는 a_closed=True·d_closed=False — A 다리만 먼저 해소된 정상 실포지션(문제 아님)",
+      "decision_pending": "선택지 C(live_open_count·live_dir_keys 에서 d_closed 제외) 적용 여부 — 현재 영향은 슬롯 1개·ADA 롱 재진입 차단. 관찰 기간 중이라 사용자 결정"
+    }
   }
 }
