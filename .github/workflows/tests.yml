@@ -64,6 +64,7 @@ jobs:
                    test_cadence.py \
                    test_signal_profile.py \
                    test_executor_safety.py \
+                   test_onchain_stable.py \
                    test_regime_determinism.py \
                    test_method_m.py \
                    test_regime_split.py \

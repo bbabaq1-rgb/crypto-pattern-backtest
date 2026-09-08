@@ -3848,6 +3848,22 @@
       "ghost_confirmed": "**유령 슬롯 실재.** ADA 행은 실포지션이 없는데 live_open_count 에 계상(14 = 13+1)되고 live_dir_keys 에 (ADA, long) 이 들어가 ADA 롱 재진입을 막는다. 페이퍼 2행은 live_mode=False 라 슬롯·중복방어 무관",
       "a_only_open": "NEAR/DOT/TAO 는 a_closed=True·d_closed=False — A 다리만 먼저 해소된 정상 실포지션(문제 아님)",
       "decision_pending": "선택지 C(live_open_count·live_dir_keys 에서 d_closed 제외) 적용 여부 — 현재 영향은 슬롯 1개·ADA 롱 재진입 차단. 관찰 기간 중이라 사용자 결정"
+    },
+    "option_c_applied_2026_09_08": {
+      "decision": "사용자 승인 '유령 슬롯 C 적용' — **거래 동작 변경**(관찰 기간 중 예외)",
+      "change": "live_open_count 와 live_dir_keys 의 장부 합집합에서 `d_closed` 행 제외. 거래소 실측 집합(okx_dir_keys)은 불변이라 '장부에 없는 실포지션' 방어는 유지",
+      "effect_now": "슬롯 계수 14 → 13(유령 ADA 1건 해소), ADA 롱 재진입 차단 해제. **거래를 늘리는 방향**",
+      "bonus_fix": "live_filled_count 이중계상도 해소 — _record_trade 가 D 청산에만 live_mode=True 를 붙이므로 d_closed 행은 이미 trades 쪽에서 세어지고 있었다(legacy 사이징 경로에만 영향, 현행 SIZING_MODE=risk 는 미사용)",
+      "not_changed": "reconcile_closed_positions 의 d_closed 스킵(원래 D 기록 보존) · ensure_stop_orders(거래소 실포지션만 순회하므로 유령 행은 애초에 손절 재등록 대상이 아님) · 청산·사이징·주문 경로",
+      "tests": "test_executor_safety +5(슬롯·중복키 제외, 거래소 집합 유지, 종전 코드 부재)"
     }
+  },
+  "stablecoin_source_swap_2026_09_08": {
+    "status": "적용 2026-09-08 (사용자 승인) — 표시 전용 신호, 매매 무영향",
+    "problem": "CoinGecko `/coins/{id}/market_chart` 가 무료 티어에서 막혀 매 실행 `[온체인] 스테이블코인: neutral (7d=None%)` 로 찍히고 있었다 — 신호가 사실상 죽어 있었음",
+    "change": "DefiLlama `stablecoincharts/all?stablecoin={1|2}` (키 불필요, 이력 3,206일). **정의·문턱 불변** — USDT·USDC 7일 시총 변화율 평균, ±3%",
+    "verified": "실호출 결과 avg_7d_pct +0.584% (USDT +0.049 / USDC +1.119) — None 이 아닌 실수치",
+    "caveat": "집계 스테이블 공급의 7일 변화는 ±3% 를 거의 못 넘어 신호는 대부분 neutral 로 읽힌다. 이번 교체의 값은 '판정이 바뀐다'가 아니라 **수치가 실제로 기록되기 시작한다**는 것(향후 연구용 축적)",
+    "tests": "test_onchain_stable.py 15건 — 파싱·문턱·폴백 5종 + '표시 전용'(스케줄러/체결엔진이 안 읽음) 고정. tests.yml 등재"
   }
 }

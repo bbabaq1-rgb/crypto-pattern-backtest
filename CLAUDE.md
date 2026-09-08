@@ -1040,6 +1040,11 @@
   · **이번에 넣은 것은 출력뿐**(사용자 결정 B): `ledger_breakdown()` + 진입 루프 직전 `[장부]` 한 줄
     (행 수 / 실거래 / 페이퍼 / OKX 실포지션 수 / 슬롯 / 유령 행 심볼). live_open_count 정의와
     live_dir_keys 최종 값은 **불변**(test_executor_safety 7건이 고정).
+  · **선택지 C 적용 (2026-09-08 사용자 승인, 거래 동작 변경)**: `live_open_count`·`live_dir_keys` 의 장부 합집합에서
+    **d_closed 행 제외**. 슬롯 계수 14 → 13, ADA 롱 재진입 차단 해제 — **거래를 늘리는 방향**. 거래소 실측 집합은
+    불변이라 '장부에 없는 실포지션' 방어는 유지. 부수 효과로 `live_filled_count` 이중계상도 해소된다
+    (_record_trade 가 D 청산에만 live_mode 를 붙여 d_closed 행은 이미 trades 쪽에서 세어지고 있었다).
+    reconcile 의 d_closed 스킵·ensure_stop_orders(거래소 실포지션만 순회)는 불변. test_executor_safety +5.
   · **구성 확인(같은 날, 네트워크 개방 후 아티팩트 직접 판독)**: 16행 = **실포지션 13 + 유령 1(ADA marubozu, D 청산됨·A 미해소·
     live_mode 유지) + 페이퍼 전용 2(BTC marubozu 8/21·BTC IH 8/28)**. 사용자가 본 13 과 일치. **유령 슬롯 실재** — ADA 가 슬롯
     1개를 먹고 ADA 롱 재진입을 막는 중. C 적용 여부는 사용자 결정 대기. NEAR/DOT/TAO 는 A 만 먼저 해소된 정상 실포지션.
@@ -1050,6 +1055,13 @@
   손절 algo 주문 매 실행 자동점검(ensure_stop_orders — 누락 시 재등록 +
   포지션 없는 고아 주문 취소, 주문은 reduceOnly 청산 전용. 2026-08-29) ·
   텔레그램 알림(notify.py — TELEGRAM_BOT_TOKEN/CHAT_ID secrets 등록 시 활성)
+- **스테이블코인 신호 소스 교체 — CoinGecko → DefiLlama (2026-09-08, 사용자 승인)**: registry
+  `stablecoin_source_swap_2026_09_08`. CoinGecko `/coins/{id}/market_chart` 가 무료 티어에서 막혀 매 실행
+  `7d=None%` 로 찍히고 있었다 — **신호가 사실상 죽어 있었다**. DefiLlama `stablecoincharts` 는 키 없이 열리고
+  이력 3,206일. **정의·문턱 불변**(USDT·USDC 7일 시총 변화율 평균, ±3%), 출처만 교체. 실호출 +0.584%
+  (USDT +0.049 / USDC +1.119). **표시 전용이라 매매 무영향** — 다만 집계 공급의 7일 변화는 ±3% 를 거의 못 넘어
+  대부분 neutral 로 읽힌다. 이번 교체의 값은 판정이 아니라 **수치가 기록되기 시작한다는 것**(향후 연구용 축적).
+  test_onchain_stable.py 15건이 파싱·문턱·폴백과 '매매 경로가 이 신호를 안 읽는다'를 고정.
 - **멀티 TF 확증**: 1d 신호 → 4h 최근 3봉 확증. 비확증 시 **페이퍼** size 50% 축소
   (실주문에는 미적용 — 2026-09-03 확인. 확증 판정은 형성 중인 4h 봉 포함)
 - **RS 필터 폐기** (2026-07-08): 상대강도(relative_strength.py)는 rs_score 계산·표시만.
