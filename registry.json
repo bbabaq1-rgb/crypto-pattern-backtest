@@ -3907,5 +3907,38 @@
       "my_earlier_claim_corrected": "'RLS 를 켜도 service_role 이 우회하니 그대로 된다'고 했는데, RLS 우회와 **테이블 GRANT 는 별개**다. 우회는 정책 평가를 건너뛸 뿐 권한이 없으면 여전히 막힌다",
       "silent_failure_avoided": "적재 실패가 로그에 그대로 찍혀 즉시 잡혔다 — [8] 블록이 실패를 삼키되 메시지는 출력하도록 만든 설계가 의도대로 작동"
     }
+  },
+  "tb_wide_prereg_2026_09_08": {
+    "status": "PREREGISTERED 2026-09-08 — 실행 대기 (tb_wide.yml)",
+    "question": "사용자 지시: '5 / 0.45로 사전등록해서 돌려줘 … 이것만큼은 1시간, 4시간, 1d, 1w 로 다 돌려봤으면'. 사용자가 실전에서 가장 많이 매매하는 감속형 삼중바닥(첫 저점에서 두 번 연속 저점 갱신, 갱신 폭 축소)이 배포 파라미터(pivot 3 / eq 0.35)로는 안 잡힌다",
+    "user_case_frozen": {
+      "source": "업비트 KRW-BTC 일봉 (사용자 지목)",
+      "lows": "2026-06-05 90,500,000 → 07-01 88,770,000 (−1.91%) → 08-14 88,342,000 (−0.48%)",
+      "shape": "갱신 폭 4.0배 축소 · 간격 26/44봉 · 넥라인 100,992,000 · 깊이 14.3%",
+      "outcome": "08-21 종가 돌파 → 베이스 대비 최고 +27.3%",
+      "detected": "5/0.45 로 잡힘(신호 2026-08-20). 3/0.35 로는 안 잡힘",
+      "okx_divergence": "**OKX USDT 는 같은 기간 저점을 갱신하지 않았다**(59,078 → 57,750 → 62,227) — 원화 약세로 KRW 차트에서만 하강 구조. 그래서 KRW 대조를 진단 D3 로 넣는다"
+    },
+    "frozen": {
+      "params": "pivot_half=5, eq_frac=0.45 (사용자 지정). 나머지 triple_bottom 상수 불변 — MIN_SPACING 5 / MAX_SPAN 90 / MAX_WAIT 30 / DEPTH_ATR_MULT 2.5 / VOL_BREAK_MULT 1.5, causal=True",
+      "tfs": "1h / 4h / 1d / 1w (사용자 지정 전부)",
+      "cell": "코호트 top30(실거래) · 레짐 ALL · 방향 롱",
+      "frame": "validate_revival 프레임 그대로 재사용 — 1d/4h/1w 방식D, 1h ATR 배리어 / 같은 레짐·코호트·TF 무작위 진입 k=n 베이스라인",
+      "holdout": "1h 90일 · 4h·1d 365일 · **1w 730일**(주봉 희소성, validate_exit_1w 와 같은 이유)",
+      "multiplicity": "네 TF 셀은 한 가족 — boot_p 에 **Holm 보정(m=4)**"
+    },
+    "judgement": "C1 게이트 v2(n>=20·mean>0·승률>=35%·Holm p<0.05·OOS>=2/4) + C2 홀드아웃 n>=10 & mean>0 + C3 자산곡선 CAGR>0 & Calmar>0. 셋 다 → CONFIRMED / C1·C3 통과인데 홀드아웃 n<10 → INCONCLUSIVE / 그 외 REJECTED",
+    "diagnostics": "판정 아님 — D1 격자 pivot{3,5,7}×eq{0.35,0.45,0.55}(**사후에 격자 최대값을 고르지 않는다**) · D2 하강형 부분집합(사용자 '베스트' 정의) · D3 업비트 KRW 대조(우리는 USDT 로 거래하므로 판정은 USDT 로만)",
+    "prior": "**결과 보기 전 기록**: 넓은 스윙은 신호 수를 크게 줄인다. 1w 는 표본이 얇아 INCONCLUSIVE 가 유력하고 1h 도 홀드아웃 90일이라 마찬가지. 가장 그럴듯한 결과는 4h·1d 에서만 n 이 붙고 나머지는 판정 불가. triple_bottom_1w 가 룩어헤드로 정지된 전력이 있어 causal=True 확인이 필수",
+    "deploy_on_pass": false,
+    "live_change": "없음 — 관찰 기간(~2026-10-06) 중이고 배포는 사용자 결정. 통과 셀은 passed_not_deployed 로만 남긴다",
+    "code_safety": "detector_triple_bottom 에 pivot_half/eq_frac 인자를 추가했으나 **기본값(None)은 종전 상수와 동일**이라 배포된 triple_bottom_4h 의 신호 집합은 한 건도 바뀌지 않는다(test_tb_wide 가 신호 집합 일치로 고정, 스케줄러는 인자를 넘기지 않음)",
+    "known_limits": "top30 코호트는 정적(PIT 아님 — pit_cohort 결론상 1d 반전 패턴에서 엣지를 1.5~2%p 부풀린다) · 1w 는 방식D(−8% 저가 손절)가 주봉 폭에 안 맞는다는 것이 validate_exit_1w 에서 이미 확인됨 · 업비트 일봉은 800봉(2024-07~)뿐이라 D3 는 최근 2년만",
+    "prerun_notes_2026_09_08": {
+      "smoke": "로컬 8종목 축소 스모크로 파이프라인 관통 확인 — **수치는 결과가 아니다**(종목 8개, top30=전부)",
+      "fix_long_history": "1d 를 OKX 범위(약 900~1,200봉)로만 읽으면 **1w 는 train 이 통째로 비어**(홀드아웃 730일이 전 표본을 삼킴) Calmar 계산 불가. 결과 부호를 보고 고른 변경이 아니라 창이 성립하지 않는 구조적 결함이라, 1d 를 data_long(2017~)에 이어 붙이는 것을 **기본**으로 바꿨다(--short 로 끔). validate_revival --long 과 같은 경로, 레짐 라벨도 그 봉",
+      "d2_is_rare_not_broken": "D2 하강형 부분집합이 축소 스모크에서 0건이라 버그를 의심했으나 코드는 정상 — eq_frac 0.45 조합 선택이 대개 L1 을 최저점으로 잡아 '연속 갱신'이 드물다. **사용자 사례(업비트 KRW-BTC)로 검증하면 하강형=True 로 잡힌다**",
+      "detector_picks_tighter_anchors": "사용자가 지목한 저점은 06-05/07-01/08-14 인데 디텍터는 같은 구조의 **더 최근 조합** 07-14(92,067,000)/08-03(89,001,000)/08-14(88,342,000)를 고른다(가장 최근 유효 조합을 취하는 설계). 갱신 폭 −3,066/−659 로 역시 축소형이고 신호일은 2026-08-20 로 동일"
+    }
   }
 }

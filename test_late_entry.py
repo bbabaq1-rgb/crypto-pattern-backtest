@@ -75,7 +75,19 @@ for seed in range(200):
         if a != b or a != tb.detect(rows, causal=causal, mode="breakout"):
             same = False
 check("detect(기본) == detect(mode='breakout') == detail 의 sig", same)
-check("기본 mode 는 breakout (스케줄러 mod.detect(rows) 무영향)", tb.detect.__defaults__ == (True, "breakout"))
+# 원래 defaults 튜플을 통째로 고정했으나, 2026-09-08 에 pivot_half/eq_frac 인자가 붙으면서
+# 튜플이 (True,"breakout",None,None) 로 바뀌었다. 지키려던 성질은 '스케줄러가 인자 없이 부르면
+# causal=True·breakout·모듈 상수'이므로 그 성질을 이름으로 직접 단언한다(더 정확해진다).
+import inspect as _insp
+_d = {k: v.default for k, v in _insp.signature(tb.detect).parameters.items() if v.default is not _insp.Parameter.empty}
+check("기본 인자: causal=True · mode=breakout (스케줄러 mod.detect(rows) 무영향)",
+      _d.get("causal") is True and _d.get("mode") == "breakout", _d)
+check("신규 인자는 기본 None → 모듈 상수(PIVOT_HALF 3 / EQ_DEPTH_FRAC 0.35) 사용",
+      _d.get("pivot_half") is None and _d.get("eq_frac") is None
+      and tb.PIVOT_HALF == 3 and tb.EQ_DEPTH_FRAC == 0.35, _d)
+check("필수 인자는 rows 하나뿐 (호출부 시그니처 불변)",
+      [k for k, v in _insp.signature(tb.detect).parameters.items()
+       if v.default is _insp.Parameter.empty] == ["rows"])
 
 # ── 2. late 정의 (합성 랜덤 + 조작 시나리오) ────────────────────────────────
 def_ok = sub_ok = disj_ok = causal_ok = True
