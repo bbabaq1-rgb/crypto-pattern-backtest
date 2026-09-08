@@ -1,0 +1,47 @@
+name: Research — rebalance cadence with a fixed universe (pre-registered)
+
+# 재구성 주기를 유니버스 고정 상태에서 다시 잰다 — basket 민감도의 '월 재구성' 우위가
+# 주기 때문인지 신규 상장 접근 때문인지. 사전 등록 registry cadence_prereg_2026_09_07.
+# DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_cadence.py"
+      - "test_cadence.py"
+      - ".github/workflows/cadence.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: |
+          python test_band_rule.py
+          python test_cadence.py
+      - name: Validate (rebalance cadence)
+        run: python validate_cadence.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cadence-${{ github.run_number }}
+          path: _cadence.json
+          if-no-files-found: ignore

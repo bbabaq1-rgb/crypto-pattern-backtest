@@ -3777,5 +3777,59 @@
       "live_change": "없음. DEPLOY_ON_PASS=False, 관찰 기간 ~2026-10-06 유지",
       "what_remains": "띠 규칙 자체는 마찰(band_rule VIABLE)과 종목 선택(여기 NO_SELECTION_EDGE) 두 물음에 답을 얻었다. 남은 미해결: (a) 재진입 폴링 지연으로 '아예 못 사는' 빈도 — 분 단위 데이터 필요 (b) 스프레드·상장폐지 미반영 (c) 이 시스템을 기존 패턴 시스템과 어떻게 병존시킬지(자본·슬롯 분리) — 전부 사용자 결정 사항"
     }
+  },
+  "cadence_prereg_2026_09_07": {
+    "status": "PREREGISTERED 2026-09-07 — 실행 대기 (cadence.yml)",
+    "question": "사용자 지시(2026-09-07) '월 재구성 유니버스 구성해서 돌려줘'. basket 민감도 표에서 월 재구성이 압도적(liquidity Calmar none 0.35 / quarterly 0.46 / monthly 1.05)이었으나 판정 대상이 아니었고, 사전 등록에 적어둔 교란(재구성 arm 만 신규 상장 코인에 접근)이 남아 있었다. 유니버스를 고정해 그 교란을 제거하고 다시 잰다",
+    "prior": "**결과를 보기 전에 기록한다**: 유니버스를 고정하면 월 우위가 크게 줄어들 것으로 본다. 남는 부분이 있다면 대부분은 앵커 리셋(하락 뒤 낮은 가격에 다시 진입가를 잡는 성질)이지 종목 재선택이 아닐 것이다. 가장 그럴듯한 결과는 CONFOUNDED_BY_UNIVERSE 또는 MECHANISM_NOT_SELECTION",
+    "frozen": {
+      "rule": "band_rule 확정판 — 손절 1%, 재매수는 진입가 P, 슬리피지 0.141%, 수수료 편도 0.1%. 재구성 1회당 왕복 2회",
+      "criterion": "liquidity 고정 (basket 판정 = '거래대금 상위 N 을 쓰라')",
+      "fixed_universe": "창 시작 전 이력 확보 + 창 끝까지 생존한 코인만. 모든 주기 arm 이 매 재구성일에 같은 후보 집합에서 고른다",
+      "cadences": "none / weekly 7 / biweekly 14 / monthly 30 / quarterly 91 / semiannual 182",
+      "arms": "reselect(재선택+재균등화+앵커리셋) / reweight(재균등화+앵커리셋) / anchor(앵커리셋만). none 은 셋이 정의상 동일(테스트로 고정)",
+      "windows": "W1 2019-06-01~2026-09-06 (이력 2018-06-01 이전, N 5/10/20) · W2 2022-01-01~2026-09-06 (이력 2021-01-01 이전, N 5/10/20/40). **W2 는 W1 후반과 겹쳐 독립 표본이 아니다** — 유니버스 크기·기간 강건성 확인",
+      "primary_cell": "W1 · N=20 · monthly",
+      "random": "무작위선택 200회(시드 42) 95백분위",
+      "metric": "Calmar = CAGR / |MDD|"
+    },
+    "judgement": {
+      "J1": "W1 monthly reselect Calmar > 같은 창 none Calmar, 그리고 N 격자 3개 중 >=2 에서 같은 부호",
+      "J2": "W1 monthly reselect > monthly 무작위선택 200회 95백분위",
+      "J3": "W1 monthly reselect > W1 monthly reweight (재선택 단계의 고유 기여 > 0)",
+      "J4": "W2 에서도 monthly reselect > none",
+      "priority": "J1 실패 → CONFOUNDED_BY_UNIVERSE / J1 통과·J4 실패 → UNSTABLE / J1·J4 통과·(J2 또는 J3 실패) → MECHANISM_NOT_SELECTION / 전부 통과 → CADENCE_CONFIRMED"
+    },
+    "diagnostics": "판정 아님 — D1 수수료 편도 0.2% 스트레스 · D2 재구성 횟수·연 수수료 부담 · D3 주기 전 격자 단조성 · D4 띠 규칙 없는 그냥 보유 바스켓의 같은 주기 재균등화(고전적 리밸런싱 프리미엄이 따로 있는지)",
+    "deploy_on_pass": false,
+    "live_change": "없음. CADENCE_CONFIRMED 가 나와도 실거래 반영 없음 — 별개 시스템이고 관찰 기간(~2026-10-06) 중 변경은 사용자 결정",
+    "known_limits": "**생존 편향이 basket 실행보다 더 세다** — '창 끝까지 생존'을 요구해 상장폐지 코인을 제외한다(결과 전에 적는다) · 고정 유니버스가 작아(W1 32 · W2 73 예상) 절대 수치는 basket 실행과 비교 불가, **arm 간 비교만 읽는다** · W2 는 W1 과 겹침 · 스프레드 미반영 · 분 단위 재교차 미반영",
+    "prerun_correction_2026_09_07": {
+      "what": "로컬 스모크(장기 데이터 81 코인)에서 W1 고정 유니버스가 18 코인이라 N=20 이 후보 전부를 고르는 퇴화 상태였고, reselect ≡ reweight ≡ random 이 되어 J2·J3 가 2e-15 부동소수 잡음으로 '통과'하고 CADENCE_CONFIRMED 가 찍혔다",
+      "fix": "판정 기준은 불변, 타당성 가드 3개 추가 — MAX_SELECT_RATIO 0.75(후보의 75% 초과를 고르면 INCONCLUSIVE_DEGENERATE) · EPS 1e-6(Calmar 비교 최소 마진) · D5 재구성 슬리피지 민감도 진단(주 판정 비용 모형은 사전 등록 그대로 수수료만)",
+      "direction": "세 가드 전부 판정을 **엄격하게** 만드는 방향이고, 결과의 부호를 보고 고른 변경이 아니다",
+      "disclosure": "로컬 스모크 출력을 보았음을 공개한다. 그 수치는 18 코인 퇴화 판이라 결과가 아니며 리포트에 쓰지 않는다. 본판은 러너(장기 248 코인, W1 32 · W2 73 예상)",
+      "superseded_run": 34170459488
+    },
+    "result_2026_09_08": {
+      "run": 34170599619,
+      "verdict": "MECHANISM_NOT_SELECTION — 월 재구성 우위는 진짜이고 유니버스 고정에도 살아남지만, 그 이득은 **띠 규칙의 진입가 앵커를 주기적으로 리셋하는 것**에서 나온다. 종목 재선택은 기여가 **음수**다",
+      "data": "장기 248 코인 → W1 고정 유니버스 31(2019-06-01~2026-09-06, 2655일) · W2 71(2022-01-01~2026-09-06, 1710일)",
+      "J1": "통과 — W1 N=20 monthly reselect Calmar **1.01** vs none **0.34**, N 격자 3/3 동부호(N5 0.79/0.69 · N10 0.94/0.52 · N20 1.01/0.34). **원래 월 우위는 신규 상장 접근 교란이 아니었다**(사전 확률과 다름)",
+      "J2": "실패 — 무작위선택 200회 중앙 1.19 · 95백분위 1.54, reselect 는 **14백분위**. 거래대금 순위로 고르는 것이 무작위보다 나쁘다",
+      "J3": "실패 — reselect 1.01 < reweight 1.21. 재선택 기여 **−0.20**",
+      "J4": "통과 — W2 N=20 monthly 0.12 vs none 0.02 (최종 1.30x vs 1.03x)",
+      "decomposition": "none 0.34 → **anchor 1.09**(앵커 리셋 기여 **+0.75**) → reweight 1.21(재균등화 +0.11) → reselect 1.01(재선택 **−0.20**). 이득의 거의 전부가 앵커 리셋",
+      "why": "띠 규칙에서 앵커를 리셋하지 않으면 손절 뒤 진입가 P 로 못 돌아온 종목은 **영원히 현금**으로 남는다. 주기적으로 P 를 그날 종가로 다시 잡으면 낮아진 가격에 다시 걸린다 — '재구성'의 실체는 종목 교체가 아니라 **띠의 재설정**",
+      "anchor_grid": "W1 anchor Calmar: weekly **1.93~1.97**(최종 N=20 **102x**) · biweekly 1.51~1.85 · monthly 0.85~1.09 · quarterly 0.33~0.71. **주기가 짧을수록 좋다** — 그러나 D5·D2 참조",
+      "D1_fee_stress": "편도 0.2%(2배): reselect N=20 none 0.34 / weekly 0.05 / biweekly 0.39 / **monthly 0.68** / quarterly 0.09. 월은 견디고 주간은 무너진다",
+      "D2_turnover": "재구성 횟수·연 수수료(왕복 0.2%): weekly 379회 연 52.1회 **10.43%** · biweekly 189회 5.20% · monthly 88회 **2.42%** · quarterly 29회 0.80%",
+      "D4_rebalance_premium": "띠 규칙 없이 그냥 보유 + 같은 주기 재균등화: none 0.37 / weekly −0.15 / biweekly 0.06 / monthly 0.19 / quarterly 0.09 — **전부 none 보다 나쁘다.** 고전적 리밸런싱 프리미엄이 아니라 띠 규칙 고유의 성질",
+      "D5_reset_slip": "재구성 시장가 슬리피지 편도 0/0.05/0.141%: monthly 1.01/0.96/**0.88**(견딤) · weekly 0.56/0.39/**0.19**(무너짐) · biweekly 0.89/0.80/0.65. **주간 앵커 리셋의 102x 는 슬리피지·수수료를 제대로 물리면 남지 않는다**",
+      "what_this_does_not_say": "(a) '월 재구성을 채택하라'가 아니다 — 이 시험은 주기 효과의 **출처**를 가린 것이고, 채택 판정은 마찰(D5)·계좌 규모·기존 패턴 시스템과의 자본 분리를 포함한 별도 사전 등록이 필요하다 (b) 앵커 리셋을 매주 하면 좋다는 것도 아니다 — 슬리피지 0.141% 만 물려도 weekly Calmar 0.56→0.19 (c) W2 는 W1 후반과 겹쳐 독립 재현이 아니다",
+      "known_limits_restated": "생존 편향이 basket 실행보다 세다(창 끝까지 생존 요구) · 고정 유니버스가 작아 절대 수치는 basket 과 비교 불가 · 스프레드·상장폐지·분 단위 재교차 미반영",
+      "live_change": "없음. DEPLOY_ON_PASS=False, 관찰 기간 ~2026-10-06 유지",
+      "followup": "앵커 리셋 주기를 진짜 후보로 올리려면: 마찰을 판정에 넣은 사전 등록(현행은 D5 가 진단) + 재구성 시각을 실제 스케줄러 틱에 맞춘 실행 가능성 + 기존 패턴 시스템과의 슬롯·자본 분리"
+    }
   }
 }
