@@ -186,5 +186,27 @@ check("run(): 종전 date 키 코드가 남아 있지 않다",
       'key = (s["symbol"], s["pattern"], s["direction"], s["date"])' not in open("paper_executor.py", encoding="utf-8").read()
       and "_is_dup_entry(s, dup_ts, dup_dt, dup_all)" in open("paper_executor.py", encoding="utf-8").read())
 
+# ── 장부 구성 진단 (2026-09-08 사용자 결정 B — 출력만, 거래 동작 무변경) ─────────────
+_led = [
+    dict(symbol="ADA", direction="long", live_mode=True),                   # 실거래·양다리 열림
+    dict(symbol="ARB", direction="long", live_mode=True, d_closed=True),    # D 청산됨, A 만 남음
+    dict(symbol="UNI", direction="long", live_mode=True, d_closed=True),
+    dict(symbol="SOL", direction="long", live_mode=False),                  # 페이퍼 전용
+]
+_b = pe.ledger_breakdown(_led)
+check("장부 진단: 행 수·실거래·페이퍼 분해", _b["rows"] == 4 and _b["live"] == 3 and _b["paper"] == 1, _b)
+check("장부 진단: D청산 완료·A만 남은 행(유령)을 잡아낸다", _b["ghost"] == ["ARB", "UNI"], _b)
+check("장부 진단: live 는 슬롯 계수와 같은 집합(live_mode 기준)",
+      _b["live"] == sum(1 for x in _led if x.get("live_mode")))
+check("장부 진단: 빈 장부", pe.ledger_breakdown([]) == dict(rows=0, live=0, paper=0, ghost=[]))
+_src = open("paper_executor.py", encoding="utf-8").read()
+check("슬롯 계수는 종전 그대로 — 진단이 live_open_count 정의를 바꾸지 않았다",
+      'live_open_count   = sum(1 for p in still_open if p.get("live_mode"))' in _src)
+check("중복 방어 키도 종전 그대로 — 거래소 집합 + 장부 live 행",
+      'live_dir_keys |= {(p["symbol"], p["direction"]) for p in still_open if p.get("live_mode")}' in _src
+      and "live_dir_keys = set(okx_dir_keys)" in _src)
+check("진단은 ledger_breakdown 을 읽기만 한다(포지션 변형 없음)",
+      _led[1].get("d_closed") is True and len(_led) == 4)
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)
