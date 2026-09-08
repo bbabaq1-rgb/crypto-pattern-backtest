@@ -58,8 +58,9 @@ check("triple_bottom 복원 tf = 1w", pe._pattern_tf("triple_bottom") == "1w")
 # ── 3. 킬스위치 / 중복 진입 (소스 고정) ──────────────────────────────────────
 check("잔고 조회 실패 → 킬스위치(fail-closed)", "if bal is None:" in src_pe and "fail-closed" in src_pe)
 check("같은 종목·방향 실포지션 중복 진입 스킵", 'if (s["symbol"], s["direction"]) in live_dir_keys:' in src_pe)
-check("중복 키는 거래소 실측 + 장부 live 포지션 합집합", "ex_mod.get_okx_positions(live_conn)}" in src_pe
-      and 'for p in still_open if p.get("live_mode")}' in src_pe)
+check("중복 키는 거래소 실측 + 장부 live 포지션 합집합 (2026-09-08 결정 C: d_closed 제외)",
+      "ex_mod.get_okx_positions(live_conn)}" in src_pe
+      and 'for p in still_open\n                          if p.get("live_mode") and not p.get("d_closed")}' in src_pe)
 check("진입가·손절가·청산가 8자리", "entry_price=round(entry, 8)" in src_pe and "stop=round(stop_px, 8)" in src_pe
       and "exit_price=round(exit_px, 8)" in src_pe and "round(entry, 4)" not in src_pe)
 check("실거래 D 청산 진입가 0 방어", 'if fill and pos["entry_price"]:' in src_pe)
@@ -196,15 +197,27 @@ _led = [
 _b = pe.ledger_breakdown(_led)
 check("장부 진단: 행 수·실거래·페이퍼 분해", _b["rows"] == 4 and _b["live"] == 3 and _b["paper"] == 1, _b)
 check("장부 진단: D청산 완료·A만 남은 행(유령)을 잡아낸다", _b["ghost"] == ["ARB", "UNI"], _b)
-check("장부 진단: live 는 슬롯 계수와 같은 집합(live_mode 기준)",
-      _b["live"] == sum(1 for x in _led if x.get("live_mode")))
-check("장부 진단: 빈 장부", pe.ledger_breakdown([]) == dict(rows=0, live=0, paper=0, ghost=[]))
+check("장부 진단: live_active = live - 유령 (슬롯 계수와 같은 집합)", _b["live_active"] == 1, _b)
+check("장부 진단: 빈 장부",
+      pe.ledger_breakdown([]) == dict(rows=0, live=0, paper=0, live_active=0, ghost=[]))
+
+# ── 유령 슬롯 제외 (2026-09-08 사용자 결정 C — 거래 동작 변경) ──────────────────
+_slot = sum(1 for p in _led if p.get("live_mode") and not p.get("d_closed"))
+_keys = {(p["symbol"], p["direction"]) for p in _led
+         if p.get("live_mode") and not p.get("d_closed")}
+check("C: 슬롯 계수에서 d_closed 제외 — 실포지션 있는 행만", _slot == 1 and _slot == _b["live_active"])
+check("C: 중복 방어 키에서도 d_closed 제외 — ARB/UNI 재진입이 열린다",
+      _keys == {("ADA", "long")}, sorted(_keys))
 _src = open("paper_executor.py", encoding="utf-8").read()
-check("슬롯 계수는 종전 그대로 — 진단이 live_open_count 정의를 바꾸지 않았다",
-      'live_open_count   = sum(1 for p in still_open if p.get("live_mode"))' in _src)
-check("중복 방어 키도 종전 그대로 — 거래소 집합 + 장부 live 행",
-      'live_dir_keys |= {(p["symbol"], p["direction"]) for p in still_open if p.get("live_mode")}' in _src
-      and "live_dir_keys = set(okx_dir_keys)" in _src)
+check("C: live_open_count 가 d_closed 를 제외한다",
+      'if p.get("live_mode") and not p.get("d_closed"))' in _src)
+check("C: live_dir_keys 도 d_closed 를 제외한다",
+      'if p.get("live_mode") and not p.get("d_closed")}' in _src)
+check("C: 거래소 실측 집합은 그대로 — 장부에 없는 실포지션 방어 유지",
+      "live_dir_keys = set(okx_dir_keys)" in _src)
+check("C: 종전(유령 포함) 계수 코드가 남아 있지 않다",
+      'live_open_count   = sum(1 for p in still_open if p.get("live_mode"))' not in _src
+      and 'for p in still_open if p.get("live_mode")}' not in _src)
 check("진단은 ledger_breakdown 을 읽기만 한다(포지션 변형 없음)",
       _led[1].get("d_closed") is True and len(_led) == 4)
 

@@ -598,13 +598,16 @@ def ledger_breakdown(positions):
 
     `[paper] 오픈 N건` 은 실포지션 수가 아니라 장부 행 수다(A·D 두 다리 중 하나라도 열린 행).
     특히 D 다리가 닫힌 행 — 실포지션은 이미 청산됐는데 A 다리(±10%/20봉) 때문에 남아 있는 행 —
-    은 live_mode 를 유지하므로 슬롯(live_open_count)과 중복 방어(live_dir_keys)를 계속 먹는다.
-    그 차이를 매 실행 로그에서 보이게 하려고 센다. live 는 슬롯 계수와 **같은 집합**이다
-    (test_executor_safety 가 고정).
+    은 live_mode 를 유지한다. 2026-09-08(사용자 결정 C) 이전에는 이 행이 슬롯(live_open_count)과
+    중복 방어(live_dir_keys)를 계속 먹었고, 지금은 둘 다에서 제외된다.
+    **live_active 가 슬롯 계수와 같은 집합**이다(test_executor_safety 가 고정).
+    live(=유령 포함)와 ghost 는 그 차이를 로그에서 보이게 하려고 함께 센다.
     """
     live = [p for p in positions if p.get("live_mode")]
+    ghost = [p for p in live if p.get("d_closed")]
     return dict(rows=len(positions), live=len(live), paper=len(positions) - len(live),
-                ghost=sorted({p["symbol"] for p in live if p.get("d_closed")}))
+                live_active=len(live) - len(ghost),
+                ghost=sorted({p["symbol"] for p in ghost}))
 
 
 def reconcile_live_flag(positions, live_conn):
@@ -865,7 +868,13 @@ def run(stamp=None):
     # 2) 신규 진입 (signals_today.json)
 
     # 실거래 포지션 현황 — 사이징·max 체크용
-    live_open_count   = sum(1 for p in still_open if p.get("live_mode"))
+    # d_closed 제외(2026-09-08 사용자 결정 C): D 다리가 닫힌 행은 **실포지션이 이미 없다**.
+    # A 다리(±10%/20봉) 때문에 still_open 에 남아 있을 뿐인데 종전에는 live_mode 만 보고 세어
+    # 슬롯을 먹었다(9/08 실측: 장부 16행 = 실포지션 13 + 유령 1 + 페이퍼 2 → 계수 14).
+    # live_filled_count 의 이중계상도 같이 해소된다 — _record_trade 가 D 청산에만
+    # live_mode=True 를 붙이므로 d_closed 행은 이미 trades 쪽에서 한 번 세어진다.
+    live_open_count   = sum(1 for p in still_open
+                            if p.get("live_mode") and not p.get("d_closed"))
     live_filled_count = live_open_count + sum(1 for t in trades if t.get("live_mode"))
 
     sig = _load("signals_today.json", {"signals": []})
@@ -892,16 +901,20 @@ def run(stamp=None):
         except Exception:
             okx_dir_keys, okx_ok = set(), False
         live_dir_keys = set(okx_dir_keys)
-        live_dir_keys |= {(p["symbol"], p["direction"]) for p in still_open if p.get("live_mode")}
+        # d_closed 제외(2026-09-08 결정 C): 실포지션이 없는 행이 같은 종목·방향 재진입을
+        # 막고 있었다(9/08 실측: ADA 롱). 거래소 실측(okx_dir_keys)은 그대로 두므로
+        # '장부에 없는 실포지션' 방어는 유지된다.
+        live_dir_keys |= {(p["symbol"], p["direction"]) for p in still_open
+                          if p.get("live_mode") and not p.get("d_closed")}
 
     # 장부 구성 진단(2026-09-08 사용자 결정 B) — **출력만, 거래 동작 무변경**.
     # 계기: OKX 앱 실포지션 13 vs 로그 '오픈 16건' 불일치(사용자 지적). 그 16 은 장부 행 수다.
     _bd = ledger_breakdown(still_open)
     print(f"  [장부] 오픈 {_bd['rows']}행 = 실거래 {_bd['live']} + 페이퍼 {_bd['paper']}"
           + (f" | OKX 실포지션 {len(okx_dir_keys)}건" if okx_ok else "")
-          + (f" | 슬롯 {_bd['live']}/{MAX_LIVE_POS}" if live_conn else "")
+          + (f" | 슬롯 {_bd['live_active']}/{MAX_LIVE_POS}" if live_conn else "")
           + (f" | D청산 완료·A만 남은 행 {len(_bd['ghost'])}건 {_bd['ghost']}"
-             " ← 실포지션 없이 슬롯·중복방어를 점유" if _bd["ghost"] else ""))
+             " ← 슬롯·중복방어에서 제외됨" if _bd["ghost"] else ""))
     for s in sig.get("signals", []):
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:

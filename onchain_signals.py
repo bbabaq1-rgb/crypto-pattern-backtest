@@ -3,7 +3,7 @@ onchain_signals.py — 온체인 보조 신호 3종
 
 1. 펀딩비 (OKX 공개 API — 인증 불필요)
 2. ETF 순유입 (SoSoValue 무료 API)
-3. 스테이블코인 시총 변화 (CoinGecko 무료)
+3. 스테이블코인 시총 변화 (DefiLlama, 무료·키 불필요)
 
 fetch() -> {
   "funding": {"signal": "bull"|"bear"|"neutral", ...},
@@ -178,43 +178,50 @@ def _fetch_etf_flow() -> dict:
         return {"signal": "neutral", "flows_3d": [], "error": str(e)[:80]}
 
 
-# ── Signal 3: 스테이블코인 시총 변화 (CoinGecko) ─────────────────────────────
+# ── Signal 3: 스테이블코인 시총 변화 (DefiLlama) ────────────────────────────
+# 2026-09-08 소스 교체(사용자 승인). 종전 CoinGecko `/coins/{id}/market_chart` 는
+# 무료 티어에서 막혀(에러코드 10005 계열) 매 실행 `7d=None%` 로 찍히고 있었다 —
+# 즉 이 신호는 사실상 죽어 있었다. DefiLlama stablecoins API 는 키 없이 열리고
+# 일별 이력이 3,200일 넘게 있다. **정의는 그대로**(USDT·USDC 7일 시총 변화율 평균),
+# 문턱(STABLE_BULL_THR/STABLE_BEAR_THR)도 불변. 표시 전용 신호라 매매 영향 없다.
+LLAMA_STABLE_IDS = {"tether": "1", "usd-coin": "2"}   # DefiLlama peggedAsset id
+
+
 def _fetch_stablecoin() -> dict:
     """
-    USDT + USDC 7일 시총 변화율 평균.
-    CoinGecko 무료 API. 실패 시 neutral.
+    USDT + USDC 7일 시총 변화율 평균 (DefiLlama). 실패 시 neutral.
+
+    `stablecoincharts/all?stablecoin=<id>` 는 일별 [{date, totalCirculatingUSD:{peggedUSD}}]
+    를 오름차순으로 준다. 마지막 값 대비 8번째 뒤 값(=7일 전)으로 변화율을 잡는다.
     """
-    import time as _time
     try:
         import requests
         total_change = 0.0
         n_ok = 0
         by_coin = {}
 
-        for coin_id in ["tether", "usd-coin"]:
+        for coin_id, llama_id in LLAMA_STABLE_IDS.items():
             try:
                 r = requests.get(
-                    f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart",
-                    params={"vs_currency": "usd", "days": 8, "interval": "daily"},
+                    f"https://stablecoins.llama.fi/stablecoincharts/all",
+                    params={"stablecoin": llama_id},
                     headers={"Accept": "application/json"},
                     timeout=20,
                 )
                 if not r.ok:
-                    _time.sleep(2)
                     continue
-                mc = r.json().get("market_caps", [])
-                if len(mc) < 2:
+                rows = r.json()
+                if not isinstance(rows, list) or len(rows) < 8:
                     continue
-                first = float(mc[0][1])
-                last_val = float(mc[-1][1])
-                if first > 0:
+                def _mc(row):
+                    return float((row.get("totalCirculatingUSD") or {}).get("peggedUSD") or 0)
+                first, last_val = _mc(rows[-8]), _mc(rows[-1])
+                if first > 0 and last_val > 0:
                     chg = (last_val - first) / first
                     total_change += chg
                     n_ok += 1
                     by_coin[coin_id] = round(chg * 100, 3)
-                _time.sleep(2)
             except Exception:
-                _time.sleep(2)
                 continue
 
         if n_ok == 0:
@@ -229,7 +236,7 @@ def _fetch_stablecoin() -> dict:
             sig = "neutral"
 
         return {"signal": sig, "avg_7d_pct": round(avg * 100, 3), "by_coin": by_coin,
-                "note": "avg_7d_pct in %"}
+                "source": "defillama", "note": "avg_7d_pct in %"}
 
     except Exception as e:
         return {"signal": "neutral", "avg_7d_pct": None, "by_coin": {}, "error": str(e)[:80]}
