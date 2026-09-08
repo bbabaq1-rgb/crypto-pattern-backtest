@@ -1069,9 +1069,10 @@
     합집합으로 컬럼을 잡아 빠진 값이 NULL 로 덮인다.
   · **스모크에서 잡은 버그**: `_sym` 이 `[:-11]` 하드코딩이라(접미사는 10자) **'ETHW-USDT-SWAP' 이 'ETH' 로 잡혀 다른 종목
     데이터가 섞였다.** 80종목 중 5개만 매칭되던 게 단서. `len(SWAP_SUFFIX)` 로 교정 → 80/80.
-  · **선결(사용자 실행)**: `supabase_schema_perp.sql` 을 Supabase SQL Editor 에서 1회. 그 전까지 매 실행 '테이블 없음' 안내만
-    나오고 아무것도 안 쌓인다 — 2026-09-04 의 supabase_schema_funding.sql 이 끝내 실행되지 않아 나흘간 적재가 0이었다.
-    새 SQL 이 funding_daily 도 함께 만든다.
+  · **선결 해소 (2026-09-08 사용자 실행 완료)**: perp_daily·funding_daily 생성됨. RLS 를 켜도 적재는 그대로 —
+    `supabase_client.get_client()` 기본이 role='service' 이고 service_role 은 RLS 를 우회한다(키가 잘못 꽂히면
+    get_client 가 즉시 에러 → 조용한 실패 없음). 2026-09-04 의 supabase_schema_funding.sql 은 끝내 실행되지 않아
+    나흘간 적재가 0이었는데, 새 SQL 이 그것까지 함께 만들어 해소했다.
 - **스테이블코인 신호 소스 교체 — CoinGecko → DefiLlama (2026-09-08, 사용자 승인)**: registry
   `stablecoin_source_swap_2026_09_08`. CoinGecko `/coins/{id}/market_chart` 가 무료 티어에서 막혀 매 실행
   `7d=None%` 로 찍히고 있었다 — **신호가 사실상 죽어 있었다**. DefiLlama `stablecoincharts` 는 키 없이 열리고
@@ -1151,8 +1152,8 @@
 - [ ] **beta_slope vs avg_cap 상관 확인** — 레짐 축 진단에서 beta_slope 만 생존했으나 현행 avg_cap 이
       더 강하다(스프레드 +4.48 vs −4.73%p). 부호가 반대인 두 알트강세 축이 상충인지 상보인지 먼저.
       상관 높으면 재포장일 뿐 → 2단계 arm 제작 전 선결
-- [ ] **supabase_schema_perp.sql 실행** (사용자, SQL Editor 1회) — 펀딩비·OI 적재의 **유일한 선결 조건**.
-      실행 전까지 아무것도 안 쌓인다(종전 supabase_schema_funding.sql 을 대체·포함)
+- [x] **supabase_schema_perp.sql 실행 완료** (2026-09-08 사용자, SQL Editor) — perp_daily·funding_daily 생성됨.
+      RLS 켜도 적재 무관(service_role 이 우회). **적재 확인은 12:00Z 스냅샷 80행 → 00:00Z 백필** 로 21:30 점검에서
 - [ ] **MAX_POS(12) 슬롯 격자 결과 판독** (2026-09-05 사전 등록·실행, quant_batch1 `--slots`) — 숫자를 사용자에게
       보고, 채택은 사용자 결정. 이 표본에서 진입을 막는 건 증거금이 아니라 슬롯(391건)이었음
 - [ ] **고변동 신호 스킵 관찰** — 현 계좌 $276 에서 실측 약 12~15% 스킵(σ>약 124%/yr). **equity
