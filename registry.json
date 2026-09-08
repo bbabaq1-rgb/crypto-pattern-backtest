@@ -3856,6 +3856,12 @@
       "bonus_fix": "live_filled_count 이중계상도 해소 — _record_trade 가 D 청산에만 live_mode=True 를 붙이므로 d_closed 행은 이미 trades 쪽에서 세어지고 있었다(legacy 사이징 경로에만 영향, 현행 SIZING_MODE=risk 는 미사용)",
       "not_changed": "reconcile_closed_positions 의 d_closed 스킵(원래 D 기록 보존) · ensure_stop_orders(거래소 실포지션만 순회하므로 유령 행은 애초에 손절 재등록 대상이 아님) · 청산·사이징·주문 경로",
       "tests": "test_executor_safety +5(슬롯·중복키 제외, 거래소 집합 유지, 종전 코드 부재)"
+    },
+    "option_c_verified_2026_09_08_1200Z": {
+      "log": "`[장부] 오픈 17행 = 실거래 17 + 페이퍼 0 | OKX 실포지션 14건 | 슬롯 14/16 | D청산 완료·A만 남은 행 2건 ['ADA','BTC'] ← 슬롯·중복방어에서 제외됨`",
+      "verified": "유령 **3행**(ADA marubozu, BTC marubozu, BTC inverted_hammer — 심볼 표기는 중복 제거라 2개로 보인다)이 슬롯에서 제외돼 **17 → 14**. C 적용 전 로직이었다면 17/16 으로 만석이라 신규 진입이 전부 막혔을 것",
+      "paper_rows_promoted": "BTC 페이퍼 2행이 `reconcile_live_flag` 로 live 승격됨(BTC 실포지션이 생겨서) → 페이퍼 0. 승격돼도 d_closed 라 슬롯·중복방어에서는 빠진다",
+      "new_finding_stop_map": "**미해결(사용자 결정 대기)**: `stop_map` 은 `live_mode` 만 보고 d_closed 를 거르지 않는다(paper_executor:~722). 심볼 키 dict 라 BTC 처럼 장부에 3행(유령 2 + 실포지션 1)이 있으면 **죽은 행의 손절가가 실포지션 손절 재등록에 쓰일 수 있다**(BTC 유령 71,310.76 / 73,478.01 vs 실포지션 72,566.80). ensure_stop_orders 는 손절이 **누락됐을 때만** 재등록하므로 지금 당장 문제는 없으나, 누락 시 검증치와 다른 손절가가 걸린다. C 와 같은 한 줄 수정(d_closed 제외)으로 해소"
     }
   },
   "stablecoin_source_swap_2026_09_08": {
@@ -3893,6 +3899,13 @@
       "rls": "RLS 를 켜도 적재는 그대로 — supabase_client.get_client() 기본값이 role='service' 이고 service_role 키는 RLS 를 우회한다. 키가 잘못 꽂히면 get_client 가 즉시 에러를 낸다(조용한 실패 없음)",
       "verification_pending": "아직 0행. 12:00Z(oncequick --slow)에 스냅샷 80행, 다음 00:00Z(oncefull)에 백필(펀딩 약 2,550행 + OI 약 14,400행)이 들어와야 한다. 21:30 KST 점검에서 로그로 확인",
       "deliberately_not_done": "**추가 수동 dispatch 로 즉시 확인하지 않는다** — 스케줄러 수동 실행은 전체 매매 실행이라 검증된 발화 시각 집합 밖에서 진입이 날 수 있다(관찰 기간). 오늘치 스냅샷은 같은 날짜 행을 덮어쓰므로 12:00Z 를 기다려도 잃는 것이 없다"
+    },
+    "first_run_2026_09_08_1200Z": {
+      "result": "**적재 실패 — `permission denied for table perp_daily` / `funding_daily` (SQLSTATE 42501)**",
+      "diagnosis": "**RLS 정책이 아니라 테이블 GRANT 문제.** RLS 위반이면 PostgREST 가 'new row violates row-level security policy' 를 낸다. 'permission denied for table' 은 role 에 테이블 권한 자체가 없다는 뜻. 같은 실행에서 daily_summary UPSERT 는 성공 → 키·연결은 정상이고 새 테이블 둘에만 권한이 없다",
+      "fix": "supabase_grant_perp.sql — `grant select,insert,update,delete on ... to service_role` (사용자 SQL Editor 1회)",
+      "my_earlier_claim_corrected": "'RLS 를 켜도 service_role 이 우회하니 그대로 된다'고 했는데, RLS 우회와 **테이블 GRANT 는 별개**다. 우회는 정책 평가를 건너뛸 뿐 권한이 없으면 여전히 막힌다",
+      "silent_failure_avoided": "적재 실패가 로그에 그대로 찍혀 즉시 잡혔다 — [8] 블록이 실패를 삼키되 메시지는 출력하도록 만든 설계가 의도대로 작동"
     }
   }
 }

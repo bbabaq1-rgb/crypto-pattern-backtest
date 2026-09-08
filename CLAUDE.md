@@ -1040,6 +1040,15 @@
   · **이번에 넣은 것은 출력뿐**(사용자 결정 B): `ledger_breakdown()` + 진입 루프 직전 `[장부]` 한 줄
     (행 수 / 실거래 / 페이퍼 / OKX 실포지션 수 / 슬롯 / 유령 행 심볼). live_open_count 정의와
     live_dir_keys 최종 값은 **불변**(test_executor_safety 7건이 고정).
+  · **C 실측 검증 (2026-09-08 12:00Z)**: `[장부] 오픈 17행 = 실거래 17 + 페이퍼 0 | OKX 실포지션 14건 |
+    슬롯 14/16 | D청산 완료·A만 남은 행 2건 ['ADA','BTC'] ← 슬롯·중복방어에서 제외됨`. 유령 **3행**
+    (ADA·BTC×2, 심볼 표기는 중복 제거) 제외로 17 → 14. **C 적용 전이었다면 17/16 만석이라 신규 진입이
+    전부 막혔을 것.** BTC 페이퍼 2행은 실포지션 생성으로 live 승격됐으나 d_closed 라 슬롯에서 빠진다.
+  · **새 발견(미해결, 사용자 결정 대기) — stop_map 은 d_closed 를 안 거른다**: `live_mode` 만 보므로
+    BTC 처럼 장부에 3행(유령 2 + 실포지션 1)이 있으면 심볼 키 dict 에서 **죽은 행의 손절가가 실포지션
+    손절 재등록에 쓰일 수 있다**(유령 71,310/73,478 vs 실포지션 72,566). ensure_stop_orders 는 손절
+    **누락 시에만** 재등록하므로 당장 문제는 없으나, 누락되면 검증치와 다른 손절가가 걸린다. C 와 같은
+    한 줄(d_closed 제외)로 해소.
   · **선택지 C 적용 (2026-09-08 사용자 승인, 거래 동작 변경)**: `live_open_count`·`live_dir_keys` 의 장부 합집합에서
     **d_closed 행 제외**. 슬롯 계수 14 → 13, ADA 롱 재진입 차단 해제 — **거래를 늘리는 방향**. 거래소 실측 집합은
     불변이라 '장부에 없는 실포지션' 방어는 유지. 부수 효과로 `live_filled_count` 이중계상도 해소된다
@@ -1069,6 +1078,11 @@
     합집합으로 컬럼을 잡아 빠진 값이 NULL 로 덮인다.
   · **스모크에서 잡은 버그**: `_sym` 이 `[:-11]` 하드코딩이라(접미사는 10자) **'ETHW-USDT-SWAP' 이 'ETH' 로 잡혀 다른 종목
     데이터가 섞였다.** 80종목 중 5개만 매칭되던 게 단서. `len(SWAP_SUFFIX)` 로 교정 → 80/80.
+  · **첫 실행(12:00Z) 적재 실패 — GRANT 누락**: `permission denied for table perp_daily` (42501).
+    **RLS 정책이 아니라 테이블 권한 문제** — RLS 위반이면 'new row violates row-level security policy' 가 나온다.
+    같은 실행에서 daily_summary UPSERT 는 성공했으므로 키·연결은 정상. 해결은 `supabase_grant_perp.sql`
+    (`grant ... to service_role`) 1회. **'service_role 이 RLS 를 우회하니 그대로 된다'던 내 설명은 반쪽**이었다 —
+    우회는 정책 평가를 건너뛸 뿐, 테이블 GRANT 가 없으면 여전히 막힌다.
   · **선결 해소 (2026-09-08 사용자 실행 완료)**: perp_daily·funding_daily 생성됨. RLS 를 켜도 적재는 그대로 —
     `supabase_client.get_client()` 기본이 role='service' 이고 service_role 은 RLS 를 우회한다(키가 잘못 꽂히면
     get_client 가 즉시 에러 → 조용한 실패 없음). 2026-09-04 의 supabase_schema_funding.sql 은 끝내 실행되지 않아
