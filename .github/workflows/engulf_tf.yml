@@ -3,7 +3,9 @@ name: Research — engulfing on 1h/4h/1w, current frame (pre-registered)
 # engulfing 을 1h/4h/1w 에서 현행 프레임(게이트 v2 + k=n 베이스라인 + 실거래 청산 +
 # PIT 코호트 + 홀드아웃 + 자산곡선)으로 재시험. 4h 는 2026-06-24 구 게이트 탈락 이후
 # 재시험된 적이 없고 1w 는 한 번도 안 돌렸다.
-# 사전 등록 registry engulf_tf_prereg_2026_09_09. DEPLOY_ON_PASS=False — 매매·DB 무관.
+# 사전 등록 registry engulf_tf_prereg_2026_09_09 (v2 달력 홀드아웃, run 34301698148 — 6셀 REJECTED).
+# 2026-09-09 사용자 결정 ③(국면 홀드아웃 기본)으로 홀드아웃에서만 탈락한 4h 롱을 v3 로 재실행 —
+# registry engulf_tf_v3_prereg_2026_09_09. DEPLOY_ON_PASS=False — 매매·DB 무관.
 
 on:
   workflow_dispatch:
@@ -35,12 +37,14 @@ jobs:
           ls data_long | wc -l
       - name: Logic tests (no network)
         run: python test_engulf_tf.py
-      - name: Validate (engulfing 1h/4h/1w)
-        run: python validate_engulf_tf.py
+      - name: Validate (engulfing 4h long, frame v3 regime holdout)
+        run: python validate_engulf_tf.py --frame v3 --tf 4h --dir long
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: engulf-tf-${{ github.run_number }}
-          path: _engulf_tf.json
+          path: |
+            _engulf_tf.json
+            _engulf_tf_v3.json
           if-no-files-found: ignore

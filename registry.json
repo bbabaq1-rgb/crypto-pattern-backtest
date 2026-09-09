@@ -4200,6 +4200,46 @@
   "purpose": "'v4 CONFIRMED 0 이 B 아티팩트였는가' 확인. 관찰 기간이라 CONFIRMED 도 실거래 반영 없음.",
   "prior_before_run": "감사 행렬을 이미 봤으므로 눈 감은 예측이 아니다. 4h triple_bottom/equal_lows → CONFIRMED 유력, vol_awakening 은 OOS +0.19% 의 boot_p 가 불확실. engulfing|bull_btc → INCONCLUSIVE(규칙 2). 1d 라우팅 나머지는 OOS A 가 음수라 SHADOW/REJECTED 그대로 — **B 제거는 4h 를 살리고 1d 는 못 살린다** 예상. 그림자 2 무변화.",
   "what_is_NOT_rerun": "익절 3판(수수료 산술), 청산 변형 전부(짝지음), revival/tb_wide/late_entry/exit_1w(승률·단일 해·손절 비율이 결정타) — B 미사용이라 불변. 사용자 질문 '전부 다시 해야 하나' 의 답: 아니오, guard_v4 11셀 + (결정 3 시) engulf_tf 4h 롱뿐.",
-  "files": "validate_guard_v5.py / test_guard_v5.py / .github/workflows/guard_v5.yml"
+  "files": "validate_guard_v5.py / test_guard_v5.py / .github/workflows/guard_v5.yml",
+  "decision_3_followup": "2026-09-09 사용자 승인 ③ — 국면 홀드아웃 기본. frame_default_2026_09_09 참조. v5 자체는 SPLIT 2025-01-01 OOS 를 쓰므로 무영향."
+ },
+ "frame_default_2026_09_09": {
+  "status": "DECIDED 2026-09-09 (사용자: '3번도 진행, b벤치 영향 있는거 재테스트도 수행')",
+  "decisions": {
+   "1_b_bench": "B 벤치(같은 코인·같은 달·같은 레짐 무작위)는 판정 기준에서 제외, 진단으로만 병기. 근거 guard_audit_2026_09_09(실거래 12/12 기각, 단독 기각 유일 층, 사후 조건화).",
+   "2_small_n": "레짐 조건부 셀에서 전체 n<200 이고 train 게이트 탈락 사유가 boot_p 뿐이면 REJECTED 가 아니라 INCONCLUSIVE. 통과가 아니다. 200 은 내 값(사용자 미조정).",
+   "3_holdout": "달력 마지막 365일 홀드아웃(L2) 대신 국면 기준 홀드아웃(frame_v3: 셀 레짐으로 라벨된 최근 365일, ALL 은 달력)을 기본으로. 근거: 감사에서 L6 4/12 기각·거짓음성 1 vs L2 9/12·2. validate_revival 은 이미 v3 기본, validate_engulf_tf 는 FRAME_DEFAULT='v3' 로 전환."
+  },
+  "rerun_scope": {
+   "guard_v4_14cells": "validate_guard_v5 (frame_v5_2026_09_09) — 실행 중",
+   "pit_cohort_11cells": "validate_pit_cohort --rules v5 (pit_cohort_v5_2026_09_09) — B 벤치가 판정 기준이었던 두 번째이자 마지막 시험",
+   "engulf_tf_4h_long": "validate_engulf_tf --frame v3 --tf 4h --dir long (engulf_tf_v3_prereg_2026_09_09) — 달력 홀드아웃 하나로 탈락한 유일한 셀",
+   "not_rerun": "익절 3판·청산 변형·revival(이미 v3)·tb_wide(승률+홀드아웃 두 사유)·late_entry·exit_1w(단일 해)·ma180(v3 로 이미 재실행, C2b 탈락) — B 미사용이거나 홀드아웃 외 사유로 탈락"
+  },
+  "unchanged": "게이트 v2 문턱(n≥20·mean>0·승률≥35%·boot_p<.05·OOS) · C2b · C3 자산곡선 · PIT 코호트 · Holm · E 에피소드 · 왕복 0.4% 스트레스 · DEPLOY_ON_PASS=False(관찰 기간 ~2026-10-06)",
+  "principle": "프레임 변경은 후보 전체에 적용하되, 재실행은 '바뀐 층 하나로만 탈락했던 셀'에 한정한다 — 나머지를 다시 돌리면 결과를 보고 셀을 고르는 것이 된다."
+ },
+ "pit_cohort_v5_2026_09_09": {
+  "status": "PREREGISTERED",
+  "date": "2026-09-09",
+  "question": "pit_cohort_prereg_2026_09_06 의 11셀(static·PIT 두 벌)이 v5 판정 규칙(B 진단·규칙 2)에서 어떻게 바뀌는가. 코호트 구성·A 풀·B 계산은 그대로, 판정 함수만 validate_guard_v5.verdict_v5.",
+  "frozen": "RANK_WINDOW 30 · MIN_HISTORY 60 · 코호트 경계 · SPLIT 2025-01-01 · OOS_MIN_N 10 · SMALL_N 200 — 전부 기존 값. 결과 후 변경 없음.",
+  "prior_before_run": "v4 판 결과를 알고 있으므로 눈 감은 예측이 아니다. engulfing|bull_btc PIT n=130<200 · train 탈락이 boot_p 뿐이면 SHADOW→INCONCLUSIVE(규칙 2). engulfing_short|bull_altseason 은 train A bp .449 라 같은 경로로 INCONCLUSIVE 유력(n<200 이면). fvg|bull_btc PIT 는 승률<35% 라 REJECTED 유지(B 무관). three_soldiers_4h 두 셀·ih·marubozu·bear engulfing 은 A 사유(평균 음수/승률)라 불변. double_bottom/inverse_hs 그림자는 OOS A 가 음수·경계라 SHADOW 유지. **CONFIRMED 0 예상** — 이 판의 셀은 전부 1d 라우팅·관찰·그림자 셀이고 4h adopted 3 은 guard_v5 쪽에 있다.",
+  "deploy_on_pass": false,
+  "files": "validate_pit_cohort.py(--rules) / test_pit_cohort.py / .github/workflows/pit_cohort.yml"
+ },
+ "engulf_tf_v3_prereg_2026_09_09": {
+  "status": "PREREGISTERED",
+  "date": "2026-09-09",
+  "trigger": "사용자 결정 ③ '3번도 진행'. engulf_tf_prereg_2026_09_09 에서 4h 롱이 C2 달력 홀드아웃(n=397 −0.21%, 2025-09~2026-09 bear 지배) 하나로 탈락 — 프레임 v3 국면 홀드아웃으로 재판정.",
+  "scope": "**4h 롱 하나만** (홀드아웃에서만 탈락한 셀). 1h(OOS 0/4·평균 음수)·1w(승률 29%)·숏 3셀(평균 음수)은 홀드아웃과 무관한 사유라 재실행 안 함.",
+  "cells": "4h 롱 × 레짐 {bull_btc, bull_altseason, bear} = 판정 3셀(Holm m=3). ALL 은 v3 에서도 달력 365일이라 v2 와 같은 홀드아웃 → 참조로만 출력.",
+  "judgement": "frame_v3.judge 그대로 — C1 성능(n≥20·mean>0·승률≥35%·boot_p<.05, 같은 레짐·core20 PIT k=n 풀) · E 에피소드 OOS(적격≥2·양수≥2·과반) · C2 국면 홀드아웃 n≥10 & mean>0 · C2b · C3 자산곡선 · COV. 성능 실패→REJECTED / COV 실패→INCONCLUSIVE / E 실패→REJECTED / 전부→CONFIRMED. Holm 보정 boot_p≥.05 면 REJECTED.",
+  "diagnostics": "D5 왕복 0.4% 마찰 후 건당 — 셀마다 병기(판정 아님, v2 사전 등록과 같은 자리). D1~D4 는 v2 판과 동일하게 출력.",
+  "prior_before_run": "bear: v2 D3 절대수익 −0.12% → REJECTED 유력. bull_altseason: 5년 173일 국면, 4h 범위(2023~)에서 적격 에피소드 <2 → INCONCLUSIVE 유력. bull_btc: 유일한 가망이나 국면 홀드아웃(최근 365 bull_btc 일 = 대부분 2024-25 '가짜 상승' 라벨, 알트 중앙 −54%)이 bear 해보다 유리하다는 보장이 없다 — 반반. **어느 셀이 CONFIRMED 여도 배포 근거가 아니다**: 마찰 후 +0.27%(v2 풀링) 체급 · 신호 연 약 500건의 슬롯 잠식(vol_awakening_4h 실측) · 포트폴리오 단위 확인 프레임 선결.",
+  "deploy_on_pass": false,
+  "live_change": "없음 — 관찰 기간(~2026-10-06)",
+  "files": "validate_engulf_tf.py(FRAME_DEFAULT=v3, judge_v3, --dir/--frame) / test_engulf_tf.py / .github/workflows/engulf_tf.yml",
+  "prerun_notes": "로컬 스모크 1회 — data/ 8종목 1d · --short(장기 이력 없음) · --tf 1d --dir long 으로 v3 블록 배관만 확인(레짐 셀 3 + ALL 참조 출력, JSON 저장). 표본 n≤19 라 **수치는 결과가 아니다**. 스모크 후 코드 변경 없음."
  }
 }

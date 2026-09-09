@@ -92,5 +92,27 @@ wf = open(".github/workflows/pit_cohort.yml", encoding="utf-8").read()
 check("워크플로 등재 + 테스트 선행", "python validate_pit_cohort.py" in wf and "python test_pit_cohort.py" in wf and "python test_guard_v4.py" in wf)
 check("tests.yml 등재", "test_pit_cohort.py" in open(".github/workflows/tests.yml", encoding="utf-8").read())
 
+
+# ── 판정 규칙 v5 (2026-09-09 사용자 결정 ①②) ─────────────────────────────────────────────
+import validate_guard_v5 as g5
+check("기본 판정 규칙은 v5 (B 진단 · 레짐 셀 n<200 boot_p 단독 → INCONCLUSIVE)", pc.RULES_DEFAULT == "v5", pc.RULES_DEFAULT)
+_cell = dict(cid="x|bull_btc", regime="bull_btc", status="deployed")
+_rec = lambda: dict(cell=_cell, full_a=dict(n=150, mean=0.02, win=0.5), train_gate=dict(verdict="REJECTED", reason="boot_p=0.300"),
+                    train_b=dict(nw=-0.01, p_nw=0.9, eq_month=0.0, eq_coin_month=0.0), oos_a=dict(n=20, mean=0.03, win=0.5, boot_p=0.01),
+                    oos_b=dict(nw=-0.02, p_nw=0.95, months=6, eq_month=-0.01, eq_coin_month=-0.01))
+r5 = {"x|bull_btc": _rec()}; pc.judge_family(r5, "v5")
+r4 = {"x|bull_btc": _rec()}; pc.judge_family(r4, "v4")
+check("v5: 레짐 셀 n<200 · train boot_p 단독 탈락 → INCONCLUSIVE (규칙 2)", r5["x|bull_btc"]["verdict"] == "INCONCLUSIVE" and r5["x|bull_btc"]["rule2"], r5["x|bull_btc"])
+check("v4 원판은 같은 레코드를 UNCONFIRMED_SHADOW 로 (B 탈락 포함)", r4["x|bull_btc"]["verdict"] == "UNCONFIRMED_SHADOW" and "OOS B" in r4["x|bull_btc"]["fails"], r4["x|bull_btc"])
+check("v5 는 B 사유를 판정에 넣지 않는다", not any("B" in f for f in r5["x|bull_btc"]["fails"]), r5["x|bull_btc"]["fails"])
+check("규칙 표기가 레코드에 남는다", r5["x|bull_btc"]["rules"] == "v5" and r4["x|bull_btc"]["rules"] == "v4")
+_big = _rec(); _big["full_a"]["n"] = 250
+rb = {"x|bull_btc": _big}; pc.judge_family(rb, "v5")
+check("v5: n>=200 이면 규칙 2 미적용 → train A gate 탈락 유지(UNCONFIRMED_SHADOW)", rb["x|bull_btc"]["verdict"] == "UNCONFIRMED_SHADOW" and not rb["x|bull_btc"]["rule2"], rb["x|bull_btc"])
+check("v5 판정 함수는 validate_guard_v5.verdict_v5 (v4 파일 불변)", pc.g5.verdict_v5 is g5.verdict_v5)
+wf5 = open(".github/workflows/pit_cohort.yml", encoding="utf-8").read()
+check("워크플로가 --rules v5 로 돌리고 test_guard_v5 를 먼저 돈다", "--rules v5" in wf5 and "python test_guard_v5.py" in wf5 and "_pit_cohort_v5.json" in wf5)
+check("registry 에 v5 재판정 사전 등록", "pit_cohort_v5_2026_09_09" in open("registry.json", encoding="utf-8").read())
+
 print(f"\n{'ALL PASS' if not fails else 'FAILED: ' + ', '.join(fails)} ({len(fails)} fail)")
 import sys; sys.exit(1 if fails else 0)

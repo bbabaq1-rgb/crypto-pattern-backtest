@@ -77,8 +77,28 @@ engulfing 은 레포에서 OOS 증거가 가장 강한 패턴이고(v4: bull_btc
   · 레짐 ALL 로 판정한다 — 실거래는 레짐 라우팅을 타므로, CONFIRMED 여도 그대로 켜는 것이
     아니라 어느 레짐에서 켤지는 별도 판단이다(D3 는 그 사전 정보일 뿐 판정이 아니다).
 
-실행: python validate_engulf_tf.py [--no-fetch] [--short] [--tf 4h,1w]
-출력: _engulf_tf.json + RESULT_JSON
+## 프레임 v3 — 국면 홀드아웃 (2026-09-09 사용자 결정 ③ "3번도 진행")
+위 판(v2, run 34301698148)에서 4h 롱은 **C2 달력 홀드아웃 하나로** 탈락했다(holdout n=397 −0.21%). 그 365일이
+bear 지배(2025-09~2026-09)라 탈락이 기전상 설명되지만 v2 는 '규칙이 틀렸다'와 '채점 구간에 그 국면이 없었다'를 못
+가른다(frame_v3 문서). 가드 감사(2026-09-09)에서도 L6 국면 홀드아웃이 L2 달력 홀드아웃보다 잘 교정돼 있었다
+(4/12 vs 9/12 기각, 거짓음성 1 vs 2). 사용자 결정 ③으로 국면 홀드아웃이 **기본**이 됐다(FRAME_DEFAULT="v3").
+  · 재실행 범위(사전 등록): **홀드아웃에서만 탈락한 셀 = 4h 롱 하나.** 1h(OOS 0/4·평균 음수)·1w(승률)·숏 3셀(평균 음수)은
+    홀드아웃과 무관한 사유라 다시 돌리지 않는다.
+  · v3 판정 셀 = 4h 롱 × 레짐 {bull_btc, bull_altseason, bear} — 국면 홀드아웃은 레짐 조건부 셀에서만 정의된다
+    (ALL 은 v3 에서도 달력 365일 = v2 와 동일 → **참조**로만 찍는다). 세 셀 한 가족 **Holm m=3**.
+  · 셀별 판정은 frame_v3.judge 그대로(C1 성능·E 에피소드 OOS·C2 국면 홀드아웃·C2b·C3·COV; 성능 실패 → REJECTED /
+    COV 실패 → INCONCLUSIVE / E 실패 → REJECTED / 전부 → CONFIRMED) + Holm 보정 boot_p ≥ .05 면 REJECTED.
+    풀은 같은 레짐·core20 PIT 무작위 진입 k=n(D3 와 동일).
+  · D5 마찰 0.4% 는 그대로 **진단**(v2 사전 등록과 같은 자리 — 프레임만 바꾸고 기준은 안 바꾼다). 단 CONFIRMED 가
+    나와도 마찰 후 건당이 얇으면 배포 근거가 아니다(사전 확률 참조).
+  · **사전 확률(결과 전 기록)**: bear 는 v2 D3 절대수익 −0.12% 라 REJECTED 유력. bull_altseason 은 5년 173일짜리 국면이라
+    4h 범위(2023~)에서 적격 에피소드 <2 → INCONCLUSIVE 유력. bull_btc 가 유일한 가망인데 국면 홀드아웃(최근 365 bull_btc
+    일 = 대부분 2024-25 '가짜 상승' 라벨, 알트 중앙 −54%)이 bear 해와 다르게 유리하다는 보장이 없다 — 반반. 어느 셀이
+    CONFIRMED 여도 **배포 근거가 아니다**: 마찰 후 +0.27%(v2 풀링) 체급 + 신호 연 약 500건의 슬롯 잠식 + 포트폴리오 단위
+    확인 프레임 선결. DEPLOY_ON_PASS=False 유지.
+
+실행: python validate_engulf_tf.py [--no-fetch] [--short] [--tf 4h,1w] [--dir long] [--frame v3|v2]
+출력: _engulf_tf.json(v2) / _engulf_tf_v3.json(v3) + RESULT_JSON
 """
 import json
 import random
@@ -90,6 +110,7 @@ from datetime import date
 import detector_engulfing as eng_long
 import detector_engulfing_short as eng_short
 import detlib
+import frame_v3 as fv
 import regime_switch as rs
 import validate_pit_cohort as pc
 import validate_regime_split_all as va
@@ -105,6 +126,9 @@ DIAG_COHORTS = ("top30", "liquid")         # D4
 FRICTION = 0.004                           # D5 왕복 마찰 스트레스
 DIAG_REGIMES = ("bull_btc", "bull_altseason", "bear")
 DEPLOY_ON_PASS = False
+FRAME_DEFAULT = "v3"                       # 2026-09-09 사용자 결정 ③ — 국면 홀드아웃이 기본. v2 는 --frame v2 로 재현
+V3_REGIMES = ("bull_btc", "bull_altseason", "bear")   # v3 판정 셀(Holm 가족). ALL 은 참조
+V3_PRIMARY = ("4h", "long")                # v3 재실행 범위 — 홀드아웃에서만 탈락한 셀
 
 DETECT = {"long": eng_long.detect, "short": eng_short.detect}
 
@@ -141,6 +165,35 @@ def _f(v, w=8):
     return f"{'n/a':>{w}}" if v is None else f"{v * 100:>+{w - 1}.2f}%"
 
 
+def parse_args(argv):
+    """(tfs, dirs, frame, long_1d) — 테스트로 고정."""
+    tfs = argv[argv.index("--tf") + 1].split(",") if "--tf" in argv else list(TFS)
+    dirs = argv[argv.index("--dir") + 1].split(",") if "--dir" in argv else list(DIRECTIONS)
+    frame = argv[argv.index("--frame") + 1] if "--frame" in argv else FRAME_DEFAULT
+    assert frame in ("v2", "v3"), frame
+    assert all(d in DIRECTIONS for d in dirs), dirs
+    return tfs, dirs, frame, "--short" not in argv
+
+
+def judge_v3(cells, regmap, equity_fn=vr.equity):
+    """
+    v3 판정 — cells: {regime: dict(sigs=[...], pool=[ret...])}. V3_REGIMES 셀은 frame_v3.judge + Holm(m=가족 크기),
+    ALL 은 참조(Holm 없음, 홀드아웃이 v2 와 같다). 반환 {regime: dict(verdict, fails, holm, friction, cf3)}.
+    """
+    out = {}
+    for g, c in cells.items():
+        cf3 = fv.judge(c["sigs"], c["pool"], regmap, g, equity_fn=equity_fn)
+        out[g] = dict(cf3=cf3, verdict=cf3["verdict"], fails=list(cf3["c1"].get("fails", [])),
+                      holm=None, friction=stressed(c["sigs"]), reference=(g == "ALL"))
+    ph = holm({g: out[g]["cf3"]["c1"]["boot_p"] for g in out if g in V3_REGIMES})
+    for g, p in ph.items():
+        out[g]["holm"] = p
+        if p >= 0.05 and out[g]["verdict"] != "REJECTED":
+            out[g]["verdict"] = "REJECTED"
+            out[g]["fails"].append(f"Holm p={p:.3f}")
+    return out
+
+
 def _rows_for(tf, syms, rows_1d):
     if tf == "1d":
         return rows_1d
@@ -151,10 +204,12 @@ def _rows_for(tf, syms, rows_1d):
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    tfs = argv[argv.index("--tf") + 1].split(",") if "--tf" in argv else list(TFS)
-    long_1d = "--short" not in argv          # 1w 는 장기 이력이 없으면 train 이 빈다
-    print(f"engulfing TF 재시험 | TF {tfs} x {list(DIRECTIONS)} | 코호트 {COHORT}(PIT) 레짐 {REGIME} "
-          f"| Holm m={len(tfs) * len(DIRECTIONS)} | DEPLOY_ON_PASS={DEPLOY_ON_PASS}")
+    tfs, dirs, frame, long_1d = parse_args(argv)   # 1w 는 장기 이력이 없으면 train 이 빈다
+    print(f"engulfing TF 재시험 | 프레임 {frame} | TF {tfs} x {dirs} | 코호트 {COHORT}(PIT) 레짐 {REGIME} "
+          f"| Holm m={len(tfs) * len(dirs)} | DEPLOY_ON_PASS={DEPLOY_ON_PASS}")
+    if frame == "v3":
+        print(f"  v3: 판정 셀 = 레짐 {V3_REGIMES} 국면 홀드아웃(frame_v3.judge) · Holm m={len(V3_REGIMES) * len(tfs) * len(dirs)} "
+              f"· ALL 은 참조(=v2 홀드아웃) · 아래 v2 표는 참조")
 
     syms = va._syms()
     if "--no-fetch" not in argv:
@@ -169,9 +224,18 @@ def main(argv=None):
     print(f"[PIT] {COHORT} 월평균 교체 {turn:.1f} 코인 / {months}개월"
           if turn is not None else f"[PIT] {COHORT} 교체 측정 불가")
 
-    out = dict(frame="engulf_tf", cohort=COHORT, regime=REGIME,
-               deploy_on_pass=DEPLOY_ON_PASS, cells={}, diag={})
-    ctx, raw = {}, {}
+    out = dict(frame="engulf_tf" + ("_v3" if frame == "v3" else ""), cohort=COHORT, regime=REGIME,
+               deploy_on_pass=DEPLOY_ON_PASS, cells={}, cells_v3={}, diag={})
+    ctx, raw, rpool = {}, {}, {}
+
+    def regime_pool(tf, d, g):
+        """같은 레짐·core20 PIT 무작위 진입 풀(k=n 베이스라인) — v3 판정과 D3 가 공유."""
+        k = (tf, d, g)
+        if k not in rpool:
+            c = ctx[tf]
+            rpool[k] = vr.eval_pool(tf, pit_idx(c["rows_by"], regmap, pm, COHORT, g, tf),
+                                    c["rows_by"], c["atrs"], regmap, d)
+        return rpool[k]
 
     # ── 셀 평가 (주 판정 + D1 참조) ────────────────────────────────────────
     for tf in list(tfs) + ([REF_TF] if REF_TF not in tfs else []):
@@ -196,7 +260,7 @@ def main(argv=None):
         print(f"\n[{tf}] 종목 {len(rows_by)} · train {first}~{cutoff} · holdout {HOLDOUT_BY_TF[tf]}일 "
               f"· PIT 풀 {len(pit_pool_idx)} · 수집 {time.time() - t0:.0f}s", flush=True)
 
-        for d in DIRECTIONS:
+        for d in dirs:
             by_sym = vr.collect(tf, DETECT[d], d, rows_by, atrs, regmap)
             all_sigs = [x for v in by_sym.values() for x in v]
             sigs = pc.pit_filter(all_sigs, pm, COHORT)
@@ -209,9 +273,9 @@ def main(argv=None):
                   f"boot_p={rec['boot_p']:.3f} OOS {rec['oos_pos']}/4", flush=True)
 
     # ── 주 판정 ──────────────────────────────────────────────────────────
-    fam = [(tf, d) for tf in tfs for d in DIRECTIONS if (tf, d) in raw]
+    fam = [(tf, d) for tf in tfs for d in dirs if (tf, d) in raw]
     ph = holm({k: raw[k]["rec"]["boot_p"] for k in fam})
-    print(f"\n== 주 판정 (Holm m={len(fam)}) ==")
+    print(f"\n== {'v2 참조 (판정은 아래 v3)' if frame == 'v3' else '주 판정'} (Holm m={len(fam)}) ==")
     for k in fam:
         tf, d = k
         r, c = raw[k], ctx[tf]
@@ -249,10 +313,62 @@ def main(argv=None):
             train_n=tr_rec["n"], holdout_n=ho["n"], holdout_mean=ho["mean"],
             calmar=eq["calmar"], cagr=eq["cagr"], verdict=verdict)
 
+    # ── v3 주 판정 — 레짐 셀 × 국면 홀드아웃 ────────────────────────────
+    if frame == "v3":
+        print(f"\n== v3 주 판정 — 국면 홀드아웃 · 레짐 셀 {V3_REGIMES} · Holm m={len(V3_REGIMES) * len(fam)} (ALL 은 참조) ==")
+        v3cells = {}
+        for k in fam:
+            tf, d = k
+            r = raw[k]
+            for g in V3_REGIMES + ("ALL",):
+                gs = r["sigs"] if g == "ALL" else [s for s in r["sigs"] if s["regime"] == g]
+                v3cells[(tf, d, g)] = dict(sigs=gs, pool=(r["pool"] if g == "ALL" else regime_pool(tf, d, g)))
+        # Holm 가족 = 전 (tf,d) 의 레짐 셀. judge_v3 는 셀 dict 를 레짐 키로 받으므로 (tf,d) 별로 부르되 Holm 은 가족 전체로 다시 건다.
+        res = {}
+        for k in fam:
+            tf, d = k
+            res[k] = judge_v3({g: v3cells[(tf, d, g)] for g in V3_REGIMES + ("ALL",)}, regmap)
+        if len(fam) > 1:   # 가족이 (tf,d) 하나를 넘으면 Holm 을 가족 전체 크기로 재적용
+            ph3 = holm({(k, g): res[k][g]["cf3"]["c1"]["boot_p"] for k in fam for g in V3_REGIMES})
+            for (k, g), p in ph3.items():
+                cell = res[k][g]
+                cell["fails"] = [f for f in cell["fails"] if not f.startswith("Holm")]
+                cell["holm"] = p
+                cell["verdict"] = cell["cf3"]["verdict"]
+                if p >= 0.05 and cell["verdict"] != "REJECTED":
+                    cell["verdict"] = "REJECTED"; cell["fails"].append(f"Holm p={p:.3f}")
+        for k in fam:
+            tf, d = k
+            for g in V3_REGIMES + ("ALL",):
+                cell = res[k][g]; cf3 = cell["cf3"]; c1 = cf3["c1"]; E = cf3["E"]; eq = cf3["equity"] or {}
+                tag = "참조" if g == "ALL" else "판정"
+                hp = "  -  " if cell["holm"] is None else f"{cell['holm']:.3f}"
+                print(f"  [{tag}] {tf:3} {d:5} {g:<15} n={c1['n']:5} mean={_f(c1['mean'])} 승률 {c1['win_rate'] * 100:3.0f}% "
+                      f"엣지 {_f(c1['edge'])} boot_p={c1['boot_p']:.3f}→Holm {hp} | E {E['positive']}/{E['qualifying']} "
+                      f"| holdout(국면 {cf3['holdout']['days']}일) n={cf3['holdout']['n']:4} {_f(cf3['holdout']['mean'])} "
+                      f"| train n={cf3['train']['n']} C2b {cf3['c2b_train']} | Calmar {eq.get('calmar') if eq.get('calmar') is None else round(eq['calmar'], 2)} "
+                      f"| COV {cf3['coverage']} | 마찰0.4% {_f(cell['friction'])} → **{cell['verdict']}**"
+                      + (f"  ({', '.join(cell['fails'])})" if cell["fails"] else ""))
+                print(fv.fmt_episodes(cf3["episodes"]))
+                out["cells_v3"][f"{tf}_{d}_{g}"] = dict(
+                    reference=(g == "ALL"), n=c1["n"], mean=c1["mean"], median=c1["median"], win=c1["win_rate"],
+                    edge=c1["edge"], boot_p=c1["boot_p"], holm=cell["holm"],
+                    E=dict(ok=E["ok"], qualifying=E["qualifying"], positive=E["positive"], max_share=E["max_share"]),
+                    holdout_n=cf3["holdout"]["n"], holdout_mean=cf3["holdout"]["mean"], holdout_days=cf3["holdout"]["days"],
+                    train_n=cf3["train"]["n"], c2b=cf3["c2b_train"], calmar=eq.get("calmar"), cagr=eq.get("cagr"),
+                    coverage=cf3["coverage"], friction_mean=cell["friction"], verdict=cell["verdict"], fails=cell["fails"],
+                    episodes=cf3["episodes"])
+        counts = {}
+        for key, v in out["cells_v3"].items():
+            if not v["reference"]:
+                counts[v["verdict"]] = counts.get(v["verdict"], 0) + 1
+        out["v3_counts"] = counts
+        print(f"  v3 집계(판정 셀 {len(V3_REGIMES) * len(fam)}): {counts} | DEPLOY_ON_PASS={DEPLOY_ON_PASS} — CONFIRMED 도 실거래 반영 없음")
+
     # ── D1 참조 (1d) ─────────────────────────────────────────────────────
     if REF_TF in ctx and REF_TF not in tfs:
         print(f"\n== D1 참조 {REF_TF} (판정 아님 — 프레임 정합성) ==")
-        for d in DIRECTIONS:
+        for d in dirs:
             rec = raw[(REF_TF, d)]["rec"]
             print(f"  {d:5} n={rec['n']:5} mean={_f(rec['mean'])} med={_f(rec['median'])} "
                   f"승률 {rec['win_rate'] * 100:3.0f}% boot_p={rec['boot_p']:.3f}")
@@ -284,9 +400,7 @@ def main(argv=None):
             if len(gs) < 5:
                 parts.append(f"{g} n={len(gs)}")
                 continue
-            gp = vr.eval_pool(tf, pit_idx(c["rows_by"], regmap, pm, COHORT, g, tf),
-                              c["rows_by"], c["atrs"], regmap, d)
-            gr = vr.gate_cell(gs, gp)
+            gr = vr.gate_cell(gs, regime_pool(tf, d, g))
             parts.append(f"{g} n={gr['n']} {_f(gr['mean']).strip()} 엣지 {_f(gr['edge']).strip()}")
         print(f"  {tf:3} {d:5} " + " · ".join(parts))
         out["diag"][f"d3_regime_{tf}_{d}"] = parts
@@ -317,8 +431,13 @@ def main(argv=None):
                  and r["rec"]["mean"] > 0 >= s else ""))
         out["diag"][f"d5_friction_{tf}_{d}"] = s
 
-    json.dump(out, open("_engulf_tf.json", "w"), ensure_ascii=False, indent=1)
-    print("\nRESULT_JSON: " + json.dumps(out, ensure_ascii=False))
+    fn = "_engulf_tf_v3.json" if frame == "v3" else "_engulf_tf.json"
+    json.dump(out, open(fn, "w"), ensure_ascii=False, indent=1)
+    print(f"\n[저장] {fn}")
+    brief = dict(frame=out["frame"], cells={k: v["verdict"] for k, v in out["cells"].items()},
+                 cells_v3={k: v["verdict"] for k, v in out["cells_v3"].items()}, v3_counts=out.get("v3_counts"),
+                 deployed=False)
+    print("RESULT_JSON: " + json.dumps(brief, ensure_ascii=False))
     return out
 
 
