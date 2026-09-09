@@ -1261,10 +1261,10 @@
     fvg|bull_btc PIT REJECTED(승률) 그대로. **B 제거가 바꾼 건 라벨뿐** — 1d 라우팅 셀을 막는 건 OOS A(2025~ bear)와 train 검정력이다.
   · **engulf_tf 4h 롱 국면 홀드아웃 재판정 (run 34329267607)**: bull_btc / bull_altseason / bear **3셀 전부 REJECTED**. 핵심은 bull_btc —
     n=561 +1.11% Holm .027 통과 · E 2/3 통과 · **국면 홀드아웃 n=317 +1.36% 통과(달력 판 −0.21% 가 뒤집혔다)** · 마찰 후 +0.71% 인데
-    **train(n=244) 자체 게이트에서 탈락**. 홀드아웃 반대는 해소됐고 남은 문제는 4h 이력이 bull_btc 에피소드 하나(2023-24)에 몰려 train 이
+    **train(n=244) 자체 게이트에서 탈락(사유 boot_p .156 하나, 재실행 34331332635 병기)**. 홀드아웃 반대는 해소됐고 남은 문제는 4h 이력이 bull_btc 에피소드 하나(2023-24)에 몰려 train 이
     얇다는 것(국면 홀드아웃이 표본 57% 를 삼킴). altseason 은 표본 전부가 홀드아웃(train 0)이고 boot_p .075 라 성능 우선 규칙으로 REJECTED
     (사전 확률 'INCONCLUSIVE' 는 규칙 순서를 놓침). bear 는 −0.12%. 재시험 조건: 4h 이력이 bull_btc 에피소드 3개 이상을 덮을 때. 배포 근거 없음.
-    1차 출력이 train 탈락 사유를 안 찍어 병기 재실행(판정 무관).
+    1차 출력이 train 탈락 사유를 안 찍어 병기 재실행(판정 동일). validate_engulf_tf.py(FRAME_DEFAULT=v3, judge_v3) / validate_pit_cohort.py(--rules v5)
 - **무기한 펀딩비·OI 일별 적재 시작 (2026-09-08, 사용자 지시)**: registry `perp_accrual_2026_09_08`.
   perp_accrual.py / supabase_schema_perp.sql / test_perp_accrual.py(27건). **적재 전용 — 매매 코드는 이 테이블을 읽지 않는다.**
   · **왜 급한가**: 펀딩 이력은 OKX 가 약 3개월만 준다. **종목별 OI 는 스냅샷뿐 이력이 아예 없어** 지금 안 쌓으면 영구 손실이다
