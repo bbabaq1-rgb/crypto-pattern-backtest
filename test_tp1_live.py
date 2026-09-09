@@ -101,12 +101,12 @@ check("live_cap 은 exit_spec 없으면 무효(손절 없는 실거래 금지)",
 import os; os.remove("_tmp_caps.json")
 check("3x 에서 8% 손절은 청산가 안쪽(liq_safe_leverage 상한 이내)", sizing.liq_safe_leverage(0.08, cap=5) >= 3)
 src = open("paper_executor.py", encoding="utf-8").read()
-check("체결엔진: live_cap 패턴은 고정 증거금·레버리지로 주문(risk 사이징 우회)",
-      'live_size_usd, live_lev = float(cap["margin_usd"]), int(cap.get("leverage", 1))' in src)
+check("체결엔진: live_cap 패턴은 포트(cap_margin)·고정 레버리지로 주문(risk 사이징 우회)",
+      'live_size_usd, live_lev = m_, int(cap.get("leverage", 1))' in src and "m_ = cap_margin(cap, s[\"pattern\"], trades)" in src)
 check("체결엔진: live_cap 패턴은 자기 max_open 으로 제한, MAX_LIVE_POS 면제",
       "if pat_open >= int(cap.get(\"max_open\", 1)):" in src and "elif live_open_count >= MAX_LIVE_POS:" in src)
-check("체결엔진: 같은 종목·방향 중복 방어는 캡 패턴에도 그대로",
-      src.index("elif live_open_count >= MAX_LIVE_POS:") < src.index('if (s["symbol"], s["direction"]) in live_dir_keys:'))
+check("체결엔진: 중복 방어는 entry_blocked(메인/cap 분리)로, 슬롯 체크 뒤에",
+      src.index("elif live_open_count >= MAX_LIVE_POS:") < src.index('if entry_blocked(s["symbol"], s["direction"], bool(cap), okx_dir_keys, main_keys, cap_keys):'))
 check("체결엔진: 배리어·재정렬이 exit_barriers 공용 함수", src.count("xb.barriers(spec, rows, ei, entry, s[\"direction\"])") == 2)
 check("체결엔진: ±k×ATR 인라인 산식 제거(한 곳만 정의)", "spec.get(\"k_atr\", ilab.K_ATR) * atr" not in src)
 
@@ -128,8 +128,13 @@ check("디텍터는 인자 없이 호출 — 1d 배포 신호 집합 불변", de
 r1 = mkrows(120, seed=3)
 check("detlib 로더 없이도 engulfing.detect 가 ts 키를 무시한다(신호 동일)",
       de.detect(r1) == de.detect([{k: v for k, v in r.items() if k != "ts"} for r in r1]))
-cs = sch._cohort_symbols("top20", ["AAA"])
-check("_cohort_symbols(top20) 가 base 밖 심볼을 넣지 않는다", set(cs) <= {"AAA"})
+_orig_rank = sch._volume_ranked
+sch._volume_ranked = lambda: ["BBB", "AAA", "CCC"]      # 네트워크(auto-fetch) 없이 순위 고정
+try:
+    cs = sch._cohort_symbols("top20", ["AAA"])
+finally:
+    sch._volume_ranked = _orig_rank
+check("_cohort_symbols(top20) 가 base 밖 심볼을 넣지 않는다", cs == ["AAA"], cs)
 
 # ── 5. 기존 경로 불변 ────────────────────────────────────────────────────────
 check("cascade exit_spec 불변(1.5xATR14 / 12봉)", cspec["k_atr"] == 1.5 and cspec["atr_period"] == 14 and cspec["horizon_bars"] == 12)
@@ -160,6 +165,77 @@ for seed in range(40):
             same_why = (reason == "stop") == (ex[3] == "atr_stop")
             agree += int(same_bar and same_why and abs(ex[2] - ret) < 1e-9)
 check(f"eval_I(pct) 청산 봉·사유·수익률이 tp_1h 검증 프레임과 일치 ({agree}/{n})", agree == n and n > 0, (agree, n))
+
+
+# ── 7. 독립 프로젝트 + 복리 포트 (2026-09-09 사용자 지시 "중복으로 말고 … 별도 관리 … 복리") ──
+import exchange as ex_mod
+tr = lambda pat, ret, method="D": dict(pattern=pat, method=method, ret=ret)
+check("복리 포트: 시작 $30", pe.cap_margin(cap, PAT, []) == 30.0)
+m1 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008)])
+check("복리 포트: 익절 1건(+1% − 0.2% 수수료)×3x → 30 × 1.024 = 30.72", abs(m1 - 30.72) < 1e-9, m1)
+m2 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, 0.008)])
+check("복리 포트: 익절 2건 → 30 × 1.024² = 31.46", abs(m2 - round(30 * 1.024 ** 2, 2)) < 1e-9, m2)
+m3 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)])
+check("복리 포트: 손절(−8.2%)×3x 는 포트를 24.6% 줄인다(충전 없음)", abs(m3 - round(30.72 * (1 - 0.246), 2)) < 1e-9, m3)
+check("복리 포트: 다른 패턴·방식A·R 행은 무시", pe.cap_margin(cap, PAT, [tr("engulfing", 0.5), tr(PAT, 0.5, "A"), tr(PAT, 0.5, "R")]) == 30.0)
+check("복리 포트: $10 미만이면 None(주문 안 냄)", pe.cap_margin(cap, PAT, [tr(PAT, -0.082)] * 5) is None)
+check("compound 아니면 margin_usd 고정", pe.cap_margin(dict(margin_usd=30.0, leverage=3), PAT, [tr(PAT, 0.5)]) == 30.0)
+check("registry live_cap: compound·start_margin 30", cap.get("compound") is True and cap.get("start_margin") == 30.0)
+
+rows_ = [dict(symbol="LTC", direction="long", pattern="engulfing", live_mode=True, d_closed=False, live_order=dict(qty=3.0)),
+         dict(symbol="LTC", direction="long", pattern=PAT, live_mode=True, d_closed=False, live_order=dict(qty=1.0)),
+         dict(symbol="ADA", direction="long", pattern="fvg", live_mode=True, d_closed=True),
+         dict(symbol="SOL", direction="long", pattern=PAT, live_mode=True, d_closed=False, live_order=dict(qty=2.0)),
+         dict(symbol="XRP", direction="long", pattern="fvg", live_mode=False, d_closed=False)]
+mk, ck = pe.dir_key_sets(rows_)
+check("dir_key_sets: 메인 {LTC} / cap {LTC, SOL}, 유령·페이퍼 제외", mk == {("LTC", "long")} and ck == {("LTC", "long"), ("SOL", "long")}, (mk, ck))
+okx = {("LTC", "long"), ("SOL", "long"), ("DOT", "long")}
+check("cap 신호: 메인이 LTC 롱을 들어도 막지 않는다(독립 프로젝트)", not pe.entry_blocked("LTC", "long", True, okx, {("LTC", "long")}, set()))
+check("cap 신호: 자기 프로젝트가 이미 들면 막는다", pe.entry_blocked("SOL", "long", True, okx, mk, ck))
+check("메인 신호: cap 만 든 SOL 롱은 막지 않는다(거래소 포지션이 cap 행으로 설명됨)", not pe.entry_blocked("SOL", "long", False, okx, mk, ck))
+check("메인 신호: 장부에 없는 거래소 포지션(DOT)은 여전히 막는다", pe.entry_blocked("DOT", "long", False, okx, mk, ck))
+check("메인 신호: 메인 행이 있으면 막는다", pe.entry_blocked("LTC", "long", False, okx, mk, ck))
+check("close_qty_for: 같은 종목·방향을 나눠 들면 자기 계약 수만", pe.close_qty_for(rows_[1], rows_) == 1.0 and pe.close_qty_for(rows_[0], rows_) == 3.0)
+check("close_qty_for: 단독이면 None(전량, 종전 동작)", pe.close_qty_for(rows_[3], rows_) is None)
+
+# close_swap_position qty 클램프 — 가짜 거래소
+class _Ex:
+    def __init__(self): self.orders = []
+    def fetch_positions(self, syms): return [dict(side="long", contracts=3.0)]
+    def create_market_order(self, sym, side, qty, params=None):
+        self.orders.append((side, qty, params)); return dict(average=100.0)
+    def market_id(self, s): return "X-USDT-SWAP"
+    def privatePostTradeCancelAlgos(self, a): pass
+fx = _Ex(); fill, why = ex_mod.close_swap_position(dict(exchange=fx), "X", "long", qty=1.0)
+check("close_swap_position(qty=1) 은 1계약만 닫는다(reduceOnly)", why == "ok" and fx.orders[0][1] == 1.0 and fx.orders[0][2]["reduceOnly"] is True, fx.orders)
+fx = _Ex(); ex_mod.close_swap_position(dict(exchange=fx), "X", "long", qty=9.0)
+check("close_swap_position(qty>실포지션) 은 실포지션까지만", fx.orders[0][1] == 3.0)
+fx = _Ex(); ex_mod.close_swap_position(dict(exchange=fx), "X", "long")
+check("close_swap_position(qty 없음) 은 전량(종전)", fx.orders[0][1] == 3.0)
+
+# settle_by_algo — 거래소가 OCO 를 집행한 경우 봉 없이 기록
+_orig_state = ex_mod.algo_state
+try:
+    ex_mod.algo_state = lambda lc, aid, inst_id=None: dict(state="effective", actual_px=101.0, actual_side="tp")
+    pos_ = dict(symbol="LTC", direction="long", pattern=PAT, live_mode=True, d_closed=False, entry_price=100.0,
+                stop=92.0, target=101.0, size_usd=30.0, entry_date="2026-09-09", live_order=dict(sl_order_id="a1", leverage=3, qty=1.0))
+    trs = []
+    ok_ = pe.settle_by_algo(pos_, dict(exchange=None), trs, "2026-09-09")
+    check("settle_by_algo: effective → D 기록(+1% − 수수료), d_closed", ok_ and pos_["d_closed"] and len(trs) == 1
+          and abs(trs[0]["ret"] - (0.01 - pe.FEE)) < 1e-9 and trs[0]["reason"] == "atr_target" and trs[0]["live_mode"], trs)
+    check("settle_by_algo: pnl_live_usd ≈ 1% × 명목 $90", abs(trs[0]["pnl_live_usd"] - 0.9) < 1e-6, trs[0]["pnl_live_usd"])
+    check("복리 포트가 그 기록을 읽는다 → $30.72", abs(pe.cap_margin(cap, PAT, trs) - 30.72) < 1e-9)
+    ex_mod.algo_state = lambda lc, aid, inst_id=None: dict(state="live", actual_px=None, actual_side="")
+    pos2 = dict(pos_, d_closed=False); trs2 = []
+    check("settle_by_algo: live 면 아무것도 안 한다", not pe.settle_by_algo(pos2, dict(exchange=None), trs2, "2026-09-09") and not trs2)
+    ex_mod.algo_state = lambda lc, aid, inst_id=None: None
+    check("settle_by_algo: 조회 실패면 아무것도 안 한다", not pe.settle_by_algo(dict(pos_, d_closed=False), dict(exchange=None), [], "2026-09-09"))
+finally:
+    ex_mod.algo_state = _orig_state
+src2 = open("paper_executor.py", encoding="utf-8").read()
+check("청산 루프: 배리어 행은 OCO 상태를 먼저 보고 집행됐으면 시장가를 안 낸다", 'elif st_.get("state") == "effective":' in src2 and "qty=close_qty_for(pos, positions)" in src2)
+check("청산 루프: settle_by_algo 가 entry_ts 유실 보류보다 먼저", src2.index("if settle_by_algo(pos, live_conn, trades") < src2.index("entry_ts 유실 — "))
+check("진입: cap 주문 실패 시 페이퍼 행을 만들지 않는다(포트 계산 오염 방지)", "if cap:\n                    continue        # cap 프로젝트는 실주문만" in src2)
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

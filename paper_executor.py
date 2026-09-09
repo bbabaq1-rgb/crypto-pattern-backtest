@@ -101,6 +101,107 @@ def load_live_caps(path=EXIT_SPEC_FILE):
 
 LIVE_CAPS = load_live_caps()
 
+
+def cap_margin(cap, pattern, trades):
+    """
+    live_cap 패턴의 이번 주문 증거금. compound 가 아니면 margin_usd 고정.
+    compound(2026-09-09 사용자 지시 "30달러 시작해서 1% 수익 보면 청산, 30+1% 복리로 재진입 …"):
+      포트 = start_margin × Π(1 + ret_i × leverage) — 이 패턴의 방식D 청산 거래 전부(순서 무관).
+      ret 은 수수료 차감 수익률(가격 기준)이라 증거금 기준 손익은 ×레버리지. 익절 +1%(−0.2% 수수료)
+      ×3x → 포트 +2.4%. 손실도 같은 식으로 줄어든다(별도 충전 없음). MIN_MARGIN 미만이면 None
+      = 포트 소진, 주문 안 냄(충전은 사용자 결정).
+    페이퍼 전용 행(주문 실패)은 애초에 안 만든다(진입 경로에서 continue) — DB 복원 trades 에는
+    live_mode 컬럼이 없어 여기서 live 여부를 가릴 수 없기 때문.
+    """
+    if not cap.get("compound"):
+        return float(cap["margin_usd"])
+    pot = float(cap.get("start_margin", cap["margin_usd"]))
+    lev = int(cap.get("leverage", 1))
+    for t in trades:
+        if t.get("pattern") == pattern and t.get("method") == "D" and t.get("ret") is not None:
+            pot *= (1.0 + float(t["ret"]) * lev)
+    return round(pot, 2) if pot >= sizing.MIN_MARGIN else None
+
+
+def dir_key_sets(still_open):
+    """
+    (main_keys, cap_keys) — 장부의 살아 있는 실거래 행을 (symbol, direction) 로, 메인 전략 행과
+    live_cap(별도 프로젝트) 행으로 나눈다. d_closed 행 제외(2026-09-08 결정 C).
+    """
+    main, capk = set(), set()
+    for p in still_open:
+        if not p.get("live_mode") or p.get("d_closed"):
+            continue
+        (capk if p.get("pattern") in LIVE_CAPS else main).add((p["symbol"], p["direction"]))
+    return main, capk
+
+
+def entry_blocked(symbol, direction, is_cap, okx_dir_keys, main_keys, cap_keys):
+    """
+    같은 종목·방향 중복 진입 방어 — 메인 전략과 live_cap 프로젝트를 **서로 독립**으로 본다
+    (2026-09-09 사용자 지시 "중복으로 말고 계좌 내 1개 프로젝트로만 별도 관리").
+      메인 신호: 장부의 메인 행이 있거나, 거래소 실포지션이 있는데 그것이 cap 행만으로 설명되지
+                않으면 막는다(장부에 없는 실포지션 방어 유지).
+      cap 신호: 자기 max_open 이 상한이라 여기서는 막지 않는다. 단 메인 행이 같은 종목·방향을 들면
+                거래소 포지션은 합쳐지므로 청산은 계약 수 단위로(close_qty_for) 나눈다.
+    """
+    key = (symbol, direction)
+    if is_cap:
+        return key in cap_keys
+    if key in main_keys:
+        return True
+    return key in okx_dir_keys and key not in cap_keys
+
+
+def close_qty_for(pos, positions):
+    """
+    D 청산 시 시장가로 닫을 계약 수. 같은 종목·방향을 다른 살아 있는 실거래 행이 함께 들면
+    **자기 계약 수만**(live_order.qty) 닫는다. 아니면 None(전량 — 종전 동작).
+    """
+    key = (pos["symbol"], pos["direction"])
+    others = [p for p in positions if p is not pos and p.get("live_mode") and not p.get("d_closed")
+              and (p["symbol"], p["direction"]) == key]
+    if not others:
+        return None
+    q = (pos.get("live_order") or {}).get("qty")
+    return float(q) if q else None
+
+
+def settle_by_algo(pos, live_conn, trades, today):
+    """
+    배리어(exit_spec) 실거래 행의 OCO 가 거래소에서 이미 집행됐으면 그 체결가로 D 거래를 기록하고
+    True. 봉 데이터·entry_ts 없이도 동작한다 — 같은 종목·방향을 메인 행과 나눠 든 경우 포지션이
+    남아 있어 청산 이력(reconcile)으로는 못 잡고, entry_ts 유실 시 eval_I 는 보류되기 때문.
+    algo 가 아직 live 이거나 조회 실패면 False(종전 경로).
+    """
+    lo = pos.get("live_order") or {}
+    sl_id = lo.get("sl_order_id")
+    if not (pos.get("live_mode") and sl_id and live_conn) or pos.get("d_closed"):
+        return False
+    st = ex_mod.algo_state(live_conn, sl_id)
+    if not st or st.get("state") != "effective" or not st.get("actual_px"):
+        return False
+    px, base = float(st["actual_px"]), float(pos.get("entry_price") or 0)
+    if not base:
+        return False
+    gross = (px - base) / base if pos["direction"] == "long" else (base - px) / base
+    stop_px, target_px = barriers_of(pos)
+    if st.get("actual_side") in ("tp", "sl"):
+        reason = "atr_target" if st["actual_side"] == "tp" else "atr_stop"
+    elif stop_px is not None and target_px is not None:
+        reason = "atr_target" if abs(px - target_px) <= abs(px - stop_px) else "atr_stop"
+    else:
+        reason = "atr_exchange"
+    pos["entry_idx"] = pos.get("entry_idx", 0)
+    notional = float(pos.get("size_usd") or 0) * float(lo.get("leverage") or 1)
+    _record_trade(trades, pos, "D", (pos["entry_idx"], px, gross - FEE, reason), exit_date=today,
+                  extra={"pnl_live_usd": round(gross * notional, 4) if notional else None})
+    pos["d_closed"] = True
+    pos["a_closed"] = True
+    print(f"  [live] {pos['symbol']} {pos['pattern']} OCO 집행 확인({reason} @ {px}) → D 기록 "
+          f"{(gross - FEE) * 100:+.2f}%")
+    return True
+
 # 실거래 포지션 사이징 규칙
 MAX_LIVE_POS   = 16    # 동시 최대 실거래 포지션. 5→12(2026-07-06) → 16(2026-09-05 사용자 결정 "맥스포스 16으로").
                        # 근거: 슬롯 격자(sizing_vol --slots, run 33961480251) 12→16 에서 슬롯 스킵 462→47, boot Calmar 1.84→1.85,
@@ -834,12 +935,19 @@ def run(stamp=None):
             still_open.append(pos); continue
         ei = _bar_idx(rows, pos.get("entry_ts"), pos["entry_date"])
         if ei is None:
+            if EXIT_SPECS.get(pos["pattern"]) and settle_by_algo(
+                    pos, live_conn, trades, datetime.now(timezone.utc).strftime("%Y-%m-%d")):
+                closed_now.append(pos); continue
             still_open.append(pos); continue
         pos["entry_idx"] = ei
         spec = EXIT_SPECS.get(pos["pattern"])
         if spec:
             # ATR 배리어 경로: 방식A/D 비교는 1d 구조물이라 의미 없음 → A는 닫힌 것으로 표시
             pos["a_closed"] = True
+            # 거래소가 OCO 를 이미 집행했으면 그 체결로 기록(봉·entry_ts 무관). 2026-09-09
+            if settle_by_algo(pos, live_conn, trades, datetime.now(timezone.utc).strftime("%Y-%m-%d")):
+                closed_now.append(pos)
+                continue
             # **진입봉을 특정하지 못하면 평가하지 않는다.**
             # Supabase positions 에 entry_ts 컬럼이 없어 DB 복원 시 유실된다
             # (insert_tolerant 가 자동 제외 — 실행 로그의 '스키마 미존재 컬럼 제외').
@@ -873,8 +981,19 @@ def run(stamp=None):
                         print(f"  [live] {pos['symbol']} D청산 조건 충족했으나 OKX 미연결 — 유지")
                     else:
                         sl_id = (pos.get("live_order") or {}).get("sl_order_id")
-                        fill, why = ex_mod.close_swap_position(
-                            live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id)
+                        fill, why = None, None
+                        if spec and sl_id:
+                            # 배리어 행: OCO 상태를 먼저 본다. 집행됐으면 시장가를 또 내면 안 된다
+                            # (같은 종목을 메인 행과 나눠 들면 메인 몫까지 닫힌다). 알 수 없으면 보류.
+                            st_ = ex_mod.algo_state(live_conn, sl_id)
+                            if st_ is None:
+                                fill, why = None, "algo_unknown"
+                            elif st_.get("state") == "effective":
+                                fill, why = None, "no_position"
+                        if why is None:
+                            fill, why = ex_mod.close_swap_position(
+                                live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id,
+                                qty=close_qty_for(pos, positions))
                         if why == "ok":
                             if fill and pos["entry_price"]:   # 실체결가로 D 기록 교체
                                 base = pos["entry_price"]
@@ -954,6 +1073,8 @@ def run(stamp=None):
         # '장부에 없는 실포지션' 방어는 유지된다.
         live_dir_keys |= {(p["symbol"], p["direction"]) for p in still_open
                           if p.get("live_mode") and not p.get("d_closed")}
+    # 메인 전략 / live_cap 프로젝트 분리(2026-09-09) — entry_blocked 참조
+    main_keys, cap_keys = dir_key_sets(still_open)
 
     # 장부 구성 진단(2026-09-08 사용자 결정 B) — **출력만, 거래 동작 무변경**.
     # 계기: OKX 앱 실포지션 13 vs 로그 '오픈 16건' 불일치(사용자 지적). 그 16 은 장부 행 수다.
@@ -1026,8 +1147,9 @@ def run(stamp=None):
             elif live_open_count >= MAX_LIVE_POS:
                 print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']} 스킵")
                 continue
-            if (s["symbol"], s["direction"]) in live_dir_keys:
-                print(f"  [live] {s['symbol']} {s['direction']} 같은 종목·방향 실포지션 존재 — 중복 진입 스킵")
+            if entry_blocked(s["symbol"], s["direction"], bool(cap), okx_dir_keys, main_keys, cap_keys):
+                print(f"  [live] {s['symbol']} {s['direction']} 같은 종목·방향 실포지션 존재 — 중복 진입 스킵"
+                      + (" (cap 프로젝트 자체 보유)" if cap else ""))
                 continue
 
             # 포지션 사이징 — SIZING_MODE 참조
@@ -1035,11 +1157,17 @@ def run(stamp=None):
             usdt_free = bal_info["free"] if isinstance(bal_info, dict) else float(bal_info or 0)
             live_lev  = None
             if cap:
-                # 사용자 강제 실행 소액 캡(2026-09-09): 고정 증거금·레버리지, 위험 기준 사이징 우회.
+                # 사용자 강제 실행 소액 캡(2026-09-09): 고정/복리 증거금·레버리지, 위험 기준 사이징 우회.
                 # 변동성 타겟팅·레짐 오버레이도 안 탄다 — '$30 로 그 규칙 그대로' 가 사용자 지시.
-                live_size_usd, live_lev = float(cap["margin_usd"]), int(cap.get("leverage", 1))
-                print(f"  [live 사이징] {s['symbol']} live_cap 고정 margin=${live_size_usd:.2f} lev={live_lev}x "
-                      f"(notional ${live_size_usd * live_lev:.2f}, free ${usdt_free:.2f}) — {s['pattern']} 강제 실행")
+                m_ = cap_margin(cap, s["pattern"], trades)
+                if m_ is None:
+                    print(f"  [live 사이징] {s['pattern']} 포트 소진(증거금 < ${sizing.MIN_MARGIN:.0f}) — "
+                          f"{s['symbol']} 스킵. 충전은 사용자 결정")
+                    continue
+                live_size_usd, live_lev = m_, int(cap.get("leverage", 1))
+                print(f"  [live 사이징] {s['symbol']} live_cap {'복리 포트' if cap.get('compound') else '고정'} "
+                      f"margin=${live_size_usd:.2f} lev={live_lev}x (notional ${live_size_usd * live_lev:.2f}, "
+                      f"free ${usdt_free:.2f}) — {s['pattern']}")
             elif SIZING_MODE == "risk":
                 eq_now   = (bal_info or {}).get("equity") if isinstance(bal_info, dict) else None
                 eq_now   = float(eq_now or 0.0)
@@ -1095,6 +1223,8 @@ def run(stamp=None):
             if result is None:
                 print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
                 # 주문 실패 시 size_for_pos = POS_USD (페이퍼 기록만 유지)
+                if cap:
+                    continue        # cap 프로젝트는 실주문만 장부에 둔다(복리 포트 계산이 장부를 읽음)
             else:
                 live_info    = {"live_order": result, "live_mode": True}
                 live_dir_keys.add((s["symbol"], s["direction"]))
