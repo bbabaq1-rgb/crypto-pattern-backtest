@@ -1,0 +1,40 @@
+name: Research — take-profit on 1h + wide stops + leverage (pre-registered)
+
+# 작은 고정 익절을 **1시간봉**에서 재측정하고, 손절을 3%/12%/16%/20%/무손절까지 넓히고,
+# 전용 포트 레버리지 1/2/3x 를 함께 잰다. 1d 판의 측정 한계(동률 오염)를 수치로 확인한다.
+# 사전 등록 registry tp_1h_prereg_2026_09_09. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_tp_1h.py"
+      - "test_tp_1h.py"
+      - ".github/workflows/tp_1h.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_tp_1h.py
+      - name: Validate (1h barrier grid + wide stops + leverage)
+        run: python validate_tp_1h.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tp-1h-${{ github.run_number }}
+          path: _tp_1h.json
+          if-no-files-found: ignore
