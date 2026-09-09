@@ -42,6 +42,13 @@ E (에피소드 OOS)  신호 n >= EP_MIN_N(5) 인 에피소드('적격')가 2개
 보고 기준을 바꾼 것이 된다). validate_revival(전 후보) / validate_ma180 / validate_exit_consistency
 (three_soldiers_4h) 가 --frame v3 로 이 모듈을 쓴다. 장기 데이터(data_long, 2017~)는 1d 에만 있다 —
 4h/1h 셀은 기존 데이터 범위에서 v3 를 적용하고, 에피소드 부족이면 INCONCLUSIVE 로 정직하게 남긴다.
+
+## 기본값 (2026-09-09 사용자 결정 ③ "국면 홀드아웃 기본 전환")
+
+가드 감사(audit_guards, 2026-09-09)에서 달력 홀드아웃(L2)은 실거래 12셀 중 9 기각·거짓음성 2, 국면 홀드아웃(L6)은
+4 기각·거짓음성 1 로 더 잘 교정돼 있었다. 이후 모든 사전 등록의 홀드아웃은 이 모듈이 기본이고 달력 판(v2)은 재현용
+인자(--frame v2)로만 남는다. --frame 을 받는 모듈: validate_revival / validate_ma180 / validate_engulf_tf (test_frame_v3 가
+기본값을 고정). 함께 정해진 ①②(B 벤치 진단 강등 · 소표본 레짐 셀 INCONCLUSIVE)는 validate_guard_v5 에 있다.
 """
 import statistics as st
 from datetime import date
