@@ -156,6 +156,8 @@ check("v3: altseason raw .030 은 Holm .060 → INCONCLUSIVE 가 REJECTED 로(Ho
 check("v3: bear 는 judge 의 REJECTED 그대로(boot_p 사유 유지)", r["bear"]["verdict"] == "REJECTED" and "boot_p=0.500" in r["bear"]["fails"])
 check("v3: ALL 은 참조 — Holm 가족 밖(holm None), 판정 그대로", r["ALL"]["reference"] and r["ALL"]["holm"] is None and r["ALL"]["verdict"] == "CONFIRMED")
 check("v3: 마찰 0.4% 진단이 셀마다 붙는다(건당 − 0.4%)", all(abs(r[g]["friction"] - 0.006) < 1e-12 for g in r))
+_src_v3 = open("validate_engulf_tf.py", encoding="utf-8").read()
+check("v3 출력·JSON 에 train 자체 게이트 탈락 사유가 남는다(1차 실행에서 빠져 있던 것)", "train_fails=" in _src_v3 and "cf3['train']['gate'].get('fails'" in _src_v3)
 check("v3 는 frame_v3.judge 를 쓴다(자체 판정 없음)", E.fv.judge is __import__("frame_v3").judge)
 wf3 = open(".github/workflows/engulf_tf.yml", encoding="utf-8").read()
 check("워크플로: 4h 롱만 v3 로(--tf 4h --dir long --frame v3) + 산출물 _engulf_tf_v3.json", "--tf 4h" in wf3 and "--dir long" in wf3 and "--frame v3" in wf3 and "_engulf_tf_v3.json" in wf3)

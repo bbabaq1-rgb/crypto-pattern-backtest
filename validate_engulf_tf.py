@@ -346,7 +346,8 @@ def main(argv=None):
                 print(f"  [{tag}] {tf:3} {d:5} {g:<15} n={c1['n']:5} mean={_f(c1['mean'])} 승률 {c1['win_rate'] * 100:3.0f}% "
                       f"엣지 {_f(c1['edge'])} boot_p={c1['boot_p']:.3f}→Holm {hp} | E {E['positive']}/{E['qualifying']} "
                       f"| holdout(국면 {cf3['holdout']['days']}일) n={cf3['holdout']['n']:4} {_f(cf3['holdout']['mean'])} "
-                      f"| train n={cf3['train']['n']} C2b {cf3['c2b_train']} | Calmar {eq.get('calmar') if eq.get('calmar') is None else round(eq['calmar'], 2)} "
+                      f"| train n={cf3['train']['n']} C2b {cf3['c2b_train']}({'/'.join(cf3['train']['gate'].get('fails', [])) or 'ok'}) "
+                      f"| Calmar {eq.get('calmar') if eq.get('calmar') is None else round(eq['calmar'], 2)} "
                       f"| COV {cf3['coverage']} | 마찰0.4% {_f(cell['friction'])} → **{cell['verdict']}**"
                       + (f"  ({', '.join(cell['fails'])})" if cell["fails"] else ""))
                 print(fv.fmt_episodes(cf3["episodes"]))
@@ -355,7 +356,9 @@ def main(argv=None):
                     edge=c1["edge"], boot_p=c1["boot_p"], holm=cell["holm"],
                     E=dict(ok=E["ok"], qualifying=E["qualifying"], positive=E["positive"], max_share=E["max_share"]),
                     holdout_n=cf3["holdout"]["n"], holdout_mean=cf3["holdout"]["mean"], holdout_days=cf3["holdout"]["days"],
-                    train_n=cf3["train"]["n"], c2b=cf3["c2b_train"], calmar=eq.get("calmar"), cagr=eq.get("cagr"),
+                    train_n=cf3["train"]["n"], c2b=cf3["c2b_train"], train_fails=list(cf3["train"]["gate"].get("fails", [])),
+                    train_mean=cf3["train"]["gate"].get("mean"), train_boot_p=cf3["train"]["gate"].get("boot_p"),
+                    calmar=eq.get("calmar"), cagr=eq.get("cagr"),
                     coverage=cf3["coverage"], friction_mean=cell["friction"], verdict=cell["verdict"], fails=cell["fails"],
                     episodes=cf3["episodes"])
         counts = {}
