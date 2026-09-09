@@ -4188,7 +4188,7 @@
   }
  },
  "frame_v5_2026_09_09": {
-  "status": "PREREGISTERED",
+  "status": "DONE 2026-09-09 — run 34327549849. CONFIRMED 2 / INCONCLUSIVE 2 / UNCONFIRMED_SHADOW 5 / REJECTED 5. 실거래 무변경",
   "date": "2026-09-09",
   "trigger": "사용자 결정 '1,2는 진행하고 3은 무슨 말이지?' — 가드 감사(guard_audit_2026_09_09) 권고 1·2 적용. 3(달력→국면 홀드아웃)은 설명 후 별도 결정.",
   "rule_1": "B 벤치(같은 코인·같은 달·같은 레짐)를 판정에서 제외, 진단으로 강등. 근거: 감사에서 실거래 12/12 기각·단독 기각 2·OOS 양수 셀 기각 5, 누적 통과 3→0 이 이 층. 신호 이후 봉을 풀에 넣어 사후 정보를 쓴다(2026-09-06 기록). 인과 판도 11/12 기각.",
@@ -4201,7 +4201,31 @@
   "prior_before_run": "감사 행렬을 이미 봤으므로 눈 감은 예측이 아니다. 4h triple_bottom/equal_lows → CONFIRMED 유력, vol_awakening 은 OOS +0.19% 의 boot_p 가 불확실. engulfing|bull_btc → INCONCLUSIVE(규칙 2). 1d 라우팅 나머지는 OOS A 가 음수라 SHADOW/REJECTED 그대로 — **B 제거는 4h 를 살리고 1d 는 못 살린다** 예상. 그림자 2 무변화.",
   "what_is_NOT_rerun": "익절 3판(수수료 산술), 청산 변형 전부(짝지음), revival/tb_wide/late_entry/exit_1w(승률·단일 해·손절 비율이 결정타) — B 미사용이라 불변. 사용자 질문 '전부 다시 해야 하나' 의 답: 아니오, guard_v4 11셀 + (결정 3 시) engulf_tf 4h 롱뿐.",
   "files": "validate_guard_v5.py / test_guard_v5.py / .github/workflows/guard_v5.yml",
-  "decision_3_followup": "2026-09-09 사용자 승인 ③ — 국면 홀드아웃 기본. frame_default_2026_09_09 참조. v5 자체는 SPLIT 2025-01-01 OOS 를 쓰므로 무영향."
+  "decision_3_followup": "2026-09-09 사용자 승인 ③ — 국면 홀드아웃 기본. frame_default_2026_09_09 참조. v5 자체는 SPLIT 2025-01-01 OOS 를 쓰므로 무영향.",
+  "result_2026_09_09": {
+   "run": 34327549849,
+   "counts": {
+    "CONFIRMED": 2,
+    "INCONCLUSIVE": 2,
+    "UNCONFIRMED_SHADOW": 5,
+    "REJECTED": 5
+   },
+   "changed_v4_to_v5": {
+    "triple_bottom_4h|ALL": "SHADOW → **CONFIRMED** (규칙 1). n=684 train 319 게이트 PASSED · OOS n=365 **+1.59%** bp .000 · 비용 0.4% 후 양수 · B(진단) +1.23%",
+    "vol_awakening_4h|ALL": "SHADOW → **CONFIRMED** (규칙 1). n=5189 train 2596 PASSED · OOS n=2593 **+0.21%** bp .000 · B(진단) −0.45% — 건당은 얇고 슬롯 점유 실측(9/09 16/16)은 이 프레임 밖",
+    "engulfing|bull_btc": "SHADOW → **INCONCLUSIVE** (규칙 2). n=111 train 76 게이트 탈락 사유 boot_p .376 뿐 · OOS n=35 **+6.56%** bp .002(A OOS Holm m=13 .020) · 비용 후 양수. 판정 불가로 남는 유일한 '강한 OOS' 셀 — train 표본이 검정력 부족",
+    "engulfing_short|bull_altseason": "SHADOW → INCONCLUSIVE (규칙 2). train boot_p .372 뿐이나 OOS n=35 **−0.15%** bp .112 라 규칙 2 가 없었어도 OOS A 에서 탈락 — INCONCLUSIVE 표기가 실질을 과대평가하지 않게 기록"
+   },
+   "unchanged": {
+    "equal_lows_4h|ALL": "SHADOW 유지 — **train(2025-01 이전, n=445) 게이트 boot_p .907** 로 탈락. OOS n=668 +0.97% bp .000 은 강하지만 train 에 엣지가 없다 = 2025~26 bear 단일 국면 엣지(revival v3 에서 bear 셀 INCONCLUSIVE·ALL E 3/4 였던 것과 같은 그림). ALL 셀이라 규칙 2 미적용. **사전 확률 'CONFIRMED 유력' 오답.**",
+    "fvg|bull_btc / double_bottom_1d / three_soldiers_4h|bull_btc": "SHADOW — OOS A 음수(−1.26 / −0.79 / −0.07%). B 제거로 못 살린다(사전 확률대로)",
+    "inverse_hs_1d|bull_btc": "SHADOW — train boot_p .137 이나 n=357≥200 이라 규칙 2 미적용 + OOS A bp .061",
+    "REJECTED 5": "engulfing|bear(승률 24%·OOS −4.25%) / fvg|bull_altseason(승률 26%) / three_soldiers_4h|bull_altseason(OOS −3.17%) / ih(승률 30%) / marubozu(승률 28%) — 전부 A_full 사유, v4 와 동일"
+   },
+   "prior_check": "3/4 방향 적중(triple_bottom CONFIRMED · vol_awakening CONFIRMED · engulfing|bull_btc INCONCLUSIVE · 1d 라우팅 불변). equal_lows 는 CONFIRMED 유력이라 적었으나 train 게이트에서 탈락 — 감사 행렬은 L1 을 **전체 표본**으로 쟀고 v5 는 train 분할로 재므로 같은 층이 아니었다. 내 예측 오류.",
+   "b_diagnostic": "B(진단)는 4h 두 CONFIRMED 셀에서 +1.23% / −0.45% 로 부호가 갈린다 — 월 안 타이밍 검정이 수익성과 독립임을 재확인. 판정에서 뺀 것이 옳았다",
+   "live_change": "없음 — DEPLOY_ON_PASS=False. triple_bottom_4h·vol_awakening_4h 는 이미 배포 중(revival §7·§8)이라 CONFIRMED 가 배포 집합을 바꾸지 않는다. 관찰 종료 2026-10-06 보고에 v5 판정 열 병기"
+  }
  },
  "frame_default_2026_09_09": {
   "status": "DECIDED 2026-09-09 (사용자: '3번도 진행, b벤치 영향 있는거 재테스트도 수행')",

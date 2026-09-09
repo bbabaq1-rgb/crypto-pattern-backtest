@@ -1236,6 +1236,26 @@
   · **사용자 결정용 권고 순서**: ① L8 을 판정에서 빼 진단으로(통과 0→3, 전부 OOS 양수) ② 레짐 셀 L1 은 n<200 이면 INCONCLUSIVE
     ③ L2 를 L6 으로 대체. Holm·E·C3 는 유지 가능. 캐비앗: OOS 는 2025-01~ 20개월 bear 지배, engulfing|bull_btc OOS n=35 얇음.
   validate_tp_regime.py / test_tp_regime.py(20) / audit_guards.py / test_audit_guards.py(19) / tp_regime.yml / audit_guards.yml
+- **확인 프레임 결정 ①②③ + v5 재판정 (2026-09-09, 사용자 결정 "1,2는 진행" → "3번도 진행, b벤치 영향 있는거 재테스트도 수행")**:
+  registry `frame_default_2026_09_09` / `frame_v5_2026_09_09`(run 34327549849). **실거래 무변경(관찰 기간).**
+  · **결정**: ① B 벤치(같은 코인·달·레짐 무작위)는 판정에서 빼고 진단으로 병기 ② 레짐 조건부 셀은 n<200 이고 train 게이트
+    탈락 사유가 boot_p 뿐이면 REJECTED 대신 **INCONCLUSIVE**(통과 아님, SMALL_N=200 은 내 값) ③ 홀드아웃은 **국면 기준(frame_v3)이
+    기본** — validate_revival 은 이미 v3, validate_engulf_tf 는 FRAME_DEFAULT="v3" 로 전환. 게이트 v2 문턱·C2b·C3·PIT·Holm·E·0.4% 스트레스 불변.
+  · **재실행 범위 원칙**: 프레임 변경은 후보 전체에 적용하되 **재실행은 '바뀐 층 하나로만 탈락했던 셀'에 한정** — 나머지를 다시 돌리면
+    결과를 보고 셀을 고르는 것이 된다. 범위 = guard_v4 14셀(v5) · pit_cohort 11셀(B 가 판정 기준이었던 두 번째이자 마지막 시험, `--rules v5`) ·
+    engulf_tf 4h 롱(달력 홀드아웃 하나로 탈락, `--frame v3`). 익절 3판·청산 변형·tb_wide(승률+홀드아웃)·late_entry·exit_1w(단일 해)·
+    ma180(이미 v3, C2b 탈락)은 대상 아님.
+  · **v5 결과 — CONFIRMED 2 / INCONCLUSIVE 2 / SHADOW 5 / REJECTED 5** (v4 는 CONFIRMED 0):
+    **triple_bottom_4h|ALL → CONFIRMED**(OOS n=365 +1.59% bp .000, 비용 후 양수) · **vol_awakening_4h|ALL → CONFIRMED**(OOS n=2593 +0.21%
+    bp .000 — 건당 얇음, 슬롯 점유는 이 프레임 밖) · **engulfing|bull_btc → INCONCLUSIVE**(train n=76 boot_p .376 뿐, OOS n=35 **+6.56%** bp .002
+    — 판정 불가로 남는 유일한 강한 OOS 셀) · engulfing_short|bull_altseason → INCONCLUSIVE(단 OOS −0.15% bp .112 라 규칙 2 없이도 OOS 탈락).
+    **equal_lows_4h|ALL 은 SHADOW 유지 — train(2025 이전 n=445) 게이트 boot_p .907**: OOS n=668 +0.97% bp .000 이 강한데 train 에 엣지가
+    없다 = 2025~26 bear 단일 국면 엣지(revival v3 의 bear INCONCLUSIVE 와 같은 그림). ALL 셀이라 규칙 2 미적용. **사전 확률 'CONFIRMED
+    유력' 오답** — 감사 L1 은 전체 표본, v5 는 train 분할이라 같은 층이 아니었다. 1d 라우팅 나머지(fvg/double_bottom/three_soldiers bull)는
+    OOS A 음수라 B 제거로 못 살린다(사전 확률대로). REJECTED 5 는 전부 A_full 사유로 v4 와 동일.
+  · B(진단)는 CONFIRMED 두 셀에서 +1.23% / −0.45% 로 부호가 갈린다 — 월 안 타이밍 검정이 수익성과 독립임을 재확인.
+  · 두 CONFIRMED 셀은 이미 배포 중(revival §7·§8)이라 배포 집합 불변. 관찰 종료(10-06) 보고에 v5 판정 열 병기.
+  validate_guard_v5.py / test_guard_v5.py(20) / guard_v5.yml
 - **무기한 펀딩비·OI 일별 적재 시작 (2026-09-08, 사용자 지시)**: registry `perp_accrual_2026_09_08`.
   perp_accrual.py / supabase_schema_perp.sql / test_perp_accrual.py(27건). **적재 전용 — 매매 코드는 이 테이블을 읽지 않는다.**
   · **왜 급한가**: 펀딩 이력은 OKX 가 약 3개월만 준다. **종목별 OI 는 스냅샷뿐 이력이 아예 없어** 지금 안 쌓으면 영구 손실이다
