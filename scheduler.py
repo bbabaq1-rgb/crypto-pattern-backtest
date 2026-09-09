@@ -23,6 +23,7 @@ import subprocess
 from datetime import datetime, timezone, timedelta
 
 import detlib
+import exit_barriers as xb
 import regime_switch as rs
 import direction_switch as ds
 
@@ -741,9 +742,13 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 mod1 = importlib.import_module(ap["module"])
             except ImportError:
                 continue
-            for sym in h1_syms:
+            # 선택 필드 `cohort`(top20 등) — 4h adopted 와 같은 정의(_cohort_symbols). 없으면 전체.
+            syms1 = _cohort_symbols(ap.get("cohort"), h1_syms)
+            for sym in syms1:
                 try:
-                    rows1h = mod1.load_ohlcv(sym, "1h")
+                    # exit_spec 패턴은 봉 ts 가 필요하다(진입봉 특정·eval_I). 디텍터 자체 로더가
+                    # ts 를 안 주는 경우(detector_engulfing)가 있어 detlib 로더를 쓴다 — 같은 CSV.
+                    rows1h = (detlib.load_ohlcv(sym, "1h") if spec_ap else mod1.load_ohlcv(sym, "1h"))
                 except (FileNotFoundError, RuntimeError):
                     continue
                 # exit_spec 패턴은 **닫힌 봉**에서 탐지한다. CSV 마지막 행은 형성
@@ -764,18 +769,11 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 spec1 = spec_ap
                 target1 = None
                 if spec1:
-                    import intraday_lab as _ilab
-                    atr1 = _ilab.atr_series(rows1h, spec1.get("atr_period", 14))[last1]
-                    if not atr1 or atr1 <= 0:
-                        continue          # ATR 미산출 → 청산 규칙 정의 불가, 스킵
-                    dist1 = spec1.get("k_atr", 1.5) * atr1
-                    if ap["direction"] == "long":
-                        stop1, target1 = entry1 - dist1, entry1 + dist1
-                    else:
-                        stop1, target1 = entry1 + dist1, entry1 - dist1
-                    stop1, target1 = round(stop1, 8), round(target1, 8)
-                    tp_txt = (f"±{spec1.get('k_atr', 1.5)}xATR{spec1.get('atr_period', 14)} "
-                              f"거래소 OCO 브래킷 / {spec1.get('horizon_bars', 12)}봉 시간청산")
+                    bar1 = xb.barriers(spec1, rows1h, last1, entry1, ap["direction"])
+                    if bar1 is None:
+                        continue          # 배리어 정의 불가(ATR 미산출) → 스킵
+                    stop1, target1, _ = bar1
+                    tp_txt = xb.describe(spec1)
                 else:
                     stop1 = round(entry1 * (1 - STOP), 4)
                     tp_txt = "레짐전환 or 최대20봉 시가청산"

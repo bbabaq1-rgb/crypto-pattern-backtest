@@ -1265,6 +1265,20 @@
     얇다는 것(국면 홀드아웃이 표본 57% 를 삼킴). altseason 은 표본 전부가 홀드아웃(train 0)이고 boot_p .075 라 성능 우선 규칙으로 REJECTED
     (사전 확률 'INCONCLUSIVE' 는 규칙 순서를 놓침). bear 는 −0.12%. 재시험 조건: 4h 이력이 bull_btc 에피소드 3개 이상을 덮을 때. 배포 근거 없음.
     1차 출력이 train 탈락 사유를 안 찍어 병기 재실행(판정 동일). validate_engulf_tf.py(FRAME_DEFAULT=v3, judge_v3) / validate_pit_cohort.py(--rules v5)
+- **사용자 강제 실행 — tp1_engulfing_1h, $30 (2026-09-09, 사용자 지시 "그냥 30달러만 강제 진행해볼수 있어? 지금 btc 들어가있는거 청산하고")**:
+  registry `tp1_engulfing_1h`(status forced_live_user) / universe `adopted_1h_patterns`. **검증 미통과 규칙의 실거래 — 자율 반영 조항 밖, 사용자 결정 기록.**
+  · 규칙: engulfing 1h 롱(디텍터 인자 없음, 1d 배포 신호 집합 불변) · 코호트 top20 · 레짐 무관 · 닫힌 봉 탐지 · **익절 +1% / 손절 −8%
+    OKX OCO 브래킷**(exit_spec type `pct_barrier`, 2000봉 시간청산) · **$30 증거금 고정 · 3x · 한 번에 1포지션**(registry `live_cap`).
+    사전에 물어 확정한 사양(BTC 는 앱에서 직접 청산 / 1%·8%·3x / engulfing 1h top20).
+  · 기대값: tp_1h 실측 승률 88.00%(손익분기 91.11%), 건당 −0.28% ≈ 왕복 수수료 — 명목 $90 기준 약 −$0.25/건, 월 $5~10 소진이 기본값.
+    관찰 목적은 실거래 승률·체결이 백테스트와 맞는지. **진입 30건 또는 10-06 에 대조 보고**, 정지는 사용자 결정.
+  · 구현: `exit_barriers.py`(스케줄러·체결엔진 공용 배리어 산식 — 종전 ±k×ATR 인라인 두 벌을 한 곳으로) · `paper_executor.LIVE_CAPS`
+    (고정 증거금·레버리지, risk_based_size·변동성 타겟팅·레짐 오버레이 우회, **MAX_LIVE_POS 슬롯 면제 + 자기 max_open**, 같은 종목·방향
+    중복 방어 유지) · `barriers_of` 가 pct 배리어를 대칭 복원하지 않고 규격(+1%)으로 재구성(positions.target 컬럼 부재 대비) ·
+    scheduler 1h adopted 에 `cohort` 적용 + exit_spec 패턴은 ts 있는 detlib 로더. cascade 배리어 수치·1d/4h 경로·사이징 상수 불변(test 고정).
+  · **한계**: OKX 계약 단위(BTC 0.01·ETH 0.1)가 명목 $90 를 넘는 종목은 qty_below_lot_min 으로 자동 스킵 — 사실상 알트만 체결.
+    positions 스키마 패치 미실행 시 entry_ts 유실 → 엔진 시간청산 보류(OCO 는 유효), cascade 와 같은 갭.
+  · test_tp1_live.py(33) — eval_I(pct) 가 tp_1h 검증 프레임(crossings/_resolve)과 청산 봉·사유·수익률 일치 120/120.
 - **무기한 펀딩비·OI 일별 적재 시작 (2026-09-08, 사용자 지시)**: registry `perp_accrual_2026_09_08`.
   perp_accrual.py / supabase_schema_perp.sql / test_perp_accrual.py(27건). **적재 전용 — 매매 코드는 이 테이블을 읽지 않는다.**
   · **왜 급한가**: 펀딩 이력은 OKX 가 약 3개월만 준다. **종목별 OI 는 스냅샷뿐 이력이 아예 없어** 지금 안 쌓으면 영구 손실이다
@@ -1412,6 +1426,7 @@
 - [x] **v4 REJECTED 라우팅 셀 3 처리 → 사용자 결정 "현 상태에서 더 이상 끄지 않고 실거래로 1달 돌려본다" (2026-09-06)** —
       engulfing|bear 롱 / fvg|bull_altseason 롱 / three_soldiers_4h|bull_altseason 포함 배포 집합 전부 유지. 끄는 방법은 참고로 남김
       (direction_switch.ROUTING_OVERRIDES FLAT + adopted_4h regimes). **관찰 종료 2026-10-06** — ih/marubozu 관찰과 같은 날
+- [ ] **tp1_engulfing_1h $30 강제 실행 대조 보고** — 진입 30건 또는 10-06: 실거래 승률·건당·수수료 합 vs tp_1h(88.00% / −0.28%). 정지는 사용자 결정
 - [ ] **실거래 1개월 관찰 보고 (2026-10-06)** — 패턴·레짐 셀별 진입 건수 / 건당 수익 / 손절 비율 / 슬리피지를 v4 OOS 수치와 나란히 표로.
       정지/유지 재결정은 사용자. 관찰 중 코드·라우팅·사이징 변경 없음(사용자 별도 지시 외)
 - [ ] **B 벤치 사후 조건화 보완(다음 프레임 사전 등록)** — 같은 코인-월 풀을 신호 **이전** 봉으로만 제한한 변형(인과 B)을 병기.

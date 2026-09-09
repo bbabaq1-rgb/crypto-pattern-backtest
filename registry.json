@@ -914,6 +914,37 @@
    "status": "rejected",
    "rejected_date": "2026-09-05",
    "reason": "validate_revival --new: 5레짐 x 2코호트 전 셀 median<0 (방식D 손절 -8.20%), holdout 음수. report_revival.md"
+  },
+  {
+   "id": "tp1_engulfing_1h",
+   "name": "User-forced +1% take-profit scalp (engulfing 1h long, top20)",
+   "category": "intraday",
+   "status": "forced_live_user",
+   "detector_file": "detector_engulfing.py",
+   "passed_tf": null,
+   "validation": "**검증 미통과 — 사용자 강제 실행(2026-09-09 '그냥 30달러만 강제 진행해볼수 있어?')**. tp_small(1d)·tp_1h(1h)·tp_regime(레짐) 세 판 전부 REJECTED: 1h 실측 승률 88.00% vs 손익분기 91.11%, 건당 −0.28%(≈왕복 수수료). 자율 반영 조항 밖 — 배포 근거가 아니라 사용자 결정 기록.",
+   "user_decision": "2026-09-09 대표님: BTC 실포지션은 앱에서 직접 청산 / 규칙 1%/8%·3x / 신호 engulfing 1h 롱 top20. $30 증거금 고정, 한 번에 1포지션.",
+   "expected": "기대값 음수 — 건당 약 −0.28%(명목 $90 → 약 −$0.25). 수수료로 월 $5~10 소진이 기본값. 관찰 목적: 실거래에서 승률·체결이 백테스트(88%)와 맞는지.",
+   "entry_rule": "detector_engulfing.detect 를 1h 봉에 그대로(인자 없음) — 닫힌 봉(rows[-2])에서 탐지, 코호트 top20(30일 거래대금, 매 실행 재계산), 레짐 무관 롱.",
+   "exit_spec": {
+    "type": "pct_barrier",
+    "tf": "1h",
+    "tp_pct": 0.01,
+    "sl_pct": 0.08,
+    "horizon_bars": 2000,
+    "fee": 0.002,
+    "source": "validate_tp_1h T1S8 arm — 익절 +1% / 손절 −8% 배리어만, 레짐·반대신호 청산 없음, 스캔 한도 2000봉(1h)",
+    "execution": "진입 시 OKX OCO(손절+익절) 등록 — 배리어 집행은 거래소, 엔진은 시간청산(2000봉≈83일)만. 체결가 기준 재정렬은 exit_barriers.barriers 로 동일 규칙."
+   },
+   "live_cap": {
+    "margin_usd": 30.0,
+    "leverage": 3,
+    "max_open": 1,
+    "note": "고정 사이징 — risk_based_size·변동성 타겟팅·레짐 오버레이 우회. MAX_LIVE_POS 슬롯 면제(별도 자본), 같은 종목·방향 실포지션 중복 방어는 유지. 손절 없는 실거래 금지 원칙 그대로(exit_spec 없으면 live_cap 무효)."
+   },
+   "known_limits": "OKX 계약 단위(BTC 0.01·ETH 0.1 등)가 명목 $90 를 넘는 종목은 qty_below_lot_min 으로 자동 스킵 — top20 중 대형 코인은 사실상 알트만 체결된다. 이 기록의 승률은 그 부분집합의 것.",
+   "deployed_date": "2026-09-09",
+   "review": "진입 30건 또는 2026-10-06 관찰 종료 시 승률·건당·수수료 합을 tp_1h 백테스트(88.00% / −0.28%)와 대조해 보고. 정지는 사용자 결정."
   }
  ],
  "rejected_4h": [
