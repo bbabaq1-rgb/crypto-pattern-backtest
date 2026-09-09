@@ -176,9 +176,19 @@ check("복리 포트: 익절 1건(+1% − 0.2% 수수료)×3x → 30 × 1.024 = 
 m2 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, 0.008)])
 check("복리 포트: 익절 2건 → 30 × 1.024² = 31.46", abs(m2 - round(30 * 1.024 ** 2, 2)) < 1e-9, m2)
 m3 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)])
-check("복리 포트: 손절(−8.2%)×3x 는 포트를 24.6% 줄인다(충전 없음)", abs(m3 - round(30.72 * (1 - 0.246), 2)) < 1e-9, m3)
+check("복리 포트: 손절 뒤 $30 리셋(reset_on_loss, 사용자 지시)", m3 == 30.0 and cap.get("reset_on_loss") is True, m3)
+m4 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082), tr(PAT, 0.008)])
+check("복리 포트: 익절·손절·익절 → 리셋 후 다시 30.72", abs(m4 - 30.72) < 1e-9, m4)
+_noreset = dict(cap, reset_on_loss=False)
+check("reset_on_loss 없으면 손절도 복리로 줄어든다(30.72 × 0.754)",
+      abs(pe.cap_margin(_noreset, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)]) - round(30.72 * (1 - 0.246), 2)) < 1e-9)
+_w = dict(tr(PAT, 0.008), exit_date="2026-09-10", entry_date="2026-09-10")
+_l = dict(tr(PAT, -0.082), exit_date="2026-09-09", entry_date="2026-09-09")
+check("복리 포트: 장부 순서가 뒤집혀 있어도 시간순으로 계산(손절이 먼저 → 30.72)",
+      abs(pe.cap_margin(cap, PAT, [_w, _l]) - 30.72) < 1e-9)
 check("복리 포트: 다른 패턴·방식A·R 행은 무시", pe.cap_margin(cap, PAT, [tr("engulfing", 0.5), tr(PAT, 0.5, "A"), tr(PAT, 0.5, "R")]) == 30.0)
-check("복리 포트: $10 미만이면 None(주문 안 냄)", pe.cap_margin(cap, PAT, [tr(PAT, -0.082)] * 5) is None)
+check("복리 포트: $10 미만이면 None(주문 안 냄) — 리셋 없는 설정에서", pe.cap_margin(_noreset, PAT, [tr(PAT, -0.082)] * 5) is None)
+check("복리 포트: 리셋 설정에서는 연속 손절도 $30 유지", pe.cap_margin(cap, PAT, [tr(PAT, -0.082)] * 5) == 30.0)
 check("compound 아니면 margin_usd 고정", pe.cap_margin(dict(margin_usd=30.0, leverage=3), PAT, [tr(PAT, 0.5)]) == 30.0)
 check("registry live_cap: compound·start_margin 30", cap.get("compound") is True and cap.get("start_margin") == 30.0)
 

@@ -519,7 +519,7 @@
       "deployed_date": "2026-09-09",
       "forced_by_user": true,
       "exit": "registry.json exit_spec pct_barrier — 익절 +1% / 손절 −8% OKX OCO 브래킷 / 2000봉 시간청산 (eval_I)",
-      "sizing": "registry.json live_cap — 복리 포트(30 × Π(1+ret×3)) · 3x · 한 번에 1포지션 · 메인 전략과 독립(중복 방어 상호 미적용, 계약 수 단위 청산)",
+      "sizing": "registry.json live_cap — 복리 포트(30 × Π(1+ret×3), 손절 시 $30 리셋) · 3x · 한 번에 1포지션 · 메인 전략과 독립(중복 방어 상호 미적용, 계약 수 단위 청산)",
       "deploy_basis": "검증 미통과(tp_1h REJECTED, 승률 88.00% vs 손익분기 91.11%, 건당 −0.28%). 2026-09-09 사용자 결정 '그냥 30달러만 강제 진행' — 배포 근거 아님, 결정 기록.",
       "requires_hourly_cron": true,
       "detects_on_closed_bar": true
