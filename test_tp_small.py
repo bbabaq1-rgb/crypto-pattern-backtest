@@ -116,7 +116,18 @@ check("P2 는 버린 신호의 수익을 반영하지 않는다", p2 and abs(p2[
 p3 = T.pot_curve([("2024-01-01", "2024-01-02", -0.40, 1, "stop", 0.08, 0.8)], lev=3, start=100.0)
 check("P2 파산 하한 0", p3 and p3["final"] == 0.0, p3)
 check("P2 빈 표본 None", T.pot_curve([]) is None)
-check("P2 는 시간순으로 정렬한 뒤 잡는다", "sorted(trades, key=" in inspect.getsource(T.pot_curve))
+# 진입 시각만으로 정렬해야 한다 — 청산 시각을 2차 키로 쓰면 같은 시각 신호 중
+# '먼저 끝날 거래'(= 빠른 익절)를 고르는 셈이라 미래를 쓴다(2026-09-09 발견·수정).
+_ps = inspect.getsource(T.pot_curve)
+_sortline = [l for l in _ps.splitlines() if "sorted(" in l]
+check("P2 정렬 키가 진입 시각 + 입력 순서뿐 — 청산 시각이 없다(룩어헤드 방지)",
+      len(_sortline) == 1 and "trades[i][0]), i)" in _sortline[0]
+      and "[1]" not in _sortline[0], _sortline)
+_same = [("2024-01-01", "2024-01-09", -0.082, 1, "stop", 0.08, 0.8),
+         ("2024-01-01", "2024-01-01", +0.008, 1, "target", 0.08, 0.8)]
+_pc = T.pot_curve(_same, lev=1, start=100.0)
+check("동시 신호는 입력 순서로 잡는다 — 빠른 익절을 먼저 고르지 않는다",
+      _pc["taken"] == 1 and _pc["mult"] < 1.0, _pc)
 
 # ── Holm ─────────────────────────────────────────────────────────────────────
 h = T.holm({"a": 0.01, "b": 0.02, "c": 0.30})
