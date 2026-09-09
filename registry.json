@@ -3856,6 +3856,12 @@
       "bonus_fix": "live_filled_count 이중계상도 해소 — _record_trade 가 D 청산에만 live_mode=True 를 붙이므로 d_closed 행은 이미 trades 쪽에서 세어지고 있었다(legacy 사이징 경로에만 영향, 현행 SIZING_MODE=risk 는 미사용)",
       "not_changed": "reconcile_closed_positions 의 d_closed 스킵(원래 D 기록 보존) · ensure_stop_orders(거래소 실포지션만 순회하므로 유령 행은 애초에 손절 재등록 대상이 아님) · 청산·사이징·주문 경로",
       "tests": "test_executor_safety +5(슬롯·중복키 제외, 거래소 집합 유지, 종전 코드 부재)"
+    },
+    "option_c_verified_2026_09_08_1200Z": {
+      "log": "`[장부] 오픈 17행 = 실거래 17 + 페이퍼 0 | OKX 실포지션 14건 | 슬롯 14/16 | D청산 완료·A만 남은 행 2건 ['ADA','BTC'] ← 슬롯·중복방어에서 제외됨`",
+      "verified": "유령 **3행**(ADA marubozu, BTC marubozu, BTC inverted_hammer — 심볼 표기는 중복 제거라 2개로 보인다)이 슬롯에서 제외돼 **17 → 14**. C 적용 전 로직이었다면 17/16 으로 만석이라 신규 진입이 전부 막혔을 것",
+      "paper_rows_promoted": "BTC 페이퍼 2행이 `reconcile_live_flag` 로 live 승격됨(BTC 실포지션이 생겨서) → 페이퍼 0. 승격돼도 d_closed 라 슬롯·중복방어에서는 빠진다",
+      "new_finding_stop_map": "**미해결(사용자 결정 대기)**: `stop_map` 은 `live_mode` 만 보고 d_closed 를 거르지 않는다(paper_executor:~722). 심볼 키 dict 라 BTC 처럼 장부에 3행(유령 2 + 실포지션 1)이 있으면 **죽은 행의 손절가가 실포지션 손절 재등록에 쓰일 수 있다**(BTC 유령 71,310.76 / 73,478.01 vs 실포지션 72,566.80). ensure_stop_orders 는 손절이 **누락됐을 때만** 재등록하므로 지금 당장 문제는 없으나, 누락 시 검증치와 다른 손절가가 걸린다. C 와 같은 한 줄 수정(d_closed 제외)으로 해소"
     }
   },
   "stablecoin_source_swap_2026_09_08": {
@@ -3886,6 +3892,67 @@
     "bug_found_in_smoke": "`_sym` 이 `inst_id[:-11]` 하드코딩이라 **'ETHW-USDT-SWAP' 이 'ETH' 로 잡혀 다른 종목 데이터가 섞였다**(접미사는 10자). 80종목 중 5개만 매칭되던 것이 단서. `len(SWAP_SUFFIX)` 로 고치고 테스트로 고정 → 80/80 매칭",
     "blocker": "**사용자가 supabase_schema_perp.sql 을 Supabase SQL Editor 에서 1회 실행해야 실제로 쌓인다.** 그 전까지는 매 실행 '테이블 없음' 안내만 출력. 종전 supabase_schema_funding.sql(2026-09-04)은 끝내 실행되지 않아 4일간 적재가 0이었다 — 같은 일이 반복되지 않도록 새 SQL 이 funding_daily 도 함께 만든다",
     "live_change": "없음. 매매 코드는 이 테이블을 읽지 않는다(test_perp_accrual 이 고정). 스케줄러 호출은 try/except + 시간 상한",
-    "test": "test_perp_accrual.py 27건 — 심볼 파싱·스냅샷 병합·펀딩 일별 집계·rubik 파싱·업서트 컬럼 분리·시간 상한·예외 격리·배선(주문 뒤 실행, 체결 엔진 미import)"
+    "test": "test_perp_accrual.py 27건 — 심볼 파싱·스냅샷 병합·펀딩 일별 집계·rubik 파싱·업서트 컬럼 분리·시간 상한·예외 격리·배선(주문 뒤 실행, 체결 엔진 미import)",
+    "blocker_cleared_2026_09_08": {
+      "what": "사용자가 Supabase SQL Editor(프로젝트 crypto-backtest, main/PRODUCTION)에서 실행 완료 — 'Success. No rows returned'",
+      "created": "public.perp_daily + perp_daily_symbol_date_idx + public.funding_daily",
+      "rls": "RLS 를 켜도 적재는 그대로 — supabase_client.get_client() 기본값이 role='service' 이고 service_role 키는 RLS 를 우회한다. 키가 잘못 꽂히면 get_client 가 즉시 에러를 낸다(조용한 실패 없음)",
+      "verification_pending": "아직 0행. 12:00Z(oncequick --slow)에 스냅샷 80행, 다음 00:00Z(oncefull)에 백필(펀딩 약 2,550행 + OI 약 14,400행)이 들어와야 한다. 21:30 KST 점검에서 로그로 확인",
+      "deliberately_not_done": "**추가 수동 dispatch 로 즉시 확인하지 않는다** — 스케줄러 수동 실행은 전체 매매 실행이라 검증된 발화 시각 집합 밖에서 진입이 날 수 있다(관찰 기간). 오늘치 스냅샷은 같은 날짜 행을 덮어쓰므로 12:00Z 를 기다려도 잃는 것이 없다"
+    },
+    "first_run_2026_09_08_1200Z": {
+      "result": "**적재 실패 — `permission denied for table perp_daily` / `funding_daily` (SQLSTATE 42501)**",
+      "diagnosis": "**RLS 정책이 아니라 테이블 GRANT 문제.** RLS 위반이면 PostgREST 가 'new row violates row-level security policy' 를 낸다. 'permission denied for table' 은 role 에 테이블 권한 자체가 없다는 뜻. 같은 실행에서 daily_summary UPSERT 는 성공 → 키·연결은 정상이고 새 테이블 둘에만 권한이 없다",
+      "fix": "supabase_grant_perp.sql — `grant select,insert,update,delete on ... to service_role` (사용자 SQL Editor 1회)",
+      "my_earlier_claim_corrected": "'RLS 를 켜도 service_role 이 우회하니 그대로 된다'고 했는데, RLS 우회와 **테이블 GRANT 는 별개**다. 우회는 정책 평가를 건너뛸 뿐 권한이 없으면 여전히 막힌다",
+      "silent_failure_avoided": "적재 실패가 로그에 그대로 찍혀 즉시 잡혔다 — [8] 블록이 실패를 삼키되 메시지는 출력하도록 만든 설계가 의도대로 작동"
+    }
+  },
+  "tb_wide_prereg_2026_09_08": {
+    "status": "DONE 2026-09-08 — run 34240822675. 4h CONFIRMED / 1h·1d·1w REJECTED. 실거래 무변경(DEPLOY_ON_PASS=False)",
+    "question": "사용자 지시: '5 / 0.45로 사전등록해서 돌려줘 … 이것만큼은 1시간, 4시간, 1d, 1w 로 다 돌려봤으면'. 사용자가 실전에서 가장 많이 매매하는 감속형 삼중바닥(첫 저점에서 두 번 연속 저점 갱신, 갱신 폭 축소)이 배포 파라미터(pivot 3 / eq 0.35)로는 안 잡힌다",
+    "user_case_frozen": {
+      "source": "업비트 KRW-BTC 일봉 (사용자 지목)",
+      "lows": "2026-06-05 90,500,000 → 07-01 88,770,000 (−1.91%) → 08-14 88,342,000 (−0.48%)",
+      "shape": "갱신 폭 4.0배 축소 · 간격 26/44봉 · 넥라인 100,992,000 · 깊이 14.3%",
+      "outcome": "08-21 종가 돌파 → 베이스 대비 최고 +27.3%",
+      "detected": "5/0.45 로 잡힘(신호 2026-08-20). 3/0.35 로는 안 잡힘",
+      "okx_divergence": "**OKX USDT 는 같은 기간 저점을 갱신하지 않았다**(59,078 → 57,750 → 62,227) — 원화 약세로 KRW 차트에서만 하강 구조. 그래서 KRW 대조를 진단 D3 로 넣는다"
+    },
+    "frozen": {
+      "params": "pivot_half=5, eq_frac=0.45 (사용자 지정). 나머지 triple_bottom 상수 불변 — MIN_SPACING 5 / MAX_SPAN 90 / MAX_WAIT 30 / DEPTH_ATR_MULT 2.5 / VOL_BREAK_MULT 1.5, causal=True",
+      "tfs": "1h / 4h / 1d / 1w (사용자 지정 전부)",
+      "cell": "코호트 top30(실거래) · 레짐 ALL · 방향 롱",
+      "frame": "validate_revival 프레임 그대로 재사용 — 1d/4h/1w 방식D, 1h ATR 배리어 / 같은 레짐·코호트·TF 무작위 진입 k=n 베이스라인",
+      "holdout": "1h 90일 · 4h·1d 365일 · **1w 730일**(주봉 희소성, validate_exit_1w 와 같은 이유)",
+      "multiplicity": "네 TF 셀은 한 가족 — boot_p 에 **Holm 보정(m=4)**"
+    },
+    "judgement": "C1 게이트 v2(n>=20·mean>0·승률>=35%·Holm p<0.05·OOS>=2/4) + C2 홀드아웃 n>=10 & mean>0 + C3 자산곡선 CAGR>0 & Calmar>0. 셋 다 → CONFIRMED / C1·C3 통과인데 홀드아웃 n<10 → INCONCLUSIVE / 그 외 REJECTED",
+    "diagnostics": "판정 아님 — D1 격자 pivot{3,5,7}×eq{0.35,0.45,0.55}(**사후에 격자 최대값을 고르지 않는다**) · D2 하강형 부분집합(사용자 '베스트' 정의) · D3 업비트 KRW 대조(우리는 USDT 로 거래하므로 판정은 USDT 로만)",
+    "prior": "**결과 보기 전 기록**: 넓은 스윙은 신호 수를 크게 줄인다. 1w 는 표본이 얇아 INCONCLUSIVE 가 유력하고 1h 도 홀드아웃 90일이라 마찬가지. 가장 그럴듯한 결과는 4h·1d 에서만 n 이 붙고 나머지는 판정 불가. triple_bottom_1w 가 룩어헤드로 정지된 전력이 있어 causal=True 확인이 필수",
+    "deploy_on_pass": false,
+    "live_change": "없음 — 관찰 기간(~2026-10-06) 중이고 배포는 사용자 결정. 통과 셀은 passed_not_deployed 로만 남긴다",
+    "code_safety": "detector_triple_bottom 에 pivot_half/eq_frac 인자를 추가했으나 **기본값(None)은 종전 상수와 동일**이라 배포된 triple_bottom_4h 의 신호 집합은 한 건도 바뀌지 않는다(test_tb_wide 가 신호 집합 일치로 고정, 스케줄러는 인자를 넘기지 않음)",
+    "known_limits": "top30 코호트는 정적(PIT 아님 — pit_cohort 결론상 1d 반전 패턴에서 엣지를 1.5~2%p 부풀린다) · 1w 는 방식D(−8% 저가 손절)가 주봉 폭에 안 맞는다는 것이 validate_exit_1w 에서 이미 확인됨 · 업비트 일봉은 800봉(2024-07~)뿐이라 D3 는 최근 2년만",
+    "prerun_notes_2026_09_08": {
+      "smoke": "로컬 8종목 축소 스모크로 파이프라인 관통 확인 — **수치는 결과가 아니다**(종목 8개, top30=전부)",
+      "fix_long_history": "1d 를 OKX 범위(약 900~1,200봉)로만 읽으면 **1w 는 train 이 통째로 비어**(홀드아웃 730일이 전 표본을 삼킴) Calmar 계산 불가. 결과 부호를 보고 고른 변경이 아니라 창이 성립하지 않는 구조적 결함이라, 1d 를 data_long(2017~)에 이어 붙이는 것을 **기본**으로 바꿨다(--short 로 끔). validate_revival --long 과 같은 경로, 레짐 라벨도 그 봉",
+      "d2_is_rare_not_broken": "D2 하강형 부분집합이 축소 스모크에서 0건이라 버그를 의심했으나 코드는 정상 — eq_frac 0.45 조합 선택이 대개 L1 을 최저점으로 잡아 '연속 갱신'이 드물다. **사용자 사례(업비트 KRW-BTC)로 검증하면 하강형=True 로 잡힌다**",
+      "detector_picks_tighter_anchors": "사용자가 지목한 저점은 06-05/07-01/08-14 인데 디텍터는 같은 구조의 **더 최근 조합** 07-14(92,067,000)/08-03(89,001,000)/08-14(88,342,000)를 고른다(가장 최근 유효 조합을 취하는 설계). 갱신 폭 −3,066/−659 로 역시 축소형이고 신호일은 2026-08-20 로 동일"
+    },
+    "result_2026_09_08": {
+      "run": 34240822675,
+      "verdict": "4h CONFIRMED · 1h REJECTED · 1d REJECTED · 1w REJECTED (Holm m=4)",
+      "4h": "CONFIRMED — n=805 mean +1.74% med −0.92% 승률 46% 엣지 +1.76% boot_p .000→Holm .000 · holdout n=283 **+2.69%** · Calmar 1.50",
+      "1h": "REJECTED — n=1308 mean −0.19% 승률 50% 엣지 +0.10% Holm .068 · holdout −0.22% · Calmar −1.08. 평균 음수·OOS 0/4",
+      "1d": "REJECTED — n=399 mean **+8.65%** 엣지 +5.88% boot_p .000 OOS **4/4** Calmar 1.39 인데 **승률 26%**(게이트 35%)이고 holdout n=35 **−4.00%**. 두 사유 독립 탈락 — 복권형",
+      "1w": "REJECTED — n=61 mean +0.16% 승률 15% 엣지 −3.23% boot_p .755. holdout n=12 +8.86% 은 12건짜리",
+      "headline_D2": "**사용자 패턴 자체는 엣지가 아니다** — 하강형(L1>L2>L3 & 갱신폭 축소) 부분집합이 전 TF 에서 전체보다 나쁘다: 1h n=98 −0.01% / 4h n=46 **+1.24%** (전체 +1.74%) / 1d n=20 **−0.64%** (전체 +8.65%) / 1w n=6 −8.20%. 4h 의 엣지는 **수평형 삼중바닥**에서 나오고 하강형은 그 안에서 열세다. 단 n 이 작아 '열세 확정'이 아니라 '지지 없음'",
+      "headline_D1": "**넓히는 것 자체가 이득이 아니다** — 4h 격자 9칸 평균이 +1.1~+1.9% 로 평평하고 최고는 배포값 3/0.35(+1.9%). 5/0.45 는 신호를 679→805 로 늘릴 뿐 건당은 같거나 낮다. 1d 도 5/0.35(+10.5%)·7/0.35(+11.4%)가 더 높으나 **사후에 격자 최대값을 고르지 않는다**(사전 등록)",
+      "vs_deployed": "4h CONFIRMED 셀은 **이미 배포된 triple_bottom_4h(ALL·top30·롱)와 같은 셀의 재파라미터화**다. 배포판(3/0.35) revival §8 Calmar 2.79 vs 이번 5/0.45 Calmar 1.50 — 넓은 판이 신호는 25% 많고 holdout 건당은 좋으나(+2.69% vs +1.62%) 자산곡선은 나쁘다. **교체 근거 없음**",
+      "D3_krw": "업비트 KRW 는 신호가 훨씬 적고 날짜가 거의 안 겹친다 — BTC KRW 3건 vs USDT 15건(일치 0), 8 메이저 합쳐 일치 4건. 사용자 사례(2026-08-20)는 KRW 3건 중 하나. **탐지 소스를 KRW 로 바꿀 근거 없음** — 신호를 잃고 겹치지도 않는다",
+      "prior_vs_result": "사전 기록('1w·1h 는 INCONCLUSIVE 유력, 4h·1d 에서만 n 이 붙는다')과 부분 일치 — n 은 예상대로 4h·1d 에 붙었으나 1w·1h 는 판정 불가가 아니라 REJECTED 로 떨어졌다(1w 는 boot_p .755, 1h 는 평균 음수)",
+      "live_change": "없음. DEPLOY_ON_PASS=False 대로 통과 셀도 반영하지 않았고, 배포된 triple_bottom_4h 파라미터도 그대로다"
+    }
   }
 }

@@ -43,12 +43,13 @@ def _atr(rows, i, period=14):
     return sum(trs) / period
 
 
-def _swing_pivots(rows, key, cmp_min=True):
-    """±PIVOT_HALF 국소 극값 인덱스 목록."""
+def _swing_pivots(rows, key, cmp_min=True, half=None):
+    """±half(기본 PIVOT_HALF) 국소 극값 인덱스 목록."""
+    half = PIVOT_HALF if half is None else half
     vals = [r[key] for r in rows]
     out = []
-    for i in range(PIVOT_HALF, len(rows) - PIVOT_HALF):
-        seg = vals[i - PIVOT_HALF:i + PIVOT_HALF + 1]
+    for i in range(half, len(rows) - half):
+        seg = vals[i - half:i + half + 1]
         if (min(seg) if cmp_min else max(seg)) == vals[i]:
             out.append(i)
     return out
@@ -57,7 +58,7 @@ def _swing_pivots(rows, key, cmp_min=True):
 MODES = ("breakout", "late", "late_nohold")
 
 
-def detect(rows, causal=True, mode="breakout"):
+def detect(rows, causal=True, mode="breakout", pivot_half=None, eq_frac=None):
     """
     causal=True(기본, 2026-09-03 수정): 첫 돌파 봉이 L3 의 스윙 저점 **확정 전**
     (L3 + PIVOT_HALF 이전)이면 그 셋업을 버린다. L3 확정에는 이후 PIVOT_HALF 봉의 저가가 필요하므로
@@ -75,13 +76,23 @@ def detect(rows, causal=True, mode="breakout"):
       "late_nohold" — 진단용. 신호봉 종가 조건 없이 L3+PIVOT_HALF 를 찍는다.
     late 계열은 인과적이다: L3+PIVOT_HALF 시점에 L3 확정·돌파·거래량·종가가 모두 알려진다.
     """
-    return [d["sig"] for d in detect_detail(rows, causal=causal, mode=mode)]
+    return [d["sig"] for d in detect_detail(rows, causal=causal, mode=mode,
+                                            pivot_half=pivot_half, eq_frac=eq_frac)]
 
 
-def detect_detail(rows, causal=True, mode="breakout"):
-    """detect 와 같은 순회. 각 신호의 셋업(L1,L2,L3,neck,brk,sig)을 돌려준다(검증·테스트용)."""
+def detect_detail(rows, causal=True, mode="breakout", pivot_half=None, eq_frac=None):
+    """
+    detect 와 같은 순회. 각 신호의 셋업(L1,L2,L3,neck,brk,sig)을 돌려준다(검증·테스트용).
+
+    pivot_half / eq_frac (2026-09-08 추가): 스윙 폭과 저점 동일수준 허용폭을 호출 시 바꾼다.
+    **기본값(None)은 모듈 상수 PIVOT_HALF=3 / EQ_DEPTH_FRAC=0.35 — 종전 동작과 완전히 동일**
+    (test_triple_bottom_params 가 신호 집합 일치로 고정). 배포된 triple_bottom_4h 는 기본값을
+    쓰므로 영향받지 않는다. 사전 등록 시험(validate_tb_wide.py)만 다른 값을 넘긴다.
+    """
     if mode not in MODES:
         raise ValueError(f"mode {mode!r} not in {MODES}")
+    half = PIVOT_HALF if pivot_half is None else pivot_half
+    eqf = EQ_DEPTH_FRAC if eq_frac is None else eq_frac
     n = len(rows)
     if n < MAX_SPAN // 2:
         return []
@@ -89,7 +100,7 @@ def detect_detail(rows, causal=True, mode="breakout"):
     hi = [r["h"] for r in rows]
     cl = [r["c"] for r in rows]
     vo = [r["v"] for r in rows]
-    piv = _swing_pivots(rows, "l", cmp_min=True)
+    piv = _swing_pivots(rows, "l", cmp_min=True, half=half)
 
     sig = []
     used_brk = set()
@@ -122,7 +133,7 @@ def detect_detail(rows, causal=True, mode="breakout"):
         if atr is None or depth < DEPTH_ATR_MULT * atr:
             continue
         # 세 저점 동일 수준: 모두 베이스 하위 EQ_DEPTH_FRAC 이내
-        if max(lo[L1], lo[L2], lo[L3]) > base_low + EQ_DEPTH_FRAC * depth:
+        if max(lo[L1], lo[L2], lo[L3]) > base_low + eqf * depth:
             continue
 
         # 돌파 탐색: L3 이후 MAX_WAIT 봉 내 종가 > 넥라인

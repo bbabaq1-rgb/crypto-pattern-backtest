@@ -1,0 +1,45 @@
+name: Research — triple bottom wide-swing (pivot 5 / eq 0.45), preregistered (pre-registered)
+
+# 삼중바닥 넓은 스윙 판(pivot 5 / eq 0.45)을 1h/4h/1d/1w 전부에서 시험.
+# 사전 등록 registry tb_wide_prereg_2026_09_08. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_tb_wide.py"
+      - "test_tb_wide.py"
+      - ".github/workflows/tb_wide.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: |
+          python test_tb_wide.py
+      - name: Validate (triple bottom wide swing)
+        run: python validate_tb_wide.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tb-wide-${{ github.run_number }}
+          path: _tb_wide.json
+          if-no-files-found: ignore
