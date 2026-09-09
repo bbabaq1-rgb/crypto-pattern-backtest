@@ -185,5 +185,14 @@ try:
 finally:
     os.chdir(cwd)
 
+
+# ── 기본값 고정 (2026-09-09 사용자 결정 ③) ─────────────────────────────────
+import re as _re
+for _m, _pat in (("validate_revival.py", r'"--frame" in argv else "v3"'), ("validate_ma180.py", r'"--frame" in argv else "v3"'),
+                 ("validate_engulf_tf.py", r'FRAME_DEFAULT = "v3"')):
+    _src = open(_m, encoding="utf-8").read()
+    check(f"{_m}: 홀드아웃 기본 프레임 v3 (국면 기준)", _re.search(_pat, _src) is not None, _pat)
+check("CLAUDE.md 핵심 원칙에 프레임 기본값 ①②③ 기록", "확인 프레임 기본값" in open("CLAUDE.md", encoding="utf-8").read())
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

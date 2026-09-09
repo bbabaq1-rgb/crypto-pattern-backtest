@@ -72,6 +72,7 @@ jobs:
                    test_tp_1h.py \
                    test_tp_regime.py \
                    test_audit_guards.py \
+                   test_guard_v5.py \
                    test_regime_determinism.py \
                    test_method_m.py \
                    test_regime_split.py \

@@ -120,5 +120,48 @@ check("워크플로가 로직 테스트를 먼저 돌린다", "python test_engul
 check("워크플로가 장기 이력(data-long)을 받는다", "data-long" in wf)
 check("tests.yml 등재", "test_engulf_tf.py" in open(".github/workflows/tests.yml", encoding="utf-8").read())
 
+
+# ── 프레임 v3 — 국면 홀드아웃 (2026-09-09 사용자 결정 ③) ───────────────────────────
+check("기본 프레임은 v3 (국면 홀드아웃) — v2 는 --frame v2 로만", E.FRAME_DEFAULT == "v3")
+check("v3 판정 셀 레짐 3 (Holm 가족) · ALL 은 참조", E.V3_REGIMES == ("bull_btc", "bull_altseason", "bear"))
+check("v3 재실행 범위 = 홀드아웃에서만 탈락한 4h 롱", E.V3_PRIMARY == ("4h", "long"))
+check("--dir/--frame 파싱 + 기본값", E.parse_args(["--tf", "4h", "--dir", "long"]) == (["4h"], ["long"], "v3", True)
+      and E.parse_args(["--frame", "v2", "--short"]) == (list(E.TFS), list(E.DIRECTIONS), "v2", False))
+try:
+    E.parse_args(["--frame", "v9"]); bad = False
+except AssertionError:
+    bad = True
+check("모르는 프레임은 거부", bad)
+
+_orig_judge = E.fv.judge
+_calls = []
+def _fake_judge(sigs, pool, regmap, g, equity_fn=None, seed=42):
+    _calls.append((g, len(sigs), tuple(pool)))
+    p = {"bull_btc": 0.001, "bull_altseason": 0.030, "bear": 0.500, "ALL": 0.010}[g]
+    vd = "REJECTED" if g == "bear" else ("INCONCLUSIVE" if g == "bull_altseason" else "CONFIRMED")
+    return dict(verdict=vd, c1=dict(n=len(sigs), boot_p=p, fails=([] if p < 0.05 else [f"boot_p={p:.3f}"])),
+                E=dict(ok=True, qualifying=2, positive=2, max_share=0.6), holdout=dict(n=20, mean=0.01, days=365),
+                train=dict(n=40), c2b_train=True, equity=dict(cagr=0.2, mdd=-0.1, calmar=2.0), coverage=True, episodes=[])
+E.fv.judge = _fake_judge
+try:
+    cells = {g: dict(sigs=[dict(ret=0.01, regime=g)] * 5, pool=[0.0, 0.01, -0.01][i:]) for i, g in enumerate(("bull_btc", "bull_altseason", "bear", "ALL"))}
+    r = E.judge_v3(cells, regmap={})
+finally:
+    E.fv.judge = _orig_judge
+check("v3: 셀마다 frame_v3.judge 를 그 셀의 레짐·풀로 부른다", [c[0] for c in _calls] == ["bull_btc", "bull_altseason", "bear", "ALL"]
+      and _calls[2][2] == (-0.01,), _calls)
+check("v3: Holm m=3 — bull_btc .001→.003 통과 CONFIRMED", r["bull_btc"]["verdict"] == "CONFIRMED" and abs(r["bull_btc"]["holm"] - 0.003) < 1e-9, r["bull_btc"])
+check("v3: altseason raw .030 은 Holm .060 → INCONCLUSIVE 가 REJECTED 로(Holm 사유)", r["bull_altseason"]["verdict"] == "REJECTED"
+      and any(f.startswith("Holm") for f in r["bull_altseason"]["fails"]), r["bull_altseason"])
+check("v3: bear 는 judge 의 REJECTED 그대로(boot_p 사유 유지)", r["bear"]["verdict"] == "REJECTED" and "boot_p=0.500" in r["bear"]["fails"])
+check("v3: ALL 은 참조 — Holm 가족 밖(holm None), 판정 그대로", r["ALL"]["reference"] and r["ALL"]["holm"] is None and r["ALL"]["verdict"] == "CONFIRMED")
+check("v3: 마찰 0.4% 진단이 셀마다 붙는다(건당 − 0.4%)", all(abs(r[g]["friction"] - 0.006) < 1e-12 for g in r))
+_src_v3 = open("validate_engulf_tf.py", encoding="utf-8").read()
+check("v3 출력·JSON 에 train 자체 게이트 탈락 사유가 남는다(1차 실행에서 빠져 있던 것)", "train_fails=" in _src_v3 and "cf3['train']['gate'].get('fails'" in _src_v3)
+check("v3 는 frame_v3.judge 를 쓴다(자체 판정 없음)", E.fv.judge is __import__("frame_v3").judge)
+wf3 = open(".github/workflows/engulf_tf.yml", encoding="utf-8").read()
+check("워크플로: 4h 롱만 v3 로(--tf 4h --dir long --frame v3) + 산출물 _engulf_tf_v3.json", "--tf 4h" in wf3 and "--dir long" in wf3 and "--frame v3" in wf3 and "_engulf_tf_v3.json" in wf3)
+check("registry 에 v3 재실행 사전 등록", "engulf_tf_v3_prereg_2026_09_09" in reg)
+
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)

@@ -1,7 +1,9 @@
 name: Research — point-in-time cohort re-validation (pre-registered, diagnostic)
 
 # 정적 코호트(데이터 끝 순위 소급) vs point-in-time 코호트(월말 30일 거래대금 순위 → 다음 달 적용)로 v4 11셀 재계산.
-# 사전 등록 registry pit_cohort_prereg_2026_09_06. DEPLOY_ON_PASS=False — 매매·DB 무관.
+# 사전 등록 registry pit_cohort_prereg_2026_09_06 (v4 규칙, run 34033988347).
+# 2026-09-09 사용자 결정 ①②(B 벤치 진단 강등 · 레짐 셀 n<200 INCONCLUSIVE)로 판정 규칙 v5 재실행 —
+# registry pit_cohort_v5_2026_09_09. 코호트 구성·A 풀 불변. DEPLOY_ON_PASS=False — 매매·DB 무관.
 
 on:
   workflow_dispatch:
@@ -29,13 +31,16 @@ jobs:
       - name: Logic tests (no network)
         run: |
           python test_guard_v4.py
+          python test_guard_v5.py
           python test_pit_cohort.py
-      - name: Validate (PIT cohort)
-        run: python validate_pit_cohort.py
+      - name: Validate (PIT cohort, rules v5)
+        run: python validate_pit_cohort.py --rules v5
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pit-cohort-${{ github.run_number }}
-          path: _pit_cohort.json
+          path: |
+            _pit_cohort.json
+            _pit_cohort_v5.json
           if-no-files-found: ignore

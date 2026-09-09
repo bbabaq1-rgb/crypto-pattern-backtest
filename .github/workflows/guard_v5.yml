@@ -1,0 +1,44 @@
+name: Confirmation frame v5 — B bench demoted, small-n regime cells inconclusive
+
+# 사용자 결정(2026-09-09) 1·2 반영: B 벤치 판정 제외 + 레짐 셀 n<200·boot_p 단독 → INCONCLUSIVE.
+# v4 11셀 + 4h adopted 3셀 재판정. registry frame_v5_2026_09_09. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_guard_v5.py"
+      - "test_guard_v5.py"
+      - ".github/workflows/guard_v5.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: python test_guard_v5.py
+      - name: Run
+        run: python validate_guard_v5.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guard-v5-${{ github.run_number }}
+          path: _guard_v5.json
+          if-no-files-found: ignore

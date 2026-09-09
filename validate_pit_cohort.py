@@ -36,6 +36,7 @@ import time
 
 import regime_switch as rs
 import validate_guard_v4 as g4
+import validate_guard_v5 as g5
 import validate_regime_split_all as va
 import validate_revival as vr
 from validate_regime_split import turnover_rank
@@ -47,6 +48,9 @@ COHORT_BOUNDS = {"core20": (1, 20), "top30": (1, 30), "liquid": (1, 10**9), "mid
 OKX_FROM = "2022-01-01"            # 진단: OKX 거래량 구간
 DEPLOY_ON_PASS = False
 SEED, POOL_CAP = g4.SEED, vr.POOL_CAP
+# 판정 규칙 — v4(사전 등록 원판: A+B+비용) / v5(2026-09-09 사용자 결정 ①②: B 는 진단, 레짐 셀 n<200·boot_p 단독 → INCONCLUSIVE).
+# B 벤치가 판정 기준이었던 시험은 guard_v4 와 이 판 둘뿐이라 둘 다 v5 로 재판정한다. 코호트 구성·A 풀·Holm(진단) 은 불변.
+RULES_DEFAULT = "v5"
 MAJORS = g4.MAJORS
 DIAG_PATTERNS = ("engulfing", "engulfing_short", "fvg")   # core20 / mid 진단 대상 (라우팅 셀)
 SCAN = [("engulfing", "detector_engulfing", "long"), ("fvg", "detector_fvg", "long")]
@@ -150,14 +154,18 @@ def _p(v):
     return "  n/a" if v is None else f"{v:.3f}"
 
 
-def judge_family(results):
-    """Holm 을 가족 안에서 적용해 판정. results: {cid: rec}."""
+def judge_family(results, rules=RULES_DEFAULT):
+    """Holm 을 가족 안에서 적용해 판정. results: {cid: rec}. rules: v4(A+B) / v5(B 진단·규칙 2)."""
     fam = {k: v["oos_b"]["p_nw"] for k, v in results.items()
            if v["oos_a"]["n"] >= g4.OOS_MIN_N and v["oos_b"]["months"] >= g4.B_MIN_MONTHS and v["oos_b"]["p_nw"] is not None}
-    adj = g4.holm(fam)
+    adj = g4.holm(fam)          # v5 에서는 진단값(B Holm p)으로만 남는다
     for k, v in results.items():
-        vd, fails = g4.verdict(v["full_a"], v["train_gate"]["verdict"] == "PASSED", v["train_b"], v["oos_a"], v["oos_b"], adj.get(k), v["oos_a"]["mean"])
-        v["p_holm"], v["verdict"], v["fails"] = adj.get(k), vd, fails
+        if rules == "v5":
+            vd, fails, rule2 = g5.verdict_v5(v["cell"], v["full_a"], v["train_gate"], v["oos_a"], v["oos_a"]["mean"])
+            v["rule2"] = rule2
+        else:
+            vd, fails = g4.verdict(v["full_a"], v["train_gate"]["verdict"] == "PASSED", v["train_b"], v["oos_a"], v["oos_b"], adj.get(k), v["oos_a"]["mean"])
+        v["p_holm"], v["verdict"], v["fails"], v["rules"] = adj.get(k), vd, fails, rules
     return len(fam)
 
 
@@ -165,14 +173,19 @@ def _line(tag, rec):
     a, o, b = rec["full_a"], rec["oos_a"], rec["oos_b"]
     return (f"  {tag:<7} n={rec['n']:>5} (tr {rec['n_train']:>4}/oos {rec['n_oos']:>4}) | A full {_f(a['mean'])} 엣지 {_f(a['edge'])} bp {_p(a['boot_p'])} "
             f"| A OOS {_f(o['mean'])} 엣지 {_f(o['edge'])} bp {_p(o['boot_p'])} | B OOS {_f(b['nw'])} p {_p(b['p_nw'])} Holm {_p(rec.get('p_holm'))} "
-            f"| train B {_f(rec['train_b']['nw'])} p {_p(rec['train_b']['p_nw'])} → **{rec.get('verdict', '')}** {'/'.join(rec.get('fails', []))}")
+            f"| train B {_f(rec['train_b']['nw'])} p {_p(rec['train_b']['p_nw'])} → **{rec.get('verdict', '')}** {'/'.join(rec.get('fails', []))}"
+            + ("  (규칙 2)" if rec.get("rule2") else ""))
 
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     tfs = argv[argv.index("--tf") + 1].split(",") if "--tf" in argv else ["1d", "4h"]
+    rules = argv[argv.index("--rules") + 1] if "--rules" in argv else RULES_DEFAULT
+    assert rules in ("v4", "v5"), rules
     syms = va._syms()
-    print(f"PIT 코호트 재검증 | 리밸런스 월말 · 순위 창 {RANK_WINDOW}일 · 적격 {MIN_HISTORY}봉 · 코호트 {COHORT_BOUNDS} | DEPLOY_ON_PASS={DEPLOY_ON_PASS}")
+    print(f"PIT 코호트 재검증 | 리밸런스 월말 · 순위 창 {RANK_WINDOW}일 · 적격 {MIN_HISTORY}봉 · 코호트 {COHORT_BOUNDS} "
+          f"| 판정 규칙 {rules}{' (B 진단 · 레짐 셀 n<' + str(g5.SMALL_N) + ' boot_p 단독 → INCONCLUSIVE)' if rules == 'v5' else ' (사전 등록 원판 A+B)'} "
+          f"| DEPLOY_ON_PASS={DEPLOY_ON_PASS}")
     if "--no-fetch" not in argv:
         va.fetch(syms, tfs)
     rows_1d = va.load_tf(syms, "1d", long=True)
@@ -259,17 +272,19 @@ def main(argv=None):
                 diag_cm[cell["cid"]][cn] = r_
         print(f"[{cell['cid']}] {tf} 정적 {coh} n={rec_s['n']} / PIT {pcoh} n={rec_p['n']} ({time.time()-t0:.0f}s)", flush=True)
 
-    m_s, m_p = judge_family(static_res), judge_family(pit_res)
+    m_s, m_p = judge_family(static_res, rules), judge_family(pit_res, rules)
     for dd in diag_cm.values():
-        judge_family(dd)   # 진단 셀은 자체 가족(코호트 2개) — 판정 참고용
+        judge_family(dd, rules)   # 진단 셀은 자체 가족(코호트 2개) — 판정 참고용
 
     print("\n" + "=" * 130)
-    print(f"[판정 두 벌] 정적 Holm m={m_s} / PIT Holm m={m_p}")
+    print(f"[판정 두 벌 · 규칙 {rules}] 정적 B-Holm m={m_s} / PIT B-Holm m={m_p}" + (" (B 는 진단)" if rules == "v5" else ""))
     summary = {}
     for cid in static_res:
         s_, p_ = static_res[cid], pit_res[cid]
         stab = stability(s_["verdict"], p_["verdict"], s_["full_a"]["edge"], p_["full_a"]["edge"])
         summary[cid] = dict(static=s_["verdict"], pit=p_["verdict"], stability=stab, n_static=s_["n"], n_pit=p_["n"],
+                            rule2_static=s_.get("rule2", False), rule2_pit=p_.get("rule2", False),
+                            fails_static=s_.get("fails", []), fails_pit=p_.get("fails", []),
                             edge_static=s_["full_a"]["edge"], edge_pit=p_["full_a"]["edge"],
                             oos_static=s_["oos_a"]["mean"], oos_pit=p_["oos_a"]["mean"],
                             b_oos_static=s_["oos_b"]["nw"], b_oos_pit=p_["oos_b"]["nw"],
@@ -316,11 +331,12 @@ def main(argv=None):
     print(f"[요약] STABLE {counts.get('STABLE', 0)} / SHIFTED {counts.get('SHIFTED', 0)} — 실거래 반영 없음(DEPLOY_ON_PASS={DEPLOY_ON_PASS})")
     for cid, v in summary.items():
         print(f"  {cid:<36} static {v['static']:<18} PIT {v['pit']:<18} {v['stability']:<8} n {v['n_static']}->{v['n_pit']} 엣지 {_f(v['edge_static'])}->{_f(v['edge_pit'])} OOS {_f(v['oos_static'])}->{_f(v['oos_pit'])}")
-    out = dict(frame="pit_cohort", frozen=dict(rank_window=RANK_WINDOW, min_history=MIN_HISTORY, cohorts=COHORT_BOUNDS, okx_from=OKX_FROM),
+    out = dict(frame="pit_cohort", rules=rules, frozen=dict(rank_window=RANK_WINDOW, min_history=MIN_HISTORY, cohorts=COHORT_BOUNDS, okx_from=OKX_FROM),
                deploy_on_pass=DEPLOY_ON_PASS, months=len(pm), summary=summary, static=static_res, pit=pit_res, diag_core_mid=diag_cm, scan=scan)
-    json.dump(out, open("_pit_cohort.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
-    print("[저장] _pit_cohort.json")
-    print("RESULT_JSON: " + json.dumps(dict(frame="pit_cohort", counts=counts, summary={k: dict(static=v["static"], pit=v["pit"], stability=v["stability"]) for k, v in summary.items()}), ensure_ascii=False))
+    fn = "_pit_cohort.json" if rules == "v4" else f"_pit_cohort_{rules}.json"
+    json.dump(out, open(fn, "w", encoding="utf-8"), ensure_ascii=False, indent=1, default=str)
+    print(f"[저장] {fn}")
+    print("RESULT_JSON: " + json.dumps(dict(frame="pit_cohort", rules=rules, counts=counts, summary={k: dict(static=v["static"], pit=v["pit"], stability=v["stability"]) for k, v in summary.items()}), ensure_ascii=False))
 
 
 if __name__ == "__main__":
