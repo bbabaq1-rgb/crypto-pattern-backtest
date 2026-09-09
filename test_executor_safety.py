@@ -57,7 +57,8 @@ check("triple_bottom 복원 tf = 1w", pe._pattern_tf("triple_bottom") == "1w")
 
 # ── 3. 킬스위치 / 중복 진입 (소스 고정) ──────────────────────────────────────
 check("잔고 조회 실패 → 킬스위치(fail-closed)", "if bal is None:" in src_pe and "fail-closed" in src_pe)
-check("같은 종목·방향 실포지션 중복 진입 스킵", 'if (s["symbol"], s["direction"]) in live_dir_keys:' in src_pe)
+check("같은 종목·방향 실포지션 중복 진입 스킵(메인/cap 분리 entry_blocked, 2026-09-09)",
+      'if entry_blocked(s["symbol"], s["direction"], bool(cap), okx_dir_keys, main_keys, cap_keys):' in src_pe)
 check("중복 키는 거래소 실측 + 장부 live 포지션 합집합 (2026-09-08 결정 C: d_closed 제외)",
       "ex_mod.get_okx_positions(live_conn)}" in src_pe
       and 'for p in still_open\n                          if p.get("live_mode") and not p.get("d_closed")}' in src_pe)

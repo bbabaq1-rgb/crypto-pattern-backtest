@@ -559,9 +559,13 @@ def get_okx_closed_positions(live_conn, limit=50):
     return out
 
 
-def close_swap_position(live_conn, symbol, direction, sl_algo_id=None):
+def close_swap_position(live_conn, symbol, direction, sl_algo_id=None, qty=None):
     """
-    OKX 포지션 전량 시장가 청산(reduceOnly) + 잔여 손절 algo 취소.
+    OKX 포지션 시장가 청산(reduceOnly) + 잔여 손절 algo 취소.
+
+    qty 를 주면 **그 계약 수만**(실포지션보다 크면 실포지션까지) 닫는다 — 같은 종목·방향을
+    두 장부 행(메인 전략 + $30 별도 프로젝트 tp1)이 나눠 들고 있을 때 한쪽 청산이 다른 쪽까지
+    닫지 않게 하기 위한 것(2026-09-09). 없으면 종전대로 전량.
 
     반환: (fill_price | None, "ok")  성공
           (None, reason)             실패 — 호출부는 포지션 유지 후 재시도
@@ -569,14 +573,17 @@ def close_swap_position(live_conn, symbol, direction, sl_algo_id=None):
     try:
         ex = live_conn["exchange"]
         ccxt_sym = f"{symbol}/USDT:USDT"
-        qty = 0.0
+        have = 0.0
         for p in ex.fetch_positions([ccxt_sym]):
             side = str(p.get("side", "")).lower()
             if side == direction:
-                qty = abs(float(p.get("contracts") or 0))
+                have = abs(float(p.get("contracts") or 0))
                 break
-        if qty <= 0:
+        if have <= 0:
             return None, "no_position"      # 이미 닫힘(손절 체결 등)
+        qty = have if not qty else min(float(qty), have)
+        if qty <= 0:
+            return None, "no_position"
         close_side = "sell" if direction == "long" else "buy"
         order = ex.create_market_order(
             ccxt_sym, close_side, qty,
@@ -592,6 +599,41 @@ def close_swap_position(live_conn, symbol, direction, sl_algo_id=None):
         return fill, "ok"
     except Exception as e:
         return None, str(e)[:80]
+
+
+def algo_state(live_conn, algo_id, inst_id=None):
+    """
+    algo(손절/OCO) 주문의 현재 상태 — 배리어가 거래소에서 이미 집행됐는지 확인용(2026-09-09).
+
+    반환 dict(state, actual_px, actual_side) | None(조회 실패 = 알 수 없음).
+      state: "live"(대기) / "effective"(집행됨) / "canceled" / "order_failed" 등 OKX 값 그대로.
+      actual_px: 집행 체결가(effective 일 때), actual_side: "tp" / "sl".
+    같은 종목·방향을 두 장부 행이 나눠 들면 포지션이 사라지지 않아 '청산 이력'으로는 한쪽의
+    배리어 집행을 알 수 없다 — 그 행의 algo 상태가 유일한 원천이다.
+    """
+    if not algo_id:
+        return None
+    try:
+        ex = live_conn["exchange"]
+        for path, kw in (("privateGetTradeOrdersAlgoPending", {}), ("privateGetTradeOrdersAlgoHistory", {})):
+            for ord_type in ("oco", "conditional"):
+                try:
+                    resp = getattr(ex, path)({"ordType": ord_type, "algoId": str(algo_id)})
+                except Exception:
+                    continue
+                for o in (resp.get("data") or []):
+                    if str(o.get("algoId")) != str(algo_id):
+                        continue
+                    px = o.get("actualPx")
+                    try:
+                        px = float(px) if px not in (None, "") else None
+                    except (TypeError, ValueError):
+                        px = None
+                    return dict(state=str(o.get("state", "")), actual_px=px,
+                                actual_side=str(o.get("actualSide", "")).lower())
+        return None
+    except Exception:
+        return None
 
 
 if __name__ == "__main__":
