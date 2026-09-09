@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 
 import detlib
 import intraday_lab as ilab
+import exit_barriers as xb
 import sizing
 import regime_switch as rs
 import exchange as ex_mod
@@ -75,6 +76,30 @@ def load_exit_specs(path=EXIT_SPEC_FILE):
 
 
 EXIT_SPECS = load_exit_specs()
+
+
+def load_live_caps(path=EXIT_SPEC_FILE):
+    """
+    {pattern_id: live_cap} — registry 에 `live_cap` 이 명시된 패턴만 (2026-09-09).
+    live_cap = dict(margin_usd, leverage, max_open). **사용자 강제 실행 전용 사이징**: 검증을 통과하지
+    못한 규칙(tp1_engulfing_1h, 익절 1%/손절 8%, tp_1h REJECTED)을 사용자 결정으로 소액($30)만 돌린다.
+    이 표에 있는 패턴은 risk_based_size 를 타지 않고 고정 증거금·레버리지로 주문하며, 자기 max_open
+    안에서만 진입한다(MAX_LIVE_POS 슬롯 계수에서 면제 — 별도 자본이라 메인 슬롯을 먹지도, 막히지도 않는다).
+    손절 없는 실거래 금지 원칙은 그대로다 — exit_spec 이 없으면 live_cap 이 있어도 주문하지 않는다.
+    """
+    try:
+        reg = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return {}
+    out = {}
+    for p in reg.get("patterns", []):
+        cap = p.get("live_cap")
+        if cap and p.get("id") and p.get("exit_spec"):
+            out[p["id"]] = cap
+    return out
+
+
+LIVE_CAPS = load_live_caps()
 
 # 실거래 포지션 사이징 규칙
 MAX_LIVE_POS   = 16    # 동시 최대 실거래 포지션. 5→12(2026-07-06) → 16(2026-09-05 사용자 결정 "맥스포스 16으로").
@@ -298,6 +323,15 @@ def barriers_of(pos):
     stop = pos.get("stop")
     tgt = pos.get("target")
     entry = pos.get("entry_price")
+    spec = EXIT_SPECS.get(pos.get("pattern"))
+    if xb.spec_type(spec) == "pct_barrier":
+        # 비대칭 배리어(예: 익절 1% / 손절 8%) — 대칭 복원을 쓰면 익절이 +8% 로 잘못 되살아나
+        # 엔진이 거래소 OCO(+1%)와 다른 규칙으로 평가한다. 규격에서 다시 만든다.
+        if tgt is None:
+            tgt = xb.pct_target(spec, entry, pos.get("direction", "long"))
+        if stop is None:
+            stop = xb.pct_stop(spec, entry, pos.get("direction", "long"))
+        return stop, tgt
     if tgt is None and stop is not None and entry:
         tgt = entry + (entry - stop)      # 롱/숏 모두 부호가 알아서 맞는다
     return stop, tgt
@@ -944,20 +978,16 @@ def run(stamp=None):
         entry   = rows[ei]["c"]
         sig_entry = entry           # 신호봉 종가 — 실체결과 비교해 배리어 재정렬 판단
         spec    = EXIT_SPECS.get(s["pattern"])
+        cap     = LIVE_CAPS.get(s["pattern"])       # 사용자 강제 실행 소액 캡(있으면 고정 사이징)
         target_px = None
-        atr = None
         if spec:
-            # ATR 배리어 패턴: 손절·익절 모두 검증 프레임과 같은 ±k×ATR 로 산출.
-            # ATR을 못 구하면(데이터 부족) 청산 규칙 자체가 정의되지 않으므로 진입 안 함.
-            atr = ilab.atr_series(rows, spec.get("atr_period", 14))[ei]
-            if not atr or atr <= 0:
-                print(f"  [skip] {s['symbol']} {s['pattern']} ATR 산출 불가 — 진입 스킵")
+            # 배리어 패턴: 손절·익절을 exit_spec 규격(±k×ATR 또는 고정 %)으로 산출 — 스케줄러
+            # 표기와 같은 함수(exit_barriers). 규칙을 정의할 수 없으면(ATR 미산출) 진입 안 함.
+            bar = xb.barriers(spec, rows, ei, entry, s["direction"])
+            if bar is None:
+                print(f"  [skip] {s['symbol']} {s['pattern']} 배리어 산출 불가 — 진입 스킵")
                 continue
-            dist = spec.get("k_atr", ilab.K_ATR) * atr
-            if s["direction"] == "long":
-                stop_px, target_px = entry - dist, entry + dist
-            else:
-                stop_px, target_px = entry + dist, entry - dist
+            stop_px, target_px, _ = bar
         else:
             stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
 
@@ -986,8 +1016,14 @@ def run(stamp=None):
             print(f"  [live] 킬스위치 발동 중 — {s['symbol']} 실거래 진입 스킵(페이퍼만)")
 
         if live_conn and not kill_switch:
-            # 동시 최대 포지션 체크
-            if live_open_count >= MAX_LIVE_POS:
+            # 동시 최대 포지션 체크 — live_cap 패턴은 자기 max_open 으로만 제한(메인 슬롯 면제)
+            if cap:
+                pat_open = sum(1 for p in still_open if p.get("live_mode") and not p.get("d_closed")
+                               and p.get("pattern") == s["pattern"])
+                if pat_open >= int(cap.get("max_open", 1)):
+                    print(f"  [live] {s['pattern']} 캡 포지션 {pat_open}/{cap.get('max_open', 1)} — {s['symbol']} 스킵")
+                    continue
+            elif live_open_count >= MAX_LIVE_POS:
                 print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']} 스킵")
                 continue
             if (s["symbol"], s["direction"]) in live_dir_keys:
@@ -998,7 +1034,13 @@ def run(stamp=None):
             bal_info  = ex_mod.get_balance(live_conn)
             usdt_free = bal_info["free"] if isinstance(bal_info, dict) else float(bal_info or 0)
             live_lev  = None
-            if SIZING_MODE == "risk":
+            if cap:
+                # 사용자 강제 실행 소액 캡(2026-09-09): 고정 증거금·레버리지, 위험 기준 사이징 우회.
+                # 변동성 타겟팅·레짐 오버레이도 안 탄다 — '$30 로 그 규칙 그대로' 가 사용자 지시.
+                live_size_usd, live_lev = float(cap["margin_usd"]), int(cap.get("leverage", 1))
+                print(f"  [live 사이징] {s['symbol']} live_cap 고정 margin=${live_size_usd:.2f} lev={live_lev}x "
+                      f"(notional ${live_size_usd * live_lev:.2f}, free ${usdt_free:.2f}) — {s['pattern']} 강제 실행")
+            elif SIZING_MODE == "risk":
                 eq_now   = (bal_info or {}).get("equity") if isinstance(bal_info, dict) else None
                 eq_now   = float(eq_now or 0.0)
                 stop_pct = abs(entry - stop_px) / entry if entry else 0.0
@@ -1067,11 +1109,9 @@ def run(stamp=None):
                 # 수십 분 뒤 시장가라, 그대로 두면 체결가로부터의 거리가 ±1.5ATR 이
                 # 아니게 된다 = 검증과 다른 청산 규칙. 체결가 기준으로 다시 걸어준다.
                 if spec and abs(entry - sig_entry) > 1e-12:
-                    dist_r = spec.get("k_atr", ilab.K_ATR) * atr
-                    if s["direction"] == "long":
-                        stop_px, target_px = entry - dist_r, entry + dist_r
-                    else:
-                        stop_px, target_px = entry + dist_r, entry - dist_r
+                    bar_r = xb.barriers(spec, rows, ei, entry, s["direction"])
+                    if bar_r is not None:
+                        stop_px, target_px, _ = bar_r
                     # replace= 필수: 진입과 함께 건 OCO 가 이미 살아 있어, 그냥 부르면
                     # '손절 있음'으로 건너뛰어 재정렬이 무효였다(2026-09-03 점검).
                     ok_r = ex_mod.ensure_stop_orders(
@@ -1080,7 +1120,7 @@ def run(stamp=None):
                         replace={s["symbol"]})
                     print(f"  [live] {s['symbol']} 배리어를 체결가 기준으로 재정렬 "
                           f"(신호 {sig_entry:.6f} → 체결 {entry:.6f}, "
-                          f"±{dist_r:.6f}) 재등록={ok_r}")
+                          f"stop {stop_px:.6f} / target {target_px:.6f}) 재등록={ok_r}")
                 size_for_pos = result.get("size_usd", live_size_usd)
                 live_open_count   += 1
                 live_filled_count += 1

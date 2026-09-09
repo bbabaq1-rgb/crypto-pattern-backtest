@@ -159,8 +159,8 @@ import scheduler as sch
 specs_sch, specs_pe = sch._exit_specs(), pe.EXIT_SPECS
 chk("스케줄러와 체결엔진이 같은 exit_spec 을 본다",
     set(specs_sch) == set(specs_pe), (set(specs_sch), set(specs_pe)))
-chk("exit_spec 보유는 cascade 하나뿐",
-    set(specs_sch) == {"cascade_fade_long_1h"}, set(specs_sch))
+chk("exit_spec 보유는 cascade + 사용자 강제 tp1_engulfing_1h(2026-09-09) 둘뿐",
+    set(specs_sch) == {"cascade_fade_long_1h", "tp1_engulfing_1h"}, set(specs_sch))
 
 # 배포된 1h 패턴은 exit_spec 이 없어야 한다 = 청산 규칙 불변
 for legacy in ("bat_1h", "butterfly_1h"):

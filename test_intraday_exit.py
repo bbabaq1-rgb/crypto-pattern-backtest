@@ -118,8 +118,8 @@ legacy = ["engulfing", "fvg", "inverted_hammer", "marubozu", "gartley", "bat",
           "triple_bottom", "engulfing_short", "fvg_short"]
 leaked = [p for p in legacy if p in pe.EXIT_SPECS]
 check("기존 등재 패턴은 ATR 경로로 라우팅되지 않음", not leaked, leaked)
-check("cascade_fade_long_1h 만 exit_spec 보유",
-      set(pe.EXIT_SPECS) == {"cascade_fade_long_1h"}, set(pe.EXIT_SPECS))
+check("exit_spec 보유 = cascade_fade_long_1h + tp1_engulfing_1h(사용자 강제, 2026-09-09)",
+      set(pe.EXIT_SPECS) == {"cascade_fade_long_1h", "tp1_engulfing_1h"}, set(pe.EXIT_SPECS))
 
 spec = pe.EXIT_SPECS["cascade_fade_long_1h"]
 check("exit_spec 이 검증치와 일치 (k=1.5 / 12봉 / ATR14)",
