@@ -3970,7 +3970,7 @@
     }
   },
   "engulf_tf_prereg_2026_09_09": {
-    "status": "PREREGISTERED 2026-09-09 — 실행 대기 (engulf_tf.yml)",
+    "status": "DONE 2026-09-09 — run 34301698148. 6셀 전부 REJECTED. 실거래 무변경",
     "question": "사용자 지시 '4h랑 1w 돌려봐 1h도 돌려봐'. engulfing 은 레포에서 OOS 증거가 가장 강한 패턴인데 실거래에는 1d 만 배포돼 있다. 다른 TF 에서도 되는가를 현행 프레임으로 다시 잰다",
     "why_now": {
       "original_sweep": "2026-06-24 한 번뿐 — 1d 검증통과(n=90 +3.58% med +9.99%) / 4h 게이트후탈락(n=1103 +0.75% med +0.44%) / 1h 기각(n=5801 −0.23%) / 15m 기각(n=26616 −0.21%). 숏은 1d 게이트후탈락·나머지 기각",
@@ -3994,6 +3994,24 @@
     "deploy_on_pass": false,
     "live_change": "없음 — 관찰 기간(~2026-10-06). 통과 셀은 passed_not_deployed 로만 남긴다",
     "prerun_notes": "로컬 스모크는 data/ 에 1d CSV 가 있는 8종목으로 1w 만 관통 확인 — **수치는 결과가 아니다**(코호트 셋이 전부 같아져 D2·D4 가 퇴화한다). 스모크에서 vr.confirm 이 CONFIRM_COHORT 키로 셀을 찾는 것을 발견해 그 키로 넘기도록 고쳤다(판정 기준 변경 아님)",
-    "files": "validate_engulf_tf.py / test_engulf_tf.py / .github/workflows/engulf_tf.yml"
+    "files": "validate_engulf_tf.py / test_engulf_tf.py / .github/workflows/engulf_tf.yml",
+    "result_2026_09_09": {
+      "run": 34301698148,
+      "verdict": "1h·4h·1w × long·short **6셀 전부 REJECTED** (Holm m=6)",
+      "4h_long": "**가장 근접 — C2 홀드아웃 하나로 탈락**. n=1014 mean +0.67% med −0.40% 승률 48% 엣지 +1.07% boot_p .000→Holm **.000** OOS **4/4** · C2b(train n=617) 통과 · C3 Calmar 1.12 CAGR>0 통과 · **holdout n=397 −0.21%**. 옛 판(2026-06-24) '게이트후탈락' 이 새 프레임에서는 게이트를 넘었다 — boot_p 편향 수정 효과가 실재했다. 그러나 홀드아웃에서 재현되지 않았다",
+      "4h_short": "REJECTED — n=1282 mean −0.30% Holm 1.000, train mean<=0",
+      "1h_long": "REJECTED — n=2194 mean −0.26% OOS 0/4 Holm .924 holdout −0.23% Calmar −1.07. 세 번째 기각",
+      "1h_short": "REJECTED — n=2350 mean −0.12% Holm 1.000 holdout −0.41% Calmar −0.92",
+      "1w_long": "REJECTED — n=24 mean +3.76% 인데 **승률 29%** med **−8.20%**. 방식D −8% 저가 손절이 주봉 폭에 안 맞는다는 validate_exit_1w 결론 재현",
+      "1w_short": "REJECTED — n=32 +3.35% 승률 28% med −8.20% Holm .375",
+      "D1_reference_matters": "**참조 1d 도 이 설정에서는 게이트를 못 넘는다** — long n=210 +4.39% 승률 35% **boot_p .090**. 즉 레짐 ALL·core20 PIT·방식D 조합은 배포 1d 를 통과시킨 프레임보다 엄하다. 4h 탈락을 '1d 대비 열등'으로 읽으면 안 되고, **같은 잣대에서 4h 만 boot_p .000 으로 1d(.090)보다 오히려 강했다**. 배포 1d 의 근거는 레짐 조건부 셀(v4 bull_btc OOS +7.0%)이고 이 판은 레짐을 안 나눴다 — known_limits 에 결과 전 적어둔 그대로",
+      "D5_friction": "4h long +0.67% → **+0.27%**(왕복 0.4%) — 사전 확률에 적은 '절반 이상 날아간다'가 맞았다(60% 소실). 양수는 유지하나 1d 체급이 아니다. 1h·4h 숏은 마찰 후 −0.5~−0.7%",
+      "D3_regime": "4h long 은 **세 레짐 전부 엣지 양수**(bull_btc +1.01 / altseason +1.04 / bear +0.95%p) — 절대수익은 bear 에서 −0.12% 로 음수. **홀드아웃 365일이 2025-09~2026-09 bear 지배 구간이라 홀드아웃 탈락은 기전상 설명된다**. 다만 이 관찰로 판정을 뒤집지 않는다 — 사전 등록은 달력 홀드아웃(v2)이고, 결과를 본 뒤 v3 국면 홀드아웃으로 갈아타면 사후 선택이다",
+      "D2_pit": "PIT 효과는 4h 에서 작다(static +0.97% → PIT +0.67%, 엣지 1.10→1.07%p). 1w 는 표본이 얇아 크게 흔들린다(static +8.25% → PIT +3.76%)",
+      "D4_cohort": "4h long 엣지가 순위에 단조 — core20 +1.07 > top30 +0.91 > liquid +0.65%p. 코호트를 넓히면 약해진다(engulfing top20 원칙과 같은 방향)",
+      "prior_vs_result": "사전 확률 3/3 방향 적중 — 4h 가 가장 가망(유일하게 C1·C2b·C3 통과) · 1h 기각 · 1w 는 손절에 털림. 1w 만 'INCONCLUSIVE 유력' 예상과 달리 승률 문턱으로 REJECTED",
+      "followup_candidate": "4h long 을 **v3 국면 홀드아웃으로 별도 사전 등록**하는 것은 가능한 후속이나, 그 전에 두 가지가 걸린다 — (a) 마찰 후 +0.27% 는 얇다 (b) 신호 1,014건(연 약 500)이라 vol_awakening_4h 처럼 슬롯을 잠식한다(2026-09-09 실측으로 슬롯 16/16 만석 확인). **포트폴리오 단위 확인 프레임이 선결**",
+      "live_change": "없음. DEPLOY_ON_PASS=False 이고 통과 셀도 0. 배포 1d engulfing·라우팅·파라미터 전부 불변"
+    }
   }
 }
