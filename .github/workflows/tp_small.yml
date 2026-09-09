@@ -1,0 +1,40 @@
+name: Research — small fixed take-profit (+1%) compounding (pre-registered)
+
+# 사용자 제안 "포지션 진입했을때 무조건 플러스 1프로(레버리지 3프로)면 바로 익절되게" 를
+# 배리어 격자(익절 1/2/3% x 손절 1/2/4/8%)로 시험한다. 주 판정 셀은 T1S8 하나.
+# 사전 등록 registry tp_small_prereg_2026_09_09. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_tp_small.py"
+      - "test_tp_small.py"
+      - ".github/workflows/tp_small.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_tp_small.py
+      - name: Validate (+1% take-profit grid)
+        run: python validate_tp_small.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tp-small-${{ github.run_number }}
+          path: _tp_small.json
+          if-no-files-found: ignore
