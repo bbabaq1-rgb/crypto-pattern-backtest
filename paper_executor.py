@@ -108,18 +108,28 @@ def cap_margin(cap, pattern, trades):
     compound(2026-09-09 사용자 지시 "30달러 시작해서 1% 수익 보면 청산, 30+1% 복리로 재진입 …"):
       포트 = start_margin × Π(1 + ret_i × leverage) — 이 패턴의 방식D 청산 거래 전부(순서 무관).
       ret 은 수수료 차감 수익률(가격 기준)이라 증거금 기준 손익은 ×레버리지. 익절 +1%(−0.2% 수수료)
-      ×3x → 포트 +2.4%. 손실도 같은 식으로 줄어든다(별도 충전 없음). MIN_MARGIN 미만이면 None
-      = 포트 소진, 주문 안 냄(충전은 사용자 결정).
+      ×3x → 포트 +2.4%. reset_on_loss 면 손절(순손실) 뒤 포트를 start_margin 으로 되돌린다(2026-09-09
+      사용자 지시) — 손실분은 계좌에서 나가고 다음 진입은 다시 $30. MIN_MARGIN 미만이면 None(주문 안 냄).
     페이퍼 전용 행(주문 실패)은 애초에 안 만든다(진입 경로에서 continue) — DB 복원 trades 에는
     live_mode 컬럼이 없어 여기서 live 여부를 가릴 수 없기 때문.
     """
     if not cap.get("compound"):
         return float(cap["margin_usd"])
-    pot = float(cap.get("start_margin", cap["margin_usd"]))
+    start = float(cap.get("start_margin", cap["margin_usd"]))
     lev = int(cap.get("leverage", 1))
-    for t in trades:
-        if t.get("pattern") == pattern and t.get("method") == "D" and t.get("ret") is not None:
-            pot *= (1.0 + float(t["ret"]) * lev)
+    reset = bool(cap.get("reset_on_loss"))
+    seq = [t for t in trades
+           if t.get("pattern") == pattern and t.get("method") == "D" and t.get("ret") is not None]
+    # 리셋은 순서에 민감하다 — 시간순(청산일, 진입일)으로 정렬, 같은 날은 장부 순서 유지(stable).
+    # max_open=1 이라 거래는 원래 순차적이고, DB 복원 순서만 보장이 없어 정렬한다.
+    seq.sort(key=lambda t: (t.get("exit_date") or "", t.get("entry_date") or ""))
+    pot = start
+    for t in seq:
+        r = float(t["ret"])
+        if reset and r < 0:
+            pot = start           # 손절(순손실) → 시작 금액으로 리셋 (2026-09-09 사용자 지시 "손절나면 30달러로 리셋")
+        else:
+            pot *= (1.0 + r * lev)
     return round(pot, 2) if pot >= sizing.MIN_MARGIN else None
 
 
