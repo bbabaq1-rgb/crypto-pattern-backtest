@@ -208,7 +208,7 @@ _keys = {(p["symbol"], p["direction"]) for p in _led
 check("C: 슬롯 계수에서 d_closed 제외 — 실포지션 있는 행만", _slot == 1 and _slot == _b["live_active"])
 check("C: 중복 방어 키에서도 d_closed 제외 — ARB/UNI 재진입이 열린다",
       _keys == {("ADA", "long")}, sorted(_keys))
-_src = open("paper_executor.py", encoding="utf-8").read()
+_src = _src2 = open("paper_executor.py", encoding="utf-8").read()
 check("C: live_open_count 가 d_closed 를 제외한다",
       'if p.get("live_mode") and not p.get("d_closed"))' in _src)
 check("C: live_dir_keys 도 d_closed 를 제외한다",
@@ -220,6 +220,39 @@ check("C: 종전(유령 포함) 계수 코드가 남아 있지 않다",
       and 'for p in still_open if p.get("live_mode")}' not in _src)
 check("진단은 ledger_breakdown 을 읽기만 한다(포지션 변형 없음)",
       _led[1].get("d_closed") is True and len(_led) == 4)
+
+# ── stop_map 유령 제외 (2026-09-09 사용자 승인 — C 와 같은 계열) ────────────────
+# 실측 사례 재현: BTC 장부 3행 = 유령 2(D 청산됨) + 실포지션 1. 심볼 키 dict 라
+# 종전에는 마지막 유령 행의 손절가가 실포지션 재등록에 쓰일 수 있었다.
+_pat = next(iter(pe.EXIT_SPECS), None)          # exit_spec 패턴 하나(없으면 target 검사 생략)
+_sm_pos = [
+    dict(symbol="BTC", pattern="marubozu", direction="long", live_mode=True,
+         d_closed=True,  stop=71310.0, target=None),
+    dict(symbol="BTC", pattern="inverted_hammer", direction="long", live_mode=True,
+         d_closed=False, stop=72566.0, target=None),   # 살아 있는 실포지션
+    dict(symbol="BTC", pattern="engulfing", direction="long", live_mode=True,
+         d_closed=True,  stop=73478.0, target=None),   # 유령이 뒤에 와도 덮어쓰면 안 된다
+    dict(symbol="SOL", pattern="fvg", direction="long", live_mode=False,
+         d_closed=False, stop=100.0, target=None),     # 페이퍼 전용
+]
+_sm = pe.stop_map_of(_sm_pos)
+check("stop_map: 유령 행이 실포지션 손절가를 덮어쓰지 않는다",
+      _sm.get("BTC", {}).get("stop") == 72566.0, _sm)
+check("stop_map: 페이퍼 전용 행은 안 들어간다", "SOL" not in _sm, sorted(_sm))
+check("stop_map: 유령만 있는 심볼은 아예 빠진다",
+      pe.stop_map_of([_sm_pos[0], _sm_pos[2]]) == {}, )
+check("stop_map: 손절가 없는 행은 건너뛴다",
+      pe.stop_map_of([dict(symbol="X", pattern="fvg", direction="long",
+                           live_mode=True, d_closed=False)]) == {})
+check("stop_map: 비-exit_spec 패턴엔 target 을 주지 않는다(검증 안 된 익절 주문 금지)",
+      _sm.get("BTC", {}).get("target") is None, _sm)
+if _pat:
+    _tg = pe.stop_map_of([dict(symbol="Z", pattern=_pat, direction="long", live_mode=True,
+                               d_closed=False, stop=10.0, target=12.0)])
+    check(f"stop_map: exit_spec 패턴({_pat})에는 target 을 준다", _tg["Z"]["target"] == 12.0, _tg)
+check("run() 은 인라인 루프 대신 stop_map_of 를 쓴다",
+      "stop_map = stop_map_of(positions)" in _src2
+      and 'stop_map[p["symbol"]] = {' not in _src2)
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

@@ -610,6 +610,31 @@ def ledger_breakdown(positions):
                 ghost=sorted({p["symbol"] for p in ghost}))
 
 
+def stop_map_of(positions):
+    """
+    ensure_stop_orders 에 넘길 심볼별 손절가 표 — **손절이 누락됐을 때 재등록할 가격**.
+
+    종전 ±8% 고정 재등록은 ATR 배리어 패턴에서 검증치와 5~10배 어긋나므로 포지션에 기록된
+    손절가를 쓴다. target(익절)은 exit_spec 패턴에만 준다 — 기존 1d/4h 패턴에 익절 주문을
+    붙이면 검증된 적 없는 청산 규칙이 실계좌에서 돌아간다.
+
+    **d_closed 행은 제외한다**(2026-09-09 사용자 승인, 유령 슬롯 C 와 같은 계열). D 다리가
+    닫힌 행은 실포지션이 이미 없는데 A 다리 때문에 still_open 에 남아 live_mode 를 유지한다.
+    심볼 키 dict 라 그 죽은 행의 손절가가 같은 심볼의 살아 있는 포지션 것을 덮어써, 손절이
+    누락된 순간 검증치와 다른 가격이 걸린다(실측 2026-09-08: BTC 유령 71,310/73,478 vs
+    실포지션 72,566). 재등록은 손절 '누락 시에만' 돌므로 종전에도 상시 오작동은 아니었다.
+    """
+    out = {}
+    for p in positions:
+        if not p.get("live_mode") or p.get("d_closed"):
+            continue
+        s, t = barriers_of(p)
+        if not s:
+            continue
+        out[p["symbol"]] = {"stop": s, "target": t if p["pattern"] in EXIT_SPECS else None}
+    return out
+
+
 def reconcile_live_flag(positions, live_conn):
     """
     OKX 실측을 기준으로 DB 복원 포지션의 live_mode를 보정.
@@ -733,19 +758,8 @@ def run(stamp=None):
         # 안전망 1: 손절(algo) 주문 상시 점검 — 누락 포지션에 재등록
         # 재등록 시 '포지션에 기록된 손절가'를 쓰도록 전달. 없으면 종전대로 ±8%.
         # (ATR 배리어 패턴은 손절이 0.75~1.5%라 ±8% 재등록이 검증치와 5~10배 어긋난다)
-        # target 은 ATR 배리어 패턴에만 준다 — 기존 1d/4h 패턴에 익절 주문을 붙이면
-        # 검증된 적 없는 청산 규칙이 실계좌에서 돌아간다.
-        stop_map = {}
-        for p in positions:
-            if not p.get("live_mode"):
-                continue
-            s, t = barriers_of(p)
-            if not s:
-                continue
-            stop_map[p["symbol"]] = {
-                "stop": s,
-                "target": t if p["pattern"] in EXIT_SPECS else None,
-            }
+        # target 은 ATR 배리어 패턴에만, d_closed(유령) 행은 제외 — stop_map_of 참조.
+        stop_map = stop_map_of(positions)
         fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn, stop_map=stop_map)
         if fixed_sl:
             import notify

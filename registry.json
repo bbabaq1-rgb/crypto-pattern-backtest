@@ -3862,6 +3862,14 @@
       "verified": "유령 **3행**(ADA marubozu, BTC marubozu, BTC inverted_hammer — 심볼 표기는 중복 제거라 2개로 보인다)이 슬롯에서 제외돼 **17 → 14**. C 적용 전 로직이었다면 17/16 으로 만석이라 신규 진입이 전부 막혔을 것",
       "paper_rows_promoted": "BTC 페이퍼 2행이 `reconcile_live_flag` 로 live 승격됨(BTC 실포지션이 생겨서) → 페이퍼 0. 승격돼도 d_closed 라 슬롯·중복방어에서는 빠진다",
       "new_finding_stop_map": "**미해결(사용자 결정 대기)**: `stop_map` 은 `live_mode` 만 보고 d_closed 를 거르지 않는다(paper_executor:~722). 심볼 키 dict 라 BTC 처럼 장부에 3행(유령 2 + 실포지션 1)이 있으면 **죽은 행의 손절가가 실포지션 손절 재등록에 쓰일 수 있다**(BTC 유령 71,310.76 / 73,478.01 vs 실포지션 72,566.80). ensure_stop_orders 는 손절이 **누락됐을 때만** 재등록하므로 지금 당장 문제는 없으나, 누락 시 검증치와 다른 손절가가 걸린다. C 와 같은 한 줄 수정(d_closed 제외)으로 해소"
+    },
+    "stop_map_fix_2026_09_09": {
+      "status": "APPLIED 2026-09-09 (사용자 승인)",
+      "defect": "stop_map 이 live_mode 만 보고 d_closed 를 안 걸러, 심볼 키 dict 에서 죽은 행의 손절가가 같은 심볼 실포지션의 손절 재등록에 쓰일 수 있었다 (실측 BTC: 유령 71,310/73,478 vs 실포지션 72,566)",
+      "severity": "손절 '누락 시에만' 재등록이 돌므로 상시 오작동은 아니었다. 누락되는 순간 검증치와 다른 손절가가 걸린다",
+      "fix": "인라인 루프를 paper_executor.stop_map_of(positions) 로 추출하고 거기서 d_closed 제외. 헬퍼로 뺀 것은 성질을 소스 문자열이 아니라 동작으로 시험하기 위해서",
+      "unchanged": "진입·슬롯(live_open_count)·중복 방어(live_dir_keys)·거래소 실측 집합 전부 불변. target 은 종전대로 exit_spec 패턴에만",
+      "tests": "test_executor_safety +7 — 실측 BTC 3행 재현(유령이 뒤에 와도 안 덮어씀) · 페이퍼 제외 · 유령만 있는 심볼 제외 · 손절가 없는 행 스킵 · 비-exit_spec target None · exit_spec target 유지 · run() 이 헬퍼를 쓴다"
     }
   },
   "stablecoin_source_swap_2026_09_08": {
@@ -3906,6 +3914,12 @@
       "fix": "supabase_grant_perp.sql — `grant select,insert,update,delete on ... to service_role` (사용자 SQL Editor 1회)",
       "my_earlier_claim_corrected": "'RLS 를 켜도 service_role 이 우회하니 그대로 된다'고 했는데, RLS 우회와 **테이블 GRANT 는 별개**다. 우회는 정책 평가를 건너뛸 뿐 권한이 없으면 여전히 막힌다",
       "silent_failure_avoided": "적재 실패가 로그에 그대로 찍혀 즉시 잡혔다 — [8] 블록이 실패를 삼키되 메시지는 출력하도록 만든 설계가 의도대로 작동"
+    },
+    "grant_2026_09_09": {
+      "status": "DONE 2026-09-09 (사용자 SQL Editor 실행, Success. No rows returned)",
+      "impact": "그 전까지 9/08 12:00Z·16:00Z·20:00Z·9/09 00:00Z 네 틱 모두 permission denied 로 적재 0 (로그 확인)",
+      "root_cause_of_delay": "사용자는 9/08 오전에 테이블 생성 SQL 을 실행했고, GRANT 는 그 뒤 12:38 에 생긴 별개 파일이라 실행 대상인 줄 몰랐다 — 두 SQL 을 합쳐두지 않은 구성 탓",
+      "lesson": "다음에 스키마 SQL 을 낼 때는 GRANT 를 같은 파일에 넣는다"
     }
   },
   "tb_wide_prereg_2026_09_08": {
