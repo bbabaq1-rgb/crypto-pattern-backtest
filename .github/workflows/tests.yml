@@ -67,6 +67,7 @@ jobs:
                    test_onchain_stable.py \
                    test_perp_accrual.py \
                    test_tb_wide.py \
+                   test_engulf_tf.py \
                    test_regime_determinism.py \
                    test_method_m.py \
                    test_regime_split.py \

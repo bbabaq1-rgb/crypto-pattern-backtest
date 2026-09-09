@@ -1,0 +1,84 @@
+{
+ "frame": "engulf_tf",
+ "cohort": "core20",
+ "regime": "ALL",
+ "deploy_on_pass": false,
+ "cells": {
+  "1w_long": {
+   "n": 9,
+   "mean": 0.059703382306336726,
+   "median": 0.10407046152449814,
+   "win": 0.5555555555555556,
+   "edge": 0.011443958426795464,
+   "boot_p": 0.342,
+   "holm": 0.684,
+   "oos": 0,
+   "train_n": 7,
+   "holdout_n": 2,
+   "holdout_mean": 0.19131867929052565,
+   "calmar": 0.25289026978604545,
+   "cagr": 0.011092222435301613,
+   "verdict": "REJECTED"
+  },
+  "1w_short": {
+   "n": 18,
+   "mean": -0.009229087060940758,
+   "median": -0.082,
+   "win": 0.1111111111111111,
+   "edge": -0.0017741569349299761,
+   "boot_p": 0.468,
+   "holm": 0.684,
+   "oos": 0,
+   "train_n": 16,
+   "holdout_n": 2,
+   "holdout_mean": -0.082,
+   "calmar": -0.04403425676196149,
+   "cagr": -0.004849161187075124,
+   "verdict": "REJECTED"
+  }
+ },
+ "diag": {
+  "d1_ref_1d_long": {
+   "n": 70,
+   "mean": 0.1044283703839467,
+   "median": -0.02453641099861987,
+   "boot_p": 0.023
+  },
+  "d1_ref_1d_short": {
+   "n": 132,
+   "mean": 0.006990515852479276,
+   "median": -0.082,
+   "boot_p": 0.14
+  },
+  "d2_static_1w_long": {
+   "n": 9,
+   "mean": 0.059703382306336726,
+   "edge": 0.009030552754532864
+  },
+  "d2_static_1w_short": {
+   "n": 18,
+   "mean": -0.009229087060940758,
+   "edge": -0.0009788368865235354
+  },
+  "d3_regime_1w_long": [
+   "bull_btc n=6 +9.34% 엣지 +3.85%",
+   "bull_altseason n=1",
+   "bear n=2"
+  ],
+  "d3_regime_1w_short": [
+   "bull_btc n=9 -1.25% 엣지 +0.38%",
+   "bull_altseason n=6 -8.20% 엣지 -7.75%",
+   "bear n=3"
+  ],
+  "d4_cohort_1w_long": [
+   "top30 n=9 +5.97% 엣지 +1.14%",
+   "liquid n=9 +5.97% 엣지 +1.14%"
+  ],
+  "d4_cohort_1w_short": [
+   "top30 n=18 -0.92% 엣지 -0.18%",
+   "liquid n=18 -0.92% 엣지 -0.18%"
+  ],
+  "d5_friction_1w_long": 0.05570338230633672,
+  "d5_friction_1w_short": -0.013229087060940762
+ }
+}

@@ -3968,5 +3968,32 @@
       "prior_vs_result": "사전 기록('1w·1h 는 INCONCLUSIVE 유력, 4h·1d 에서만 n 이 붙는다')과 부분 일치 — n 은 예상대로 4h·1d 에 붙었으나 1w·1h 는 판정 불가가 아니라 REJECTED 로 떨어졌다(1w 는 boot_p .755, 1h 는 평균 음수)",
       "live_change": "없음. DEPLOY_ON_PASS=False 대로 통과 셀도 반영하지 않았고, 배포된 triple_bottom_4h 파라미터도 그대로다"
     }
+  },
+  "engulf_tf_prereg_2026_09_09": {
+    "status": "PREREGISTERED 2026-09-09 — 실행 대기 (engulf_tf.yml)",
+    "question": "사용자 지시 '4h랑 1w 돌려봐 1h도 돌려봐'. engulfing 은 레포에서 OOS 증거가 가장 강한 패턴인데 실거래에는 1d 만 배포돼 있다. 다른 TF 에서도 되는가를 현행 프레임으로 다시 잰다",
+    "why_now": {
+      "original_sweep": "2026-06-24 한 번뿐 — 1d 검증통과(n=90 +3.58% med +9.99%) / 4h 게이트후탈락(n=1103 +0.75% med +0.44%) / 1h 기각(n=5801 −0.23%) / 15m 기각(n=26616 −0.21%). 숏은 1d 게이트후탈락·나머지 기각",
+      "gap_1w": "**1w 는 한 번도 안 돌렸다** — 연구 로그에 engulfing 1w 행 0건",
+      "gap_4h": "**4h 는 구 게이트 탈락 후 재시험된 적 없다** — validate_regime_split_all 의 4h 목록 21개에 engulfing 이 없고 1h 판만 들어가 있다",
+      "frame_changed": "그 뒤 프레임이 네 번 바뀌었다: 게이트 v1(중앙값>0)→v2(승률≥35%) · boot_p 베이스라인 k=30→k=n 버그 수정(엣지 양수 셀의 p 를 부풀리던 편향, 수정 후 통과 셀 2→18개) · 라벨 판정→실거래 프레임 · 정적→PIT 코호트. 앞 셋은 통과 쪽, PIT 는 기각 쪽으로 작용한다"
+    },
+    "frozen": {
+      "detector": "detector_engulfing.detect / detector_engulfing_short.detect 를 **인자 없이** 호출 — 배포 1d 신호 집합 불변(test 가 고정)",
+      "cells": "주 판정 6 = TF {1h,4h,1w} x 방향 {long,short}. 레짐 ALL, 코호트 **core20 PIT**(실거래 engulfing top20 의 PIT 판, 월말 30일 거래대금 순위를 다음 달 적용)",
+      "multiplicity": "여섯 셀 한 가족 — boot_p 에 **Holm 보정 m=6**",
+      "holdout": "1h 90일 · 4h 365일 · **1w 730일**(주봉 희소성, validate_exit_1w·tb_wide 와 동일)",
+      "frame": "validate_revival 그대로 — 4h·1w 방식D / 1h ATR 배리어, 같은 레짐·코호트·TF 무작위 진입 k=n, 실거래 사이징 자산곡선",
+      "long_history": "1w 는 data_long(2017~) 에 이은 1d 를 리샘플. 4h·1h 는 장기 이력이 없어 OKX 범위뿐"
+    },
+    "judgement": "C1 게이트 v2(n≥20·mean>0·승률≥35%·**Holm** boot_p<0.05·OOS≥2/4) + C2 홀드아웃 n≥10 & mean>0 + **C2b train 자체 게이트 통과 AND train n ≥ holdout n/2** + C3 자산곡선 CAGR>0 & Calmar>0. 넷 다 → CONFIRMED / C1·C2b·C3 통과인데 holdout n<10 → INCONCLUSIVE / 그 외 REJECTED",
+    "c2b_note": "C2b 는 validate_ma180 에서 도입한 가드의 **두 번째 적용** — vwap_rev_short_4h 가 표본 92%를 홀드아웃에 두고 C2 를 통과했던 구멍을 막는다",
+    "diagnostics": "판정 아님 — D1 1d 참조 셀(프레임 정합성; Holm 가족 아님) · D2 정적 top20 대비(PIT 효과) · D3 레짐 분해 · D4 코호트 확대(top30/liquid) · D5 왕복 마찰 0.4% 스트레스. **사후에 진단에서 골라 '살았다'고 하지 않는다**",
+    "prior": "**결과 보기 전 기록**: 4h 가 가장 가망 있다(옛 판 +0.75%, 탈락 사유가 부풀려진 boot_p 였을 가능성) — 다만 **왕복 0.4% 마찰이면 절반 이상이 날아가고** 1d 의 +3.58% 와 체급이 다르며, 신호 1,103건이라 vol_awakening_4h 처럼 슬롯을 잠식할 위험이 있다. 1h 는 기각 유력(두 번 기각 + 2026-09-05 ATR 채점표 확인 프레임 0 CONFIRMED). 1w 는 INCONCLUSIVE 유력 — 표본이 얇고, validate_exit_1w 에서 **방식D(−8% 저가 손절)가 주봉 폭에 안 맞는다**가 이미 확인됐다. 숏 세 셀은 전부 기각 예상",
+    "known_limits": "4h·1h 는 장기 이력이 없어 에피소드 커버리지가 얇다 · 상장폐지 이력이 없어 PIT 에도 생존 편향 잔존 · 스프레드 미반영 · 레짐 ALL 판정이라 CONFIRMED 여도 어느 레짐에서 켤지는 별도 판단(D3 는 사전 정보일 뿐)",
+    "deploy_on_pass": false,
+    "live_change": "없음 — 관찰 기간(~2026-10-06). 통과 셀은 passed_not_deployed 로만 남긴다",
+    "prerun_notes": "로컬 스모크는 data/ 에 1d CSV 가 있는 8종목으로 1w 만 관통 확인 — **수치는 결과가 아니다**(코호트 셋이 전부 같아져 D2·D4 가 퇴화한다). 스모크에서 vr.confirm 이 CONFIRM_COHORT 키로 셀을 찾는 것을 발견해 그 키로 넘기도록 고쳤다(판정 기준 변경 아님)",
+    "files": "validate_engulf_tf.py / test_engulf_tf.py / .github/workflows/engulf_tf.yml"
   }
 }
