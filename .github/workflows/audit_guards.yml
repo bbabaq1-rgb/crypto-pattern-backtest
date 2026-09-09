@@ -1,0 +1,44 @@
+name: Audit — confirmation-frame guard calibration on live cells
+
+# 실거래 셀 12개에 가드 층 9개를 독립 적용해 기각 귀속·누적 통과 곡선·거짓음성 후보를 측정. 문턱 변경 없음(사용자 결정). registry guard_audit_2026_09_09.
+# 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "audit_guards.py"
+      - "test_audit_guards.py"
+      - ".github/workflows/audit_guards.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: python test_audit_guards.py
+      - name: Run
+        run: python audit_guards.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-guards-${{ github.run_number }}
+          path: _audit_guards.json
+          if-no-files-found: ignore

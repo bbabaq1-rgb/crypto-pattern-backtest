@@ -4094,5 +4094,37 @@
    "known_limits": "1h 봉도 봉 안 순서를 완전히 보지는 못한다(동률 잔여 0.1~0.9%). 낙관 상한 arm 으로 그 폭을 가뒀고(T1S8 승률 88.00~88.10%, 건당 −0.28~−0.27%) 판정은 사전 등록대로 보수 판. 완전 해소는 틱 데이터가 필요하다. 데이터는 1h 365일뿐이라 홀드아웃이 90일이다.",
    "live_change": "없음. DEPLOY_ON_PASS=False, 청산 규칙 방식D 유지."
   }
+ },
+ "tp_regime_prereg_2026_09_09": {
+  "status": "PREREGISTERED",
+  "date": "2026-09-09",
+  "trigger": "사용자 지적 '1%/8% 레짐이나 상승국면에서 테스트한거 맞아? 일반적인 전체기간으로 놓고만 테스트한거 아니지?' → 맞다. tp_small(1d)·tp_1h 둘 다 배리어 셀을 레짐으로 나누지 않았다(tp_small 은 레짐맵을 방식D 기준선에만 썼고 tp_1h 는 레짐 참조 0건). '전부 진행해봐'.",
+  "why_it_can_flip": "배리어 쌍 기대값 = 보유 기간 드리프트(정지시간 정리: E[손익]=μ·E[τ]). 1%/8% 1h 평균 보유 17봉 → 수수료 0.2%를 넘을 필요 드리프트 ≈ 0.28%/일. bull_btc top30 무작위 롱 실측 ≈ 0.26%/일(2026-09-04) — 문턱과 사실상 같다. 전 기간 풀링(−0.28%)은 bull/bear 평균이라 이걸 지웠을 수 있다. **이 규칙은 패턴 엣지가 없어도 된다** — 드리프트만 있으면 기준 ①(건당>0)이 선다. 앞선 두 판의 '패턴 엣지 ≈ 0' 결론은 사용자 규칙에 필요한 양이 아니었다(프레임 오류).",
+  "frozen": {
+   "grid_rule_cost": "tp_1h 에서 import — 재정의 없음(test 고정)",
+   "regime_def": "진입 봉 날짜의 레짐 라벨(regime_switch.build_regime_map, 닫힌 봉 인과) = 스케줄러가 진입 시점에 보는 지연 라벨 → 실행 가능한 조건",
+   "regimes": "bull_btc / bull_altseason / bear / ALL",
+   "tf": "1h 주 판정(해상도) + 1d 진단(커버리지)",
+   "primary": "8셀 = {T1S3,T1S8,T1S20,T1SX} × {bull_btc, bull_altseason}, TF 1h, Holm m=8. bear·ALL·1d·나머지 격자는 진단, 사후 선택 금지",
+   "baseline": "**레짐 매칭 무작위** — 같은 레짐 봉에서만 6,000 표본. 패턴 vs 같은 국면 무작위",
+   "holdout": "g≠ALL: frame_v3.holdout_dates(그 레짐 최근 N일, 비연속) / ALL: 달력 마지막 N일. N = 1h 90 / 1d 365",
+   "coverage": "train n < COV_MIN(1h 100 / 1d 20) 또는 holdout n < 10 → INCONCLUSIVE(기각 아님). 우선순위 frame_v3 와 동일: 성능 실패→REJECTED / 성능 통과·커버리지 실패→INCONCLUSIVE / 전부→PASS",
+   "deploy_on_pass": false
+  },
+  "criteria": "tp_1h 와 동일 7개(①건당>0 ②승률>손익분기 ③리프트>0 ④패턴엣지>0&Holm p<.05 ⑤마찰0.4%>0 ⑥전후반양수 ⑦holdout>0), ④의 베이스라인만 레짐 매칭. 무손절 ②③ N/A. **DRIFT_HARVEST 표기(판정 아님)**: ①⑤⑦ 통과·④ 실패 = '이 국면 롱이 번다'는 뜻 — 사용자 규칙엔 그것으로 충분할 수 있으므로 숨기지 않고 따로 센다.",
+  "actionability_caveat": "레짐 라벨 20일 방향 예측력 ≈0(적중 49%, 2026-09-04). 단 배리어 보유는 17시간이라 별개 질문이고 이 시험이 그것을 직접 잰다. 통과해도 '국면을 미리 안다'가 아니라 '라벨이 이렇게 찍힌 동안 이 규칙이 번다'로 읽는다.",
+  "prior_before_run": "크기 없음. bull_btc 경계(산술 ±, 통과하면 ④는 ≈0 → DRIFT_HARVEST 가능). bull_altseason 음수 예상(라벨 후행·국면 끝자락, 그 국면 무작위 롱 −3.04%/20봉). bear 음수. 1h bull_btc 는 최근 365일이 bear 지배라 INCONCLUSIVE 가능성 높음 — 1d 가 빈칸을 메우되 동률 오염(T1S8 13.3%) 남음, 낙관 상한 병기.",
+  "files": "validate_tp_regime.py / test_tp_regime.py / .github/workflows/tp_regime.yml"
+ },
+ "guard_audit_2026_09_09": {
+  "status": "MEASUREMENT",
+  "date": "2026-09-09",
+  "trigger": "사용자 '가드 너무 엄한것 같으면 그걸 재점검해야지' / '전부 진행해봐'. 내가 먼저 인정한 것: 확인 프레임이 9/05 이후 한 방향으로만 엄해졌고(v2→C2→C2b→C3→PIT→v3 E→v4 B·Holm) 거짓음성 비용은 한 번도 재본 적 없다. v4 는 실거래 중인 셀 3개를 기각했고 engulf_tf 는 배포된 1d 참조 셀을 게이트에서 떨어뜨렸다 — 돈을 벌고 있는 규칙을 기각하는 프레임이면 전략이 아니라 잣대가 어긋난 것.",
+  "what": "실거래 셀 12개(라우팅 7 + 4h adopted 3 + 관찰 2)에 가드 층 9개를 **같은 신호 위에서 독립 적용**해 층별 pass/fail 을 낸다. 출력 ① 셀×층 행렬 + OOS(2025~) 실측 건당 ② 층별 기각 수/단독 기각/OOS 양수 셀 기각(거짓음성 후보) ③ 누적 통과 곡선(역사 순서 래칫) ④ 의심 층 직답 — B 벤치 사후 조건화 크기(현 B vs 신호 이전 봉만 쓰는 인과 B), Holm 가족 크기 m=1/4/8/12 민감도, 소표본 4중 처벌(L1·L2·L3·L7 동시 X).",
+  "layers": "L1 게이트 v2 / L2 달력 홀드아웃 / L3 C2b / L4 C3 자산곡선 / L5 PIT 코호트 / L6 v3 국면 홀드아웃 / L7 E 에피소드 / L8 B 벤치 / L9 Holm — 역사적 추가 순서",
+  "ground_truth_proxy": "OOS(2025-01-01~) 실측 건당 — 프레임 설계에 쓰이지 않은 구간. 완전한 정답은 아니다(짧고 bear 지배) — 방향 참조.",
+  "thresholds": "**변경 없음.** 측정만. 어느 층을 완화·제거할지는 사용자 결정(CLAUDE.md: 게이트 문턱 변경은 사용자 결정). test 가 gate/frame_v3/revival 상수 불변을 고정.",
+  "suspects_named_before_run": "B 벤치(내가 '사후 조건화'라 기록해놓고 v4 판정에 넣음 — 명백한 설계 실수) · Holm(비독립 가설 과보정) · 소표본 4중 처벌",
+  "files": "audit_guards.py / test_audit_guards.py / .github/workflows/audit_guards.yml"
  }
 }
