@@ -1,5 +1,5 @@
 """
-test_tp1_live.py — 사용자 강제 실행 tp1_engulfing_1h(익절 +1% / 손절 −8% · $30 · 3x · top20 · 1포지션) 고정
+test_tp1_live.py — 사용자 강제 실행 tp1_engulfing_1h(익절 +1% / 손절 −8% · $70(2026-09-10 $30→$70 상향) · 3x · top20 · 1포지션) 고정
 (2026-09-09 사용자 결정 "그냥 30달러만 강제 진행해볼수 있어?").
 
 이 규칙은 검증을 통과하지 못했다(tp_1h REJECTED). 여기서 고정하는 것은 '통과'가 아니라
@@ -89,8 +89,8 @@ sm = pe.stop_map_of([dict(symbol="Q", pattern=PAT, direction="long", live_mode=T
 check("stop_map: tp1 재등록 시 OCO 익절이 +1% (재구성)", abs(sm["Q"]["target"] - 101.0) < 1e-9 and sm["Q"]["stop"] == 92.0, sm)
 
 # ── 3. live_cap ──────────────────────────────────────────────────────────────
-check("live_cap 사양 = $30 · 3x · 1포지션 (사용자 결정)",
-      cap["margin_usd"] == 30.0 and cap["leverage"] == 3 and cap["max_open"] == 1, cap)
+check("live_cap 사양 = $70 · 3x · 1포지션 (사용자 결정, 2026-09-10 $30→$70)",
+      cap["margin_usd"] == 70.0 and cap["leverage"] == 3 and cap["max_open"] == 1, cap)
 check("exit_spec 사양 = 익절 1% / 손절 8% / 1h / 2000봉",
       spec["tp_pct"] == 0.01 and spec["sl_pct"] == 0.08 and spec["tf"] == "1h" and spec["horizon_bars"] == 2000, spec)
 check("LIVE_CAPS 에 tp1 만", set(pe.LIVE_CAPS) == {PAT}, set(pe.LIVE_CAPS))
@@ -170,27 +170,27 @@ check(f"eval_I(pct) 청산 봉·사유·수익률이 tp_1h 검증 프레임과 �
 # ── 7. 독립 프로젝트 + 복리 포트 (2026-09-09 사용자 지시 "중복으로 말고 … 별도 관리 … 복리") ──
 import exchange as ex_mod
 tr = lambda pat, ret, method="D": dict(pattern=pat, method=method, ret=ret)
-check("복리 포트: 시작 $30", pe.cap_margin(cap, PAT, []) == 30.0)
+check("복리 포트: 시작 $70", pe.cap_margin(cap, PAT, []) == 70.0)
 m1 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008)])
-check("복리 포트: 익절 1건(+1% − 0.2% 수수료)×3x → 30 × 1.024 = 30.72", abs(m1 - 30.72) < 1e-9, m1)
+check("복리 포트: 익절 1건(+1% − 0.2% 수수료)×3x → 70 × 1.024 = 71.68", abs(m1 - 71.68) < 1e-9, m1)
 m2 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, 0.008)])
-check("복리 포트: 익절 2건 → 30 × 1.024² = 31.46", abs(m2 - round(30 * 1.024 ** 2, 2)) < 1e-9, m2)
+check("복리 포트: 익절 2건 → 70 × 1.024² = 73.40", abs(m2 - round(70 * 1.024 ** 2, 2)) < 1e-9, m2)
 m3 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)])
-check("복리 포트: 손절 뒤 $30 리셋(reset_on_loss, 사용자 지시)", m3 == 30.0 and cap.get("reset_on_loss") is True, m3)
+check("복리 포트: 손절 뒤 $70 리셋(reset_on_loss, 사용자 지시)", m3 == 70.0 and cap.get("reset_on_loss") is True, m3)
 m4 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082), tr(PAT, 0.008)])
-check("복리 포트: 익절·손절·익절 → 리셋 후 다시 30.72", abs(m4 - 30.72) < 1e-9, m4)
+check("복리 포트: 익절·손절·익절 → 리셋 후 다시 71.68", abs(m4 - 71.68) < 1e-9, m4)
 _noreset = dict(cap, reset_on_loss=False)
-check("reset_on_loss 없으면 손절도 복리로 줄어든다(30.72 × 0.754)",
-      abs(pe.cap_margin(_noreset, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)]) - round(30.72 * (1 - 0.246), 2)) < 1e-9)
+check("reset_on_loss 없으면 손절도 복리로 줄어든다(71.68 × 0.754)",
+      abs(pe.cap_margin(_noreset, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)]) - round(71.68 * (1 - 0.246), 2)) < 1e-9)
 _w = dict(tr(PAT, 0.008), exit_date="2026-09-10", entry_date="2026-09-10")
 _l = dict(tr(PAT, -0.082), exit_date="2026-09-09", entry_date="2026-09-09")
-check("복리 포트: 장부 순서가 뒤집혀 있어도 시간순으로 계산(손절이 먼저 → 30.72)",
-      abs(pe.cap_margin(cap, PAT, [_w, _l]) - 30.72) < 1e-9)
-check("복리 포트: 다른 패턴·방식A·R 행은 무시", pe.cap_margin(cap, PAT, [tr("engulfing", 0.5), tr(PAT, 0.5, "A"), tr(PAT, 0.5, "R")]) == 30.0)
-check("복리 포트: $10 미만이면 None(주문 안 냄) — 리셋 없는 설정에서", pe.cap_margin(_noreset, PAT, [tr(PAT, -0.082)] * 5) is None)
-check("복리 포트: 리셋 설정에서는 연속 손절도 $30 유지", pe.cap_margin(cap, PAT, [tr(PAT, -0.082)] * 5) == 30.0)
+check("복리 포트: 장부 순서가 뒤집혀 있어도 시간순으로 계산(손절이 먼저 → 71.68)",
+      abs(pe.cap_margin(cap, PAT, [_w, _l]) - 71.68) < 1e-9)
+check("복리 포트: 다른 패턴·방식A·R 행은 무시", pe.cap_margin(cap, PAT, [tr("engulfing", 0.5), tr(PAT, 0.5, "A"), tr(PAT, 0.5, "R")]) == 70.0)
+check("복리 포트: $10 미만이면 None(주문 안 냄) — 리셋 없는 설정에서", pe.cap_margin(_noreset, PAT, [tr(PAT, -0.082)] * 8) is None)
+check("복리 포트: 리셋 설정에서는 연속 손절도 $70 유지", pe.cap_margin(cap, PAT, [tr(PAT, -0.082)] * 5) == 70.0)
 check("compound 아니면 margin_usd 고정", pe.cap_margin(dict(margin_usd=30.0, leverage=3), PAT, [tr(PAT, 0.5)]) == 30.0)
-check("registry live_cap: compound·start_margin 30", cap.get("compound") is True and cap.get("start_margin") == 30.0)
+check("registry live_cap: compound·start_margin 70", cap.get("compound") is True and cap.get("start_margin") == 70.0)
 
 rows_ = [dict(symbol="LTC", direction="long", pattern="engulfing", live_mode=True, d_closed=False, live_order=dict(qty=3.0)),
          dict(symbol="LTC", direction="long", pattern=PAT, live_mode=True, d_closed=False, live_order=dict(qty=1.0)),
@@ -228,13 +228,13 @@ _orig_state = ex_mod.algo_state
 try:
     ex_mod.algo_state = lambda lc, aid, inst_id=None: dict(state="effective", actual_px=101.0, actual_side="tp")
     pos_ = dict(symbol="LTC", direction="long", pattern=PAT, live_mode=True, d_closed=False, entry_price=100.0,
-                stop=92.0, target=101.0, size_usd=30.0, entry_date="2026-09-09", live_order=dict(sl_order_id="a1", leverage=3, qty=1.0))
+                stop=92.0, target=101.0, size_usd=70.0, entry_date="2026-09-09", live_order=dict(sl_order_id="a1", leverage=3, qty=1.0))
     trs = []
     ok_ = pe.settle_by_algo(pos_, dict(exchange=None), trs, "2026-09-09")
     check("settle_by_algo: effective → D 기록(+1% − 수수료), d_closed", ok_ and pos_["d_closed"] and len(trs) == 1
           and abs(trs[0]["ret"] - (0.01 - pe.FEE)) < 1e-9 and trs[0]["reason"] == "atr_target" and trs[0]["live_mode"], trs)
-    check("settle_by_algo: pnl_live_usd ≈ 1% × 명목 $90", abs(trs[0]["pnl_live_usd"] - 0.9) < 1e-6, trs[0]["pnl_live_usd"])
-    check("복리 포트가 그 기록을 읽는다 → $30.72", abs(pe.cap_margin(cap, PAT, trs) - 30.72) < 1e-9)
+    check("settle_by_algo: pnl_live_usd ≈ 1% × 명목 $210", abs(trs[0]["pnl_live_usd"] - 2.1) < 1e-6, trs[0]["pnl_live_usd"])
+    check("복리 포트가 그 기록을 읽는다 → $71.68", abs(pe.cap_margin(cap, PAT, trs) - 71.68) < 1e-9)
     ex_mod.algo_state = lambda lc, aid, inst_id=None: dict(state="live", actual_px=None, actual_side="")
     pos2 = dict(pos_, d_closed=False); trs2 = []
     check("settle_by_algo: live 면 아무것도 안 한다", not pe.settle_by_algo(pos2, dict(exchange=None), trs2, "2026-09-09") and not trs2)
