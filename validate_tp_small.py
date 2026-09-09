@@ -140,7 +140,12 @@ def pot_curve(trades, lev=POT_LEV, start=POT_START):
     """
     if not trades:
         return None
-    seq = sorted(trades, key=lambda t: (mx._tnum(t[0]), mx._tnum(t[1])))
+    # 진입 시각만으로 정렬한다 — 청산 시각을 2차 키로 쓰면 같은 시각 신호 중 '먼저 끝날
+    # 거래'(= 빠른 익절)를 고르는 셈이라 미래를 쓴다(2026-09-09 tp_1h 판에서 발견).
+    # 동률은 입력 순서로 깬다. 이 판의 P2 는 전 arm 이 0 이었으므로 결론은 불변이고,
+    # 편향이 낙관 쪽이었으므로 '파산' 결론은 오히려 강화된다.
+    order = sorted(range(len(trades)), key=lambda i: (mx._tnum(trades[i][0]), i))
+    seq = [trades[i] for i in order]
     eq, peak, mdd = start, start, 0.0
     busy_until = None
     taken = skipped = 0

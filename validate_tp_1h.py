@@ -207,13 +207,22 @@ def outcomes_all(rows, si, direction, cells, max_scan, optimistic=False):
 
 # ── P2 전용 포트 (한 번에 하나·전액·순차 복리) ──────────────────────────────
 def pot_curve(recs, lev, start=POT_START):
-    """recs: [(entry_num, exit_num, ret)] — 시간순, 열려 있는 동안 온 신호는 버린다."""
+    """
+    recs: [(entry_num, exit_num, ret)] — 시간순, 열려 있는 동안 온 신호는 버린다.
+
+    **진입 시각만으로 정렬한다.** 튜플을 통째로 sorted 하면 같은 시각 신호들 사이에서
+    청산 시각이 이른 것부터 잡는데, 그건 '먼저 끝날 거래'를 고르는 것이라 미래를 쓴다
+    (배리어 규칙에서 빠른 청산 ≈ 익절). 80종목 x 6패턴 1h 에서는 같은 시각 신호가
+    상시로 생기므로 이 편향이 결정적이다 — 실측으로 건당 −0.27% 인 규칙이 포트에서
+    +89,495배로 찍혔다(run 34315644631). 동률은 **입력 순서**로 깨서 결과와 무관하게 한다.
+    """
     if not recs:
         return None
-    seq = sorted(recs)
+    order = sorted(range(len(recs)), key=lambda i: (recs[i][0], i))
     eq, peak, mdd, busy, taken, skipped = start, start, 0.0, None, 0, 0
     first = last = None
-    for e, x, ret in seq:
+    for _i in order:
+        e, x, ret = recs[_i]
         if busy is not None and e < busy:
             skipped += 1
             continue
