@@ -1,0 +1,41 @@
+name: Research — portfolio-level confirmation frame (pre-registered)
+
+# 배포 집합 전체를 한 자산곡선에 올려 **슬롯 배분 규칙**을 비교한다.
+# 계기: 2026-09-10 실측에서 실포지션 12건 중 8건이 vol_awakening_4h.
+# 패턴 단독 확인 프레임(revival C3 / guard v5)은 슬롯 경합을 구조적으로 못 본다.
+# 사전 등록 registry portfolio_prereg_2026_09_10. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_portfolio.py"
+      - "test_portfolio.py"
+      - ".github/workflows/portfolio.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_portfolio.py
+      - name: Run
+        run: python validate_portfolio.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portfolio-${{ github.run_number }}
+          path: _portfolio.json
+          if-no-files-found: ignore

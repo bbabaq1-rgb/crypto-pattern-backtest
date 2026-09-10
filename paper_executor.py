@@ -755,6 +755,30 @@ def ledger_breakdown(positions):
                 ghost=sorted({p["symbol"] for p in ghost}))
 
 
+def slot_occupancy(positions):
+    """
+    슬롯을 점유 중인 행의 **패턴별 집계** — 진단 출력 전용(2026-09-10 사용자 승인). 거래 결정에 안 쓴다.
+
+    계기: 2026-09-10 실포지션 12건 중 8건이 vol_awakening_4h 였다. 종전 만석 로그는 '밀린 종목'만
+    찍고 **그 자리를 누가 점유 중인지** 남기지 않아서, 고빈도 4h 패턴이 건당 두꺼운 1d 신호를
+    실제로 밀어냈는지 사후에 셀 수가 없었다. 슬롯 경합 비용은 패턴 단독 확인 프레임이 구조적으로
+    못 보는 값이라(report_revival §8) 실측 로그가 유일한 출처다.
+
+    세는 집합은 `live_open_count` · `ledger_breakdown.live_active` 와 **같다**
+    (live_mode & not d_closed) — test_executor_safety 가 셋의 일치를 고정한다.
+    """
+    from collections import Counter
+    c = Counter(p.get("pattern") or "?" for p in positions
+                if p.get("live_mode") and not p.get("d_closed"))
+    return c.most_common()
+
+
+def occupancy_txt(positions):
+    """slot_occupancy 를 로그 한 줄로. 점유 0이면 '-'."""
+    occ = slot_occupancy(positions)
+    return ", ".join(f"{pat}x{n}" for pat, n in occ) if occ else "-"
+
+
 def stop_map_of(positions):
     """
     ensure_stop_orders 에 넘길 심볼별 손절가 표 — **손절이 누락됐을 때 재등록할 가격**.
@@ -1094,6 +1118,8 @@ def run(stamp=None):
           + (f" | 슬롯 {_bd['live_active']}/{MAX_LIVE_POS}" if live_conn else "")
           + (f" | D청산 완료·A만 남은 행 {len(_bd['ghost'])}건 {_bd['ghost']}"
              " ← 슬롯·중복방어에서 제외됨" if _bd["ghost"] else ""))
+    # 슬롯 점유 패턴 분포(2026-09-10 사용자 승인) — 편중·경합 실측용. 출력만, 거래 동작 무변경.
+    print(f"  [슬롯점유] {occupancy_txt(still_open)}")
     for s in sig.get("signals", []):
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:
@@ -1155,7 +1181,10 @@ def run(stamp=None):
                     print(f"  [live] {s['pattern']} 캡 포지션 {pat_open}/{cap.get('max_open', 1)} — {s['symbol']} 스킵")
                     continue
             elif live_open_count >= MAX_LIVE_POS:
-                print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']} 스킵")
+                # 무엇이 무엇을 막았는지 남긴다 — 밀린 신호의 패턴·등급 + 그 시점 슬롯 점유 분포.
+                print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']}"
+                      f"({s['pattern']}, {s.get('ensemble_grade', '?')}등급) 스킵"
+                      f" | 점유: {occupancy_txt(still_open)}")
                 continue
             if entry_blocked(s["symbol"], s["direction"], bool(cap), okx_dir_keys, main_keys, cap_keys):
                 print(f"  [live] {s['symbol']} {s['direction']} 같은 종목·방향 실포지션 존재 — 중복 진입 스킵"

@@ -74,6 +74,7 @@ jobs:
                    test_audit_guards.py \
                    test_guard_v5.py \
                    test_tp1_live.py \
+                   test_portfolio.py \
                    test_regime_determinism.py \
                    test_method_m.py \
                    test_regime_split.py \
