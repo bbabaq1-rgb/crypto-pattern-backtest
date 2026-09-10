@@ -72,7 +72,8 @@ leg = sz.legacy_size(73.63, 5)
 print(f"\n[참고] 현 계좌 8% 손절 신호: risk-based {now} | legacy {leg}")
 thr = sz.MIN_MARGIN * sz.LEV_CAP * 0.08 / sz.RISK_FRAC
 print(f"[참고] risk-based 최소 주문 가능 equity(8% 손절, B등급) = ${thr:.0f}")
-check("채택값(1%/2x)에서 현 계좌는 주문 가능 — 0.5% 를 못 쓴 이유", now is not None, now)
+check("현 파라미터에서 $285 계좌도 표준 변동성 신호는 주문 가능 — 0.5% 를 못 쓴 이유",
+      now is not None, now)
 
 # 낙폭 축소의 실체는 '항상 더 작다'가 아니라 **진입 순서 의존성이 사라진다**는 것.
 # legacy 는 free x20% 라 첫 진입이 크고 뒤로 갈수록 잘게 쪼개진다(실측 $95.96 → $76.83 →
@@ -89,22 +90,31 @@ check("risk 는 진입 순서와 무관 — free 만 달라도 같은 크기",
 check("legacy 는 진입 순서에 따라 크기가 요동",
       sz.legacy_size(479.79, 5)["margin_usd"] > sz.legacy_size(157.23, 5)["margin_usd"] * 3)
 # 문턱 = MIN_MARGIN x lev x stop / risk — risk 에 반비례, 레버리지에 비례한다.
-# risk 1%/lev2 시절 $160 → risk 1.5%/lev2 $107 → risk 1.5%/lev3 $160 (되돌아옴).
-check("문턱이 파라미터와 일치 (risk 1.5% / lev 3 → $160)", abs(thr - 160.0) < 0.01, thr)
+# risk 1%/lev2 $160 → risk 1.5%/lev2 $107 → risk 1.5%/lev3 $160 → risk 1%/lev3 $240.
+check("문턱이 파라미터와 일치 (risk 1.0% / lev 3 → $240)", abs(thr - 240.0) < 0.01, thr)
 check("문턱 바로 위 equity 에서는 주문 가능",
       sz.risk_based_size(thr * 1.01, thr, 0.08) is not None)
 check("문턱 바로 아래 equity 에서는 스킵",
       sz.risk_based_size(thr * 0.99, thr, 0.08) is None)
-check("채택 기본값 고정: RISK_FRAC 1.5% (사용자 결정 2026-09-04)", sz.RISK_FRAC == 0.015)
-check("채택 기본값 고정: LEV_CAP 3 (사용자 결정 2026-09-04, risk 1.5% 와 한 쌍)", sz.LEV_CAP == 3)
+check("채택 기본값 고정: RISK_FRAC 1.0% (사용자 결정 2026-09-10 하향)", sz.RISK_FRAC == 0.010)
+check("채택 기본값 고정: LEV_CAP 3 (2026-09-04 상향, 2026-09-10 risk 1% 에서도 유지)", sz.LEV_CAP == 3)
+# 1%/lev3 을 고른 이유는 1%/lev2 와의 차이에 있다 — 그 둘은 증거금·문턱이 완전히 같고
+# (risk/lev 이 같으므로) 명목가만 다르다. lev 3 이 사는 것은 포지션당 증거금 축소뿐이다.
+check("risk 1%/lev2 는 1.5%/lev3 과 증거금·문턱이 동일 — lev 3 을 고른 근거",
+      abs((0.010 / 0.08 / 2) - (0.015 / 0.08 / 3)) < 1e-12
+      and abs(sz.MIN_MARGIN * 2 * 0.08 / 0.010 - sz.MIN_MARGIN * 3 * 0.08 / 0.015) < 1e-9)
+check("16슬롯 증거금이 equity 안에 들어온다 (lev 3 → 67%, lev 2 였다면 100%)",
+      abs(sz.RISK_FRAC / 0.08 / sz.LEV_CAP * 16 - 0.6667) < 1e-3)
 check("8% 손절에서 청산 거리가 손절폭의 2배 이상 (LIQ_SAFETY)",
       (1 / sz.liq_safe_leverage(0.08) - sz.MMR) >= sz.LIQ_SAFETY * 0.08)
 check("lev 3 에서 12슬롯 증거금이 equity $400 안에 들어온다 (lev 2 는 $450 로 초과했다)",
       sz.risk_based_size(400, 1e9, 0.08)["margin_usd"] * 12 <= 400)
 import paper_executor as _pe, sizing_study as _ss
 check("MAX_LIVE_POS 16 (사용자 결정 2026-09-05) — 연구 상수 sizing_study.MAX_POS 와 동일", _pe.MAX_LIVE_POS == 16 == _ss.MAX_POS)
-check("lev 3 에서 16슬롯 증거금이 equity $400 에 정확히 걸린다 ($25 x 16) — 그 아래 계좌면 증거금이 먼저 막는다",
-      abs(sz.risk_based_size(400, 1e9, 0.08)["margin_usd"] * 16 - 400) < 1e-6)
+# risk 1.5% 시절에는 16슬롯 증거금이 equity 와 정확히 같아(100%) 슬롯을 구조적으로 못 채웠다.
+# 1% 하향으로 3분의 2가 되어 여유가 생긴다 — 이번 하향이 실제로 산 것이 이것이다.
+check("16슬롯 증거금이 equity 의 3분의 2로 내려간다 (1.5% 시절엔 100%)",
+      abs(sz.risk_based_size(400, 1e9, 0.08)["margin_usd"] * 16 - 400 * 2 / 3) < 0.1)
 
 
 # ── 엔진 연결 (소스 단언) ────────────────────────────────────────────────────
