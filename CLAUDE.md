@@ -1062,6 +1062,22 @@
   · **구성 확인(같은 날, 네트워크 개방 후 아티팩트 직접 판독)**: 16행 = **실포지션 13 + 유령 1(ADA marubozu, D 청산됨·A 미해소·
     live_mode 유지) + 페이퍼 전용 2(BTC marubozu 8/21·BTC IH 8/28)**. 사용자가 본 13 과 일치. **유령 슬롯 실재** — ADA 가 슬롯
     1개를 먹고 ADA 롱 재진입을 막는 중. C 적용 여부는 사용자 결정 대기. NEAR/DOT/TAO 는 A 만 먼저 해소된 정상 실포지션.
+- **vol_awakening_4h 편중 → 계측 + 포트폴리오 프레임 (2026-09-10, 사용자 승인 2건)**: 실포지션 12건 중
+  **8건이 vol_awakening_4h**(9/05 하루에 7건 진입한 버스트). 방식D 보유 상한이 30봉이고 TF 를 안 보므로
+  4h 는 5일 점유 — A 다리는 20봉째인 9/08 에 먼저 청산됐고 D 다리는 9/10 만기라 **이 편중 자체는 오늘 풀린다**.
+  · **기전은 선점이다** — 진입 순서(앙상블 점수)는 1d=C·4h=D 로 **같은 틱 안에서는** 이미 1d 가 앞선다
+    (9/09 만석 때 C등급 XRP 진입·D등급 4h 스킵이 실측). 문제는 그 정렬이 빈 슬롯에만 작동한다는 것 —
+    4h 8건이 5일 자리를 잡으면 3일차 1d 신호는 점수와 무관하게 자리가 없다.
+  · **증거는 직관과 반대 방향** — vol_awakening_4h 는 v5 CONFIRMED 2셀 중 하나(OOS n=2593 +0.21% bp .000)이고
+    밀려날까 걱정하는 engulfing|bull_btc 는 INCONCLUSIVE 다. 확인된 셀을 끄고 미확인 셀을 보호하는 셈이 된다.
+    **실제 경합 비용도 아직 관측 안 됨** — 9/09 만석 때 밀린 4건 중 3건이 vol_awakening 자신이었다.
+  · **① 계측(적용 완료)**: `paper_executor.slot_occupancy` / `occupancy_txt` — 매 실행 `[슬롯점유]` 한 줄로
+    패턴별 점유를 찍고, 만석 스킵 로그에 **밀린 신호의 패턴·등급 + 그때의 점유 분포**를 남긴다.
+    세는 집합은 `live_open_count`·`ledger_breakdown.live_active` 와 같다(유령·페이퍼 제외).
+    **출력만 — 진입 판정·슬롯 계수·중복 방어 전부 무변경**(test_executor_safety +10).
+  · **② 포트폴리오 프레임(사전 등록, 결과 대기)**: 위 '다음 할 일' 항목. 규칙 후보(패턴별 상한 / 우선순위 교체 /
+    코호트 축소)는 **이 프레임을 통과한 뒤에만** 검토한다 — 없이 고르면 method_b 의 슬롯 아티팩트 결함 반복.
+  · **MAX_POS 상향은 권고 안 함** — 격자에서 16→20/24 는 Calmar 1.85→1.83 이고 증거금이 곧 다음 병목.
 - **실거래 안전장치** (2026-07-06): MAX_LIVE_POS **16**(사용자 승인 5→12 2026-07-06 → 16 2026-09-05, 슬롯 격자 근거 —
   12→16 슬롯 스킵 462→47·Calmar 1.84→1.85·MDD −2%p, equity $400 에서 16슬롯 증거금 $400 이라 그 아래면 증거금이 먼저 막음) ·
   킬스위치(equity < $100 → 신규 진입 중지, paper_executor.EQUITY_FLOOR —
@@ -1400,7 +1416,10 @@
       · **증거금 스킵은 한 건도 없었다 — 슬롯이 먼저 막았다**(점검 항목 3 의 답). 다만 free 가 $50.57 → $30.96 까지
         내려왔고 포지션당 증거금 약 $25 라, 슬롯을 올려도 **증거금이 곧바로 다음 병목**이 된다(16×$25=$400 vs equity $435).
         MAX_POS 격자에서도 16→20/24 는 Calmar 1.85→1.83 으로 개선이 없다. **상향 권고 안 함**(위험 수준은 사용자 결정).
-- [ ] **포트폴리오 단위 확인 프레임** — 패턴 단독 C3 는 슬롯 경합을 못 본다. 배포 집합 전체를 한 자산곡선으로(sizing_vol --routing 에 4h adopted 포함) 재는 시험 사전 등록
+- [x] **포트폴리오 단위 확인 프레임 사전 등록** (2026-09-10 사용자 승인) — validate_portfolio.py.
+      배포 집합 전체를 한 자산곡선에. arm = current / cap4·6·8(패턴별 슬롯 상한) / prio_edge(슬롯일당 기대값,
+      인과적 확장추정) / cohort20. 판정은 holdout 포트폴리오 Calmar·CAGR J1~J5 전부. DEPLOY_ON_PASS=False.
+      registry portfolio_prereg_2026_09_10. **결과 판독 대기**
 - [ ] **신규 4h 패턴 첫 실거래 관찰** — triple_bottom_4h 첫 진입 시 `[live 사이징]`·손절 algo·닫힌 봉 신호(rows[-2]) 확인.
       신호봉 종가 vs 체결가 슬리피지 기록
 - [ ] **vwap_rev_short_4h · bear 경계 통과분** — 사용자가 켜라고 하면 켤 수 있음(regimes=["bear"], short,
@@ -1543,6 +1562,10 @@
 - direction_switch.py: 레짐→방향 라우팅. ROUTING_OVERRIDES 가 코드 예외(bear fvg FLAT). test_direction_switch.py
 - expand_universe.py: 유니버스 확대 스크립트 (업비트KRW∩OKX선물, 재실행 가능)
 - report_universe_expansion.md: 유니버스 확대 리포트
+- validate_portfolio.py: 포트폴리오 단위 확인 프레임 — 배포 집합 전체를 한 자산곡선에 올려 **슬롯 배분 규칙**만
+  바꿔 비교(current / cap4·6·8 / prio_edge / cohort20). 사이징·청산은 실거래 고정. 패턴 단독 C3 가 못 보는
+  슬롯 경합이 대상. 사전 등록 registry portfolio_prereg_2026_09_10, DEPLOY_ON_PASS=False. test_portfolio.py
+- paper_executor.slot_occupancy / occupancy_txt: 슬롯 점유 패턴 분포 — 진단 출력 전용(2026-09-10)
 - registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 + triple_bottom_1w suspended_lookahead → 배포 중
   1d×4(engulfing/fvg/ih/marubozu) + 4h×1(three_soldiers) + 1h×1(cascade))
 - regime_multi.py / method_m.py: 레짐 스케일(주봉/4h) 연구 — 기각 기록용. report_regime_scale.md

@@ -255,5 +255,38 @@ check("run() 은 인라인 루프 대신 stop_map_of 를 쓴다",
       "stop_map = stop_map_of(positions)" in _src2
       and 'stop_map[p["symbol"]] = {' not in _src2)
 
+
+# ── 슬롯 점유 계측 (2026-09-10 사용자 승인 — 출력만, 거래 동작 무변경) ──────────────
+# vol_awakening_4h 편중(실포지션 12건 중 8건, 2026-09-10) 실측 뒤 추가. 만석 로그가 '밀린
+# 종목'만 남기고 그 자리를 누가 점유했는지 안 남겨서 경합 비용을 사후에 셀 수 없었다.
+_occ_pos = [
+    dict(symbol="BCH",  pattern="vol_awakening_4h", live_mode=True,  d_closed=False),
+    dict(symbol="NEAR", pattern="vol_awakening_4h", live_mode=True,  d_closed=False),
+    dict(symbol="LTC",  pattern="vol_awakening_4h", live_mode=True,  d_closed=False),
+    dict(symbol="STX",  pattern="triple_bottom_4h", live_mode=True,  d_closed=False),
+    dict(symbol="ADA",  pattern="marubozu",         live_mode=True,  d_closed=True),   # 유령
+    dict(symbol="SOL",  pattern="fvg",              live_mode=False, d_closed=False),  # 페이퍼
+]
+_occ = pe.slot_occupancy(_occ_pos)
+check("슬롯점유: 패턴별 집계 + 많은 순 정렬",
+      _occ[0] == ("vol_awakening_4h", 3) and dict(_occ).get("triple_bottom_4h") == 1, _occ)
+check("슬롯점유: 유령(d_closed) 행 제외", "marubozu" not in dict(_occ), _occ)
+check("슬롯점유: 페이퍼 전용 행 제외", "fvg" not in dict(_occ), _occ)
+check("슬롯점유 합계 = ledger_breakdown.live_active (슬롯 계수와 같은 집합)",
+      sum(n for _, n in _occ) == pe.ledger_breakdown(_occ_pos)["live_active"],
+      (_occ, pe.ledger_breakdown(_occ_pos)))
+check("슬롯점유: 빈 장부는 '-'", pe.occupancy_txt([]) == "-", pe.occupancy_txt([]))
+check("슬롯점유 한 줄 표기", pe.occupancy_txt(_occ_pos).startswith("vol_awakening_4hx3"),
+      pe.occupancy_txt(_occ_pos))
+check("슬롯점유: pattern 없는 행은 '?' 로 센다", dict(pe.slot_occupancy(
+      [dict(symbol="X", live_mode=True, d_closed=False)])).get("?") == 1)
+check("만석 로그가 밀린 신호의 패턴·등급과 점유 분포를 남긴다",
+      "최대 포지션({MAX_LIVE_POS}개) 도달" in _src2
+      and "{s['pattern']}, {s.get('ensemble_grade', '?')}등급" in _src2
+      and "점유: {occupancy_txt(still_open)}" in _src2)
+check("장부 줄 다음에 슬롯점유 줄을 찍는다", "[슬롯점유] {occupancy_txt(still_open)}" in _src2)
+check("계측은 진입 판정에 관여하지 않는다(슬롯 체크는 live_open_count 그대로)",
+      "elif live_open_count >= MAX_LIVE_POS:" in _src2)
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

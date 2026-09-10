@@ -4332,5 +4332,38 @@
    "live_change": "없음",
    "rerun_train_reasons": "run 34331332635: bull_btc train boot_p=0.156 / bull_altseason train 없음 / bear train 없음 / ALL 참조 train ok. 판정 3셀 REJECTED 동일"
   }
+ },
+ "portfolio_prereg_2026_09_10": {
+  "status": "PREREGISTERED",
+  "date": "2026-09-10",
+  "trigger": "사용자 지시 — vol_awakening_4h 편중(2026-09-10 실측 실포지션 12건 중 8건) 해결 방안. 계측(슬롯 점유 로그) + 포트폴리오 프레임 사전 등록 2건 승인.",
+  "question": "배포 집합 전체를 한 자산곡선에 올렸을 때, 슬롯 배분 규칙을 바꾸면 포트폴리오가 나아지는가. 셀 단위 성적이 아니라 포트폴리오 Calmar·CAGR 로만 판정한다.",
+  "why_new_frame": "기존 확인 프레임(revival C3 / guard v4·v5 / engulf_tf)은 셀 하나를 홀로 자산곡선에 올려 슬롯 경합을 구조적으로 못 본다. 연 약 1,900건인 vol_awakening_4h 가 MAX_POS 16 을 채워 건당 두꺼운 1d 신호를 밀어내도 패턴 단독 곡선에는 비용이 안 잡힌다. 같은 기전의 선례: bear fvg 롱 기각(2026-09-05) — 셀 +1.63% 인데 '건당 +1.6% 거래가 건당 +7.3% 자리를 뺏어' holdout −43→−66%.",
+  "frozen_before_results": {
+   "universe": "배포 집합만 — 1d engulfing 롱·숏 / fvg 롱·숏(레짐 라우팅) · inverted_hammer · marubozu(메이저 7) + 4h three_soldiers(bull 게이트·전 종목) · triple_bottom · equal_lows · vol_awakening(top30)",
+   "excluded": "cascade_fade_long_1h(보유 12봉≈12h·3년 n=312 → 슬롯 발자국 ≈0, 청산 규칙도 다름) / tp1_engulfing_1h(별도 자본·자체 max_open, MAX_LIVE_POS 면제). 결과를 보고 뺀 것이 아니라 설계 시점 범위.",
+   "exit": "전 셀 방식D — 실거래와 동일",
+   "sizing": "실거래 고정 — sizing.risk_based_size + 변동성 타겟팅(sz.vol_scale 식), RISK_FRAC 1.5%, LEV_CAP 3, MAX_POS 16, START_EQ 1000. arm 마다 바꾸지 않는다.",
+   "arms": [
+    "current(1d 우선 → 거래대금 순)",
+    "cap4",
+    "cap6",
+    "cap8(패턴별 동시 슬롯 상한)",
+    "prio_edge(슬롯일당 기대값 = 평균수익/평균보유일, 인과적 확장추정·표본<20 중립)",
+    "cohort20(top30 배포 4h 셀만 top20 으로 축소)"
+   ],
+   "split": "train < 2025-01-01 <= holdout (guard v4·v5 C 축과 같은 경계)",
+   "criteria": "holdout 기준 J1 CAGR>current · J2 Calmar>current · J3 짝지음 블록부트 300회 P(Calmar 우위)>=60% · J4 MDD 가 current 대비 5%p 초과 악화 없음 · J5 train 에서도 CAGR·Calmar 둘 다 current 이상. 다섯 전부 충족해야 ADOPT_CANDIDATE, 복수 통과 시 holdout Calmar 최대 하나.",
+   "deploy_on_pass": false
+  },
+  "prior_before_run": "current 가 이기거나 arm 간 차이가 작을 가능성이 높다고 실행 전에 기록한다. 근거 셋 — (1) 2026-09-09 실측 만석 때 밀린 4건 중 3건이 vol_awakening 자신이라 실제 경합 비용이 아직 관측되지 않았다 (2) vol_awakening_4h 는 v5 CONFIRMED 2셀 중 하나이고, 밀려난다고 걱정하는 engulfing|bull_btc 는 INCONCLUSIVE 다 (3) MAX_POS 격자에서 16→20/24 가 개선을 못 냈다. 그럼에도 도구가 없으면 판단할 수 없어 프레임을 만든다.",
+  "known_limits": [
+   "총명목가 상한(2.5x equity)이 균일 변동성에서는 MAX_POS 보다 먼저 걸린다 — 실거래도 같은 제약이라 '슬롯 경합'은 명목가 상한과 함께 작동한다. 스킵 사유를 슬롯/패턴상한/증거금으로 나눠 세지만 증거금 사유에 총명목가 상한이 포함된다.",
+   "current arm 의 우선순위는 실거래 앙상블 점수를 '1d 우선 → 거래대금 순' 으로 근사한 것이다(2026-09-09 실측 1d=C·4h=D 등급과 일치). 앙상블 보너스·멀티TF 확증은 재현하지 않는다.",
+   "holdout(2025-01~)이 bear 지배 구간이다 — guard v4·v5 와 같은 한계.",
+   "코호트는 데이터 끝 거래대금 기준 정적 top30 이다. PIT 코호트 원칙(2026-09-06)의 예외이며, arm 비교는 세 arm 이 같은 코호트를 쓰므로 상쇄된다.",
+   "라우팅 표를 과거에 소급 적용한 판이라 절대 수준은 낙관적(sizing_vol --routing 과 같은 유보)."
+  ],
+  "files": "validate_portfolio.py / test_portfolio.py(38) / .github/workflows/portfolio.yml / _portfolio.json"
  }
 }
