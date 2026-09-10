@@ -64,6 +64,7 @@ import sizing as sz
 import sizing_study as ss
 import sizing_vol as sv
 import validate_regime_split_all as va
+import validate_revival as vr          # _tnum: 봉 ts(ms) → 분수 일수. 구현을 셋으로 늘리지 않는다.
 from validate_regime_split import turnover_rank
 
 DEPLOY_ON_PASS = False
@@ -148,8 +149,11 @@ def collect_4h(rows_by, ranked, regmap):
                     continue
                 ret, hold, _ = mt.outcome_d(rows, si, direction, set())
                 xi = min(si + hold, len(rows) - 1)
-                out.append(dict(t_in=mx._tnum(rows[si].get("ts") or rows[si]["date"]),
-                                t_out=mx._tnum(rows[xi].get("ts") or rows[xi]["date"]),
+                # **ts 는 ms 라 그대로 쓰면 1d(날짜 ordinal)와 다른 축에 놓인다** — 2026-09-10
+                # 1차 실행이 정확히 그 버그로 무효였다(4h 전부가 1d 뒤로 정렬돼 슬롯 경합이
+                # 아예 없었고 span 이 1.8e12 일이라 CAGR 이 0 으로 뭉갬). vr._tnum 이
+                # ts/86400000 + epoch ordinal 로 같은 축에 올린다(1d 는 fallback 이 ordinal).
+                out.append(dict(t_in=vr._tnum(rows[si]), t_out=vr._tnum(rows[xi]),
                                 ret=ret, pattern=pat, sym=sym,
                                 vol=sv.realized_vol(rows, si, tf="4h"), tf="4h",
                                 rank=rank_of.get(sym, 999)))

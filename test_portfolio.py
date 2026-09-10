@@ -157,5 +157,33 @@ _r_def = vp.simulate([T(0, 50, 0.0, "P", sym=f"S{i}") for i in range(vp.MAX_POS 
 check("기본 상수에서는 총명목가 상한이 먼저 걸린다(스킵이 증거금 사유로 잡힘)",
       _r_def["taken"] < vp.MAX_POS and _r_def["skip_margin"] > 0, _r_def)
 
+
+# ── 11. 1d 와 4h 가 같은 시간축 (2026-09-10 1차 실행 무효화 버그의 회귀 시험) ─────────
+# 1차 run 34429748383 은 4h 에 봉 ts(ms)를 그대로 넣어 t≈1.76e12, 1d 는 날짜 ordinal
+# t≈739,xxx 였다. 결과: (a) 4h 가 전부 1d 뒤로 정렬돼 **슬롯 경합이 아예 없었고**
+# (b) 2025-01-01 컷이 4h 전량을 holdout 으로 밀었고 (c) span 이 1.8e12 일이라
+# CAGR 이 전 arm 0.00% 로 뭉갰다. 판정 자체가 성립하지 않는다.
+import validate_revival as _vr
+import method_x as mx
+from datetime import date as _date
+_EPOCH = _date(1970, 1, 1).toordinal()
+for _iso, _hh in (("2025-03-01", 12), ("2023-11-07", 4), ("2026-01-01", 0)):
+    _d = _date.fromisoformat(_iso)
+    _ts = (_d.toordinal() - _EPOCH) * 86400000 + _hh * 3600000
+    _t4 = _vr._tnum(dict(ts=_ts, date=_iso))
+    _t1 = mx._tnum(_iso)
+    check(f"시간축: {_iso} {_hh:02d}시 4h 봉이 같은 날 1d 와 0~1일 차이",
+          0 <= _t4 - _t1 < 1 and abs(_t4 - _t1 - _hh / 24) < 1e-6, (_t4, _t1))
+check("시간축: 4h 시각이 ms 스케일이 아니다(회귀 가드)",
+      _vr._tnum(dict(ts=1_760_000_000_000, date="2025-10-09")) < 1e6)
+check("collect_4h 가 vr._tnum 을 쓴다(mx._tnum 에 ts 직접 전달 금지)",
+      "t_in=vr._tnum(rows[si])" in _src and "mx._tnum(rows[si]" not in _src)
+check("컷은 두 축 공통 ordinal", abs(mx._tnum(vp.SPLIT) - 739252) < 1)
+# 같은 축이어야 슬롯 경합이 실제로 일어난다 — 축이 갈리면 4h 가 1d 를 절대 못 만난다
+_axis = [T(739300.0, 5, 0.0, "engulfing", sym="E", tf="1d", rank=None),
+         T(739300.5, 5, 0.0, "vol_awakening_4h", sym="V", tf="4h", rank=0)]
+check("같은 축이면 1d·4h 가 같은 창에서 겹친다(경합 성립)",
+      max(t["t_in"] for t in _axis) - min(t["t_in"] for t in _axis) < 1.0)
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)
