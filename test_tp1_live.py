@@ -141,8 +141,8 @@ check("cascade exit_spec 불변(1.5xATR14 / 12봉)", cspec["k_atr"] == 1.5 and c
 legacy = ["engulfing", "fvg", "inverted_hammer", "marubozu", "three_soldiers_4h", "triple_bottom_4h",
           "equal_lows_4h", "vol_awakening_4h", "triple_bottom", "engulfing_short", "fvg_short"]
 check("기존 배포 패턴은 exit_spec/live_cap 없음", not [p for p in legacy if p in pe.EXIT_SPECS or p in pe.LIVE_CAPS])
-check("메인 사이징 상수 불변(RISK 1.5% / LEV_CAP 3 / MAX_LIVE_POS 16)",
-      sizing.RISK_FRAC == 0.015 and sizing.LEV_CAP == 3 and pe.MAX_LIVE_POS == 16)
+check("메인 사이징 상수(RISK 1.0% / LEV_CAP 3 / MAX_LIVE_POS 16) — tp1 은 이 값을 안 쓴다",
+      sizing.RISK_FRAC == 0.010 and sizing.LEV_CAP == 3 and pe.MAX_LIVE_POS == 16)
 check("cascade 외 다른 1h adopted 는 그대로 하나(cascade)뿐", [a["pattern"] for a in uni["adopted_1h_patterns"]] == ["cascade_fade_long_1h", PAT])
 
 # ── 6. eval_I + pct 배리어 = 검증 프레임(tp_1h) 청산 ────────────────────────

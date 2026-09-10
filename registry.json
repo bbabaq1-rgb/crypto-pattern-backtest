@@ -4432,5 +4432,35 @@
    "prior_check": "사전 확률('현행이 이기거나 arm 간 차이가 작다')은 적중 — 통과 arm 0, 그리고 방향까지 맞았다(상한 arm 이 오히려 악화).",
    "live_effect": "없음. 규칙 후보(패턴별 상한 / 우선순위 교체 / 코호트 축소)는 이 프레임을 통과하지 못했으므로 채택하지 않는다."
   }
+ },
+ "risk_level_2026_09_10": {
+  "status": "APPLIED_LIVE",
+  "date": "2026-09-10",
+  "decision": "사용자: '1%/3배로 적용해줘' (앞선 질문 '리스크 1퍼 레버리지 2배로 되돌렸을때 효과' 설명 뒤)",
+  "change": "sizing.RISK_FRAC 0.015 -> 0.010. LEV_CAP 은 3 유지(변경 없음). 손절 8%·변동성 타겟팅·MAX_POS 16 불변.",
+  "category": "위험 수준 = 사용자 결정 사항(낙폭 선호). 통계가 답하지 않는다 — 격자 15셀 Calmar 0.99~1.14 로 평평.",
+  "effect_grid": {
+   "source": "sizing_vol --routing --grid (run 33961480251 계열, 라우팅 복제 991건, 부트 300회)",
+   "boot_cagr": "+68.7% -> +49.1%",
+   "boot_mdd_median": "-60.8% -> -45.4%",
+   "boot_mdd_p10": "-80.5% -> -65.1%",
+   "p_ruin": "2.3% -> 0.3%",
+   "calmar": "1.13 -> 1.06",
+   "reading": "수익도 낙폭도 약 3분의 2. Calmar 가 거의 안 움직이는 것이 '더 좋아진 게 아니라 볼륨을 낮춘 것'이라는 증거."
+  },
+  "mechanics": {
+   "notional_per_trade": "equity x 18.75% -> 12.5% (x vol_scale 0.45~1.80)",
+   "margin_per_trade": "equity x 6.25% -> 4.17%",
+   "slots16_margin": "equity 의 100% -> 67% — 종전에는 MAX_POS 16 을 구조적으로 못 채웠다",
+   "total_notional_cap": "2.5x 상한 도달 13.3개 -> 20개. MAX_POS 16 이 비로소 진짜 상한이 된다",
+   "min_order_threshold": "전 신호 통과 equity $355 -> $533 (배율 1.0 기준 $160 -> $240). 현 계좌 $763, 여유 약 $230",
+   "liq_distance": "32.3%(손절의 4.0배) 불변 — lev 3 유지이므로"
+  },
+  "why_lev3_not_lev2": "risk 1%/lev2 는 1.5%/lev3 과 증거금(6.25%)·최소주문 문턱($355)이 **완전히 동일**하고 명목가만 3분의 2가 된다(risk/lev 이 같으므로). lev 3 은 거기에 더해 포지션당 증거금을 4.17% 로 낮춰 16슬롯을 실제로 채울 수 있게 한다. 2026-09-04 의 '레버리지는 risk 1% 에서 무의미'는 MAX_POS 12·equity $400 시절 결론이라 지금은 성립하지 않는다.",
+  "prereg_status": "사전 기준(boot MDD중앙 >= -35% AND P(ruin)<5%)은 **여전히 미충족** — 통과 셀은 risk 0.5% 뿐이고 그건 최소주문 문턱 $1,067 로 현 계좌($763)에서 주문이 안 나간다. 게이트 문턱은 건드리지 않았다(사용자와 합의: 풀어도 주문이 안 바뀌고 사후 변경이 된다).",
+  "files": "sizing.py(RISK_FRAC + 결정 주석) / test_sizing.py / test_sizing_vol_live.py / test_tp1_live.py / test_portfolio.py",
+  "test_flips": "두 시험이 성질 역전을 잡아냈다 — (1) test_sizing '16슬롯 증거금 = equity 100%' -> 67% (2) test_portfolio '총명목가 상한이 MAX_POS 보다 먼저 걸린다' -> MAX_POS 가 먼저. 둘 다 이번 하향이 실제로 산 것을 고정한 것.",
+  "unchanged": "라우팅·배포 패턴 집합·청산 규칙(방식D)·MAX_POS 16·손절 8%·변동성 타겟팅 상수·tp1_engulfing_1h(고정 증거금 $70/3x, LIVE_CAPS 우회라 무영향) 전부 불변.",
+  "revert": "sizing.RISK_FRAC = 0.015 한 줄."
  }
 }
