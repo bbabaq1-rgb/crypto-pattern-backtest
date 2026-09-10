@@ -4364,6 +4364,18 @@
    "코호트는 데이터 끝 거래대금 기준 정적 top30 이다. PIT 코호트 원칙(2026-09-06)의 예외이며, arm 비교는 세 arm 이 같은 코호트를 쓰므로 상쇄된다.",
    "라우팅 표를 과거에 소급 적용한 판이라 절대 수준은 낙관적(sizing_vol --routing 과 같은 유보)."
   ],
-  "files": "validate_portfolio.py / test_portfolio.py(38) / .github/workflows/portfolio.yml / _portfolio.json"
+  "files": "validate_portfolio.py / test_portfolio.py(38) / .github/workflows/portfolio.yml / _portfolio.json",
+  "run_1_invalid_2026_09_10": {
+   "run": 34429748383,
+   "verdict": "INVALID — 판정으로 쓰지 않는다",
+   "bug": "collect_4h 가 봉 ts(ms)를 mx._tnum 에 그대로 넘겨 4h 거래 시각이 t≈1.76e12, 1d 는 날짜 ordinal t≈739,xxx 로 **다른 축**에 놓였다. 내가 넣은 결함.",
+   "consequences": [
+    "4h 전량이 1d 뒤로 정렬 → 이 시험의 대상인 1d·4h 슬롯 경합이 아예 일어나지 않았다",
+    "2025-01-01 컷(ordinal)이 4h 7,179건 전부를 holdout 으로 밀어 train 788 / holdout 7,661 (9%/91%)",
+    "span 이 1.8e12 일이 되어 CAGR 이 전 arm ±0.00% 로 뭉갬 — J1·J2·J5 가 무의미"
+   ],
+   "fix": "vr._tnum(row) 사용(ts/86400000 + epoch ordinal). 구현을 새로 만들지 않고 validate_revival 것을 그대로 쓴다. test_portfolio 11절이 두 TF 가 같은 축임을 회귀 고정.",
+   "note": "사전 등록 기준·arm·분할은 하나도 바꾸지 않았다 — 시간축 계산만 고쳤다. 1차 수치는 폐기하고 재실행 결과로 판정한다."
+  }
  }
 }
