@@ -1,0 +1,45 @@
+name: Research — win-rate gate audit (measurement only, preregistered)
+
+# 승률 35% 문턱 교정 감사. **문턱을 바꾸지 않는다 — 측정만.**
+# 사전 등록 registry winrate_guard_audit_prereg_2026_09_12. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "audit_winrate.py"
+      - "test_audit_winrate.py"
+      - ".github/workflows/winrate_audit.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: python test_audit_winrate.py
+      - name: Audit (win-rate gate layer)
+        run: python audit_winrate.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: winrate-audit-result
+          path: |
+            winrate_audit.json
+          if-no-files-found: ignore
