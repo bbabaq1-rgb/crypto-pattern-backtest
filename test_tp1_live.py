@@ -247,5 +247,38 @@ check("청산 루프: 배리어 행은 OCO 상태를 먼저 보고 집행됐으�
 check("청산 루프: settle_by_algo 가 entry_ts 유실 보류보다 먼저", src2.index("if settle_by_algo(pos, live_conn, trades") < src2.index("entry_ts 유실 — "))
 check("진입: cap 주문 실패 시 페이퍼 행을 만들지 않는다(포트 계산 오염 방지)", "if cap:\n                    continue        # cap 프로젝트는 실주문만" in src2)
 
+# ── 겹친 종목 OCO — 선택지 B (2026-09-12 사용자 결정) ────────────────────────────
+# OKX net 모드가 같은 종목·방향을 한 포지션으로 합치는데 ensure_stop_orders 는 OCO 를
+# 거래소 포지션 **전체 수량**에 건다. 겹친 채로 재정렬하면 tp1 의 +1% 가 방식D 로만
+# 검증된 메인 레그까지 덮는다(9/11 SOL·ETH 2회 실측). 겹치면 재정렬을 건너뛴다.
+_i_merged = src2.index("_merged = bool(cap) and (")
+_i_realign = src2.index('replace={s["symbol"]})')
+check("재정렬 판정이 재정렬 호출보다 앞에 있다", _i_merged < _i_realign)
+check("겹침 판정은 cap 에만 걸린다(메인·cascade 는 종전 경로)", "_merged = bool(cap) and (" in src2)
+check("겹침 판정이 세 출처를 다 본다(복원 메인행 / 같은 실행 메인진입 / 장부 밖 실포지션)",
+      "_k in main_keys or _k in entered_main_run" in src2
+      and "_k in okx_dir_keys and _k not in cap_keys" in src2)
+check("겹치면 ensure_stop_orders 를 부르지 않는다", "if spec and _merged:" in src2
+      and src2.index("if spec and _merged:") < src2.index("elif spec and abs(entry - sig_entry)"))
+check("entered_main_run 은 메인 진입만 담는다", "if not cap:\n                    entered_main_run.add(_k)" in src2)
+check("entered_main_run 은 entry_blocked 에 안 넘어간다(중복 방어 동작 불변)",
+      "entry_blocked(s[\"symbol\"], s[\"direction\"], bool(cap), okx_dir_keys, main_keys, cap_keys)" in src2)
+
+# 판정 로직 자체를 동작으로 고정 — 9/11 SOL 실측 재현(같은 실행에서 메인이 먼저 진입)
+def _merged_of(is_cap, k, main_keys, entered, okx, capk):
+    return bool(is_cap) and (k in main_keys or k in entered
+                             or (k in okx and k not in capk))
+K = ("SOL", "long")
+check("SOL 실측: 같은 실행에서 메인이 먼저 들면 cap 재정렬 생략",
+      _merged_of(True, K, set(), {K}, set(), set()))
+check("ETH 실측: 전날 진입한 메인 행(복원)도 겹침으로 잡는다",
+      _merged_of(True, ("ETH", "long"), {("ETH", "long")}, set(), set(), set()))
+check("장부에 없는 실포지션도 겹침으로 잡는다",
+      _merged_of(True, K, set(), set(), {K}, set()))
+check("cap 자기 포지션만 있는 경우는 겹침 아님", not _merged_of(True, K, set(), set(), {K}, {K}))
+check("안 겹치면 종전대로 재정렬한다", not _merged_of(True, K, set(), set(), set(), set()))
+check("메인 신호(cap 아님)는 이 분기를 안 탄다 — cascade 배리어 동작 불변",
+      not _merged_of(False, K, {K}, {K}, {K}, set()))
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)
