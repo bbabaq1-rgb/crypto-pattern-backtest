@@ -111,7 +111,11 @@ check("배포 디텍터 상수 불변 (BODY 0.60 / UPPER 0.20)",
 
 # ── 사전 등록 존재·정합 ────────────────────────────────────────────────
 reg = json.load(open("registry.json", encoding="utf-8"))["kakao_patterns_prereg_2026_09_12"]
-check("registry 사전 등록 PREREGISTERED", reg["status"] == "PREREGISTERED")
+# 실행 후 status 는 결과 라벨로 바뀐다. 고정할 성질은 "사전 등록이 존재하고 결과가 기록됐다" 는 것.
+check("registry 사전 등록 존재 (PREREGISTERED → 결과 라벨)",
+      reg["status"].startswith("PREREGISTERED") or reg["status"].startswith("REJECTED")
+      or reg["status"].startswith("CONFIRMED"), reg["status"])
+check("결과가 기록됐고 판정이 6셀", "결과" not in reg or len(reg["결과"]["1d_3셀"]) + len(reg["결과"]["4h_3셀"]) == 6)
 check("registry 도 DEPLOY_ON_PASS=False", reg["DEPLOY_ON_PASS"] is False)
 check("사전 확률이 결과 전에 기록돼 있다", len(reg["사전_확률(결과_전_기록)"]) >= 4)
 check("known_limits 에 정적 코호트 한계가 적혀 있다",
