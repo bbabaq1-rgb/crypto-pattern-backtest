@@ -1,0 +1,46 @@
+name: Research — yyy + MA5xMA20 cross (post-hoc chase, preregistered)
+
+# 양양양 + MA5xMA20 상향 교차 추격 시험. **사후 선택 셀**이라 확인 4 + 반증 3 을 전부 요구한다.
+# 사전 등록 registry yyy_cross_prereg_2026_09_12. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_yyy_cross.py"
+      - "test_yyy_cross.py"
+      - "detector_ma_cross.py"
+      - ".github/workflows/yyy_cross.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: python test_yyy_cross.py
+      - name: Validate (yyy + cross chase)
+        run: python validate_yyy_cross.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yyy-cross-result
+          path: |
+            yyy_cross_result.json
+          if-no-files-found: ignore
