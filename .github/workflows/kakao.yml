@@ -1,0 +1,49 @@
+name: Research — kakao candle rules (yyy / yyb / ma3 breakout), preregistered
+
+# 지인 카톡 규칙 3종(양양양 / 양양음 / 3이평돌파) 사전 등록 시험.
+# 사전 등록 registry kakao_patterns_prereg_2026_09_12. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_kakao.py"
+      - "test_kakao.py"
+      - "detector_kakao_base.py"
+      - "detector_ma3_breakout.py"
+      - "detector_yyb.py"
+      - "detector_yyy.py"
+      - ".github/workflows/kakao.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Pull long history (data-long branch → data_long/)
+        run: |
+          git fetch --depth=1 origin data-long
+          git checkout origin/data-long -- data_long
+          ls data_long | wc -l
+      - name: Logic tests (no network)
+        run: python test_kakao.py
+      - name: Validate (kakao candle rules)
+        run: python validate_kakao.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kakao-result
+          path: |
+            kakao_result.json
+          if-no-files-found: ignore
