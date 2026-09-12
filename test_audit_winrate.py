@@ -52,6 +52,40 @@ check("boot_p 탈락도 승률 외 사유", "bp=0.300" in aw.other_fails(dict(re
 check("other_fails 는 승률을 아예 안 본다 (rec 에 win_rate 없어도 동작)",
       aw.other_fails(rec_wr_only, ok_j) == [])
 
+# ── C2b 승률 누수 제거 — 1차 실행에서 발견한 결함의 회귀 고정 ────────────
+# frame_v3.perf_ok 는 gate.dist_ok(승률)를 포함한다. 그걸 그대로 '승률 외 층' 으로 쓰면
+# 저승률 셀이 C2b 도 자동 탈락해 A3 이 영원히 빈 목록이 된다(1차 실행의 'A3 없음' 은 그 버그).
+import frame_v3 as f3
+check("frame_v3.perf_ok 는 실제로 승률을 본다 (누수의 출처)",
+      not f3.perf_ok([dict(ret=r) for r in ([-0.082] * 70 + [0.30] * 30)], [0.0], 42)[0])
+check("같은 표본이 mean>0 인데 승률로 떨어진다 (그래서 C2b 가 승률을 두 번 센다)",
+      any("승률" in x or "win" in x.lower()
+          for x in f3.perf_ok([dict(ret=r) for r in ([-0.082] * 70 + [0.30] * 30)], [0.0], 42)[1]["fails"]))
+
+# 누수 제거판은 승률을 안 본다 — 승률만 다른 두 표본이 같은 판정을 받아야 한다
+# 홀드아웃이 마지막 365일이라 날짜 범위가 1년 이하면 train 이 통째로 비어 판정이 성립 안 된다
+# → 2018~2023 으로 벌려 train 을 확보한다(이 성질 자체도 아래에서 고정).
+_YEARS = list(range(2018, 2024))
+def _sigs(rets):
+    return [dict(date=f"{_YEARS[i % len(_YEARS)]}-{(i % 12) + 1:02d}-{(i % 27) + 1:02d}", ret=r)
+            for i, r in enumerate(rets)]
+_regmap = {f"{y}-{m:02d}-{d:02d}": "ALL" for y in _YEARS for m in range(1, 13) for d in range(1, 29)}
+_lowwr = [-0.05] * 70 + [0.40] * 30      # 승률 30%, 평균 +0.085
+_highwr = [-0.05] * 50 + [0.135] * 50    # 승률 50%, 평균 +0.0425
+check("누수 제거판은 저승률·고평균 표본을 승률로 떨어뜨리지 않는다",
+      aw.c2b_no_winrate(_sigs(_lowwr), [0.0] * 50, _regmap, "ALL") is True)
+check("누수 제거판도 평균<=0 은 떨어뜨린다",
+      aw.c2b_no_winrate(_sigs([-0.05] * 100), [0.0] * 50, _regmap, "ALL") is False)
+check("누수 제거판은 train n<20 을 떨어뜨린다",
+      aw.c2b_no_winrate(_sigs([0.1] * 5), [0.0] * 50, _regmap, "ALL") is False)
+check("고승률 대조군도 같은 판정 — 갈리는 건 승률이 아니다",
+      aw.c2b_no_winrate(_sigs(_highwr), [0.0] * 50, _regmap, "ALL") is
+      aw.c2b_no_winrate(_sigs(_lowwr), [0.0] * 50, _regmap, "ALL"))
+check("other_fails 는 c2b 인자를 실제로 쓴다 (누수판을 안 쓴다)",
+      "C2b" not in aw.other_fails(dict(n=100, mean=0.05, boot_p=0.01, oos_pos=3),
+                                  dict(c2_holdout=True, c2b_train=False, c3_equity=True, E=dict(ok=True)),
+                                  c2b=True))
+
 # ── 스피어만 ───────────────────────────────────────────────────────────
 check("spearman 완전 단조 = +1", abs(aw.spearman([1, 2, 3, 4, 5], [10, 20, 30, 40, 50]) - 1.0) < 1e-9)
 check("spearman 역단조 = −1", abs(aw.spearman([1, 2, 3, 4, 5], [50, 40, 30, 20, 10]) + 1.0) < 1e-9)

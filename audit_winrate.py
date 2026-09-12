@@ -22,6 +22,7 @@ audit_winrate.py — **승률 35% 문턱 교정 감사** (2026-09-12).
 """
 import importlib
 import json
+import random
 import statistics as st
 import sys
 import time
@@ -94,7 +95,30 @@ def _f(v, w=8):
     return f"{'n/a':>{w}}" if v is None else f"{v*100:>+{w-1}.2f}%"
 
 
-def other_fails(rec, jd, core_only=False):
+
+def c2b_no_winrate(sigs, pool_rets, regmap, g, seed=vr.SEED):
+    """C2b(train 자체 게이트 & train n >= holdout n/2)를 **승률 조건 없이** 다시 계산한다.
+
+    **왜 필요한가 (1차 실행에서 발견한 내 결함)** — `frame_v3.perf_ok` 안에 `gate.dist_ok`
+    (= 승률>=35%)가 들어 있다. 그래서 `jd["c2b_train"]` 을 그대로 '승률 외 층' 으로 쓰면
+    **저승률 셀이 자동으로 C2b 도 탈락**하고, A3('승률 하나로만 떨어진 셀')은 **구조적으로
+    영원히 빈 목록**이 된다. 1차 실행(run 34682605766)의 'A3 없음' 은 데이터가 아니라 이 버그다.
+    감사하려던 바로 그 오류(층이 자기 자신을 두 번 세는 것)를 감사 코드가 저질렀다.
+    """
+    hold_set = f3.holdout_dates(regmap, g)
+    train, hold = f3.split(sigs, hold_set)
+    if len(train) < f3.TRAIN_MIN_N:
+        return False
+    rets = [s["ret"] for s in train]
+    mean = st.mean(rets)
+    boot_p = 1.0
+    if pool_rets:
+        rng = random.Random(seed)
+        means = [st.mean(rng.choices(pool_rets, k=len(rets))) for _ in range(1000)]
+        boot_p = sum(1 for m in means if m >= mean) / 1000
+    return mean > 0 and boot_p < 0.05 and len(train) >= len(hold) * f3.TRAIN_MIN_RATIO
+
+def other_fails(rec, jd, core_only=False, c2b=None):
     """**승률을 뺀** 나머지 층의 실패 목록. 이게 비어야 '승률 하나로만 떨어졌다'.
     core_only=True 면 C1 계열(n·평균·boot_p·OOS)만 본다 — A2b 진단용."""
     f = []
@@ -104,7 +128,7 @@ def other_fails(rec, jd, core_only=False):
     if rec["n"] >= gate.MIN_N and rec["oos_pos"] < 2: f.append(f"OOS{rec['oos_pos']}/4")
     if core_only: return f
     if not jd["c2_holdout"]: f.append("holdout")
-    if not jd["c2b_train"]: f.append("C2b")
+    if not (jd["c2b_train"] if c2b is None else c2b): f.append("C2b")
     if not jd["c3_equity"]: f.append("C3")
     if not jd["E"]["ok"]: f.append("E")
     return f
@@ -151,6 +175,7 @@ def main(argv=None):
             continue
         rec = vr.gate_cell(sigs, pool)
         jd = f3.judge(sigs, pool, regmap, c["regime"], equity_fn=lambda t, s: vr.equity(t, s))
+        c2b = c2b_no_winrate(sigs, pool, regmap, c["regime"])   # 승률 누수 제거판
         eq = jd["equity"] or {}
         rows.append(dict(
             cid=f"{c['cid']}|{c['regime']}", tf=tf, src=c["src"], n=rec["n"],
@@ -159,7 +184,8 @@ def main(argv=None):
             top5=rec["top5_share"], boot_p=rec["boot_p"], edge=rec["edge"], oos=rec["oos_pos"],
             calmar=eq.get("calmar"), cagr=eq.get("cagr"),
             ho_n=jd["holdout"]["n"], ho_mean=jd["holdout"]["mean"],
-            other_fails=other_fails(rec, jd), core_fails=other_fails(rec, jd, core_only=True),
+            other_fails=other_fails(rec, jd, c2b=c2b), core_fails=other_fails(rec, jd, core_only=True),
+            c2b_raw=jd["c2b_train"], c2b_no_wr=c2b,
             verdict=jd["verdict"]))
         print(f"  {rows[-1]['cid'][:42]:<42} n={rec['n']:>5} 승률 {rec['win_rate']*100:>3.0f}% "
               f"건당 {_f(rec['mean'])} 홀드아웃 {_f(jd['holdout']['mean'])} "
