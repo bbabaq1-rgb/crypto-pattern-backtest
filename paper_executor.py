@@ -1109,6 +1109,11 @@ def run(stamp=None):
                           if p.get("live_mode") and not p.get("d_closed")}
     # 메인 전략 / live_cap 프로젝트 분리(2026-09-09) — entry_blocked 참조
     main_keys, cap_keys = dir_key_sets(still_open)
+    # 이번 실행에서 메인 신호가 새로 든 (symbol, direction). **배리어 재정렬 판정 전용**이고
+    # entry_blocked 에는 안 넘긴다 — 중복 방어 동작을 바꾸지 않기 위해서다.
+    # 필요한 이유: 같은 실행에서 메인이 먼저 들고 cap 이 뒤따르면(2026-09-11 SOL 실측)
+    # main_keys·okx_dir_keys 는 실행 시작 스냅샷이라 그 겹침을 못 본다.
+    entered_main_run = set()
 
     # 장부 구성 진단(2026-09-08 사용자 결정 B) — **출력만, 거래 동작 무변경**.
     # 계기: OKX 앱 실포지션 13 vs 로그 '오픈 16건' 불일치(사용자 지적). 그 16 은 장부 행 수다.
@@ -1277,7 +1282,23 @@ def run(stamp=None):
                 # 그런데 위에서 넘긴 손절·익절은 신호봉 종가 기준이고 실제 체결은
                 # 수십 분 뒤 시장가라, 그대로 두면 체결가로부터의 거리가 ±1.5ATR 이
                 # 아니게 된다 = 검증과 다른 청산 규칙. 체결가 기준으로 다시 걸어준다.
-                if spec and abs(entry - sig_entry) > 1e-12:
+                _k = (s["symbol"], s["direction"])
+                # **겹친 종목에서는 재정렬을 건너뛴다** (2026-09-12 사용자 결정 B,
+                # registry shared_symbol_oco_2026_09_11). OKX net 모드는 같은 종목·방향을
+                # 한 포지션으로 합치는데, ensure_stop_orders 는 OCO 를 **거래소 포지션 전체
+                # 수량**(p["qty"])에 건다 — 재정렬하면 tp1 의 +1% 익절이 방식D 로만 검증된
+                # 메인 레그까지 덮어 함께 청산한다(9/11 SOL·ETH 2회 실측).
+                # 건너뛰면 진입 시 건 OCO(place_swap_entry 가 filled_qty = 자기 계약 수로
+                # 등록)와 메인 자기 손절이 **둘 다 그대로 산다**. 대가는 배리어 기준점이
+                # 체결가가 아니라 신호봉 종가라는 것뿐(실측 편차 0.05~0.20%).
+                _merged = bool(cap) and (
+                    _k in main_keys or _k in entered_main_run
+                    or (_k in okx_dir_keys and _k not in cap_keys))
+                if spec and _merged:
+                    print(f"  [live] {s['symbol']} 겹친 종목(메인 보유) — 배리어 재정렬 생략. "
+                          f"진입 OCO(자기 계약 수) 유지, 메인 손절 보존 "
+                          f"(신호 {sig_entry:.6f} → 체결 {entry:.6f})")
+                elif spec and abs(entry - sig_entry) > 1e-12:
                     bar_r = xb.barriers(spec, rows, ei, entry, s["direction"])
                     if bar_r is not None:
                         stop_px, target_px, _ = bar_r
@@ -1290,6 +1311,8 @@ def run(stamp=None):
                     print(f"  [live] {s['symbol']} 배리어를 체결가 기준으로 재정렬 "
                           f"(신호 {sig_entry:.6f} → 체결 {entry:.6f}, "
                           f"stop {stop_px:.6f} / target {target_px:.6f}) 재등록={ok_r}")
+                if not cap:
+                    entered_main_run.add(_k)
                 size_for_pos = result.get("size_usd", live_size_usd)
                 live_open_count   += 1
                 live_filled_count += 1
