@@ -559,13 +559,19 @@ def get_okx_closed_positions(live_conn, limit=50):
     return out
 
 
-def close_swap_position(live_conn, symbol, direction, sl_algo_id=None, qty=None):
+def close_swap_position(live_conn, symbol, direction, sl_algo_id=None, qty=None,
+                        qty_frac=None):
     """
     OKX 포지션 시장가 청산(reduceOnly) + 잔여 손절 algo 취소.
 
     qty 를 주면 **그 계약 수만**(실포지션보다 크면 실포지션까지) 닫는다 — 같은 종목·방향을
-    두 장부 행(메인 전략 + $30 별도 프로젝트 tp1)이 나눠 들고 있을 때 한쪽 청산이 다른 쪽까지
-    닫지 않게 하기 위한 것(2026-09-09). 없으면 종전대로 전량.
+    두 장부 행(메인 전략 + 별도 프로젝트 tp1)이 나눠 들고 있을 때 한쪽 청산이 다른 쪽까지
+    닫지 않게 하기 위한 것(2026-09-09). 둘 다 없으면 종전대로 전량.
+
+    qty_frac 은 qty 를 모를 때(DB 복원으로 live_order 유실) 쓰는 **지분 비율** — 실포지션 수에
+    곱하고 거래소 정밀도로 반올림한다. 계약 단위(ctVal)를 알 필요가 없고 레버리지 추정 오차도
+    비율에서 상쇄된다. **qty_frac<=0 이면 주문을 아예 내지 않는다**("share_unknown") — 몫을
+    모른 채 전량을 닫는 것이 2026-09-16 ONDO 사고의 원인이었다.
 
     반환: (fill_price | None, "ok")  성공
           (None, reason)             실패 — 호출부는 포지션 유지 후 재시도
@@ -581,7 +587,17 @@ def close_swap_position(live_conn, symbol, direction, sl_algo_id=None, qty=None)
                 break
         if have <= 0:
             return None, "no_position"      # 이미 닫힘(손절 체결 등)
-        qty = have if not qty else min(float(qty), have)
+        if qty is None and qty_frac is not None:
+            if float(qty_frac) <= 0:
+                return None, "share_unknown"     # 몫을 모름 → 전량 청산 대신 보류
+            qty = have * float(qty_frac)
+            try:
+                qty = float(ex.amount_to_precision(ccxt_sym, qty))
+            except Exception:
+                pass
+            if qty <= 0:
+                return None, "share_unknown"
+        qty = have if qty is None else min(float(qty), have)
         if qty <= 0:
             return None, "no_position"
         close_side = "sell" if direction == "long" else "buy"

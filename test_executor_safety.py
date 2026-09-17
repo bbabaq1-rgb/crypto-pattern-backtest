@@ -288,5 +288,36 @@ check("장부 줄 다음에 슬롯점유 줄을 찍는다", "[슬롯점유] {occ
 check("계측은 진입 판정에 관여하지 않는다(슬롯 체크는 live_open_count 그대로)",
       "elif live_open_count >= MAX_LIVE_POS:" in _src2)
 
+# ── 청산 사유 라벨 (2026-09-17) — OKX type 2 는 '전량 청산'이지 손절이 아니다 ──────────
+# 실측 6건을 그대로 고정한다. 앞 4건은 종전 코드가 '손절(OKX algo)' 로 잘못 적었고
+# (10/06 관찰 보고의 손절 비율 표를 왜곡), 뒤 2건은 진짜 손절이라 라벨이 유지돼야 한다.
+_LBL = [
+    ("ETHFI 갭 손절 −8.72%",   "vol_awakening_4h", 0.6942, 0.6387, 0.6336, "2", "손절(OKX algo)"),
+    ("RAY 손절 −7.69%",        "fvg",              1.5414, 1.4181, 1.4229, "2", "손절(OKX algo)"),
+    ("BTC 오라벨 +0.56%",      "equal_lows_4h",  72566.0, 66760.7, 72972.0, "2", "OKX청산"),
+    ("ETH 오라벨 +2.27%",      "equal_lows_4h",  2468.35, 2270.9, 2529.57, "2", "OKX청산"),
+    ("SOL 오라벨 +0.74%",      "equal_lows_4h",    99.36,  91.41,  100.29, "2", "OKX청산"),
+    ("ETH 오라벨 −0.27%",      "triple_bottom_4h", 2568.0, 2362.6, 2566.25, "2", "OKX청산"),
+]
+for _d, _pat, _e, _st, _fl, _t, _exp in _LBL:
+    _p = dict(pattern=_pat, direction="long", entry_price=_e, stop=_st, target=None)
+    check(f"청산 라벨: {_d} → {_exp}", pe.exit_reason_of(_p, _fl, _t) == _exp,
+          pe.exit_reason_of(_p, _fl, _t))
+_tp1 = dict(pattern="tp1_engulfing_1h", direction="long", entry_price=52.372, stop=48.182, target=52.896)
+check("청산 라벨: tp1 OCO 익절(+1%) 은 '익절(OKX algo)'", pe.exit_reason_of(_tp1, 52.88, "2") == "익절(OKX algo)")
+_liq = dict(pattern="fvg", direction="long", entry_price=10.0, stop=9.2, target=None)
+check("청산 라벨: 강제청산(3·4)·ADL(5)은 따로 구분한다",
+      pe.exit_reason_of(_liq, 9.1, "3") == "강제청산(OKX)" and pe.exit_reason_of(_liq, 9.1, "4") == "강제청산(OKX)"
+      and pe.exit_reason_of(_liq, 9.9, "5") == "ADL(OKX)")
+_sh = dict(pattern="fvg", direction="short", entry_price=10.0, stop=10.8, target=None)
+check("청산 라벨: 숏도 부호가 맞는다(손절은 위쪽)", pe.exit_reason_of(_sh, 10.79, "2") == "손절(OKX algo)"
+      and pe.exit_reason_of(_sh, 9.5, "2") == "OKX청산")
+check("청산 라벨: 손익 부호가 어긋나면 배리어에 붙이지 않는다(수익인데 손절 금지)",
+      pe.exit_reason_of(dict(pattern="fvg", direction="long", entry_price=10.0, stop=10.0, target=None),
+                        10.05, "2") != "손절(OKX algo)")
+check("청산 라벨 교정은 reason 문자열만 — reconcile 이 그 함수를 쓴다",
+      "reason = exit_reason_of(pos, fill, hist.get(\"type\"))" in _src
+      and 'hist.get("type") in ("2", "3", "5")' not in _src)
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

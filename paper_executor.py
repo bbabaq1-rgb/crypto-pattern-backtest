@@ -163,18 +163,53 @@ def entry_blocked(symbol, direction, is_cap, okx_dir_keys, main_keys, cap_keys):
     return key in okx_dir_keys and key not in cap_keys
 
 
+def live_leverage_of(pos):
+    """
+    이 행의 레버리지. live_order 가 원천이고, DB 복원으로 유실되면 규격에서 되살린다
+    (cap 패턴은 LIVE_CAPS 고정값, 나머지는 현행 sizing.LEV_CAP).
+    """
+    lo = pos.get("live_order") or {}
+    if lo.get("leverage"):
+        return float(lo["leverage"])
+    cap = LIVE_CAPS.get(pos.get("pattern")) or {}
+    if cap.get("leverage"):
+        return float(cap["leverage"])
+    try:
+        import sizing
+        return float(getattr(sizing, "LEV_CAP", 2) or 2)
+    except Exception:
+        return 2.0
+
+
 def close_qty_for(pos, positions):
     """
-    D 청산 시 시장가로 닫을 계약 수. 같은 종목·방향을 다른 살아 있는 실거래 행이 함께 들면
-    **자기 계약 수만**(live_order.qty) 닫는다. 아니면 None(전량 — 종전 동작).
+    D 청산 시 시장가로 닫을 몫. 같은 종목·방향을 다른 살아 있는 실거래 행이 함께 들면
+    **자기 몫만** 닫는다.
+
+    반환 (qty, frac)
+      (None, None)  단독 보유 → 전량(종전 동작)
+      (qty,  None)  자기 계약 수를 안다(같은 실행에서 진입) → 그 계약 수만
+      (None, frac)  DB 복원으로 live_order 가 유실됨 → 명목가 **지분 비율**만큼
+      (None, 0.0)   지분조차 못 구함 → **아무것도 닫지 않는다**(전량 청산보다 안전, 다음 틱 재시도)
+
+    2026-09-16 ONDO 사고: 진입 다음 실행에 청산돼 live_order 가 이미 유실됐는데 종전 코드가
+    qty=None → **전량**으로 떨어져 메인 equal_lows_4h 레그까지 끌고 나갔다(-3.51%). 비율 경로는
+    거래소 실포지션 수에 곱하므로 계약 단위(ctVal)·레버리지 추정 오차가 분자·분모에서 상쇄된다.
     """
     key = (pos["symbol"], pos["direction"])
     others = [p for p in positions if p is not pos and p.get("live_mode") and not p.get("d_closed")
               and (p["symbol"], p["direction"]) == key]
     if not others:
-        return None
+        return None, None
     q = (pos.get("live_order") or {}).get("qty")
-    return float(q) if q else None
+    if q:
+        return float(q), None
+    notional = lambda p: float(p.get("size_usd") or 0) * live_leverage_of(p)
+    mine = notional(pos)
+    total = mine + sum(notional(p) for p in others)
+    if mine <= 0 or total <= 0:
+        return None, 0.0
+    return None, min(1.0, mine / total)
 
 
 def settle_by_algo(pos, live_conn, trades, today):
@@ -551,6 +586,11 @@ def push_positions_db(new_positions):
              "target": p.get("target"), "entry_ts": p.get("entry_ts"),
              "tf": p.get("tf"), "regime": p.get("regime"), "entry_regime": p.get("entry_regime"),
              "live_mode": bool(p.get("live_mode", False)),
+             # live_order 의 셋 — 컬럼 미존재 시 insert_tolerant 가 자동 제외하고
+             # close_qty_for 의 지분 비율 폴백이 대신 받는다(2026-09-17).
+             "qty": (p.get("live_order") or {}).get("qty"),
+             "leverage": (p.get("live_order") or {}).get("leverage"),
+             "sl_order_id": (p.get("live_order") or {}).get("sl_order_id"),
              "status": "open",
              "method": "AD-LIVE" if p.get("live_mode") else "AD"} for p in new_positions]
     try:
@@ -667,6 +707,19 @@ def shadow_r_records(trades, rows_of, regmap, since=R_SHADOW_SINCE):
     return added
 
 
+def _live_order_from_db(row):
+    """
+    positions 행에서 live_order 를 되살린다(qty / leverage / sl_order_id).
+
+    이 셋은 2026-09-17 까지 **어디에도 저장되지 않아** 진입 다음 실행부터 유실됐다. 그 결과
+    close_qty_for 가 '몫을 모름' → None(전량)으로 떨어져 같은 종목을 나눠 든 메인 레그까지
+    닫혔고(2026-09-16 ONDO, 2026-09-14 ETH), sl_order_id 가 없어 'OCO 가 이미 집행됐는가'
+    가드까지 건너뛰어졌다. 컬럼이 아직 없으면 {} 가 아니라 None 을 돌려 '모른다'를 명시한다.
+    """
+    lo = {k: row.get(k) for k in ("qty", "leverage", "sl_order_id") if row.get(k) is not None}
+    return lo or None
+
+
 def restore_state_db(positions, trades):
     """
     러너(빈 파일시스템)에서 Supabase로 상태 복원.
@@ -727,6 +780,9 @@ def restore_state_db(positions, trades):
                     target=p.get("target"),
                     size_usd=p.get("size_usd") or POS_USD,
                     live_mode=is_live,
+                    # 컬럼이 있으면 live_order 를 되살린다. 없으면 None 이고 close_qty_for 는
+                    # 지분 비율로, settle_by_algo 는 보류로 떨어진다(둘 다 안전 쪽).
+                    live_order=_live_order_from_db(p),
                     d_closed=key + ("D",) in closed_am,
                     a_closed=key + ("A",) in closed_am))
             if pr:
@@ -829,6 +885,49 @@ def reconcile_live_flag(positions, live_conn):
     return positions
 
 
+BARRIER_TOL = 0.015   # 체결가가 배리어에서 이만큼 안이면 그 배리어가 집행된 것으로 본다
+
+
+def exit_reason_of(pos, fill, okx_type):
+    """
+    엔진 밖에서 닫힌 실거래 행의 청산 사유. **체결가를 배리어와 대조해** 판정한다.
+
+    종전에는 OKX positions-history 의 type 2/3/5 를 전부 '손절(OKX algo)' 로 적었는데
+    **type 2 는 '손절' 이 아니라 '전량 청산'** 이다(1 부분청산 · 2 전량 · 3 강제청산 ·
+    4 부분강제 · 5 ADL). 그래서 익절·수동 청산·다른 행의 시장가 청산까지 전부 손절로
+    기록됐다 — 2026-09-16 기준 오라벨 4건(BTC +0.56% · ETH +2.27% · SOL +0.74% ·
+    ETH −0.27%) / 정라벨 2건. 10/06 관찰 보고가 셀별 **손절 비율**을 집계하므로
+    라벨이 틀리면 정지·유지 판단의 근거가 통째로 틀어진다.
+
+    강제청산(3·4)·ADL(5)은 거래소 사건이라 그대로 구분해 남긴다. 나머지는 손절가·익절가
+    중 BARRIER_TOL 안에 있는 쪽으로 붙이고(트리거 주문은 갭·슬리피지로 조금 빗나간다 —
+    실측 RAY 는 손절선에서 0.31% 벗어나 체결됐다), 어느 쪽도 아니면 'OKX청산'(수동·외부).
+    손익 부호가 라벨과 어긋나면(수익인데 손절) 붙이지 않는다.
+
+    **reason 문자열만 바뀐다 — 주문·청산·포지션 수명은 건드리지 않는다.**
+    """
+    t = str(okx_type or "")
+    if t in ("3", "4"):
+        return "강제청산(OKX)"
+    if t == "5":
+        return "ADL(OKX)"
+    entry = float(pos.get("entry_price") or 0)
+    try:
+        stop, target = barriers_of(pos)
+    except Exception:
+        stop = target = None
+    if not (fill and entry):
+        return "OKX청산"
+    long_ = pos.get("direction") == "long"
+    gain = (fill - entry) / entry if long_ else (entry - fill) / entry
+    near = lambda px: px and abs(fill - float(px)) / fill <= BARRIER_TOL
+    if near(stop) and gain <= 0:
+        return "손절(OKX algo)"
+    if near(target) and gain >= 0:
+        return "익절(OKX algo)"
+    return "OKX청산"
+
+
 def reconcile_closed_positions(positions, trades, live_conn):
     """
     엔진 몰래 OKX에서 청산된 실거래 포지션을 잡아 기록·정리.
@@ -860,7 +959,7 @@ def reconcile_closed_positions(positions, trades, live_conn):
             print(f"  [reconcile-close] {pos['symbol']} 진입가 0 — 수익률 계산 불가, 0 으로 기록")
         ret = (((fill - base) / base if pos["direction"] == "long"
                 else (base - fill) / base) if base else 0.0)
-        reason = "손절(OKX algo)" if hist.get("type") in ("2", "3", "5") else "OKX청산"
+        reason = exit_reason_of(pos, fill, hist.get("type"))
         pos["entry_idx"] = pos.get("entry_idx", 0)
         _record_trade(trades, pos, "D",
                       (pos["entry_idx"], fill, ret - FEE, reason),
@@ -1025,9 +1124,10 @@ def run(stamp=None):
                             elif st_.get("state") == "effective":
                                 fill, why = None, "no_position"
                         if why is None:
+                            q_, frac_ = close_qty_for(pos, positions)
                             fill, why = ex_mod.close_swap_position(
                                 live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id,
-                                qty=close_qty_for(pos, positions))
+                                qty=q_, qty_frac=frac_)
                         if why == "ok":
                             if fill and pos["entry_price"]:   # 실체결가로 D 기록 교체
                                 base = pos["entry_price"]

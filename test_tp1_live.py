@@ -205,8 +205,23 @@ check("cap 신호: 자기 프로젝트가 이미 들면 막는다", pe.entry_blo
 check("메인 신호: cap 만 든 SOL 롱은 막지 않는다(거래소 포지션이 cap 행으로 설명됨)", not pe.entry_blocked("SOL", "long", False, okx, mk, ck))
 check("메인 신호: 장부에 없는 거래소 포지션(DOT)은 여전히 막는다", pe.entry_blocked("DOT", "long", False, okx, mk, ck))
 check("메인 신호: 메인 행이 있으면 막는다", pe.entry_blocked("LTC", "long", False, okx, mk, ck))
-check("close_qty_for: 같은 종목·방향을 나눠 들면 자기 계약 수만", pe.close_qty_for(rows_[1], rows_) == 1.0 and pe.close_qty_for(rows_[0], rows_) == 3.0)
-check("close_qty_for: 단독이면 None(전량, 종전 동작)", pe.close_qty_for(rows_[3], rows_) is None)
+check("close_qty_for: 같은 종목·방향을 나눠 들면 자기 계약 수만", pe.close_qty_for(rows_[1], rows_) == (1.0, None) and pe.close_qty_for(rows_[0], rows_) == (3.0, None))
+check("close_qty_for: 단독이면 (None, None) = 전량(종전 동작)", pe.close_qty_for(rows_[3], rows_) == (None, None))
+
+# ── live_order 유실(DB 복원) 시 전량 청산으로 떨어지지 않는다 (2026-09-17, ONDO 사고) ──
+_share = [dict(symbol="ONDO", direction="long", pattern="equal_lows_4h", live_mode=True, d_closed=False, size_usd=30.0),
+          dict(symbol="ONDO", direction="long", pattern=PAT, live_mode=True, d_closed=False, size_usd=70.0)]
+_q_main, _f_main = pe.close_qty_for(_share[0], _share)
+_q_cap,  _f_cap  = pe.close_qty_for(_share[1], _share)
+check("close_qty_for: live_order 유실 → 전량(None) 이 아니라 명목가 지분 비율",
+      _q_main is None and _q_cap is None and abs(_f_cap - 0.7) < 1e-9 and abs(_f_main - 0.3) < 1e-9, (_f_main, _f_cap))
+check("close_qty_for: 지분 비율 합은 1 (거래소 실포지션을 남김없이·중복없이 나눈다)",
+      abs((_f_main + _f_cap) - 1.0) < 1e-9)
+check("close_qty_for: 레버리지는 규격에서 되살린다(cap=LIVE_CAPS, 나머지=sizing.LEV_CAP)",
+      pe.live_leverage_of(_share[1]) == float(cap["leverage"]) and pe.live_leverage_of(dict(pattern="fvg")) == float(__import__("sizing").LEV_CAP))
+_unk = [dict(symbol="Z", direction="long", pattern="fvg", live_mode=True, d_closed=False, size_usd=0),
+        dict(symbol="Z", direction="long", pattern=PAT, live_mode=True, d_closed=False, size_usd=0)]
+check("close_qty_for: 지분조차 모르면 (None, 0.0) — 주문 보류 신호", pe.close_qty_for(_unk[0], _unk) == (None, 0.0))
 
 # close_swap_position qty 클램프 — 가짜 거래소
 class _Ex:
@@ -222,6 +237,10 @@ fx = _Ex(); ex_mod.close_swap_position(dict(exchange=fx), "X", "long", qty=9.0)
 check("close_swap_position(qty>실포지션) 은 실포지션까지만", fx.orders[0][1] == 3.0)
 fx = _Ex(); ex_mod.close_swap_position(dict(exchange=fx), "X", "long")
 check("close_swap_position(qty 없음) 은 전량(종전)", fx.orders[0][1] == 3.0)
+fx = _Ex(); fill, why = ex_mod.close_swap_position(dict(exchange=fx), "X", "long", qty_frac=1/3)
+check("close_swap_position(qty_frac) 은 실포지션 × 비율만 닫는다", why == "ok" and abs(fx.orders[0][1] - 1.0) < 1e-9, fx.orders)
+fx = _Ex(); fill, why = ex_mod.close_swap_position(dict(exchange=fx), "X", "long", qty_frac=0.0)
+check("close_swap_position(qty_frac=0) 은 주문을 아예 안 낸다 — 전량 청산 금지", why == "share_unknown" and not fx.orders, (why, fx.orders))
 
 # settle_by_algo — 거래소가 OCO 를 집행한 경우 봉 없이 기록
 _orig_state = ex_mod.algo_state
@@ -243,7 +262,7 @@ try:
 finally:
     ex_mod.algo_state = _orig_state
 src2 = open("paper_executor.py", encoding="utf-8").read()
-check("청산 루프: 배리어 행은 OCO 상태를 먼저 보고 집행됐으면 시장가를 안 낸다", 'elif st_.get("state") == "effective":' in src2 and "qty=close_qty_for(pos, positions)" in src2)
+check("청산 루프: 배리어 행은 OCO 상태를 먼저 보고 집행됐으면 시장가를 안 낸다", 'elif st_.get("state") == "effective":' in src2 and "qty=q_, qty_frac=frac_" in src2)
 check("청산 루프: settle_by_algo 가 entry_ts 유실 보류보다 먼저", src2.index("if settle_by_algo(pos, live_conn, trades") < src2.index("entry_ts 유실 — "))
 check("진입: cap 주문 실패 시 페이퍼 행을 만들지 않는다(포트 계산 오염 방지)", "if cap:\n                    continue        # cap 프로젝트는 실주문만" in src2)
 
