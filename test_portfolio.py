@@ -152,16 +152,17 @@ check("시험이 상수·함수를 원복했다",
       vp.START_EQ == ss.START_EQ and sz.risk_based_size is _RBS0
       and abs(sz.MAX_TOTAL_NOTIONAL_FRAC - 2.5) < 1e-9)
 # **2026-09-10 RISK_FRAC 1.5% -> 1.0% 하향으로 이 성질이 뒤집혔다.** 종전에는 총명목가
-# 상한(2.5x)이 MAX_POS 보다 먼저 걸려(건당 명목가 18.75% → 13.3개) 슬롯을 구조적으로 못
-# 채웠고, 이 시험의 '슬롯 경합'이 명목가 상한과 섞여 있었다. 1% 에서는 건당 12.5% 라
-# 상한 도달이 20개로 물러나 **MAX_POS 16 이 비로소 진짜 상한**이 된다.
+# 상한(2.5x)이 MAX_POS 보다 먼저 걸리면 이 시험의 '슬롯 경합'이 명목가 상한과 섞인다.
+# 2026-09-18 재상향(risk 1.5%, 건당 18.75% → 상한 13.3개)에서는 **MAX_POS 를 13 으로 함께
+# 내려** 슬롯이 먼저 걸리게 맞췄다 — 두 상수를 한 쌍으로 유지하는 것이 이 단언의 목적이다.
 # 포트폴리오 프레임(run 34432328827)이 holdout 병목을 슬롯 440 vs 증거금 2,750 으로 짚은 자리다.
 _r_def = vp.simulate([T(0, 50, 0.0, "P", sym=f"S{i}") for i in range(vp.MAX_POS + 5)], "current")
-check("기본 상수에서 MAX_POS 가 총명목가 상한보다 먼저 걸린다 (1% 하향 후)",
+check("기본 상수에서 MAX_POS 가 총명목가 상한보다 먼저 걸린다",
       _r_def["taken"] == vp.MAX_POS and _r_def["skip_slot"] > 0
       and _r_def["skip_margin"] == 0, _r_def)
-check("총명목가 상한 도달 지점이 MAX_POS 뒤에 있다 (20개 > 16)",
-      sz.MAX_TOTAL_NOTIONAL_FRAC / (sz.RISK_FRAC / 0.08) > vp.MAX_POS)
+check("총명목가 상한 도달 지점이 MAX_POS 이상 — 슬롯이 진짜 상한이다",
+      sz.MAX_TOTAL_NOTIONAL_FRAC / (sz.RISK_FRAC / 0.08) >= vp.MAX_POS,
+      (sz.MAX_TOTAL_NOTIONAL_FRAC / (sz.RISK_FRAC / 0.08), vp.MAX_POS))
 
 
 # ── 11. 1d 와 4h 가 같은 시간축 (2026-09-10 1차 실행 무효화 버그의 회귀 시험) ─────────

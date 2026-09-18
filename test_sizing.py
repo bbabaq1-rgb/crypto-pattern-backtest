@@ -2,6 +2,11 @@
 import sys
 import sizing as sz
 
+
+def _pe_slots():
+    import paper_executor
+    return paper_executor.MAX_LIVE_POS
+
 fails = []
 def check(name, cond, detail=""):
     print(("PASS " if cond else "FAIL ") + name + ("" if cond else f" — {detail}"))
@@ -91,30 +96,40 @@ check("legacy 는 진입 순서에 따라 크기가 요동",
       sz.legacy_size(479.79, 5)["margin_usd"] > sz.legacy_size(157.23, 5)["margin_usd"] * 3)
 # 문턱 = MIN_MARGIN x lev x stop / risk — risk 에 반비례, 레버리지에 비례한다.
 # risk 1%/lev2 $160 → risk 1.5%/lev2 $107 → risk 1.5%/lev3 $160 → risk 1%/lev3 $240.
-check("문턱이 파라미터와 일치 (risk 1.0% / lev 3 → $240)", abs(thr - 240.0) < 0.01, thr)
+# 값을 하드코딩하면 파라미터가 바뀔 때 조용히 무의미해진다(2026-09-04 전례) → 식에서 유도한다.
+check(f"문턱이 파라미터와 일치 (risk {sz.RISK_FRAC:.1%} / lev {sz.LEV_CAP} → ${thr:.0f})",
+      abs(thr - sz.MIN_MARGIN * sz.LEV_CAP * 0.08 / sz.RISK_FRAC) < 1e-9, thr)
+check("현행 문턱은 배율 1.0 기준 $160 (risk 1.5% / lev 3, 2026-09-18)", abs(thr - 160.0) < 0.01, thr)
 check("문턱 바로 위 equity 에서는 주문 가능",
       sz.risk_based_size(thr * 1.01, thr, 0.08) is not None)
 check("문턱 바로 아래 equity 에서는 스킵",
       sz.risk_based_size(thr * 0.99, thr, 0.08) is None)
-check("채택 기본값 고정: RISK_FRAC 1.0% (사용자 결정 2026-09-10 하향)", sz.RISK_FRAC == 0.010)
-check("채택 기본값 고정: LEV_CAP 3 (2026-09-04 상향, 2026-09-10 risk 1% 에서도 유지)", sz.LEV_CAP == 3)
-# 1%/lev3 을 고른 이유는 1%/lev2 와의 차이에 있다 — 그 둘은 증거금·문턱이 완전히 같고
-# (risk/lev 이 같으므로) 명목가만 다르다. lev 3 이 사는 것은 포지션당 증거금 축소뿐이다.
+check("채택 기본값 고정: RISK_FRAC 1.5% (사용자 결정 2026-09-18 재상향, MAX_POS 13 과 한 쌍)",
+      sz.RISK_FRAC == 0.015)
+check("채택 기본값 고정: LEV_CAP 3 (2026-09-04 상향, risk 1.0%/1.5% 양쪽에서 유지)", sz.LEV_CAP == 3)
+# risk/lev 이 같으면 증거금·최소주문 문턱이 완전히 같고 명목가만 다르다 — 이 항등식이
+# 2026-09-10(1%/lev3)과 2026-09-18(1.5%/lev3) 두 결정의 공통 근거다. 파라미터와 무관한 산술.
 check("risk 1%/lev2 는 1.5%/lev3 과 증거금·문턱이 동일 — lev 3 을 고른 근거",
       abs((0.010 / 0.08 / 2) - (0.015 / 0.08 / 3)) < 1e-12
       and abs(sz.MIN_MARGIN * 2 * 0.08 / 0.010 - sz.MIN_MARGIN * 3 * 0.08 / 0.015) < 1e-9)
-check("16슬롯 증거금이 equity 안에 들어온다 (lev 3 → 67%, lev 2 였다면 100%)",
-      abs(sz.RISK_FRAC / 0.08 / sz.LEV_CAP * 16 - 0.6667) < 1e-3)
+# 슬롯 수는 하드코딩하지 않는다 — 2026-09-04 에 하드코딩 단언이 조용히 무의미해진 전례가 있다.
+check("전 슬롯 증거금이 equity 안에 들어온다 (1.5%/lev3/13슬롯 → 81%)",
+      sz.RISK_FRAC / 0.08 / sz.LEV_CAP * _pe_slots() < 1.0)
 check("8% 손절에서 청산 거리가 손절폭의 2배 이상 (LIQ_SAFETY)",
       (1 / sz.liq_safe_leverage(0.08) - sz.MMR) >= sz.LIQ_SAFETY * 0.08)
 check("lev 3 에서 12슬롯 증거금이 equity $400 안에 들어온다 (lev 2 는 $450 로 초과했다)",
       sz.risk_based_size(400, 1e9, 0.08)["margin_usd"] * 12 <= 400)
 import paper_executor as _pe, sizing_study as _ss
-check("MAX_LIVE_POS 16 (사용자 결정 2026-09-05) — 연구 상수 sizing_study.MAX_POS 와 동일", _pe.MAX_LIVE_POS == 16 == _ss.MAX_POS)
-# risk 1.5% 시절에는 16슬롯 증거금이 equity 와 정확히 같아(100%) 슬롯을 구조적으로 못 채웠다.
-# 1% 하향으로 3분의 2가 되어 여유가 생긴다 — 이번 하향이 실제로 산 것이 이것이다.
-check("16슬롯 증거금이 equity 의 3분의 2로 내려간다 (1.5% 시절엔 100%)",
-      abs(sz.risk_based_size(400, 1e9, 0.08)["margin_usd"] * 16 - 400 * 2 / 3) < 0.1)
+check("MAX_LIVE_POS 13 (사용자 결정 2026-09-18) — 연구 상수 sizing_study.MAX_POS 와 동일",
+      _pe.MAX_LIVE_POS == 13 == _ss.MAX_POS)
+# **MAX_POS 와 RISK_FRAC 은 한 쌍이다.** 건당 명목가가 equity x RISK_FRAC/STOP 이므로 총명목
+# 상한(2.5배)이 걸리는 지점이 risk 에 반비례한다 — 1.5% 면 13.3개. MAX_POS 가 그보다 크면
+# 초과분은 슬롯이 아니라 상한 스킵이 되어 슬롯 숫자가 허상이 된다(2026-09-05~09-18 의 16 이 그랬다).
+_cap_n = sz.MAX_TOTAL_NOTIONAL_FRAC / (sz.RISK_FRAC / 0.08)
+check("MAX_POS 가 총명목가 상한 도달 지점 이하 — 슬롯이 진짜 상한이다",
+      _pe.MAX_LIVE_POS <= _cap_n, (_pe.MAX_LIVE_POS, round(_cap_n, 2)))
+check("한 칸 더 늘리면 상한을 넘는다 — 13 이 그 경계",
+      _pe.MAX_LIVE_POS + 1 > _cap_n, (_pe.MAX_LIVE_POS + 1, round(_cap_n, 2)))
 
 
 # ── 엔진 연결 (소스 단언) ────────────────────────────────────────────────────
