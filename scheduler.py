@@ -39,6 +39,23 @@ SYMBOLS = _universe()
 FOCUS = ["engulfing", "fvg"]
 STOP = 0.08
 
+
+def _px(v):
+    """신호 가격 반올림 — 저가 코인 보호.
+
+    종전 `round(x, 4)` 는 SHIB(≈ $0.00001) 를 **0.0** 으로 만들었다. 2026-09-17
+    실행 로그의 `#2 ⚪D[2.0] SHIB ['vol_awakening_4h'] long @ 0.0 손절 0.0` 이 그것이고,
+    같은 값이 Supabase signals 행과 알림에 그대로 들어갔다.
+    실주문은 paper_executor 가 봉 종가에서 다시 계산하므로 체결 크기·손절 거리는
+    영향이 없었지만(그 건은 별개 원인으로 실패했다 — exchange.num_str 참조),
+    **기록과 표기가 틀렸다.** paper_executor 는 2026-09-03 에 8자리로 고쳤는데
+    scheduler 의 신호 생성이 빠져 있었다.
+    """
+    v = float(v)
+    if v and abs(v) < 1e-4:
+        return float(f"{v:.8g}")        # 저가 코인은 유효숫자 8자리 보존
+    return round(v, 8)
+
 # ── 실행 주기 분기 ──────────────────────────────────────────────────────────
 # 크론은 매시(UTC 정시) 발화하지만, **느린 TF 탐지는 종전 6개 틱에서만** 돈다.
 #
@@ -637,13 +654,13 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 vr = round(v[last] / (sum(v[last - 20:last]) / 20), 2) if last >= 20 else None
                 ps = _pattern_strength(pat, rows, last)
                 entry = rows[last]["c"]
-                stop_px = round(entry * (1 - STOP), 4) if d == "long" else round(entry * (1 + STOP), 4)
+                stop_px = _px(entry * (1 - STOP)) if d == "long" else _px(entry * (1 + STOP))
                 tf_conf = _tf_confirm(sym, d)
                 signals.append(dict(
                     pattern=pat, direction=d, symbol=sym, date=rows[last]["date"],
                     ts=rows[last].get("ts"),
                     strength_vol_ratio=vr, pattern_strength=ps, regime=regime,
-                    entry=round(entry, 4), stop=stop_px,
+                    entry=_px(entry), stop=stop_px,
                     tf_confirmed=tf_conf,
                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
     # 채택된 추가 패턴(1d) — 방향 고정, 레짐 라우팅 없이 최신봉 신호 탐지
@@ -677,13 +694,13 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 ps   = _pattern_strength(ap["pattern"], rows, last)
                 entry = rows[last]["c"]
                 dd = ap["direction"]
-                stop_px = round(entry * (1 - 0.08), 4) if dd == "long" else round(entry * (1 + 0.08), 4)
+                stop_px = _px(entry * (1 - 0.08)) if dd == "long" else _px(entry * (1 + 0.08))
                 tf_conf = _tf_confirm(sym, dd) if ap_tf == "1d" else True
                 signals.append(dict(pattern=ap["pattern"], direction=dd, symbol=sym,
                                     date=rows[last]["date"], ts=rows[last].get("ts"),
                                     strength_vol_ratio=vr,
                                     pattern_strength=ps, regime=regime,
-                                    entry=round(entry, 4), stop=stop_px,
+                                    entry=_px(entry), stop=stop_px,
                                     tf_confirmed=tf_conf, tf=ap_tf,
                                     take_profit="반대패턴 신호 or 레짐전환 or 최대30봉 시가청산"))
 
@@ -716,13 +733,13 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 if last4 is None or last4 not in set(mod4.detect(rows4h)):
                     continue
                 entry4  = rows4h[last4]["c"]
-                stop4   = round(entry4 * (1 - STOP), 4) if dd4 == "long" else round(entry4 * (1 + STOP), 4)
+                stop4   = _px(entry4 * (1 - STOP)) if dd4 == "long" else _px(entry4 * (1 + STOP))
                 signals.append(dict(
                     pattern=ap["pattern"], direction=dd4, symbol=sym, tf="4h",
                     date=rows4h[last4]["date"], ts=rows4h[last4].get("ts"),
                     pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
-                    entry=round(entry4, 4), stop=stop4,
+                    entry=_px(entry4), stop=stop4,
                     tf_confirmed=True,
                     take_profit="레짐전환 or 최대30봉 시가청산"))
 
@@ -775,14 +792,14 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                     stop1, target1, _ = bar1
                     tp_txt = xb.describe(spec1)
                 else:
-                    stop1 = round(entry1 * (1 - STOP), 4)
+                    stop1 = _px(entry1 * (1 - STOP))
                     tp_txt = "레짐전환 or 최대20봉 시가청산"
                 signals.append(dict(
                     pattern=ap["pattern"], direction=ap["direction"], symbol=sym, tf="1h",
                     date=rows1h[last1]["date"], ts=rows1h[last1].get("ts"),
                     pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
-                    entry=round(entry1, 4), stop=stop1, target=target1,
+                    entry=_px(entry1), stop=stop1, target=target1,
                     tf_confirmed=True,
                     take_profit=tp_txt))
 
@@ -807,13 +824,13 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 if last not in sigset:
                     continue
                 entry = rows4h[last]["c"]
-                stop_px = round(entry * (1 - STOP), 4)
+                stop_px = _px(entry * (1 - STOP))
                 signals.append(dict(
                     pattern=pat, direction=harmonic_dir, symbol=sym, tf=HARMONIC_TF,
                     date=rows4h[last]["date"], ts=rows4h[last].get("ts"),
                     pattern_strength=1.0,
                     strength_vol_ratio=None, regime=regime,
-                    entry=round(entry, 4), stop=stop_px,
+                    entry=_px(entry), stop=stop_px,
                     take_profit="레짐전환 or 최대30봉 시가청산"))
     elif slow_tick:
         print(f"    [하모닉] 레짐={regime} → 롱 조건 미충족, 하모닉 스킵", flush=True)

@@ -226,6 +226,24 @@ def get_okx_positions(live_conn):
         return []
 
 
+def num_str(v, digits=12):
+    """OKX 파라미터용 십진 문자열 — **지수 표기를 절대 만들지 않는다.**
+
+    파이썬은 1e-4 미만 float 을 str() 하면 지수 표기로 준다: str(9e-06) == '9e-06'.
+    그대로 보내면 OKX 가 거부한다 — 2026-09-17 SHIB(진입가 ≈ $0.00001) 신호가
+    `sl_failed(okx {"code":"51000","msg":"Parameter slTriggerPx error"})` 로 막혀
+    진입이 즉시 시장가로 되돌려졌다(안전장치는 지켜졌고 왕복 수수료만 손실).
+    **가격이 $0.0001 밑인 종목은 전부 같은 경로로 막힌다**(SHIB/PEPE/BONK 등).
+
+    ccxt price_to_precision 자체도 tickSz 가 작으면 지수 표기를 돌려줄 수 있어
+    (decimal_to_precision(9.4e-06, tick=1e-7) -> '9.4e-06') 문자열을 여기서 만든다.
+    """
+    s = f"{float(v):.{digits}f}"
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s or "0"
+
+
 def place_stop_algo(ex, inst_id, close_side, qty, sl_px, tp_px=None):
     """
     청산 algo 주문 등록 (진입 직후·누락 재등록 공용).
@@ -248,15 +266,15 @@ def place_stop_algo(ex, inst_id, close_side, qty, sl_px, tp_px=None):
         "tdMode":          OKX_MARGIN_MODE,
         "side":            close_side,
         "ordType":         "oco" if tp_px else "conditional",
-        "sz":              str(qty),
+        "sz":              num_str(qty),
         "reduceOnly":      True,          # 청산 전용 — 고아 주문의 신규 진입 방지
-        "slTriggerPx":     str(sl_px),
+        "slTriggerPx":     num_str(sl_px),
         "slOrdPx":         "-1",          # -1 = 시장가 체결
         "slTriggerPxType": "last",
     }
     if tp_px:
         params.update({
-            "tpTriggerPx":     str(tp_px),
+            "tpTriggerPx":     num_str(tp_px),
             "tpOrdPx":         "-1",
             "tpTriggerPxType": "last",
         })
@@ -349,7 +367,7 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
                 r = place_stop_algo(ex, inst, close_side, p["qty"], sl_px, tp_px=tp_px)
                 if str(r.get("code")) == "0":
                     fixed.append((p["symbol"], sl_px))
-                    print(f"  [SL점검] {p['symbol']} 손절 누락 → 재등록 @ {sl_px}")
+                    print(f"  [SL점검] {p['symbol']} 손절 누락 → 재등록 @ {num_str(sl_px)}")
                 else:
                     print(f"  [SL점검] {p['symbol']} 재등록 실패: {str(r)[:80]}")
             except Exception as e:
@@ -459,6 +477,19 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
         if qty <= 0:
             return None, "qty_zero"
 
+        # 손절가 사전 검증 — **진입 주문을 내기 전에** 확인한다.
+        # 종전에는 진입 뒤 algo 등록에서야 거부돼(2026-09-17 SHIB: OKX 51000
+        # "Parameter slTriggerPx error") 진입 즉시 시장가로 되돌렸다. 안전장치는
+        # 지켜졌지만 왕복 수수료를 매번 버렸고 신호가 뜰 때마다 반복된다.
+        # 여기서 막으면 주문 자체가 안 나간다.
+        sl_price = float(ex.price_to_precision(ccxt_sym, stop_px))
+        tp_price = float(ex.price_to_precision(ccxt_sym, target_px)) if target_px else None
+        if not (sl_price > 0):
+            return None, f"stop_px_invalid({stop_px!r} → {sl_price})"
+        if (direction == "long" and sl_price >= price) or \
+           (direction == "short" and sl_price <= price):
+            return None, f"stop_px_wrong_side({direction} price={price} stop={sl_price})"
+
     except Exception as e:
         return None, f"pre_check: {str(e)[:60]}"
 
@@ -488,8 +519,7 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
     # ---- 2단계: OKX Algo 손절 주문 (privatePostTradeOrderAlgo) ----------------
     # OKX code 50015 원인: create_order의 stopLoss dict 형식이 algo endpoint와 불일치
     # → POST /api/v5/trade/order-algo 직접 호출로 교체
-    sl_price = float(ex.price_to_precision(ccxt_sym, stop_px))
-    tp_price = float(ex.price_to_precision(ccxt_sym, target_px)) if target_px else None
+    # sl_price / tp_price 는 위 사전 확인 블록에서 이미 계산·검증했다.
     try:
         inst_id = ex.market_id(ccxt_sym)   # "SOL-USDT-SWAP" 형식
         resp    = place_stop_algo(ex, inst_id, close_side, filled_qty, sl_price,

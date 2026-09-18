@@ -113,6 +113,29 @@ def main():
           len(stub4.algo_calls) == 2 and "reduceOnly" not in stub4.algo_calls[1],
           stub4.algo_calls)
 
+    # 5-저가코인) 지수 표기 금지 — 2026-09-17 SHIB 회귀
+    #    파이썬 str(9e-06) == '9e-06' 이고 OKX 는 이를 51000 Parameter slTriggerPx
+    #    error 로 거부한다. 가격이 $0.0001 밑인 종목(SHIB/PEPE/BONK)이 전부 여기에 걸렸다.
+    check("num_str: 저가 십진 표기", ex_mod.num_str(9.4e-06) == "0.0000094",
+          ex_mod.num_str(9.4e-06))
+    check("num_str: 지수 표기 없음",
+          all("e" not in ex_mod.num_str(v).lower()
+              for v in (9e-06, 1.02e-05, 1.234e-07, 0.0, 65000.5, 1e12)),
+          [ex_mod.num_str(v) for v in (9e-06, 1.02e-05, 1.234e-07, 0.0, 65000.5, 1e12)])
+    check("num_str: 정상 가격은 종전 표기 유지",
+          (ex_mod.num_str(460.0), ex_mod.num_str(0.5), ex_mod.num_str(0.01),
+           ex_mod.num_str(0.0)) == ("460", "0.5", "0.01", "0"),
+          [ex_mod.num_str(v) for v in (460.0, 0.5, 0.01, 0.0)])
+
+    stub_shib = StubEx(positions=[], pending=[])
+    ex_mod.place_stop_algo(stub_shib, "SHIB-USDT-SWAP", "sell", 1200,
+                           9.4e-06, tp_px=1.06e-05)
+    prm = stub_shib.algo_calls[0]
+    check("SHIB 손절 트리거가 십진 문자열",
+          prm["slTriggerPx"] == "0.0000094" and prm["tpTriggerPx"] == "0.0000106",
+          prm)
+    check("sz 도 지수 표기 아님", "e" not in prm["sz"].lower(), prm["sz"])
+
     # 5) state != live 인 대기 주문은 대상 아님
     stub5 = StubEx(positions=[], pending=[algo("ETH", "A_ETH", state="canceled")])
     _, cancelled5 = ex_mod.ensure_stop_orders({"exchange": stub5})

@@ -203,5 +203,19 @@ chk("닫힌 봉의 캐스케이드는 신호가 된다", ci2 in set(det.detect(r
 # (c) 종전 경로(마지막 행 기준)와 신규 경로가 실제로 다른 봉을 본다
 chk("두 경로가 서로 다른 봉을 본다", sch._closed_idx(r_closed) != len(r_closed) - 1)
 
+# ── 저가 코인 신호 가격 (2026-09-17 SHIB 회귀) ───────────────────────────────
+# 종전 round(x, 4) 는 SHIB(≈$0.00001) 신호를 `@ 0.0 손절 0.0` 으로 기록했다.
+# 실주문은 paper_executor 가 봉 종가에서 다시 계산하므로 체결에는 영향이 없었지만
+# signals 행·알림·대시보드가 전부 0 이었다.
+chk("SHIB 진입가가 0 이 되지 않는다", sch._px(1.02e-05) == 1.02e-05, sch._px(1.02e-05))
+chk("SHIB 손절가가 0 이 되지 않는다",
+    abs(sch._px(1.02e-05 * 0.92) - 9.384e-06) < 1e-12, sch._px(1.02e-05 * 0.92))
+chk("PEPE 급(1e-6)도 유효숫자 보존", sch._px(1.234567e-06) == 1.234567e-06,
+    sch._px(1.234567e-06))
+chk("정상 가격은 그대로", (sch._px(65432.1), sch._px(0.5), sch._px(0.0)) == (65432.1, 0.5, 0.0),
+    (sch._px(65432.1), sch._px(0.5), sch._px(0.0)))
+chk("신호 생성 경로에 4자리 반올림이 남아 있지 않다",
+    "round(entry, 4)" not in open("scheduler.py", encoding="utf-8").read())
+
 print("\n실패", len(fails), "건" if fails else "— 전체 통과")
 sys.exit(1 if fails else 0)

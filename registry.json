@@ -4750,6 +4750,16 @@
   "resolved_2026_09_17": "**(a) 적용 — 사용자 지시 '전체 지금 수정'.** `paper_executor.exit_reason_of(pos, fill, okx_type)` 신설: type 3·4 는 '강제청산(OKX)', 5 는 'ADL(OKX)' 로 따로 두고, 나머지(1·2)는 **체결가를 손절가·익절가와 대조**해 BARRIER_TOL(1.5%) 안이면 그 배리어로, 아니면 'OKX청산'(수동·외부) 으로 붙인다. 손익 부호가 라벨과 어긋나면(수익인데 손절) 붙이지 않는다. 문턱 1.5% 는 실측에서 나왔다 — 트리거 주문은 갭·슬리피지로 빗나가고(ETHFI 는 손절선 **바깥** 0.7%p, RAY 는 **안쪽** 0.31%p) 양쪽을 다 잡아야 한다. 실측 6건 + 익절·강제청산·ADL·숏·부호역행을 test_executor_safety 가 고정(11건 추가). **주문·청산·포지션 수명 무변경 — reason 문자열만.**",
   "action": "해소(2026-09-17). 과거 원장의 오라벨 4건은 그대로 남아 있다 — 10/06 관찰 보고에서 손절 비율을 집계할 때 그 4건을 '손절' 로 세지 말 것(BTC +0.56 / ETH +2.27 / SOL +0.74 / ETH −0.27)."
  },
+ "low_price_coin_order_fail_2026_09_18": {
+  "status": "FIXED",
+  "what": "가격이 $0.0001 밑인 종목(SHIB/PEPE/BONK 급)은 **손절 등록이 구조적으로 거부돼 진입이 항상 되돌려졌다**",
+  "evidence": "2026-09-17 daily 실행. `[live 사이징] SHIB risk=6.02 notional=$75.2 lev=3x margin=$25.07 | equity $541.67 stop 8.00% | vol sigma=65%/yr -> x1.11` 로 사이징까지 정상 통과한 뒤 `[live] SHIB long 주문 실패: sl_failed(okx {\"code\":\"51000\",\"msg\":\"Parameter slTriggerPx error\"})_entry_reversed_ok`. 진입은 즉시 시장가로 되돌려져 나체 포지션은 없었다(불변 안전장치 유지). 손실은 왕복 수수료 약 $0.15 와 그 신호 1건.",
+  "root_cause": "**파이썬 float 의 지수 표기.** place_stop_algo 가 `str(sl_px)` 로 OKX 파라미터를 만드는데, 파이썬은 1e-4 미만을 `str(9e-06) == '9e-06'` 으로 준다. OKX 는 이 문자열을 51000 으로 거부한다. SHIB 손절가 9.384e-06 이 정확히 그 구간. 값 자체는 옳았고 **직렬화만 틀렸다** — 그래서 사이징·검증 로그가 전부 정상으로 보였다. ccxt price_to_precision 도 tickSz 가 작으면 지수 표기를 돌려줄 수 있어(decimal_to_precision(9.4e-06, tick=1e-7) -> '9.4e-06') 그 경로도 안전하지 않다.",
+  "fix": "① `exchange.num_str(v)` 신설 — 십진 고정 표기 후 꼬리 0 제거. slTriggerPx/tpTriggerPx/sz 전부 이걸로 만든다. **진입 OCO·손절 누락 재등록·체결가 재정렬 세 경로를 한 곳에서 덮는다.** ② `place_swap_entry` 에 **진입 전** 손절가 검증 추가 — sl_price<=0 이면 stop_px_invalid, 방향과 어긋나면 stop_px_wrong_side 로 **주문 자체를 안 낸다**(종전은 진입 뒤 algo 거부에서야 되돌려 왕복 수수료를 매번 버렸다). ③ `scheduler._px` — 신호 가격의 `round(x, 4)` 를 대체. 종전에는 SHIB 신호가 `@ 0.0 손절 0.0` 으로 기록돼 signals 행·알림·대시보드가 전부 0 이었다(실주문은 paper_executor 가 봉 종가에서 재계산하므로 체결에는 무관 — 표기·기록만의 결함이었다).",
+  "unchanged": "신호 집합·사이징·슬롯·중복 방어·라우팅·배포 집합·청산 규칙 전부 불변. 정상 가격대 종목은 문자열도 주문도 종전과 동일(num_str(460.0)=='460').",
+  "not_covered": "2026-09-16 LINK `sl_failed(okx {\"code\":\"1\"...})` 는 **다른 원인**이다 — LINK 가격은 지수 표기 구간이 아니다. OKX code 1 은 일반 실패라 단서가 부족하고, 재발 시 전체 응답을 남겨 별도로 본다. 이번 수정이 그것까지 고친다고 주장하지 않는다.",
+  "tests": "test_exchange_stops +5(num_str 십진·지수 없음·정상값 불변, SHIB OCO 파라미터 실측) / test_cron_split +5(SHIB·PEPE 신호가 0 이 안 됨, 4자리 반올림 잔존 금지) / test_adopted_regimes 의 소스 고정 문자열 갱신. CI 전 목록 로컬 그린."
+ },
  "shared_symbol_market_close_2026_09_17": {
   "status": "FIXED",
   "what": "tp1 의 엔진 시장가 D청산이 같은 종목을 나눠 든 **메인 레그까지 닫았다** — 2026-09-11 선택지 B 가 못 덮은 두 번째 경로",
