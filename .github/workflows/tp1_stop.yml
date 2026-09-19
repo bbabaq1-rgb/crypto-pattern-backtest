@@ -1,0 +1,40 @@
+name: Research — tp1 stop-loss sweep (diagnostic)
+
+# tp1_engulfing_1h 의 손절 컷 스윕 (사용자 질문 2026-09-19 "손절컷 8% 가 최대이익 맞는지").
+# 익절 1%·3x·순차 1포지션·포트 바닥 $70 은 실거래 그대로, 손절 % 만 1~20% 스윕.
+# 진단 — DEPLOY_ON_PASS=False, 손절 변경은 사용자 결정. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_tp1_stop.py"
+      - "test_tp1_stop.py"
+      - ".github/workflows/tp1_stop.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_tp1_stop.py
+      - name: Sweep (1h fetch + grid)
+        run: python validate_tp1_stop.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tp1-stop-${{ github.run_number }}
+          path: _tp1_stop.json
+          if-no-files-found: ignore

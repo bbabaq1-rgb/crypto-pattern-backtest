@@ -118,9 +118,14 @@ def cap_margin(cap, pattern, trades):
     start = float(cap.get("start_margin", cap["margin_usd"]))
     lev = int(cap.get("leverage", 1))
     reset = bool(cap.get("reset_on_loss"))
+    # loss_floor (2026-09-19 사용자 지시 "손절 금액이 70달러 미만이면 다시 70으로 리셋, 70달러 위면 그냥
+    # 손절 금액을 유지"): 손절 뒤 포트가 start 아래로 내려가면 start 로 되돌리고, start 위면 줄어든
+    # 값을 그대로 쓴다 = 포트 = max(포트 × (1+ret×lev), start). 종전 reset_on_loss(무조건 start)와
+    # 무리셋(2026-09-19 오전, 곱셈만) 의 중간. 위로는 복리·아래로는 start 가 바닥.
+    floor = bool(cap.get("loss_floor"))
     seq = [t for t in trades
            if t.get("pattern") == pattern and t.get("method") == "D" and t.get("ret") is not None]
-    # 리셋은 순서에 민감하다 — 시간순(청산일, 진입일)으로 정렬, 같은 날은 장부 순서 유지(stable).
+    # 리셋·바닥은 순서에 민감하다 — 시간순(청산일, 진입일)으로 정렬, 같은 날은 장부 순서 유지(stable).
     # max_open=1 이라 거래는 원래 순차적이고, DB 복원 순서만 보장이 없어 정렬한다.
     seq.sort(key=lambda t: (t.get("exit_date") or "", t.get("entry_date") or ""))
     pot = start
@@ -130,6 +135,8 @@ def cap_margin(cap, pattern, trades):
             pot = start           # 손절(순손실) → 시작 금액으로 리셋 (2026-09-09 사용자 지시 "손절나면 30달러로 리셋")
         else:
             pot *= (1.0 + r * lev)
+            if floor and r < 0 and pot < start:
+                pot = start       # 손절로 start 아래면 start 로 (2026-09-19) — 위에서 깎인 건 그대로 유지
     return round(pot, 2) if pot >= sizing.MIN_MARGIN else None
 
 

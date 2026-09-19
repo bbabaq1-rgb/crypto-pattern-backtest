@@ -175,31 +175,38 @@ m1 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008)])
 check("복리 포트: 익절 1건(+1% − 0.2% 수수료)×3x → 70 × 1.024 = 71.68", abs(m1 - 71.68) < 1e-9, m1)
 m2 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, 0.008)])
 check("복리 포트: 익절 2건 → 70 × 1.024² = 73.40", abs(m2 - round(70 * 1.024 ** 2, 2)) < 1e-9, m2)
-# **2026-09-19 사용자 지시 "리셋 빼고 손실도 그대로 이어받게 해줘"** — reset_on_loss 를 껐다.
-# 손절도 익절과 같이 곱셈으로 누적한다. 소급 적용이라 9/16 AAVE 손절이 리셋 대신 곱해진다.
-check("현행 설정: reset_on_loss 꺼짐(2026-09-19 사용자 결정)", cap.get("reset_on_loss") is False, cap.get("reset_on_loss"))
+# **2026-09-19 사용자 결정(같은 날 두 번)** — 오전 "리셋 빼고 손실도 그대로" → 오후 정정 "손절 금액이 70달러
+# 미만이면 다시 70으로 리셋, 70달러 위면 손절 금액 유지". 최종 규칙 = loss_floor: 포트 = max(포트×(1+ret×3), 70).
+check("현행 설정: reset_on_loss 꺼짐 + loss_floor 켜짐 (2026-09-19)",
+      cap.get("reset_on_loss") is False and cap.get("loss_floor") is True, (cap.get("reset_on_loss"), cap.get("loss_floor")))
 m3 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)])
-check("복리 포트: 손절도 그대로 복리로 줄어든다 (71.68 × 0.754 = 54.05)",
-      abs(m3 - round(71.68 * (1 - 0.246), 2)) < 1e-9, m3)
+check("바닥 규칙: 71.68 × 0.754 = 54.05 < 70 → 70 으로", m3 == 70.0, m3)
 m4 = pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082), tr(PAT, 0.008)])
-check("복리 포트: 익절·손절·익절 → 손실을 이어받아 55.35", abs(m4 - round(m3 * 1.024, 2)) < 0.02, m4)
-# 실측 재현 — 9/16 AAVE 손절(-7.98% + 수수료 0.2% = 저장 ret -8.18%) 을 넣으면 포트가
-# $70 리셋이 아니라 76.70 × (1 − 0.2454) = 57.88 로 떨어진다. 이 판정이 소급 효과를 고정한다.
-_aave = pe.cap_margin(cap, PAT, [tr(PAT, r) for r in
-                                 (0.00776, 0.00726, 0.00779, 0.00797, -0.0818)])
-check("실측 재현: 승4 + AAVE 손절 → 약 $57.9 (리셋이었다면 $70)", 57.0 < _aave < 58.8, _aave)
-# 리셋 설정 자체는 코드에 남아 있다 — 되돌릴 때 registry 한 줄이면 되도록 성질을 고정해 둔다.
-_reset = dict(cap, reset_on_loss=True)
-check("reset_on_loss=True 면 종전대로 $70 리셋",
-      pe.cap_margin(_reset, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)]) == 70.0)
-_noreset = cap
+check("바닥 규칙: 익절·손절·익절 → 70 → 71.68", abs(m4 - 71.68) < 1e-9, m4)
+# 바닥 위에서의 손실은 깎인 값을 그대로 쓴다 — 무조건 리셋(종전)과 갈리는 지점
+_big = [tr(PAT, 0.008)] * 8            # 70 × 1.024^8 = 84.60
+m5 = pe.cap_margin(cap, PAT, _big + [tr(PAT, -0.01)])
+check("바닥 규칙: 84.60 에서 −1%(×0.97) → 82.06 유지(70 위라 리셋 안 함)",
+      abs(m5 - round(round(70 * 1.024 ** 8, 2) * 0.97, 2)) < 0.05 and m5 > 70.0, m5)
+m6 = pe.cap_margin(cap, PAT, _big + [tr(PAT, -0.082)])
+check("바닥 규칙: 84.60 에서 −8.2%(×0.754) = 63.79 < 70 → 70", m6 == 70.0, m6)
+# 실측 재현 — 9/16 AAVE(저장 ret −8.18%): 76.70 × 0.7546 = 57.88 < 70 → 70. 종전 리셋과 같은 결과라
+# 소급 효과 없음(포트 약 $77 유지). 오전의 무리셋 판이었다면 $63.67 이었다.
+_aave = pe.cap_margin(cap, PAT, [tr(PAT, r) for r in (0.00776, 0.00726, 0.00779, 0.00797, -0.0818)])
+check("실측 재현: 승4 + AAVE 손절 → 70 (바닥)", _aave == 70.0, _aave)
+# 세 모드가 코드에 공존한다 — 되돌리기·비교가 registry 한 줄이 되도록 각각 고정
+_reset = dict(cap, reset_on_loss=True, loss_floor=False)
+check("reset_on_loss=True 면 종전대로 무조건 $70", pe.cap_margin(_reset, PAT, _big + [tr(PAT, -0.01)]) == 70.0)
+_pure = dict(cap, reset_on_loss=False, loss_floor=False)
+check("둘 다 끄면 순수 곱셈(54.05)", abs(pe.cap_margin(_pure, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)]) - round(71.68 * (1 - 0.246), 2)) < 1e-9)
+_noreset = _pure
 _w = dict(tr(PAT, 0.008), exit_date="2026-09-10", entry_date="2026-09-10")
 _l = dict(tr(PAT, -0.082), exit_date="2026-09-09", entry_date="2026-09-09")
-check("복리 포트: 순서 무관 — 곱셈이라 손절이 먼저여도 같은 값",
-      abs(pe.cap_margin(cap, PAT, [_w, _l]) - m3) < 1e-9)
+check("바닥 규칙: 장부 순서가 뒤집혀 있어도 시간순(손절 먼저 → 70 → 71.68)",
+      abs(pe.cap_margin(cap, PAT, [_w, _l]) - 71.68) < 1e-9)
 check("복리 포트: 다른 패턴·방식A·R 행은 무시", pe.cap_margin(cap, PAT, [tr("engulfing", 0.5), tr(PAT, 0.5, "A"), tr(PAT, 0.5, "R")]) == 70.0)
 check("복리 포트: $10 미만이면 None(주문 안 냄) — 리셋 없는 설정에서", pe.cap_margin(_noreset, PAT, [tr(PAT, -0.082)] * 8) is None)
-check("리셋 설정에서는 연속 손절도 $70 유지(되돌리기 경로 고정)", pe.cap_margin(_reset, PAT, [tr(PAT, -0.082)] * 5) == 70.0)
+check("리셋·바닥 설정 모두 연속 손절에 $70 유지", pe.cap_margin(_reset, PAT, [tr(PAT, -0.082)] * 5) == 70.0 and pe.cap_margin(cap, PAT, [tr(PAT, -0.082)] * 5) == 70.0)
 check("compound 아니면 margin_usd 고정", pe.cap_margin(dict(margin_usd=30.0, leverage=3), PAT, [tr(PAT, 0.5)]) == 30.0)
 check("registry live_cap: compound·start_margin 70", cap.get("compound") is True and cap.get("start_margin") == 70.0)
 
