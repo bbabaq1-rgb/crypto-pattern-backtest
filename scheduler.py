@@ -108,6 +108,32 @@ def _closed_idx(rows):
     return len(rows) - 2 if len(rows) >= 2 else None
 
 
+def closed_bar_patterns():
+    """`universe.json["closed_bar_patterns"]` — 닫힌 봉에서 탐지할 1d 패턴 이름 목록.
+
+    **기본은 빈 목록이고 그때 동작은 종전과 바이트 단위로 같다**(테스트가 고정).
+    2026-09-21 측정(validate_forming_bar)에서 형성 중인 봉 탐지가 검증 신호의
+    50~68% 를 영구 누락하고 ih·marubozu 는 실거래 신호의 92~93% 가 닫힌 봉에
+    존재하지 않는 것이 확인됐다. 고치는 것은 **실거래 규칙 변경**이라 관찰 기간
+    (~2026-10-06) 이후 사용자 결정이며, 이 옵트인은 그때 한 줄로 켤 수 있게
+    길만 내둔 것이다(2026-09-05 `adopted_regime_ok` 준비와 같은 방식).
+    4h adopted 는 항목별 `detect_on_closed_bar` 가 이미 같은 일을 한다.
+    """
+    if not os.path.exists("universe.json"):
+        return set()
+    try:
+        return set(json.load(open("universe.json", encoding="utf-8"))
+                   .get("closed_bar_patterns", []) or [])
+    except Exception:
+        return set()
+
+
+def detect_idx(pattern, rows, closed_set=None):
+    """그 패턴의 탐지 대상 봉 인덱스. 목록에 없으면 종전대로 마지막 행."""
+    cs = closed_bar_patterns() if closed_set is None else closed_set
+    return _closed_idx(rows) if pattern in cs else len(rows) - 1
+
+
 MAX_HOLD = 30
 DETMOD = {("engulfing", "long"): "detector_engulfing",
           ("engulfing", "short"): "detector_engulfing_short",
@@ -634,6 +660,10 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
     print("[4] 오늘 신호 탐지...")
     import importlib
     signals = []
+    # 실행당 1회만 읽는다(종목마다 파일을 여는 것을 피한다). 기본 빈 집합 = 종전 동작.
+    closed_set = closed_bar_patterns()
+    if closed_set:
+        print(f"    [닫힌 봉 탐지] {sorted(closed_set)}")
     # 느린 TF 블록(1d FOCUS / adopted 1d·4h·1w / 4h 전용 / 하모닉)은 SLOW_TICK_HOURS
     # 에서만 돈다 — 매시 돌리면 배포된 패턴의 진입 분포가 검증 당시와 달라진다.
     for pat in (FOCUS if slow_tick else []):
@@ -648,8 +678,8 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
             except FileNotFoundError:
                 continue
             sigset = set(mod.detect(rows))
-            last = len(rows) - 1
-            if last in sigset:                 # 최신봉이 신호
+            last = detect_idx(pat, rows, closed_set)
+            if last is not None and last in sigset:   # 탐지 대상 봉이 신호
                 v = [r["v"] for r in rows]
                 vr = round(v[last] / (sum(v[last - 20:last]) / 20), 2) if last >= 20 else None
                 ps = _pattern_strength(pat, rows, last)
@@ -687,8 +717,8 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                 rows = mod.load_ohlcv(sym, ap_tf)
             except FileNotFoundError:
                 continue
-            last = len(rows) - 1
-            if last in set(mod.detect(rows)):
+            last = detect_idx(ap["pattern"], rows, closed_set)
+            if last is not None and last in set(mod.detect(rows)):
                 v_ap = [r["v"] for r in rows]
                 vr   = round(v_ap[last] / (sum(v_ap[last-20:last]) / 20), 2) if last >= 20 else None
                 ps   = _pattern_strength(ap["pattern"], rows, last)

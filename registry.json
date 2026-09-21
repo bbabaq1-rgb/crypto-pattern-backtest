@@ -5359,5 +5359,41 @@
       "confound": "**원인 귀속 불가** — 이 재실행은 9/10 대비 세 가지가 동시에 다르다: REGMAP 수정 + MAX_POS 16→13 + RISK_FRAC 1.0%→1.5%(뒤 둘은 2026-09-18 사용자 결정). 어느 것이 뒤집었는지 가르려면 한 번에 하나씩 돌려야 한다.",
       "action": "**실거래 무변경.** 슬롯 배분은 위험 배분이라 사용자 결정이고 DEPLOY_ON_PASS=False 이며 관찰 기간(~2026-10-06) 중이다. prio_edge 채택 여부는 사용자 결정."
     }
+  },
+  "closed_bar_prereg_2026_09_21": {
+    "status": "PREREGISTERED",
+    "date": "2026-09-21",
+    "trigger": "사용자 결정 '(나)로 진행' — 코드·측정만 준비하고 켜는 것은 관찰 종료(2026-10-06) 이후",
+    "why": "같은 날 validate_forming_bar 가 **검증 신호의 50~68% 가 실거래에서 영구 누락**되고(fvg 827/1666, engulfing 126/184, fvg_short 723/1329, engulfing_short 153/245) **ih·marubozu 는 실거래 신호의 92~93% 가 닫힌 봉에 존재하지 않는다**는 것을 쟀다. 고치는 방법은 `detect_on_closed_bar` 를 켜는 한 줄이지만, 켜면 engulfing·fvg 는 신호가 약 2배로 늘고 ih·marubozu 는 거의 사라진다 — **슬롯 13 을 두고 벌어지는 경합이 통째로 달라지므로 패턴 단독 프레임으로 재면 2026-09-05 bear fvg 롱과 같은 오판이 난다.**",
+    "frozen": {
+      "frame": "validate_portfolio 그대로 — 배포 집합 전체를 한 자산곡선에, 방식D 청산·실거래 사이징(RISK_FRAC/LEV_CAP/변동성 타겟팅)·슬롯 배분 current·MAX_POS·레짐 라우팅·패턴별 유니버스 전부 고정. 분할 train < 2025-01-01 <= holdout. **arm 이 바꾸는 것은 '어느 봉에서 탐지하는가' 하나뿐.**",
+      "baseline": "`current` = **1d 배포 6셀(engulfing 롱·숏 / fvg 롱·숏 / inverted_hammer / marubozu)을 형성 중인 봉에서 탐지**한 신호 집합. 부분봉 합성은 validate_forming_bar 와 같은 방식(4h 로 1d 부분봉, 슬로틱 0/4/8/12/16/20 UTC, h=0 은 빈 봉, 한 봉에 첫 발화 한 번만, 진입가 = 그 틱의 부분봉 종가). **이것이 이 레포에서 실거래를 처음으로 복제한 백테스트다** — 종전 모든 백테스트는 닫힌 봉 판이었다.",
+      "main_arm": "`closed_1d` — 같은 6셀을 닫힌 봉에서 탐지(= 검증 프레임). **주 판정 arm 은 이것 하나.**",
+      "three_soldiers_held_constant": "**three_soldiers_4h 는 두 arm 모두 닫힌 봉으로 고정해 비교에서 상쇄시킨다.** 이유는 그 셀의 형성 중인 봉 동작을 신뢰성 있게 모델링할 수 없기 때문이다 — 빈 봉 모델은 신호 0건인데 실거래는 실제로 진입하므로(9/15 GAS, 9/09 EGLD) 진실은 h0 과 h1 사이에 있다. 배경 슬롯 경합에는 그대로 참여시키되 arm 간 차이는 만들지 않는다. **이 셀의 닫힌 봉 전환 여부는 이 시험의 판정 대상이 아니고 별도 사전 등록 사항이다.**",
+      "unaffected": "triple_bottom_4h / equal_lows_4h / vol_awakening_4h 는 이미 `detect_on_closed_bar` 라 두 arm 동일. cascade_fade_long_1h·tp1_engulfing_1h 는 validate_portfolio 정의대로 제외(별도 자본·슬롯 면제).",
+      "diagnostics": "`closed_focus`(engulfing·fvg 4셀만 전환) · `closed_adopted`(ih·marubozu 2셀만 전환) — **판정 아님.** 두 묶음은 방향이 반대(앞은 신호 2배 증가, 뒤는 92% 감소)라 효과의 출처를 가르기 위한 것이고, 사후에 이 중에서 골라 '이것만 켜자' 고 하지 않는다. 패턴별 거래 수·건당도 병기.",
+      "verdict": "holdout 기준 **J1~J5 전부** 충족해야 ADOPT_CANDIDATE — validate_portfolio 와 같은 정의: J1 CAGR > current / J2 Calmar > current / J3 짝지음 블록 부트스트랩 300회 우위 >= 0.60 / J4 MDD 가 current 보다 5%p 넘게 나빠지지 않음 / J5 train 에서도 CAGR·Calmar 둘 다 current 이상.",
+      "deploy_on_pass": false
+    },
+    "anchor_test": "**근간은 기준선 동치다** — `collect_1d_mode(mode='closed')` 가 `validate_portfolio.collect_1d` 와 거래·수익·시각까지 완전히 같아야 한다(test_closed_bar §1 이 고정). 어긋나면 두 arm 차이가 탐지 봉 때문인지 수집 경로 차이 때문인지 못 가르므로 수치 전부가 무의미해진다.",
+    "prior": [
+      "**방향을 예측하지 않는다.** 두 힘이 반대로 작용한다 — engulfing·fvg 는 누락된 절반을 되찾아(검증 건당 +1.80%/+4.07%) 좋아질 쪽이고, ih·marubozu 는 실거래에서 돌던 신호(forming 건당 +5.26%/+3.97%)가 검증 신호(−0.54%/+9.99%)로 바뀌는데 ih 는 **나빠지는 방향**이다.",
+      "**슬롯이 결정할 가능성이 크다** — engulfing·fvg 신호가 2배가 되면 13 슬롯 경합이 심해지고, 2026-09-10 포트폴리오 프레임에서 holdout 진짜 병목은 슬롯(440)이 아니라 **증거금(2,750)** 이었다. 신호가 늘어도 증거금이 먼저 막으면 개선이 안 나타날 수 있다.",
+      "크기·순위는 예측하지 않는다."
+    ],
+    "known_limits": [
+      "부분봉 합성은 **러너 지연 0 가정**이다(실측 중앙 25분). 지연이 클수록 실제 forming 은 closed 쪽으로 수렴하므로 `current` arm 은 '가장 어긋난 판'이고 두 arm 격차는 **상한**이다.",
+      "validate_portfolio 의 한계 그대로 — holdout(2025-01~2026-09)이 bear 지배라 전 arm 절대 수준이 깊은 음수다. **절대 수치를 실거래 예보로 읽지 말 것.** arm 비교는 같은 사이징·같은 슬롯 규칙이라 상쇄된다.",
+      "정적 코호트 소급(PIT 아님).",
+      "레짐 전환 청산은 2026-09-21 수정분이 켜진 상태로 돈다(validate_portfolio.main 과 동일)."
+    ],
+    "live_change_path": "`scheduler.closed_bar_patterns()` — `universe.json[\"closed_bar_patterns\"]` 목록. **기본 빈 목록이고 그때 동작은 종전과 바이트 단위로 같다**(test_closed_bar §4 가 고정). 켜는 것은 목록에 패턴 이름을 넣는 것 하나이고 **관찰 종료 후 사용자 결정**이다. 4h adopted 는 항목별 `detect_on_closed_bar` 가 이미 같은 일을 한다.",
+    "files": [
+      "validate_closed_bar.py",
+      "test_closed_bar.py",
+      ".github/workflows/closed_bar.yml",
+      "scheduler.py(옵트인, 기본 off)",
+      "registry.json"
+    ]
   }
 }

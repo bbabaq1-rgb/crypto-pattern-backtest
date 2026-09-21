@@ -1,0 +1,47 @@
+name: Research — closed-bar detection switch (portfolio frame, diagnostic)
+
+# 배포 1d 패턴을 **닫힌 봉**에서 탐지하면 포트폴리오가 나아지는가
+# (forming_bar 판정 MATERIAL 의 후속, registry closed_bar_prereg_2026_09_21).
+# 기준선 current = 지금 실거래 그대로(1d 6셀이 형성 중인 봉에서 탐지) — 실거래를 복제한
+# 첫 백테스트다. 주 판정 closed_1d, J1~J5 전부 충족해야 후보.
+# DEPLOY_ON_PASS=False — 켜는 것은 2026-10-06 관찰 종료 후 사용자 결정. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_closed_bar.py"
+      - "test_closed_bar.py"
+      - "validate_forming_bar.py"
+      - "validate_portfolio.py"
+      - ".github/workflows/closed_bar.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_closed_bar.py
+          python test_forming_bar.py
+          python test_portfolio.py
+      - name: Closed-bar switch (4 arms x portfolio frame + paired block boot)
+        run: python validate_closed_bar.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: closed-bar-${{ github.run_number }}
+          path: _closed_bar.json
+          if-no-files-found: ignore

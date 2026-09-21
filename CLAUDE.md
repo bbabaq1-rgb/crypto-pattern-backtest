@@ -1808,6 +1808,31 @@
       관찰 기간 이후. 켜면 ih·marubozu 진입이 거의 사라지고 engulfing·fvg 신호가 약 2배로 는다(누락 복구) →
       슬롯 경합이 함께 바뀌므로 **포트폴리오 프레임에서 같이 재야 한다.**
   · validate_forming_bar.py / test_forming_bar.py(52건) / forming_bar.yml
+- **닫힌 봉 탐지 전환 사전 등록 (2026-09-21, 사용자 결정 "나로 진행해줘" — 준비만, 켜는 건 10/06 이후)**:
+  registry `closed_bar_prereg_2026_09_21`. ③ 의 후속. 형성 중인 봉 탐지가 MATERIAL 로 나왔으니
+  **고쳤을 때 포트폴리오가 나아지는가**를 미리 잰다 — 관찰이 끝나는 날 바로 판단할 수 있게.
+  · **켜는 스위치는 이미 넣었고 기본은 꺼져 있다** — `scheduler.closed_bar_patterns()` 가
+    `universe.json["closed_bar_patterns"]`(없으면 빈 목록)를 읽고 `detect_idx()` 가 그 목록에 든
+    패턴만 `_closed_idx`(rows[-2])로 돌린다. **목록이 비면 종전과 바이트 단위로 같다**
+    (test_closed_bar §4 가 배포 5패턴 전부 idx=len−1 임을 고정). 실거래는 한 줄도 안 바뀐다.
+  · **프레임은 validate_portfolio** — 패턴 단독으로 재면 9/05 bear fvg 롱과 같은 오판이 난다.
+    켜면 ih·marubozu 진입이 거의 사라지고 engulfing·fvg 신호가 약 2배로 늘어 **슬롯 경합이 통째로
+    바뀌기** 때문이다. 사이징·청산·슬롯 배분(current)·MAX_POS 는 실거래 고정.
+  · **기준선 current 가 처음으로 실거래를 복제한다** — 1d 6셀(engulfing 롱·숏 / fvg 롱·숏 /
+    inverted_hammer / marubozu)을 **형성 중인 봉**에서 탐지한다. 종전 백테스트는 전부 닫힌 봉이었다.
+    주 판정 arm `closed_1d`(6셀 전부 닫힌 봉), 진단 `closed_focus`(4셀) / `closed_adopted`(2셀).
+  · **three_soldiers_4h 는 두 arm 모두 닫힌 봉으로 고정** — 실거래의 형성 중 동작을 빈 봉 모델로는
+    재현 못 한다(③ 에서 h0 은 0건인데 실거래는 진입한다). 배경 슬롯 경합에는 들어가되 arm 차이는
+    만들지 않는다. **별도 사전 등록 대상**으로 남긴다.
+  · 판정 J1~J5 전부(holdout CAGR·Calmar > current, **짝지음 블록 부트 우위 ≥0.60**, MDD 5%p,
+    train 도 우위). arm 마다 거래 집합이 달라 짝지음이 안 되므로 **거래가 아니라 시간 블록(30일)을
+    공유 추첨**해 `vp.simulate` 를 다시 돌린다 — 슬롯·증거금 경합이 측정 대상이라 arm 별 재시뮬이
+    필수다(`validate_routing.paired_block_boot` 과 같은 문제, 포트폴리오 판).
+  · **사전 확률: 방향을 예측하지 않는다.** 누락 복구(engulfing·fvg 신호 2배)는 좋을 수도 슬롯을
+    잠식할 수도 있고, ih·marubozu 제거는 ③ 에서 ih 가 forming 이 **더 좋았다**(+5.26% vs −0.54%).
+    **지연 0 가정**이라 두 arm 격차는 상한이다(실거래는 틱 지연이 있다).
+  · **DEPLOY_ON_PASS=False** — 통과해도 안 켠다. 켜는 것은 2026-10-06 관찰 종료 후 사용자 결정.
+  validate_closed_bar.py / test_closed_bar.py(49건) / closed_bar.yml
 - **포트폴리오 변동성 타겟팅 사전 등록 (2026-09-21, 사용자 지시 — ⑤)**: registry
   `port_vol_prereg_2026_09_21`. 레포에서 **실제로 효과가 확인된 두 가지가 모두 배분 규칙**이고
   (건당 변동성 타겟팅·레짐 라우팅), 그 중 변동성 타겟팅은 **거래 하나씩**만 본다. 알트는 상관이 높아
@@ -1842,7 +1867,13 @@
 - [ ] **③ 후속 — `detect_on_closed_bar` 를 기존 배포 패턴에 켤 것인가 (사용자 결정, 관찰 종료 후)**:
       켜면 ih·marubozu 진입이 거의 사라지고(실거래 신호 92~93% 가 닫힌 봉에 없다) engulfing·fvg 는
       신호가 약 2배로 는다(누락 50~68% 복구). **슬롯 경합이 함께 바뀌므로 포트폴리오 프레임에서 같이 재야 한다** —
-      패턴 단독으로 재면 9/05 bear fvg 롱과 같은 오판이 난다
+      패턴 단독으로 재면 9/05 bear fvg 롱과 같은 오판이 난다.
+      · **준비 완료 (2026-09-21)** — 스위치(`universe.json["closed_bar_patterns"]`, 기본 빈 목록 = 종전 동작)와
+        측정(validate_closed_bar, registry `closed_bar_prereg_2026_09_21`)을 미리 넣었다. 10/06 에 결과를
+        보고 한 줄 추가로 켜거나 그대로 둔다. **지금 실거래는 무변경**
+- [ ] **three_soldiers_4h 형성 중 탐지 별도 사전 등록** — 빈 봉 모델(h0)은 0건인데 실거래는 진입한다
+      (9/15 GAS 손절, 9/09 EGLD 슬롯 스킵). 진단 h1 판은 n=221 **−2.44%**(closed +1.51%). 실제는 그 사이이고
+      **어느 쪽이든 실거래가 잡는 집합은 검증된 집합이 아니다**. 러너가 탐지하는 순간의 마지막 행을 실측해야 모델이 선다
 - [ ] **② 후속 — 알트 강세 국면 펀딩 재측정**: 커버 창(2026-06~09)에 bull_btc 가 없어 원래 질문이
       미측정으로 남았다. perp_daily 가 2026-09-09 부터 쌓이므로 다음 bull 국면이 지나면 재측정 가능.
       **Bybit 확장이 0건으로 실패한 원인 규명**이 선결(그게 되면 창이 몇 년으로 늘어난다)
@@ -2176,6 +2207,11 @@
   배포 집합 거래에 붙여 ret_net 재계산. 판정 MATERIAL/IMMATERIAL. test_funding_cost.py(50)
 - validate_forming_bar.py: 형성 중인 봉 탐지 vs 닫힌 봉 검증 — 하위 TF 로 부분봉을 합성해
   슬로틱별 탐지를 재현하고 신호 집합·진입가·방식D 수익 차이를 측정. test_forming_bar.py(52)
+- validate_closed_bar.py: 닫힌 봉 전환을 **포트폴리오 프레임**에서 — 기준선 current 는 실거래
+  복제(1d 6셀 형성 중인 봉). 짝지음은 거래가 아니라 시간 블록 공유 추첨(`paired_slot_boot`).
+  test_closed_bar.py(49) / closed_bar.yml
+- scheduler.closed_bar_patterns / detect_idx: 닫힌 봉 탐지 **옵트인**(universe.json 목록, 기본 빈 목록).
+  목록이 비면 종전 동작과 완전히 같다 — 실거래 전환은 10/06 이후 사용자 결정
 - validate_port_vol.py: 포트폴리오 단위 변동성 타겟팅 — validate_portfolio 프레임에서
   명목가 배율만 arm 별로. `vp.simulate(size_mult=)` 훅. test_port_vol.py(70)
 - method_t.regmap_ready / outcome_d 1회성 경고: REGMAP 이 비면 레짐 전환 청산이 **조용히**
