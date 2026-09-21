@@ -76,6 +76,7 @@ jobs:
                    test_tp1_live.py \
                    test_tp1_stop.py \
                    test_tp1_grid.py \
+                   test_tp1_slots.py \
                    test_portfolio.py \
                    test_regime_determinism.py \
                    test_method_m.py \
