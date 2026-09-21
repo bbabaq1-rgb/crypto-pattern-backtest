@@ -1,0 +1,41 @@
+name: Research — tp1 take-profit x stop grid (diagnostic)
+
+# tp1_engulfing_1h 의 익절 × 손절 2차원 격자 (사용자 지시 2026-09-21 "익절 축 추가해서 1h로 돌려줘").
+# 3x·순차 1포지션·포트 바닥 $70 은 실거래 그대로, 익절 {1,1.5,2,2.5,3}% × 손절 1~20% 만 스윕.
+# 랜덤 진입 베이스라인으로 δ(이론 대비 실측 부족분)가 익절에 따라 변하는지 측정한다.
+# 진단 — DEPLOY_ON_PASS=False, 익절·손절 변경은 사용자 결정. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_tp1_grid.py"
+      - "test_tp1_grid.py"
+      - ".github/workflows/tp1_grid.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_tp1_grid.py
+      - name: Grid sweep (1h fetch + 60 cells x 2 cohorts)
+        run: python validate_tp1_grid.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tp1-grid-${{ github.run_number }}
+          path: _tp1_grid.json
+          if-no-files-found: ignore
