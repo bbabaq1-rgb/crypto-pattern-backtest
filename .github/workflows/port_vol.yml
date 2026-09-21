@@ -1,0 +1,44 @@
+name: Research — portfolio-level volatility targeting (diagnostic)
+
+# 건당 변동성 타겟팅 위에 **포트폴리오 단위** 노출 조절을 얹으면 나아지는가
+# (사용자 지시 2026-09-21, 제안 ⑤). validate_portfolio 프레임에서 슬롯 배분은 current 로
+# 고정하고 **명목가 배율만** arm 별로 바꾼다. 주 판정 port_vol, J1~J6 전부 충족해야 후보.
+# DEPLOY_ON_PASS=False — 사이징은 사용자 결정. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_port_vol.py"
+      - "test_port_vol.py"
+      - "validate_portfolio.py"
+      - ".github/workflows/port_vol.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_port_vol.py
+          python test_portfolio.py
+      - name: Portfolio volatility targeting (1d 1800d + 4h 1100d, 5 arms + boot 300)
+        run: python validate_port_vol.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: port-vol-${{ github.run_number }}
+          path: _port_vol.json
+          if-no-files-found: ignore

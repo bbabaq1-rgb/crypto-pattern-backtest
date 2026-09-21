@@ -1,0 +1,42 @@
+name: Research — forming-bar detection vs closed-bar validation (diagnostic)
+
+# 배포 패턴 일부는 아직 rows[-1](형성 중인 봉)에서 탐지하는데 검증은 닫힌 봉 기준이다
+# (사용자 지시 2026-09-21, 제안 ③ — CLAUDE.md '미해소 gap(의도적)' 의 소진).
+# 4h 로 1d 부분봉을, 1h 로 4h 부분봉을 합성해 슬로틱별 탐지를 재현하고
+# 신호 집합·진입가·방식D 수익의 차이를 잰다. 판정 MATERIAL / IMMATERIAL.
+# DEPLOY_ON_PASS=False — 고치는 것은 실거래 규칙 변경이라 사용자 결정. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_forming_bar.py"
+      - "test_forming_bar.py"
+      - ".github/workflows/forming_bar.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_forming_bar.py
+      - name: Forming-bar measurement (1d 1800d + 4h 1100d + 1h 365d)
+        run: python validate_forming_bar.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forming-bar-${{ github.run_number }}
+          path: _forming_bar.json
+          if-no-files-found: ignore
