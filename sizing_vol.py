@@ -389,6 +389,13 @@ def main(argv=None):
           f"{' | **실거래 라우팅 복제**' if ROUTING_MODE else ' | 전 패턴 x 전 종목(강건성 표본)'}")
     if "--no-fetch" not in argv:
         ms.ensure_data(ms.FETCH_DAYS, syms)
+    # **방식D 의 레짐 전환 청산을 켠다.** 이 줄이 없으면 mt.REGMAP 이 {} 로 남아
+    # outcome_d 의 레짐 전환 청산이 사라진다(2026-09-21 발견 — 2026-09-04 채택 실행분은
+    # 그 상태였다. 세 사이징 arm 은 같은 거래 집합을 쓰므로 판정은 상쇄되지만
+    # 절대 수준·거래 결과는 실거래 규칙이 아니었다). 다른 연구 모듈은 전부 이 줄을 갖고 있다.
+    import regime_switch as _rs
+    mt.REGMAP = _rs.build_regime_map()
+    print(f"[regime] 레짐맵 {len(mt.REGMAP)}일 — 방식D 레짐 전환 청산 ON", flush=True)
     out_path = "sizing_vol_routing.json" if ROUTING_MODE else "sizing_vol.json"
     trades = collect_all(syms)
     if not trades:

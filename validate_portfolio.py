@@ -162,10 +162,15 @@ def collect_4h(rows_by, ranked, regmap):
     return out
 
 
-def simulate(trades, arm, cap=None):
+def simulate(trades, arm, cap=None, size_mult=None):
     """
     시간순 포트폴리오 시뮬 — sizing_study/sizing_vol 과 같은 회계.
     arm 이 바꾸는 것은 **슬롯 배분뿐**: 진입 우선순위와 패턴별 상한. 사이징은 실거래 고정.
+
+    size_mult (2026-09-21, validate_port_vol 용): 진입마다 명목가에 곱할 배율을 돌려주는
+    호출 가능 객체. **None 이면 이 판의 종전 동작과 완전히 같다**(test_portfolio 가 고정) —
+    포트폴리오 단위 노출 조절 arm 을 슬롯 arm 과 섞지 않으려고 훅으로만 열어 둔다.
+    ctx = dict(equity, free, peak, open_pos, trades, idx, t).
     """
     evs = []
     for i, t in enumerate(trades):
@@ -175,6 +180,7 @@ def simulate(trades, arm, cap=None):
     equity = free = START_EQ
     open_pos, peak, mdd = {}, START_EQ, 0.0
     taken = skip_slot = skip_cap = skip_margin = 0
+    lev_sum = 0.0                              # 진입 시점 명목가/equity 합(노출 지표)
     blocked_by = {}                            # 진단: 밀린 패턴 → 그때 점유 패턴 분포
     pat_sum, pat_hold, pat_n = {}, {}, {}      # prio_edge 확장추정(인과적)
     # 같은 시각 진입 후보를 모아 우선순위대로 처리한다
@@ -233,6 +239,9 @@ def simulate(trades, arm, cap=None):
                     b[k] = b.get(k, 0) + v
                 continue
             s = _live_scale(tr["vol"])
+            if size_mult is not None:
+                s *= size_mult(dict(equity=equity, free=free, peak=peak,
+                                    open_pos=open_pos, trades=trades, idx=idx, t=t0))
             r = sz.risk_based_size(equity, free, STOP, vol_scale=s,
                                    open_notional=sum(n for _, n in open_pos.values()))
             if r is None:
@@ -240,12 +249,14 @@ def simulate(trades, arm, cap=None):
                 continue
             free -= r["margin_usd"]
             open_pos[idx] = (r["margin_usd"], r["notional"])
+            lev_sum += r["notional"] / equity          # J6 노출 정합 — 진입 시점 레버리지
             taken += 1
     span = max(1.0, evs[-1][0] - evs[0][0]) if evs else 1.0
     cagr = (equity / START_EQ) ** (365.25 / span) - 1 if equity > 0 else -1.0
     return dict(final=equity, cagr=cagr, mdd=mdd,
                 calmar=(cagr / abs(mdd) if mdd < 0 else float("inf")),
                 taken=taken, skip_slot=skip_slot, skip_cap=skip_cap, skip_margin=skip_margin,
+                exposure=(lev_sum / taken if taken else 0.0),
                 blocked_by=blocked_by)
 
 
@@ -305,6 +316,10 @@ def main(argv=None):
             continue
     ranked = turnover_rank(rows_4h)
     regmap = rs.build_regime_map()
+    # **방식D 의 레짐 전환 청산을 켠다.** 이 줄이 없으면 mt.REGMAP 이 {} 로 남아
+    # outcome_d 의 레짐 전환 청산이 통째로 사라진다(2026-09-21 발견 — 2026-09-10 실행분은
+    # 그 상태였다. arm 비교는 같은 거래 집합이라 상쇄되지만 절대 수준은 실거래 규칙이 아니다).
+    mt.REGMAP = regmap
 
     print("\n[1] 1d 배포 셀 (라우팅 복제)")
     t1d = collect_1d(syms)

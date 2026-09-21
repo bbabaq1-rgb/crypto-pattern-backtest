@@ -78,6 +78,9 @@ jobs:
                    test_tp1_grid.py \
                    test_tp1_slots.py \
                    test_portfolio.py \
+                   test_funding_cost.py \
+                   test_forming_bar.py \
+                   test_port_vol.py \
                    test_regime_determinism.py \
                    test_method_m.py \
                    test_regime_split.py \

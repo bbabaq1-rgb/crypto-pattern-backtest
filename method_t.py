@@ -37,6 +37,7 @@ k 를 5수준(10/15/20/25/30%) 전부 보고 **단조 반응**인지 확인한�
 import importlib
 import json
 import statistics as st
+import sys as _sys
 from datetime import date
 
 import detlib
@@ -74,6 +75,18 @@ PATS = [
 # 레짐맵은 데이터 수집 이후에 만든다 (import 시점엔 CSV가 아직 없다).
 REGMAP = {}
 
+# REGMAP 이 비어 있으면 outcome_d 의 **레짐 전환 청산이 조용히 사라진다**
+# (`REGMAP.get(d)` 가 None → `None not in (None, entry_reg)` → False). 실거래 eval_D 에서
+# 레짐 전환은 fvg 청산의 약 1/3 을 담당하는 주 출구라, 안 채우면 검증이 실거래와 달라진다.
+# 2026-09-21 에 sizing_vol / validate_portfolio 두 모듈이 이 상태로 돌고 있던 것이 발견됐다.
+# **동작은 바꾸지 않는다** — 첫 호출에 한 번만 알린다.
+_REGMAP_WARNED = False
+
+
+def regmap_ready():
+    """레짐 전환 청산이 실제로 켜져 있는가. 호출자가 사전에 확인할 수 있게 공개한다."""
+    return bool(REGMAP)
+
 
 # ── 데이터 ──────────────────────────────────────────────────────────────────
 def ensure_data(days=None):
@@ -102,6 +115,12 @@ def outcome_d(rows, si, direction, opp_set, tp_pct=None):
 
     반환: (ret, hold_bars, reason)
     """
+    global _REGMAP_WARNED
+    if not REGMAP and not _REGMAP_WARNED:
+        _REGMAP_WARNED = True
+        print("  [경고] method_t.REGMAP 이 비어 있다 — outcome_d 의 **레짐 전환 청산이 꺼진 채**"
+              " 돈다. 호출 전에 `mt.REGMAP = regime_switch.build_regime_map()` 를 세울 것.",
+              file=_sys.stderr, flush=True)
     base = rows[si]["c"]
     entry_reg = REGMAP.get(rows[si]["date"])
     end = min(si + MAX_HOLD, len(rows) - 1)

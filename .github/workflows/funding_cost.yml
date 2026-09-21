@@ -1,0 +1,41 @@
+name: Research — funding cost applied to P&L (diagnostic)
+
+# 배포 집합의 백테스트 수익에 **펀딩비**를 부과했을 때의 변화 (사용자 지시 2026-09-21, 제안 ②).
+# 이 레포의 어떤 손익 계산에도 펀딩비가 들어간 적이 없다 — 비용은 왕복 0.2% 하나뿐이었다.
+# 새 엣지를 찾는 것이 아니라 **기존 엣지의 진짜 크기**를 재는 측정이다.
+# 판정 MATERIAL / IMMATERIAL, DEPLOY_ON_PASS=False. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_funding_cost.py"
+      - "test_funding_cost.py"
+      - ".github/workflows/funding_cost.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_funding_cost.py
+      - name: Funding cost measurement (1d 1800d + 4h 1100d + funding history)
+        run: python validate_funding_cost.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: funding-cost-${{ github.run_number }}
+          path: _funding_cost.json
+          if-no-files-found: ignore
