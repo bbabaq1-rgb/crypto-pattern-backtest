@@ -20,3 +20,7 @@ pii-deid/
 
 # ML 연구 산출물(연구전용)
 _ml_*.json
+
+# 업비트 슈팅 스터디 캐시·출력(재생성 가능)
+data_upbit_krw_1d.json
+_upbit_shooting.json
