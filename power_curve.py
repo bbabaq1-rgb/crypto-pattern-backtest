@@ -155,8 +155,14 @@ def main():
 
     c, p = fit_loglog(pts)
     print(f"\n[적합] MDE = {c:.3f} · n^(-{p:.3f})   R² {r2(pts, c, p):.3f}")
-    print(f"       이론값 p=0.500(완전 독립) 대비 **{p:.3f}** — "
-          f"{'중첩 창이 정보를 거의 못 준다' if p > 0.42 else '중첩 창도 정보를 일부 준다' if p > 0.25 else '표본이 늘어도 잘 안 줄어든다'}")
+    # p 의 뜻: 0.5 = 120일 창 하나가 곧 독립 관측 하나. p<0.5 면 국면이 뭉쳐 있어
+    # 비중첩 창끼리도 상관이 남는다 = **정보가 독립 표본보다 느리게 쌓인다**(= 데이터를
+    # 더 사도 1/√n 계산보다 덜 얻는다). p>0.5 는 드물다.
+    tag = ("독립 표본과 같은 속도" if p >= 0.48 else
+           "독립 표본보다 느리게 쌓인다 — 데이터를 더 사도 1/√n 계산보다 덜 얻는다" if p >= 0.25 else
+           "거의 안 쌓인다 — 표본을 늘려도 검정력이 잘 안 는다")
+    print(f"       이론값 p=0.500(완전 독립) 대비 **{p:.3f}** — {tag}")
+    print(f"       MDE 를 절반으로 줄이려면 창이 **{2 ** (1 / p):.1f}배** 필요하다.")
 
     print(f"\n[외삽] 문턱 |IC| = {V.IC1}")
     ext = []
@@ -173,6 +179,19 @@ def main():
     print(f"\n[필요량] MDE 를 {V.IC1} 아래로 내리려면 **창 {need:.0f}개**"
           f" = 약 {need*V.HORIZON/365:.1f}년 (현재 {total_win:.1f}개 / {total_win*V.HORIZON/365:.1f}년)")
 
+    # ── 진단: 지표별 편차 — 지속성이 낮은(차분) 지표일수록 MDE 가 낮다 ──
+    print("\n[진단] 전체 표본에서 지표별 MDE — 지속성이 낮을수록 검정력이 좋다")
+    per = []
+    for k, key in enumerate(keys):
+        m = mde_for(feats, tgt, idxs, key, boot, SEED + 555 + k)
+        if m is not None:
+            per.append((m, key))
+    for m, key in sorted(per):
+        print(f"   {key:<18}{m:.3f}")
+    if len(per) >= 2:
+        lo, hi = min(per)[0], max(per)[0]
+        print(f"   최저/최고 = {lo:.3f} / {hi:.3f} — 이 차이는 데이터 **{(hi/lo) ** (1/p):.1f}배**에 해당한다")
+
     # ── 진단: 전반/후반 구조가 다른가 (외삽의 전제) ──
     half = len(idxs) // 2
     print("\n[진단] 전·후반 MDE 비교 — 외삽은 '추가되는 해도 비슷한 구조'를 전제한다")
@@ -186,7 +205,9 @@ def main():
     res = dict(note="검정력 계산 — 판정 아님", horizon=V.HORIZON, boot=boot, seed=SEED,
                anchor_mde=anchor, anchor_ok=ok, total_windows=round(total_win, 1),
                fit_c=c, fit_p=p, fit_r2=r2(pts, c, p), curve=rows,
-               extrapolation=ext, windows_needed=round(need, 1), threshold=V.IC1)
+               extrapolation=ext, windows_needed=round(need, 1), threshold=V.IC1,
+               per_feature_mde={k: round(m, 4) for m, k in sorted(per)} if per else {},
+               halve_factor=round(2 ** (1 / p), 2))
     with open(OUT, "w") as f:
         json.dump(res, f, ensure_ascii=False, indent=1)
     print(f"\n[출력] {OUT}")
