@@ -522,7 +522,11 @@
       "sizing": "registry.json live_cap — 복리 포트(70 × Π(1+ret×3), 손절 시 $70 리셋 — 2026-09-10 $30→$70 상향) · 3x · 한 번에 1포지션 · 메인 전략과 독립(중복 방어 상호 미적용, 계약 수 단위 청산)",
       "deploy_basis": "검증 미통과(tp_1h REJECTED, 승률 88.00% vs 손익분기 91.11%, 건당 −0.28%). 2026-09-09 사용자 결정 '그냥 30달러만 강제 진행' — 배포 근거 아님, 결정 기록.",
       "requires_hourly_cron": true,
-      "detects_on_closed_bar": true
+      "detects_on_closed_bar": true,
+      "exclude": [
+        "BTC"
+      ],
+      "exclude_note": "2026-09-22 사용자 지시 'tp1 비트 포지션 수동 청산했고 당분간 tp1 은 비트 제외하고 나머지로만' — 되돌리는 것은 사용자 지시가 있을 때. 코호트(top20) 정의는 그대로 두고 결과에서 BTC 만 뺀다."
     }
   ],
   "data_unavailable_note": "2026-07-16: SEI/MOVE/BERA/VANA — 전 거래소 1d fetch 실패 지속 (상장폐지·거래중단 추정) → trading_universe에서 제외. 데이터 복구 시 okx_unavailable에서 되돌리면 됨.",
