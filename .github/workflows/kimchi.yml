@@ -1,0 +1,43 @@
+name: Research — Cross-exchange (kimchi) premium (pre-registered)
+
+# 거래소 간 프리미엄 사전 등록 시험 — registry kimchi_prereg_2026_09_22.
+# 외부 분석 핸드오프(ext_evidence_bitmex_aoa_2026_09_22)가 꼽은 비가격 입력 네 축 중
+# 레포가 데이터를 만들 수 있는 유일한 축.
+#   가족 X(주 판정) 횡단면 종목 선택 — 환율이 정확히 소거된다. 부모 = validate_xsec_chars.
+#   가족 T(보조)    시계열 방향     — 환율 필요(ECB 고시). 부모 = validate_altseason, 지평 20.
+# 커밋된 data_kimchi/(업비트 20:00 UTC 봉) + data_long/ 만 읽는다.
+# DEPLOY_ON_PASS=False — 통과해도 실거래 반영 없음.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_kimchi.py"
+      - "test_kimchi.py"
+      - "build_data_kimchi.py"
+      - ".github/workflows/kimchi.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests
+        run: python test_kimchi.py
+      - name: Pre-registered kimchi-premium test
+        run: python validate_kimchi.py --no-fetch
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kimchi-${{ github.run_number }}
+          path: _kimchi.json
+          if-no-files-found: ignore
