@@ -1,0 +1,56 @@
+name: Research — Upbit +50% shooting precursor (pre-registered, multi-window)
+
+# 업비트 KRW 일봉 +50% 슈팅의 **선행 신호**를 사전 등록 기준으로 여러 달 창에서 잰다
+# (registry upbit_shoot_prereg_2026_09_21). 탐색 판(study_upbit_shooting.py)이 본
+# 2026-08·09 는 판정에서 제외한다.
+# 매일 종가에 한 특성으로 전 종목을 줄 세워 상위 10% 를 사고 다음 날 종가에 판다 —
+# lift = P(슈팅|상위10%)/P(슈팅|전체). 귀무는 같은 날 같은 개수 무작위(날짜별 초기하).
+# DEPLOY_ON_PASS=False — 통과해도 실거래 반영 없음. 매매·DB 무관.
+#
+# 데이터는 업비트 REST(공개, 키 없음). 러너에서 업비트 접근이 막히면 수집 단계에서
+# 실패하며, 그때는 결과를 내지 않고 실패로 남긴다(조용한 부분 표본 금지).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_upbit_shoot.py"
+      - "test_upbit_shoot.py"
+      - "upbit_feat.py"
+      - ".github/workflows/upbit_shoot.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: python test_upbit_shoot.py
+      - name: Upbit reachability
+        run: |
+          python - <<'PY'
+          import json, urllib.request
+          req = urllib.request.Request("https://api.upbit.com/v1/market/all?isDetails=false",
+                                       headers={"User-Agent": "Mozilla/5.0"})
+          d = json.loads(urllib.request.urlopen(req, timeout=20).read().decode())
+          krw = [m for m in d if m["market"].startswith("KRW-")]
+          print(f"업비트 KRW {len(krw)} 종목 — 접근 가능")
+          assert len(krw) > 100
+          PY
+      - name: Pre-registered test (daily cross-section, shared permutation null)
+        run: python validate_upbit_shoot.py --bars 1200
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upbit-shoot-${{ github.run_number }}
+          path: _upbit_shoot.json
+          if-no-files-found: ignore
