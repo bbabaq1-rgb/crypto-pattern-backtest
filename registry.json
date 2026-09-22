@@ -5715,5 +5715,53 @@
       "lottery_shape": "'상위 10일이 PnL 의 51~96%' — 게이트가 진단으로 갖고 있는 top5 기여도가 잡으려는 모양. Sharpe 3.4 가 이 분포 위에서 나왔다는 사실은 10/06 이후 예정된 '승률 문턱 → 복권형 지표 대체' 설계의 근거를 하나 더 보탠다."
     },
     "live_change": "none"
+  },
+  "kimchi_prereg_2026_09_22": {
+    "status": "PREREGISTERED",
+    "date": "2026-09-22",
+    "trigger": "사용자 지시 '호가 불균형/김치 프리미엄 축을 사전 등록으로 설계'. 외부 핸드오프(ext_evidence_bitmex_aoa_2026_09_22)가 꼽은 비가격 입력 4축 중 **호가 불균형은 틱/호가 이력이 없어 사전 등록 자체가 불가**하고, 거래소 간 프리미엄만 데이터를 만들 수 있다(업비트 KRW REST 가 이 환경에서 열린다).",
+    "question": "업비트 KRW 와 글로벌 USDT 의 가격 괴리가 (X) 어느 코인이 이후 20봉 더 오를지, (T) 시장 전체가 이후 20일 어느 방향일지를 예측하는가.",
+    "two_families": {
+      "principle": "**각 가족은 부모 프레임을 통째로 상속한다 — 분할까지.** 두 프레임을 섞어 새 분할·문턱을 만들면 그게 사후 선택이다. test §1 이 13개 함수의 동일성(`is`)과 '문턱을 재정의하지 않음'을 고정한다.",
+      "X_main": "횡단면 **종목 선택**. 부모 = validate_xsec_chars(월말 형성 · PIT liquid · fwd20 · 월별 스피어만 IC · 월 블록 부트 1000 · Holm · train<2025-01 / OOS≥2025-01 · MIN_CS 15 · 왕복 0.4%). 셀 4 = kp_rel / kp_rel_chg5 / kp_rel_chg20 / kp_rel_z60, Holm m=4.",
+      "T_aux": "시계열 **방향**. 부모 = validate_altseason(회전 검정 귀무 · MDE · judge · IC1 0.20 / IC2 0.15 · train<2022-01-01). 지평만 120→**20**, MIN_SHIFT 30(=1.5×지평). 셀 3 = kp_mkt / kp_mkt_chg20 / kp_mkt_z120, Holm m=3. 타깃 = 적격 코인 **중앙 fwd20(USDT 기준)**.",
+      "thresholds_unchanged": "**문턱을 낮추지 않았다** — 지평이 짧아 IC 가 작아질 여지가 있지만 낮추면 사후 완화다."
+    },
+    "fx_cancellation": {
+      "why_it_is_the_core": "주 판정 전체가 이 성질 위에 선다. `kp_rel_i(D) = ln(KRW_i/USDT_i) − median_j ln(KRW_j/USDT_j)` 이고 환율은 같은 날 모든 코인에 **공통 곱**이라 차감에서 정확히 소거된다 → 가족 X 는 환율 데이터가 필요 없다.",
+      "test": "test_kimchi §2 — 날짜별 임의 환율을 곱한 판과 고정 환율 판의 kp_rel 최대차 1.78e-15.",
+      "T_is_contaminated": "가족 T 는 시장 전체 수준이라 환율이 필요하다. ECB 고시(frankfurter, 평일)를 직전값으로 채워 쓴다 — 14:15 CET 고시라 00:00 UTC 와 약 10시간 어긋나고 환율 일변동 약 0.3% 다. 시장 김프가 몇 % 씩 움직이는 데 비해 작지만 0 은 아니다."
+    },
+    "bar_alignment": {
+      "trap": "업비트 **일봉은 KST 기준**(00:00 KST = 15:00 UTC)이라 data_long 의 UTC 일봉 종가와 9시간 어긋난다. 알트 일변동 5% 면 9시간 표류는 약 3% 로, 재려는 상대 김프 스프레드(약 1~3%)보다 크다 — 그냥 쓰면 신호보다 큰 잡음을 얹는다.",
+      "fix": "업비트 **240m 캔들은 UTC epoch 정렬**(00/04/08/12/16/20)이라 `D 20:00` 봉의 종가 = D+1 00:00 UTC = data_long date=D 행의 종가 시각. 240m 을 받아 20:00 봉만 남긴다(build_data_kimchi). test §3 이 고정."
+    },
+    "frozen": {
+      "data": "USDT 측 data_long(현물, 2017~) · KRW 측 data_kimchi(업비트 240m 중 20:00 UTC 봉, 2017~). 겹치는 종목 62(= data_long 80 ∩ 업비트 KRW 289).",
+      "signs": "**가족 X 4셀 전부 사전 부호 '-'** — 근거는 레포가 세 번 독립 재현한 '최근 거래대금·관심 증가 → 이후 나쁨'(xsec_chars vol_ratio_30_90 REVERSED · episode_profile REVERSED · breadth_state)과 김프 평균회귀. 가족 T 3셀도 전부 −1(시장 전체 프리미엄 = 국내 과열). 부호를 셀마다 다르게 두면 양쪽으로 이기는 공짜 승리가 된다.",
+      "design_debt_discharged": "**가족 X 는 train 에도 TOP−유니버스 > 0 을 요구한다.** xsec_chars 가 '순위 통과·평균 실패 셀이 CONFIRMED 로 찍힌다 → 다음 프레임은 train 에도 요구(사후 변경 안 함)'로 남긴 구멍이고, 여기가 그 다음 프레임이다. test §6 이 '부모 finalize 로는 통과하는 셀이 이 요건으로 REJECTED 가 된다'를 실증한다.",
+      "controls": "X 3(ctrl_ar1_a/b 코인별 AR(1) φ=0.95 · ctrl_sym_const 코인별 상수 = 정보 0·지속성 최대) / T 2(ctrl_ar1 · ctrl_season). **대조는 Holm 미보정 + 방향을 train 에서 고르게 둔다**(가장 통과하기 쉬운 조건 = 가드로는 보수적). 한 가족에서 **2개 이상 통과 시 그 가족 INVALID**.",
+      "diagnostics": "D1 kp_volshare(한국 거래 집중도 — 업비트 4h 슬라이스 vs USDT 1d 라 진단) · D2 절대 김프 수준·오늘 읽기 · D3 fwd60/hit20_40 · D4 레짐별 · D5 xsec 24변수와의 중복 · D6 top30 · D7 가족 T MDE 와 lag20 자기상관. **사후에 진단에서 골라 '살았다'고 하지 않는다.**",
+      "deploy": "DEPLOY_ON_PASS=False — 통과해도 실거래 반영 없음. 종목 선택·방향 정보이지 진입 규칙이 아니고, 승격하려면 별도 사전 등록이 필요하다(관찰 기간 ~2026-10-06)."
+    },
+    "known_limits": {
+      "1_fx": "가족 T 의 ECB 고시 시차·주말 채움(위).",
+      "2_survivorship": "이중 생존 편향 — 업비트 상장폐지 코인 없음 + data_long 자체가 오늘 OKX 에 있는 80종목.",
+      "3_venue_spread": "data_long 은 종목마다 다른 현물 거래소(gate/kucoin/coinbase…)라 그 가격차가 비율에 섞인다. 중앙값 차감은 **그날 공통분**만 지우고 종목별 거래소 차이는 남는다.",
+      "4_no_transfer_cost": "원화 입출금 제한·전송 시간 미반영 — '프리미엄이 높다'가 곧 차익 기회가 아니다. 예측력만 본다.",
+      "5_volshare_slice": "D1 거래대금은 업비트 4h 슬라이스 vs USDT 1d — 점유율로 정규화해도 장중 구성 차이가 남는다.",
+      "6_true_kimchi_unavailable": "정통 김프(업비트 KRW-USDT 로 환산)는 **그 시장이 2025-06-15 상장**이라 train 이 없다(실행 전 확인).",
+      "7_runner_autofetch": "러너에서 detlib 자동 수집이 USDT 측 최신 봉을 붙일 수 있다 — 격자 끝이 실행일에 따라 며칠 달라진다. KRW 데이터가 2026-09-21 에서 끝나 변동은 그 안으로 묶이고, 그 구간은 fwd20 이 없어 판정에 들어가지 않는다."
+    },
+    "prior": {
+      "overall": "CONFIRMED 0 예상. xsec_chars 가 24변수 중 1개만 통과시켰고 그마저 '순위 예측이지 평균수익이 아니다'였다.",
+      "within_X": "**kp_rel(수준)이 가장 약하고 z60·chg 가 나을 것** — 수준은 상장·유동성에서 오는 코인 고정효과가 지배해 검정력 곡선이 짚은 '지속성 함정'에 그대로 걸린다.",
+      "most_likely_interesting": "**REVERSED**(프리미엄 높은 코인이 이후 더 좋음 = 한국 자금이 모멘텀). 그래도 승격하지 않는다.",
+      "T": "지평 20 이라 MDE 가 알트시즌 120일 판보다 훨씬 나을 것 — **거기서 뭔가 나오면 그게 이 판의 실질 소득**. 다만 홀드아웃 2022~2026 이 bear 지배.",
+      "no_size": "크기·순위는 예측하지 않는다."
+    },
+    "orderbook_imbalance": "**같은 축의 나머지 절반은 설계 불가로 남긴다** — 호가 불균형은 틱/호가 이력이 필요한데 레포는 봉 데이터뿐이다(band_rule·tp_1h 에서 반복해 걸린 구멍). 데이터 수집부터가 별도 과제이고, 지금 사전 등록하면 잴 수 없는 것을 등록하는 것이 된다.",
+    "files": "build_data_kimchi.py / validate_kimchi.py / test_kimchi.py(55건) / .github/workflows/kimchi.yml / data_kimchi/",
+    "live_change": "none"
   }
 }
