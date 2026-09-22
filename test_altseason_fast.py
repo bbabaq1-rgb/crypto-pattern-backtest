@@ -149,6 +149,24 @@ chk("검정력 부족은 INCONCLUSIVE", V.judge(row(0.30, 0.40, 0.20, 0.01, mde=
 chk("음의 부호 셀도 같은 규칙", V.judge(row(-0.30, 0.01, -0.20, 0.01, sign=-1))[0] == "CONFIRMED")
 
 
+# ── §6b 모양 계약 — D1 이 두 모듈의 지표 자료구조를 섞지 않는가
+print("\n§6b 자료구조 — features_at(인덱스별 dict 목록) vs 이 모듈({키: 계열})")
+lvl_rows = V.features_at(V.build_series(
+    {s: {f"2020-01-{d:02d}": 100.0 + d for d in range(1, 29)} for s in ("btc", "eth", "a1")}))
+chk("level 판 features_at 은 목록의 각 원소가 dict",
+    isinstance(lvl_rows, list) and isinstance(lvl_rows[0], dict))
+flip = {k: [r.get(k) for r in lvl_rows] for k in F.LEVEL_REF.values()}
+chk("뒤집으면 {키: 계열} — measure() 가 기대하는 모양",
+    all(isinstance(v, list) and len(v) == len(lvl_rows) for v in flip.values()))
+chk("이 모듈 build() 도 {키: 계열}", all(
+    isinstance(v, list) for v in
+    F.build({k: [1.0] * 400 for k, _, _ in F.BASES}).values()))
+chk("measure 는 feats[key][i] 로 접근한다(모양 계약)",
+    "feats[key][i]" in open("validate_altseason_fast.py").read())
+chk("D1 이 dict 인덱싱(lvl[i].get)을 쓰지 않는다",
+    "lvl[i].get" not in open("validate_altseason_fast.py").read())
+
+
 # ── §7 동결 상수 ──────────────────────────────────────────────────────────
 print("\n§7 동결 상수")
 chk("LB = 20 (level 판 저MDE 셀과 같은 창)", F.LB == 20)

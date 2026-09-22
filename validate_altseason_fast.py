@@ -193,7 +193,10 @@ def main():
                   btc=S["btc_c"], disp=S["disp"])
     feats = build(series)
     feats.update(controls(len(S["dates"])))
-    lvl = V.features_at(S)          # D1 비교용 level 판 지표(같은 코드)
+    # D1 비교용 level 판 지표 — features_at 은 **인덱스별 dict 목록**을 주므로
+    # 이 모듈의 {키: 계열} 모양으로 뒤집어야 measure() 가 그대로 쓸 수 있다.
+    lvl_rows = V.features_at(S)
+    lvl = {k: [r.get(k) for r in lvl_rows] for k in set(LEVEL_REF.values())}
 
     d = S["dates"]
     keep = [i for i in range(len(d))
@@ -272,7 +275,7 @@ def main():
         lr = measure(tr, lvl, tgt, lk, SIGN[key], V.SEED + 900 + bi)
         got = {k: next((r for r in rows if r["key"] == f"{key}_{k}"), None)
                for k in ("accel", "pctile", "roc")}
-        lac = autocorr([lvl[i].get(lk) for i in range(len(d))], V.HORIZON)
+        lac = autocorr(lvl[lk], V.HORIZON)
         line = (f"   {label[:21]:<22}{V.fmt(lr['mde'] if lr else None, 11)}"
                 + "".join(V.fmt(got[k]["train"]["mde"] if (got[k] and got[k]["train"]) else None, 9)
                           for k in ("accel", "pctile", "roc"))
