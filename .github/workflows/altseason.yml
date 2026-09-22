@@ -1,0 +1,39 @@
+name: Research — Alt-season lead indicators, 120d horizon (pre-registered)
+
+# 알트 시즌 선행 지표 120일 지평 사전 등록 시험 (registry altseason_prereg_2026_09_22).
+# 종전 라벨러 시험은 전부 지평 20일 고정이었다. 120일은 사용자가 결과를 보기 전에 지정한 값.
+# 네트워크 불필요 — 커밋된 data_long/ 만 읽는다. 매매·DB 무관.
+# DEPLOY_ON_PASS=False — 통과해도 실거래 반영 없음.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_altseason.py"
+      - "test_altseason.py"
+      - ".github/workflows/altseason.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: python test_altseason.py
+      - name: Pre-registered alt-season test
+        run: python validate_altseason.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: altseason-${{ github.run_number }}
+          path: _altseason.json
+          if-no-files-found: ignore
