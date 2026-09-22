@@ -1,0 +1,41 @@
+name: Research — Alt-season power curve (calculation, not a verdict)
+
+# 알트 시즌 시험(registry altseason_prereg_2026_09_22)의 검정력 곡선.
+# 유료 데이터로 표본 시작을 2018-05 -> 2014 로 내리면 비중첩 120일 창이 24 -> 약 38 이 된다.
+# 그만큼으로 MDE 가 문턱(0.20) 밑으로 내려오는지 계산한다. **판정 없음, 실거래 무관.**
+# 네트워크 불필요 — 커밋된 data_long/ 만 읽는다.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "power_curve.py"
+      - "test_power_curve.py"
+      - ".github/workflows/power_curve.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: |
+          python test_altseason.py
+          python test_power_curve.py
+      - name: Power curve
+        run: python power_curve.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: power-curve-${{ github.run_number }}
+          path: _power_curve.json
+          if-no-files-found: ignore
