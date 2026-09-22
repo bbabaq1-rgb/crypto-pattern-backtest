@@ -1,0 +1,41 @@
+name: Research — Alt-season low-persistence indicators (pre-registered)
+
+# 알트 시즌 선행 지표 **저지속성(차분·백분위) 판** — registry altseason_fast_prereg_2026_09_22.
+# 검정력 곡선이 '병목은 예산이 아니라 지표의 지속성'이라 답한 데 대한 후속(비용 0).
+# 타깃·분할·귀무·판정은 validate_altseason 그대로, 바뀐 건 지표 구성뿐.
+# 네트워크 불필요 — 커밋된 data_long/ 만 읽는다. DEPLOY_ON_PASS=False, 실거래 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_altseason_fast.py"
+      - "test_altseason_fast.py"
+      - ".github/workflows/altseason_fast.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: |
+          python test_altseason.py
+          python test_altseason_fast.py
+      - name: Pre-registered low-persistence test
+        run: python validate_altseason_fast.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: altseason-fast-${{ github.run_number }}
+          path: _altseason_fast.json
+          if-no-files-found: ignore
