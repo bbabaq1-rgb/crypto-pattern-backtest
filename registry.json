@@ -5632,7 +5632,7 @@
   "files": "power_curve.py / test_power_curve.py(33) / power_curve.yml / report_altseason.md 부록 A"
  },
  "altseason_fast_prereg_2026_09_22": {
-  "status": "PREREGISTERED",
+  "status": "REJECTED",
   "date": "2026-09-22",
   "trigger": "사용자 지시 '차분형·저지속성 지표 사전 등록(비용 0)을 지금 설계' — 검정력 곡선의 권고 ② 실행.",
   "why": "검정력 곡선(altseason_power_curve_2026_09_22)이 **병목은 예산이 아니라 지표의 지속성**이라고 답했다. 지표별 MDE 가 0.136~0.326 으로 2.4배 벌어지고 p=0.378 에서 그 차이는 **데이터 10.2배**에 해당한다. 10배는 못 사지만(80년치) 지표 선택은 0원이다. **유료 데이터 결제 전에 공짜 레버를 먼저 쓴다.**",
@@ -5662,6 +5662,22 @@
    "LB 20 · PCT_WIN 250 은 **스윕하지 않는다**. 격자를 돌려 최대값을 고르는 것이 이 설계가 막으려는 것이고, 20 은 level 판의 저MDE 셀과 같은 창이라 임의 선택이 아니다.",
    "pctile 은 유계라 극단 구간에서 포화한다(0 또는 1 에 붙으면 순위 정보가 사라진다)."
   ],
-  "files": "validate_altseason_fast.py / test_altseason_fast.py(54) / altseason_fast.yml"
+  "files": "validate_altseason_fast.py / test_altseason_fast.py(54) / altseason_fast.yml",
+  "result_2026_09_22": {
+   "run": 35700854897,
+   "run_1st": "35700591439 — D1 진단 자료구조 결함으로 크래시, **아무 수치도 출력 안 됨**(결과 보기 전 수정)",
+   "verdict": "CONFIRMED 0 / INCONCLUSIVE 1 / REVERSED 0 / REJECTED 9 · 음성 대조 0/3 → 판 VALID · 실거래 무변경",
+   "mde_promise_realized": "**검정력 곡선의 약속은 실현됐고 예측보다 좋았다** — accel MDE 계열별 0.114/0.097/0.119/0.119/0.093 vs level 0.292/0.265/0.231/0.403/0.339. **2.0~4.3배 감소 = p 0.378 에서 데이터 6~25배**에 해당(유료 데이터가 사는 1.6배와 비교 불가). 사전 확률 0.12~0.18 보다 좋았다.",
+   "pctile_failed": "**pctile 구성은 실패** — 5 중 3에서 MDE 가 오히려 올랐다(분산 0.339→0.463). 기전은 ac120: pctile 의 lag120 자기상관이 0.378/0.324 로 **level 기준(0.146/0.171)보다 높다** — level 대응이 dist200·breadth180 처럼 이미 정규화된 구성이라, 원시 비율의 250일 백분위가 MA 대비 거리보다 더 지속적이었다. **내 사전 확률이 틀렸다.**",
+   "core_finding": "**그 해상도에서 아무것도 없다 — 이제 검정력 문제가 아니다.** accel 5셀 IC +0.041/+0.051/+0.066/+0.080/+0.116, 전부 자기 MDE 아래이고 문턱 0.20 의 절반 이하. MDE 0.09~0.12 면 |IC|=0.12 를 잡을 수 있었는데 잡힌 건 약 0.07. **level 판은 '검정력이 모자라 못 본다' 였으나 차분 축은 '볼 수 있는 해상도로 봤고 없다'.**",
+   "combined_30_cells": "**두 판 30셀 합친 그림이 진짜 발견** — rho(MDE, |IC|) **+0.490**, |IC|/MDE 비 **중앙 0.57**(순수 잡음 기대 ≈0.6), 시드 고정 잡음 대조 5개의 비가 0.33/0.47/0.52/0.54/0.56 으로 **실지표 분포 한가운데**. **level 판에서 가장 커 보였던 IC(altbtc_mom120 0.324 · altbtc_dist200 0.314)는 그 셀이 가장 시끄러웠기 때문이다.** 비가 1 을 넘는 다섯 셀은 **전부 선언 부호와 반대**(disp_accel 1.25 · altbtc/breadth_pctile 1.19 · altbtc_dist200 1.13 · altbtc_mom120 1.14) — 가장 큰 값들이 자기 가설을 거스르는 것 자체가 잡음의 서명. **단 rho +0.49 는 중간 강도이고 산포가 넓어(0.02~1.25) '모든 IC 가 잡음' 까지는 주장하지 않는다.**",
+   "only_survivor": "**disp_pctile 만 INCONCLUSIVE** — IC −0.323(부호 일치) · holdout 상대 엣지 **+6.50%p**(D2 최고, 절대 −15.1%)인데 **MDE 0.463 으로 30셀 중 최대**라 검출 불가. level 판 disp60(+9.3/+6.5%p)과 같은 방향이고 **저변동 방어의 다섯 번째 독립 재현**(xsec_chars rvol20 · upbit_bsqueeze atr14 · 변동성 타겟팅 · disp60). **그러나 비 0.70 으로 잡음 범위 안이고 절대값은 −15.1% — '덜 진다'이지 '이긴다'가 아니다. 추격 안 함.**",
+   "prior_scorecard": "적중 — CONFIRMED 0 · **accel IC ≈ 0**. 더 좋았음 — accel MDE(0.093~0.119 vs 예측 0.12~0.18). **오답 3** — 'pctile 이 진짜 후보'(MDE 가 안 내려감) · 'pctile MDE 0.18~0.25'(실제 0.231~0.463) · '막을 층은 C3'(실제 C1 |IC| 문턱에서 먼저 걸려 C3 까지 가지도 못함). **그리고 사전 등록의 유보를 스스로 반증** — level 판 breadth_chg20 의 |IC| 0.004 를 '한 번의 잡음 draw 일 수 있다'고 적었으나, roc 5셀 0.004~0.136 · accel 5셀 0.041~0.116 으로 일관 — **0.004 는 이상치가 아니라 대표값이었다.**",
+   "what_closes_what_opens": "**닫힘 — 빠른(차분) 축**: MDE 0.09~0.12 의 좋은 해상도로 보고 |IC|<0.12. 데이터를 더 사도 이 축엔 살 것이 없다. **열림 — 느린(수준) 축**: 여전히 MDE 0.23~0.40 이라 |IC|≈0.15 가 숨어도 못 본다(다만 combined_30_cells 가 그 축 관측값이 잡음과 구분 안 됨을 시사). **미측정 그대로** — 진짜 BTC.D/TOTAL2/TOTAL3.",
+   "paid_data": "**권고 불변 — 사지 않는다.** 부록 A 가 '사도 train 문턱을 못 넘는다'고 답했고, 이제 B3 가 '해상도를 얻어도 찾을 것이 없더라'를 더한다.",
+   "defect_disclosed": "1차 실행이 D1 진단에서 `features_at`(인덱스별 dict 목록)을 이 모듈의 `{키: 계열}` 자리에 넘겨 TypeError. **주 판정은 그 줄 이전에 계산되고 아무 수치도 출력 안 된 채 죽어 결과를 보기 전 수정.** test §6b 가 두 모양의 계약 고정.",
+   "live_change": "none (DEPLOY_ON_PASS=False)",
+   "report": "report_altseason.md 부록 B"
+  }
  }
 }
