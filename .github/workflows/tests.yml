@@ -85,6 +85,7 @@ jobs:
                    test_upbit_shoot.py \
                    test_upbit_bsqueeze.py \
                    test_altseason.py \
+                   test_power_curve.py \
                    test_regime_determinism.py \
                    test_method_m.py \
                    test_regime_split.py \
