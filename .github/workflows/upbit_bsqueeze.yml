@@ -1,0 +1,53 @@
+name: Research — Upbit B-type squeeze precursor (pre-registered)
+
+# 업비트 KRW 일봉 **B형(무거래 수축 뒤 급등)** 전용 사전 등록 시험
+# (registry upbit_bsqueeze_prereg_2026_09_22).
+# 앞선 판(upbit_shoot)은 12 특성을 전부 내림차순으로만 줄 세워 B형을 볼 수 없었다.
+# 이 판은 ① A형(직전 20일 +15% 초과) 풀 제외 ② 수축 특성을 오름차순 ③ 라벨 지평 20봉.
+# DEPLOY_ON_PASS=False — 통과해도 실거래 반영 없음. 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_upbit_bsqueeze.py"
+      - "test_upbit_bsqueeze.py"
+      - ".github/workflows/upbit_bsqueeze.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: |
+          python test_upbit_shoot.py
+          python test_upbit_bsqueeze.py
+      - name: Upbit reachability
+        run: |
+          python - <<'PY'
+          import json, urllib.request
+          req = urllib.request.Request("https://api.upbit.com/v1/market/all?isDetails=false",
+                                       headers={"User-Agent": "Mozilla/5.0"})
+          d = json.loads(urllib.request.urlopen(req, timeout=20).read().decode())
+          krw = [m for m in d if m["market"].startswith("KRW-")]
+          print(f"업비트 KRW {len(krw)} 종목 — 접근 가능")
+          assert len(krw) > 100
+          PY
+      - name: Pre-registered B-type test
+        run: python validate_upbit_bsqueeze.py --bars 1200
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upbit-bsqueeze-${{ github.run_number }}
+          path: _upbit_bsqueeze.json
+          if-no-files-found: ignore
