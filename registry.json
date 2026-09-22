@@ -962,7 +962,17 @@
         "target_unreachable": "30건 목표는 사실상 도달 불가 — 9/09 시작 후 5일에 4건. 남은 기간 다 써도 15~20건. 2026-10-06 이 실질 종료 시점이고 그때의 표본으로 대조한다.",
         "open_question": "9/14 22:03Z ETH triple_bottom_4h 행이 reconcile-close 로 기록됐다(fill=2566.2475 = tp1 의 체결가, -0.07%, 실현 +$1.60). 두 해석이 로그만으로 안 갈린다 — (가) triple_bottom 포지션은 그 전에 이미 닫혀 장부에만 남았고 reconcile 이 (symbol,direction) 매칭으로 tp1 의 체결가를 남의 행에 붙였다(실포지션 수가 21:03Z 10→9, 22:03Z 9 불변이라 유력) / (나) tp1 의 시장가 청산이 triple_bottom 레그까지 끌고 나갔다 = close_qty_for 클램프 미작동. (나) 라면 배포된 triple_bottom_4h(v5 CONFIRMED)의 청산이 검증 규칙과 달라진 것이라 더 무겁다. 가르려면 OKX 포지션 이력의 ETH 청산 건수·시각이 필요하다(에이전트 환경에서 조회 불가). 선택지 B 는 OCO 경로만 고쳤고 엔진 시장가 청산 경로는 별개다."
       },
-      "review": "진입 30건 또는 2026-10-06 관찰 종료 시 승률·건당·수수료 합을 tp_1h 백테스트(88.00% / −0.28%)와 대조해 보고. 정지는 사용자 결정."
+      "review": "진입 30건 또는 2026-10-06 관찰 종료 시 승률·건당·수수료 합을 tp_1h 백테스트(88.00% / −0.28%)와 대조해 보고. 정지는 사용자 결정.",
+      "symbol_exclusion_2026_09_22": {
+        "decision": "**tp1 에서 BTC 제외** — 2026-09-22 사용자 지시 'Tp1 비트 포지션 내가 방금 수동 청산했어. 당분간 tp1 은 비트 제외하고 내가 말할 때까지 다른 나머지걸로만 적용하자'.",
+        "scope": "tp1_engulfing_1h **하나만**. universe.json 의 그 항목에 `exclude: [\"BTC\"]` 를 넣었고, scheduler `_cohort_symbols(rule, base, exclude)` 가 **코호트를 적용한 뒤** 그 심볼을 뺀다.",
+        "why_after_cohort": "코호트(top20) 정의를 건드리지 않기 위해서다 — 순위 계산에서 BTC 를 빼면 21위가 올라와 'top20' 의 뜻이 달라진다. 결과에서만 제외하면 나머지 19종목은 종전과 완전히 같다(test §8 이 top3 예시로 고정).",
+        "unchanged": "`exclude` 는 **선택 필드**다. 이 필드가 없는 항목(cascade_fade_long_1h · 4h adopted 3종 · 1d adopted)은 한 줄도 안 바뀐다 — test_tp1_live §8 과 test_adopted_regimes 가 '현 배포 항목에 exclude 없음'을 고정한다. 사이징·배리어·슬롯·중복 방어·청산 규칙 전부 불변.",
+        "manual_close": "BTC tp1 포지션은 사용자가 거래소에서 직접 청산했다. **엔진 조치 불필요** — 다음 fast 틱에서 ① reconcile 이 포지션 소멸을 보고 D 청산을 기록하고 ② `ensure_stop_orders` 의 고아 취소가 남은 OCO algo 를 지운다(reduceOnly 라 그 사이에도 신규 진입 위험 없음). 청산 사유는 2026-09-17 `exit_reason_of` 가 체결가를 배리어와 대조해 **'OKX청산'**(수동·외부)으로 붙인다 — 손절로 세지 않는다.",
+        "pot_effect": "**복리 포트에는 들어간다.** `cap_margin` 은 이 패턴의 방식D 청산 거래 전부를 곱하므로 수동 청산의 실현 수익률도 포트에 반영된다(바닥 $70 규칙 그대로). 규칙이 낸 결과가 아니라 사용자 개입이므로 **10/06 대조 보고에서 이 1건은 따로 표시**하고 승률·건당 집계에서 구분한다.",
+        "reverting": "되돌리려면 universe.json tp1 항목의 `exclude` 를 지우면 된다(한 줄). **사용자 지시가 있을 때만.**",
+        "live_change": "tp1 진입 대상에서 BTC 제외 — 그 외 실거래 변경 없음"
+      }
     }
   ],
   "rejected_4h": [

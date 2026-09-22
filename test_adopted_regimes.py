@@ -72,7 +72,11 @@ check("1d adopted 루프가 게이트를 호출", "adopted_regime_ok(ap, regime,
 check("4h 블록이 게이트를 호출", 'adopted_regime_ok(ap, regime, "4h")' in src)
 # _px 는 저가 코인 보호용 반올림(2026-09-17 SHIB). 방향별 부호가 유지되는지만 본다.
 check("4h 숏 항목은 손절가가 진입가 위", "_px(entry4 * (1 + STOP))" in src)
-check("4h 블록이 항목별 코호트를 적용", 'syms4 = _cohort_symbols(ap.get("cohort"), h_syms)' in src)
+check("4h 블록이 항목별 코호트를 적용",
+      'syms4 = _cohort_symbols(ap.get("cohort"), h_syms, ap.get("exclude"))' in src)
+# exclude(2026-09-22 tp1 BTC 제외)는 **선택 필드** — 4h adopted 3항목은 갖고 있지 않으므로 동작 불변
+check("4h adopted 는 exclude 가 없다 — 종목 제외 경로를 안 탄다",
+      all("exclude" not in a for a in json.load(open("universe.json", encoding="utf-8"))["adopted_4h_patterns"]))
 check("4h 블록이 항목별 닫힌 봉 탐지를 지원(없으면 마지막 행 = 종전)",
       'last4 = _closed_idx(rows4h) if closed4 else len(rows4h) - 1' in src)
 

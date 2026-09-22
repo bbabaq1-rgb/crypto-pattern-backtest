@@ -198,7 +198,7 @@ def adopted_regime_ok(ap, regime, tf):
     return regime in rg
 
 
-def _cohort_symbols(rule, base):
+def _cohort_symbols(rule, base, exclude=None):
     """
     adopted 항목의 선택 필드 `cohort` (2026-09-05). 검증이 특정 거래대금 코호트에서만 통과한
     패턴을 그 코호트에서만 켜기 위한 것이다.
@@ -206,15 +206,26 @@ def _cohort_symbols(rule, base):
       "topN"       → 30일 평균 거래대금 상위 N(_volume_ranked, 매 실행 재계산) ∩ base
       "majors"     → 검증 7종목 ∩ base
     확인 시험(revival)의 top30 코호트(turnover_rank: 최근 30봉 close×volume 평균)와 같은 정의다.
+
+    `exclude` (선택 필드, 2026-09-22): 코호트를 적용한 **뒤** 특정 심볼만 뺀다. 사용자가
+    종목 단위로 끄고 싶을 때 쓰는 자리이고, 코호트 정의 자체는 건드리지 않는다(순위 계산은
+    그대로 두고 결과에서만 제외 — 그래야 'top20' 의 뜻이 안 바뀐다).
+    **없으면 종전과 완전히 같다** — 이 필드를 안 가진 adopted 항목의 동작은 불변.
     """
     if not rule or rule == "all":
-        return list(base)
-    bs = set(base)
-    if rule == "majors":
-        return [s for s in MAJORS if s in bs]
-    if isinstance(rule, str) and rule.startswith("top"):
-        return [s for s in _volume_ranked()[:int(rule[3:])] if s in bs]
-    return list(base)
+        out = list(base)
+    else:
+        bs = set(base)
+        if rule == "majors":
+            out = [s for s in MAJORS if s in bs]
+        elif isinstance(rule, str) and rule.startswith("top"):
+            out = [s for s in _volume_ranked()[:int(rule[3:])] if s in bs]
+        else:
+            out = list(base)
+    if exclude:
+        ex = {str(x).upper() for x in exclude}
+        out = [s for s in out if str(s).upper() not in ex]
+    return out
 
 
 def _syms_for_pattern(pattern):
@@ -752,7 +763,7 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
             # 항목별 코호트(없으면 4h 데이터 보유 전 종목 = 종전) / 닫힌 봉 탐지(없으면 마지막 행 = 종전).
             # 2026-09-05 게이트 v2 통과 셀은 top30 코호트·닫힌 봉 종가 기준으로 검증됐으므로 그 조건을
             # 그대로 건다. three_soldiers_4h 는 두 필드가 없어 동작 불변.
-            syms4 = _cohort_symbols(ap.get("cohort"), h_syms)
+            syms4 = _cohort_symbols(ap.get("cohort"), h_syms, ap.get("exclude"))
             closed4 = bool(ap.get("detect_on_closed_bar"))
             for sym in syms4:
                 try:
@@ -790,7 +801,8 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
             except ImportError:
                 continue
             # 선택 필드 `cohort`(top20 등) — 4h adopted 와 같은 정의(_cohort_symbols). 없으면 전체.
-            syms1 = _cohort_symbols(ap.get("cohort"), h1_syms)
+            # 선택 필드 `exclude` — 종목 단위로 끄는 자리(2026-09-22 tp1 BTC 제외). 없으면 불변.
+            syms1 = _cohort_symbols(ap.get("cohort"), h1_syms, ap.get("exclude"))
             for sym in syms1:
                 try:
                     # exit_spec 패턴은 봉 ts 가 필요하다(진입봉 특정·eval_I). 디텍터 자체 로더가

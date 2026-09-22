@@ -119,7 +119,8 @@ check("registry: status forced_live_user, 검증 미통과 명시", rp["status"]
 check("스케줄러·체결엔진이 같은 exit_spec 을 본다", set(sch._exit_specs()) == set(pe.EXIT_SPECS))
 check("_pattern_tf(tp1) == 1h (청산 평가 tf)", pe._pattern_tf(PAT) == "1h")
 ssrc = open("scheduler.py", encoding="utf-8").read()
-check("스케줄러: 1h adopted 에 cohort 적용", 'syms1 = _cohort_symbols(ap.get("cohort"), h1_syms)' in ssrc)
+check("스케줄러: 1h adopted 에 cohort 적용",
+      'syms1 = _cohort_symbols(ap.get("cohort"), h1_syms, ap.get("exclude"))' in ssrc)
 check("스케줄러: exit_spec 패턴은 ts 가 있는 detlib 로더로 읽는다",
       'detlib.load_ohlcv(sym, "1h") if spec_ap else mod1.load_ohlcv(sym, "1h")' in ssrc)
 check("스케줄러: 배리어 표기가 exit_barriers 공용 함수", "xb.barriers(spec1, rows1h, last1, entry1, ap[\"direction\"])" in ssrc)
@@ -316,6 +317,45 @@ check("cap 자기 포지션만 있는 경우는 겹침 아님", not _merged_of(T
 check("안 겹치면 종전대로 재정렬한다", not _merged_of(True, K, set(), set(), set(), set()))
 check("메인 신호(cap 아님)는 이 분기를 안 탄다 — cascade 배리어 동작 불변",
       not _merged_of(False, K, {K}, {K}, {K}, set()))
+
+# ── §8 종목 제외 (2026-09-22 사용자 지시 "tp1 은 비트 제외") ──────────────────
+# 고정하는 것 둘: ① tp1 코호트에서 BTC 가 빠진다 ② `exclude` 가 없는 항목은 **완전히 불변**
+#                 (cascade·4h adopted 가 이 필드를 안 가지므로 그 경로는 한 줄도 안 바뀐다)
+print("\n§8 tp1 BTC 제외")
+_base = ["BTC", "ETH", "SOL", "XRP"]
+check("exclude 없으면 종전과 동일 (인자 생략)", sch._cohort_symbols(None, _base) == _base)
+check("exclude=None 도 동일", sch._cohort_symbols(None, _base, None) == _base)
+check("exclude=[] 도 동일", sch._cohort_symbols(None, _base, []) == _base)
+check("BTC 만 빠지고 나머지 순서 보존",
+      sch._cohort_symbols(None, _base, ["BTC"]) == ["ETH", "SOL", "XRP"])
+check("대소문자 무관", sch._cohort_symbols(None, _base, ["btc"]) == ["ETH", "SOL", "XRP"])
+
+# 코호트 뒤에 적용된다 — 순위 계산 자체는 안 바뀐다(= 'top20' 의 뜻이 유지된다)
+_orig_ranked = sch._volume_ranked
+sch._volume_ranked = lambda: ["BTC", "ETH", "SOL", "XRP", "DOGE"]
+try:
+    top3 = sch._cohort_symbols("top3", _base)
+    top3_ex = sch._cohort_symbols("top3", _base, ["BTC"])
+    check("top3 는 종전대로 상위 3", top3 == ["BTC", "ETH", "SOL"])
+    check("제외는 코호트 **뒤** — top3 에서 BTC 만 빠진다(4위가 올라오지 않는다)",
+          top3_ex == ["ETH", "SOL"])
+finally:
+    sch._volume_ranked = _orig_ranked
+
+_uni = json.load(open("universe.json", encoding="utf-8"))
+_tp1 = [a for a in _uni["adopted_1h_patterns"] if a["pattern"] == "tp1_engulfing_1h"]
+check("universe 에 tp1 항목이 하나", len(_tp1) == 1)
+check("tp1 exclude = ['BTC']", _tp1 and _tp1[0].get("exclude") == ["BTC"])
+check("tp1 코호트는 top20 그대로", _tp1 and _tp1[0].get("cohort") == "top20")
+for _a in _uni["adopted_1h_patterns"] + _uni["adopted_4h_patterns"] + _uni.get("adopted_patterns", []):
+    if _a.get("pattern") != "tp1_engulfing_1h":
+        check(f"{_a.get('pattern')} 은 exclude 없음 — 동작 불변", "exclude" not in _a)
+
+_src8 = open("scheduler.py", encoding="utf-8").read()
+check("4h adopted 호출이 exclude 를 넘긴다",
+      '_cohort_symbols(ap.get("cohort"), h_syms, ap.get("exclude"))' in _src8)
+check("1h adopted 호출이 exclude 를 넘긴다",
+      '_cohort_symbols(ap.get("cohort"), h1_syms, ap.get("exclude"))' in _src8)
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)
