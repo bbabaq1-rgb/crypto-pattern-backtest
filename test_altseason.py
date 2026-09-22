@@ -146,9 +146,9 @@ def row(ic_tr, p_holm, ic_ho, p_ho, sign=+1, mde_tr=0.10,
 chk("전 기준 통과 → CONFIRMED", V.judge(row(0.30, 0.01, 0.20, 0.01))[0] == "CONFIRMED")
 chk("|IC_train| 이 문턱 미만 → REJECTED", V.judge(row(0.15, 0.01, 0.20, 0.01))[0] == "REJECTED")
 chk("holdout 부호 뒤집힘 → REJECTED", V.judge(row(0.30, 0.01, -0.20, 0.01))[0] == "REJECTED")
-chk("holdout 상위3분위가 음수면 C3 탈락 → REJECTED",
+chk("holdout 선호3분위가 음수면 C3 탈락 → REJECTED",
     V.judge(row(0.30, 0.01, 0.20, 0.01, terc_ho=(-0.05, -0.10)))[0] == "REJECTED")
-chk("상위3분위가 전체 평균보다 못하면 C3 탈락",
+chk("선호3분위가 전체 평균보다 못하면 C3 탈락",
     V.judge(row(0.30, 0.01, 0.20, 0.01, terc_ho=(0.05, 0.10)))[0] == "REJECTED")
 chk("크기·부호는 맞는데 p 실패 + MDE > 문턱 → INCONCLUSIVE(검정력 부족)",
     V.judge(row(0.30, 0.40, 0.20, 0.01, mde_tr=0.45))[0] == "INCONCLUSIVE")
@@ -160,6 +160,19 @@ chk("부호 - 선언에서 음수 IC 는 정상 통과",
     V.judge(row(-0.30, 0.01, -0.20, 0.01, sign=-1))[0] == "CONFIRMED")
 chk("분할이 없으면 INCONCLUSIVE",
     V.judge(dict(key="x", sign=+1, train=None, holdout=None))[0] == "INCONCLUSIVE")
+
+
+print("  — 3분위 선택이 선언 부호를 따른다 (2026-09-22 결함 수정)")
+fv6 = list(range(90))
+tv6 = [float(-x) for x in fv6]          # 지표가 낮을수록 target 이 높다
+hi = V.tercile_stats(fv6, tv6, +1)
+lo = V.tercile_stats(fv6, tv6, -1)
+chk("sign>0 은 높은 쪽 3분위", hi["side"] == "high" and hi["top_mean"] < tv6[len(tv6)//2])
+chk("sign<0 은 낮은 쪽 3분위", lo["side"] == "low" and lo["top_mean"] > tv6[len(tv6)//2])
+chk("두 쪽은 서로 다른 값 (종전 결함이면 같았다)", hi["top_mean"] != lo["top_mean"])
+chk("전체 평균은 부호와 무관", abs(hi["all_mean"] - lo["all_mean"]) < 1e-12)
+chk("음의 부호 셀에서 낮은 쪽이 좋으면 C3 통과",
+    V.judge(row(-0.30, 0.01, -0.20, 0.01, sign=-1))[0] == "CONFIRMED")
 
 
 # ── §6 타깃 정의 ──────────────────────────────────────────────────────────

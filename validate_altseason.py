@@ -331,14 +331,20 @@ def holm(pairs, m=None):
     return out
 
 
-def tercile_stats(fv, tv, nq=NQ):
-    """상위 3분위(선언 부호 방향으로 '지표가 높은 쪽')의 target 평균 + 전체 평균."""
+def tercile_stats(fv, tv, sign, nq=NQ):
+    """**선언 부호가 가리키는 쪽** 3분위의 target 평균 + 전체 평균.
+
+    sign>0 이면 지표가 높은 쪽, sign<0 이면 낮은 쪽이 '알트에 유리하다'는 가설이다.
+    (2026-09-22 결함 수정 — 종전에는 부호를 안 보고 늘 상위 3분위를 잡아, disp60 처럼
+     음의 부호를 선언한 셀에서 **가설이 나쁘다고 본 쪽**을 C3 에 넣고 있었다.)
+    """
     if len(fv) < nq * 3:
         return None
     pairs = sorted(zip(fv, tv))
-    cut = len(pairs) - len(pairs) // nq
-    top = [t for _, t in pairs[cut:]]
-    return dict(top_mean=st.mean(top), all_mean=st.mean(tv), n_top=len(top))
+    k = len(pairs) // nq
+    fav = [t for _, t in (pairs[len(pairs) - k:] if sign > 0 else pairs[:k])]
+    return dict(top_mean=st.mean(fav), all_mean=st.mean(tv), n_top=len(fav),
+                side=("high" if sign > 0 else "low"))
 
 
 # ── 판정 ──────────────────────────────────────────────────────────────────
@@ -403,7 +409,7 @@ def analyze(S, feats, tgt, tgt_mean):
         ic = spearman(fv, tv)
         nulls = rotation_null(fv, tv, seed=seed)
         return dict(n=len(sub), ic=ic, p=pval(ic, nulls, sign), p_two=pval_two(ic, nulls),
-                    mde=mde(nulls, sign), terc=tercile_stats(fv, tv),
+                    mde=mde(nulls, sign), terc=tercile_stats(fv, tv, sign),
                     span_days=(datetime.strptime(dates[sub[-1]], "%Y-%m-%d")
                                - datetime.strptime(dates[sub[0]], "%Y-%m-%d")).days)
 
@@ -458,7 +464,7 @@ def main():
 
     print("\n" + "-" * 108)
     print(f"{'지표':<30}{'부호':>4}{'IC_tr':>8}{'Holm':>7}{'MDE_tr':>8}"
-          f"{'IC_ho':>8}{'p_ho':>7}{'상위3분위(ho)':>14}  판정")
+          f"{'IC_ho':>8}{'p_ho':>7}{'선호3분위(ho)':>14}  판정")
     print("-" * 108)
     for r in rows:
         tr, ho = r["train"], r["holdout"]
@@ -502,6 +508,8 @@ def main():
               f"현재의 약 {need:.1f}배 창(≈ {span_tr*need/365:.0f}년)이 필요하다.")
 
     print("\n[오늘 읽기] (데이터 끝 " + S["dates"][-1] + " 기준, 판정 아님 — 진단)")
+    print("   ※ 선언부호는 실행 전 가설, 측정부호는 train IC 의 실제 방향. "
+          "어느 쪽도 이 판에서 유의하지 않았다.")
     last = len(S["dates"]) - 1
     hist_lo = next(i for i in range(len(S["dates"])) if S["dates"][i] >= START)
     for key, label, sign in FEATURES:
@@ -512,8 +520,13 @@ def main():
             continue
         pr = sum(1 for x in hist if x < v) / len(hist)
         terc = "상위" if pr >= 2 / 3 else "하위" if pr < 1 / 3 else "중간"
-        favor = "알트" if (pr - 0.5) * sign > 0 else "BTC"
-        print(f"   {label:<30}{v:+.4f}  백분위 {pr*100:4.0f}%  {terc} 3분위  → 부호상 {favor} 쪽")
+        r = next(x for x in rows if x["key"] == key)
+        ic_tr = r["train"]["ic"] if r["train"] else 0.0
+        dec = "알트" if (pr - 0.5) * sign > 0 else "BTC"
+        meas = "알트" if (pr - 0.5) * (1 if ic_tr > 0 else -1) > 0 else "BTC"
+        flag = "" if dec == meas else "  ← 선언과 측정이 반대"
+        print(f"   {label:<30}{v:+.4f}  백분위 {pr*100:4.0f}%  {terc} 3분위  "
+              f"→ 선언부호 {dec} / 측정부호(train) {meas}{flag}")
 
     res = dict(prereg="altseason_prereg_2026_09_22", horizon=HORIZON, split=SPLIT,
                start=START, boot=BOOT, seed=SEED, deploy_on_pass=DEPLOY_ON_PASS,
