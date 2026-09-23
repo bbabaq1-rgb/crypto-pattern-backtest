@@ -24,3 +24,6 @@ _ml_*.json
 # 업비트 슈팅 스터디 캐시·출력(재생성 가능)
 data_upbit_krw_1d.json
 _upbit_shooting.json
+
+# 엘리엇 일일 점검 산출물 (매 실행 재생성)
+_elliott_watch.json

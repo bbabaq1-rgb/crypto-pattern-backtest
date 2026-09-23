@@ -1,0 +1,69 @@
+{
+  "_doc": "BTC 엘리엇 카운트 동결 파일 — 매일 브리핑의 기준점. 진단·관찰 전용이며 어떤 매매 코드도 이 파일을 읽지 않는다.",
+  "_why_frozen": "엘리엇의 고질병은 가격이 움직일 때마다 라벨을 조용히 바꿔 '항상 맞는' 카운트가 되는 것이다. 라벨을 파일로 고정하고 변경을 커밋으로 남기면 사후 재라벨이 기록에 드러난다. 재라벨은 revisions 에 사유와 함께 추가하고 labeled_on 을 갱신한다.",
+  "labeled_on": "2026-09-23",
+  "source": "coinbase BTC-USD (OKX 는 이 컨테이너에서 차단)",
+  "degree_note": "차수는 실시간 확정 불가. 아래 waves 는 7/01 저점 기준 한 등급의 5파동이며, 그것이 더 큰 1파인지 A파인지 5파인지는 조정이 끝나야 갈린다.",
+
+  "context": {
+    "prior_structure": "2025-10-06 ATH 126193 → 2026-07-01 57718 (-54.3%, 268일)",
+    "prior_form": "corrective (W-X-Y 더블 지그재그). 5파 하락으로 세면 4파 고점 82828 이 1파 저점 80647 을 침범해 중첩 위반 → 임펄스 불가",
+    "wxy": {"W_end": 59981, "X_end": 82828, "Y_end": 57717.55},
+    "undercut_pct": -3.6,
+    "retraced_of_decline_pct": 43.3
+  },
+
+  "waves": [
+    {"label": "0", "date": "2026-07-01", "price": 57717.55, "kind": "low"},
+    {"label": "1", "date": "2026-07-21", "price": 66924.0, "kind": "high", "note": "내부 겹침 — 리딩 다이애고널로 봐야 성립"},
+    {"label": "2", "date": "2026-08-01", "price": 62210.0, "kind": "low", "retrace_of_prev_pct": 51.2},
+    {"label": "3", "date": "2026-09-03", "price": 82283.0, "kind": "high", "ratio_to_w1": 2.18},
+    {"label": "4", "date": "2026-09-15", "price": 74888.0, "kind": "low", "retrace_of_prev_pct": 36.8},
+    {"label": "5", "date": "2026-09-21", "price": 87397.0, "kind": "high", "ratio_to_w1": 1.36, "status": "완성 미확정"}
+  ],
+
+  "rule_checks": {
+    "w2_not_below_w0": true,
+    "w3_not_shortest": true,
+    "w4_no_overlap_w1": true,
+    "w4_low_minus_w1_high": 7964.0
+  },
+
+  "sub_wave_5": {
+    "_doc": "6h 기준 5파 내부. v 가 iii 고점을 못 넘으면 미달(truncation).",
+    "i": 81925.0, "ii": 80085.0, "iii": 87397.0, "iv": 85059.0,
+    "v_high_so_far": 87283.0
+  },
+
+  "scenarios": {
+    "S1_wave1_of_new_impulse": {
+      "desc": "전체가 새 강세장 1파 — 2파 조정 뒤 큰 3파",
+      "w2_targets": {"0.382": 76059, "0.5": 72557, "0.618": 69055, "0.786": 64069},
+      "w3_proj_from_0618": {"1.618": 117076, "2.0": 128414, "2.618": 146756},
+      "invalidation": 57717.55
+    },
+    "S2_still_in_wave3": {
+      "desc": "아직 더 큰 3파의 (v) — 조정이 얕고 다시 신고가",
+      "pullback_zone": [77776, 81455]
+    },
+    "S3_wave_A_of_larger_correction": {
+      "desc": "조정이 안 끝났고 이것이 A파 — B파 뒤 C파가 57718 아래",
+      "trigger": "57717.55 하향 이탈"
+    }
+  },
+
+  "levels": [
+    {"px": 87397.0, "dir": "above", "name": "1파 고점", "means": "5파 연장 진행 — 종료 판단 보류"},
+    {"px": 85059.0, "dir": "below", "name": "5파 iv 저점(6h)", "means": "5파 종료 1차 신호"},
+    {"px": 80393.0, "dir": "below", "name": "23.6% 되돌림", "means": "조정 본격화"},
+    {"px": 77776.0, "dir": "below", "name": "S2 하단", "means": "S2(아직 3파) 약화"},
+    {"px": 76059.0, "dir": "below", "name": "38.2% 되돌림", "means": "얕은 2파 종료 후보 — 여기서 멈추면 0.618 대기는 놓침"},
+    {"px": 74888.0, "dir": "below", "name": "4파 저점", "means": "4파 영역 진입 — 임펄스 종료 확정적"},
+    {"px": 72557.0, "dir": "below", "name": "50% 되돌림", "means": "S1 표준 2파 구간"},
+    {"px": 69055.0, "dir": "below", "name": "61.8% 되돌림", "means": "대표님 예상 2파 종료 구간"},
+    {"px": 64069.0, "dir": "below", "name": "78.6% 되돌림", "means": "깊은 2파 — S3 무게 증가"},
+    {"px": 57717.55, "dir": "below", "name": "1파 시작점", "means": "카운트 무효 — S3 확정"}
+  ],
+
+  "revisions": []
+}
