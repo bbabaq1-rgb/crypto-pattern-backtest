@@ -169,6 +169,26 @@ def scenarios_alive(count, px, low_since_top):
     return alive
 
 
+def correction_status(count, px, high_since_top, low_since_top):
+    """2파 조정(A-B-C) 진행률. count["correction"] 이 없으면 None — 종전 동작 그대로."""
+    cor = count.get("correction")
+    if not cor:
+        return None
+    A = cor["A"]
+    size = A["start"] - A["end"]
+    b_high = max(high_since_top, px)
+    out = {
+        "A_start": A["start"], "A_end": A["end"], "A_size": size,
+        "B_high": b_high,
+        "B_retrace_pct": (b_high - A["end"]) / size * 100,
+        "now_retrace_pct": (px - A["end"]) / size * 100,
+        "A_end_broken": low_since_top < A["end"],
+        "B_min": {k: {"px": v, "hit": b_high >= v} for k, v in cor["B_min_levels"].items()},
+        "C_targets": cor["C_targets"],
+    }
+    return out
+
+
 def run():
     count = json.load(open(COUNT_FILE))
     daily = fetch(86400, 200)
@@ -194,7 +214,9 @@ def run():
            "w5": rsi_at(daily, rv, waves["5"]["date"]),
            "now": rv[-1]}
 
+    cor = correction_status(count, px, high_since_top, low_since_top)
     res = {
+        "correction": cor,
         "asof_utc": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
         "labeled_on": count["labeled_on"],
         "price": px,
@@ -227,6 +249,13 @@ def run():
     print(f"  5파 내부(6h): iii {sub['iii']:,.0f} 돌파={res['sub5']['broke_iii']} / "
           f"iv {sub['iv']:,.0f} 이탈={res['sub5']['broke_iv']}")
     print(f"  RSI14: 3파 {div['w3']:.1f} → 5파 {div['w5']:.1f} → 현재 {div['now']:.1f}")
+    if cor:
+        flags = " ".join(f"{k}:{'✓' if v['hit'] else '✗'}" for k, v in cor["B_min"].items())
+        print(f"  2파 A-B-C: A {cor['A_start']:,.0f}→{cor['A_end']:,.0f} (-{cor['A_size']:,.0f}) | "
+              f"B 고점 {cor['B_high']:,.0f} = A 의 {cor['B_retrace_pct']:.1f}% (현재 {cor['now_retrace_pct']:.1f}%) | "
+              f"플랫 B 최소 {flags}"
+              + ("  ** A 저점 이탈 — 플랫 가설 재계산 **" if cor["A_end_broken"] else ""))
+        print("  C 목표: " + " / ".join(f"{k} {v:,.0f}" for k, v in cor["C_targets"].items()))
     print("  살아 있는 시나리오: " +
           ", ".join(k for k, v in res["scenarios"].items()
                     if v and not k.startswith("_")))

@@ -136,6 +136,32 @@ r = ew.rsi([100 - i for i in range(40)])
 check("단조 하락이면 RSI 0 에 수렴", r[-1] < 1)
 check("워밍업 구간은 None", ew.rsi([1, 2, 3])[1] is None)
 
+# ---------------------------------------------------------------- §9 2파 조정 추적
+print("[9] 2파 A-B-C 추적 (2026-09-25)")
+cor = COUNT.get("correction")
+check("correction 블록 존재", bool(cor))
+check("A 크기 = start - end", abs(cor["A"]["start"] - cor["A"]["end"] - cor["A"]["size"]) < 1e-6)
+check("A 끝 = 4파 저점보다 위 (2파는 4파 영역 밖에서 시작)", cor["A"]["end"] > px["4"])
+check("B 최소 레벨이 A 시작점 기준으로 단조", all(
+    cor["B_min_levels"][a] < cor["B_min_levels"][b]
+    for a, b in (("0.618", "0.90"), ("0.90", "1.00"), ("1.00", "1.236"))))
+check("B 100% = A 시작점", cor["B_min_levels"]["1.00"] == cor["A"]["start"])
+st = ew.correction_status(COUNT, 84000, 85250, 82709)
+check("B 진행률 = (고점-A끝)/A", abs(st["B_retrace_pct"] - (85250 - 82709) / 4688 * 100) < 1e-6)
+check("B 54% 는 61.8% 최소 미달", st["B_min"]["0.618"]["hit"] is False)
+st2 = ew.correction_status(COUNT, 86000, 87000, 82709)
+check("B 가 90% 넘으면 0.90 HIT", st2["B_min"]["0.90"]["hit"] is True and st2["B_min"]["1.00"]["hit"] is False)
+st3 = ew.correction_status(COUNT, 82000, 85250, 81900)
+check("A 저점 이탈 플래그", st3["A_end_broken"] is True)
+check("현재가가 고점보다 높으면 B 고점을 현재가로", ew.correction_status(COUNT, 86500, 85250, 82709)["B_high"] == 86500)
+no_cor = {k: v for k, v in COUNT.items() if k != "correction"}
+check("correction 없으면 None (종전 동작)", ew.correction_status(no_cor, 84000, 85250, 82709) is None)
+check("revisions 에 2026-09-25 항목 + 사용자 승인",
+      any(r["date"] == "2026-09-25" and r.get("approved_by") == "user" for r in COUNT["revisions"]))
+check("87,397 레벨에 확장 플랫 읽기 병기",
+      any(lv["px"] == 87397.0 and "확장 플랫" in lv["means"] for lv in COUNT["levels"]))
+check("파동 라벨·가격은 재라벨 없음", [w["price"] for w in COUNT["waves"]] == [57717.55, 66924.0, 62210.0, 82283.0, 74888.0, 87397.0])
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))
