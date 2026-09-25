@@ -169,14 +169,19 @@ def scenarios_alive(count, px, low_since_top):
     return alive
 
 
-def correction_status(count, px, high_since_top, low_since_top):
-    """2파 조정(A-B-C) 진행률. count["correction"] 이 없으면 None — 종전 동작 그대로."""
+def correction_status(count, px, high_after_A, low_after_A):
+    """2파 조정(A-B-C) 진행률. count["correction"] 이 없으면 None — 종전 동작 그대로.
+
+    high/low 는 **A 파 종료 봉 다음부터** 잰다. 고점(9/21) 이후 전체로 재면 A 파 안의 b 반등
+    (87,283)이 B 고점으로 잡혀 'B 97.6%' 가 찍힌다 — 실측으로 잡은 결함.
+    """
     cor = count.get("correction")
     if not cor:
         return None
     A = cor["A"]
     size = A["start"] - A["end"]
-    b_high = max(high_since_top, px)
+    b_high = max(high_after_A, px)
+    low_since_top = low_after_A
     out = {
         "A_start": A["start"], "A_end": A["end"], "A_size": size,
         "B_high": b_high,
@@ -214,7 +219,13 @@ def run():
            "w5": rsi_at(daily, rv, waves["5"]["date"]),
            "now": rv[-1]}
 
-    cor = correction_status(count, px, high_since_top, low_since_top)
+    cor = None
+    if count.get("correction"):
+        a_date = count["correction"]["A"]["end_date"]
+        after_a = [r for r in daily if r["d"] > a_date]
+        cor = correction_status(count, px,
+                                max((r["h"] for r in after_a), default=px),
+                                min((r["l"] for r in after_a), default=px))
     res = {
         "correction": cor,
         "asof_utc": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M"),

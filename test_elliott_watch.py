@@ -153,6 +153,8 @@ st2 = ew.correction_status(COUNT, 86000, 87000, 82709)
 check("B 가 90% 넘으면 0.90 HIT", st2["B_min"]["0.90"]["hit"] is True and st2["B_min"]["1.00"]["hit"] is False)
 st3 = ew.correction_status(COUNT, 82000, 85250, 81900)
 check("A 저점 이탈 플래그", st3["A_end_broken"] is True)
+check("A 파 안의 b 반등(87,283)은 B 고점이 아니다 — run() 이 A 종료 다음 봉부터 잰다",
+      'r["d"] > a_date' in SRC)
 check("현재가가 고점보다 높으면 B 고점을 현재가로", ew.correction_status(COUNT, 86500, 85250, 82709)["B_high"] == 86500)
 no_cor = {k: v for k, v in COUNT.items() if k != "correction"}
 check("correction 없으면 None (종전 동작)", ew.correction_status(no_cor, 84000, 85250, 82709) is None)
