@@ -180,14 +180,18 @@ bar_ = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
 quiet = [bar_("2026-09-28", 83190, 84992), bar_("2026-09-29", 83000, 84500)]
 o = ew.outlook_status(COUNT, quiet)
 check("상자 안이면 트리거 0 발동", not o["reassess"] and not any(t["fired"] for t in o["triggers"]))
-check("ABC(S1 안) = 지그재그 + 플랫", o["abc_within_S1"] == 60 and o["wxy_within_S1"] == 40)
-check("무조건부 = S1 비중 곱", abs(o["abc_uncond"] - 33) < 1e-9 and abs(o["wxy_uncond"] - 22) < 1e-9)
-brk = ew.outlook_status(COUNT, quiet + [bar_("2026-09-30", 82500, 83100)])
+shp = ol["wave2_shape_pct_within_S1"]
+check("ABC(S1 안) = 지그재그 + 플랫", o["abc_within_S1"] == shp["zigzag_abc"] + shp["flat_abc"]
+      and o["wxy_within_S1"] == shp["wxy"])
+check("무조건부 = S1 비중 곱", abs(o["abc_uncond"] - (shp["zigzag_abc"] + shp["flat_abc"]) * ol["scenarios_pct"]["S1"] / 100) < 1e-9)
+downs = sorted((t["px"] for t in ol["triggers"] if t["dir"] == "below"), reverse=True)
+brk = ew.outlook_status(COUNT, quiet + [bar_("2026-09-30", downs[0] - 1, 83100)])
 fired = [t["px"] for t in brk["triggers"] if t["fired"]]
-check("82,709 아래 저가 → A 저점 이탈만 발동", fired == [82709.0] and brk["reassess"])
+check("가장 가까운 하향 트리거 바로 아래 저가 → 그것만 발동", fired == [downs[0]] and brk["reassess"])
 up = ew.outlook_status(COUNT, quiet + [bar_("2026-09-30", 85000, 87500)])
-check("87,500 고가 → 85,606·86,928·87,397 상향 트리거 발동",
-      sorted(t["px"] for t in up["triggers"] if t["fired"]) == [85606.0, 86928.0, 87397.0])
+check("87,500 고가 → 87,500 아래의 상향 트리거 전부 발동",
+      sorted(t["px"] for t in up["triggers"] if t["fired"]) ==
+      sorted(t["px"] for t in ol["triggers"] if t["dir"] == "above" and t["px"] < 87500))
 check("트리거가 발동해도 코드는 확률을 바꾸지 않는다", brk["scenarios"] == ol["scenarios_pct"]
       and brk["shape"] == ol["wave2_shape_pct_within_S1"])
 check("기준일 당일 포함 이후 봉만 본다", 'r["d"] >= count["outlook"]["as_of"]' in SRC)
@@ -218,9 +222,14 @@ check("Q1 무작위 보행 기준 = 기준가에서 두 가격까지 거리 비�
           (q1["rule"]["up"] - q1["rule"]["down"])) < 1e-3)
 check("Q1 판정 가격은 기존 레벨에서만", {q1["rule"]["up"], q1["rule"]["down"]} <=
       {lv["px"] for lv in COUNT["levels"]})
-check("Q2 예측 = 확률표의 W-X-Y 비중 (사후 조정 없음)",
-      next(q for q in sb["questions"] if q["id"] == "Q2")["forecast"] * 100
-      == ol["wave2_shape_pct_within_S1"]["wxy"])
+check("Q2 예측은 등록 당시 값 그대로 (사후 조정 없음, 9/28 첫 표의 W-X-Y 40%)",
+      next(q for q in sb["questions"] if q["id"] == "Q2")["forecast"] == 0.40)
+wxy_qs = [q for q in sb["questions"] if q["event"] == "wxy"]
+check("가장 최근 W-X-Y 질문의 예측 = 현재 확률표의 W-X-Y 비중",
+      abs(wxy_qs[-1]["forecast"] * 100 - ol["wave2_shape_pct_within_S1"]["wxy"]) < 1e-9)
+check("재평가해도 Q1 예측은 그대로 (새 질문 추가 방식)",
+      next(q for q in sb["questions"] if q["id"] == "Q1")["forecast"] == 0.275)
+check("재평가 전 확률표가 previous 에 보존", ol.get("previous") and ol["previous"][0]["scenarios_pct"] == {"S1": 55, "S2": 20, "S3": 25})
 B = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
 fq = {"rule": {"type": "first_touch", "up": 100.0, "down": 80.0}, "void_if_below": 50.0}
 check("first_touch 미결", ew.resolve_question(fq, [B("a", 85, 95)])["state"] == "open")
