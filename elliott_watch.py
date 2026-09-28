@@ -54,7 +54,7 @@ def _curl(url, timeout=40):
     return json.loads(p.stdout)
 
 
-def fetch(granularity, days):
+def fetch(granularity, days, product=PRODUCT):
     """[{d,o,h,l,c}] 오름차순. 코인베이스는 [time, low, high, open, close, volume] 순서다."""
     end = dt.datetime.utcnow() + dt.timedelta(days=1)
     start = end - dt.timedelta(days=days)
@@ -62,7 +62,7 @@ def fetch(granularity, days):
     step = dt.timedelta(seconds=granularity * 290)
     while cur < end:
         nxt = min(cur + step, end)
-        u = (CB.format(p=PRODUCT) + f"?granularity={granularity}"
+        u = (CB.format(p=product) + f"?granularity={granularity}"
              f"&start={cur.isoformat()}Z&end={nxt.isoformat()}Z")
         for c in _curl(u):
             rows[c[0]] = c
@@ -371,6 +371,39 @@ def c_count_status(cc, bars_1h, px):
     }
 
 
+def eth_cross_status(ec, eth_bars, btc_bars, btc_A_end):
+    """ETH 교차 확인. ec = count["eth_cross"] (없으면 None). 봉은 'YYYY-MM-DD HH:MM' 오름차순 1시간봉.
+
+    B 고점 시각 이후만 본다. 두 코인이 각자의 A 저점을 깼는지로 확인/비확인을 가른다.
+    """
+    if not ec:
+        return None
+    b_ts = ec["B_end"]["ts"]
+    e_after = [b for b in eth_bars if b["d"] > b_ts]
+    k_after = [b for b in btc_bars if b["d"] > b_ts]
+    if not e_after or not k_after:
+        return None
+    top, a, bb = ec["top"]["px"], ec["A_end"]["px"], ec["B_end"]["px"]
+    e_low = min(b["l"] for b in e_after)
+    e_high = max(b["h"] for b in e_after)
+    k_low = min(b["l"] for b in k_after)
+    eth_broke, btc_broke = e_low < a, k_low < btc_A_end
+    verdict = {(True, True): "확인 — 두 코인 모두 A 저점 이탈 (지그재그 C 하락 쪽)",
+               (False, True): "비확인 — BTC 만 A 저점 이탈, ETH 는 위 (이탈 속임수·삼각형·플랫 쪽 기울기)",
+               (True, False): "역비확인 — ETH 만 A 저점 이탈",
+               (False, False): "둘 다 A 저점 위"}[(eth_broke, btc_broke)]
+    return {
+        "eth_px": eth_bars[-1]["c"], "btc_px": btc_bars[-1]["c"],
+        "ratio": eth_bars[-1]["c"] / btc_bars[-1]["c"],
+        "B_retrace_pct": (bb - a) / (top - a) * 100,
+        "eth_low": e_low, "eth_low_vs_A_pct": (e_low / a - 1) * 100,
+        "eth_high": e_high, "eth_over_B": e_high > bb,
+        "eth_broke_A": eth_broke, "btc_broke_A": btc_broke,
+        "contracting": (not eth_broke) and bb < top and e_high <= bb,
+        "verdict": verdict,
+    }
+
+
 def run():
     count = json.load(open(COUNT_FILE))
     daily = fetch(86400, 200)
@@ -415,9 +448,19 @@ def run():
     tri = triangle_status(count, six)
     ccs = None
     zz_up = (count.get("correction") or {}).get("zigzag_update_2026_09_28") or {}
+    btc_1h = None
+    if zz_up.get("C_count") or count.get("eth_cross"):
+        btc_1h = fetch(3600, 10)
     if zz_up.get("C_count"):
-        ccs = c_count_status(zz_up["C_count"], fetch(3600, 6), px)
+        ccs = c_count_status(zz_up["C_count"], btc_1h, px)
+    ecs = None
+    if count.get("eth_cross") and count.get("correction"):
+        ec = count["eth_cross"]
+        days = (dt.datetime.utcnow() - dt.datetime.strptime(ec["B_end"]["ts"][:10], "%Y-%m-%d")).days + 2
+        ecs = eth_cross_status(ec, fetch(3600, max(days, 10), ec["product"]),
+                               btc_1h if days <= 10 else fetch(3600, days), count["correction"]["A"]["end"])
     res = {
+        "eth_cross": ecs,
         "c_count": ccs,
         "scorebook": sbs,
         "outlook": ols,
@@ -530,6 +573,14 @@ def run():
                   f"무작위 보행 {c['random_walk']/c['n']:.3f} / 반반 {c['coin']/c['n']:.3f}")
         else:
             print("    누적: 아직 판정된 질문 없음")
+    if ecs:
+        ec = count["eth_cross"]
+        print(f"  ETH 교차 확인: {ecs['verdict']}")
+        print(f"    ETH {ecs['eth_px']:,.1f} (ETH/BTC {ecs['ratio']:.5f}) | 고점 {ec['top']['px']:,.1f} · A 저점 {ec['A_end']['px']:,.2f} · "
+              f"B 고점 {ec['B_end']['px']:,.2f} (A 의 {ecs['B_retrace_pct']:.1f}%) | B 이후 저가 {ecs['eth_low']:,.2f} "
+              f"(A 저점 대비 {ecs['eth_low_vs_A_pct']:+.2f}%)"
+              + (" | 수렴 삼각형 모양 (윗선↓ 아랫선↑)" if ecs["contracting"] else "")
+              + (" | ETH B 고점 돌파" if ecs["eth_over_B"] else ""))
     if tri:
         t = tri["t"]
         state = ("** 무효 — 6시간봉 종가가 무효선 아래 **" if tri["killed"] else
