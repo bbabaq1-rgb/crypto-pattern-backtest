@@ -5796,5 +5796,38 @@
       "report": "report_kimchi.md",
       "live_change": "none"
     }
+  },
+  "altcap_prereg_2026_09_28": {
+    "status": "PREREGISTERED",
+    "requested_by": "user — '사전 등록 시험으로 설계해서 돌려줘' (알트가 BTC·ETH 보다 더 빠지는 비율로 상승기·하락기를 가를 수 있나)",
+    "module": "validate_altcap.py",
+    "tests": "test_altcap.py",
+    "workflow": ".github/workflows/altcap.yml",
+    "question": "시장 평균 상승·하락 비대칭(avg_cap, 실거래 compute_capture 식 그대로)이 이후 20·60일 알트 중앙 수익률의 방향을 말해주는가",
+    "features_declared_sign": {
+      "avg_cap": "+",
+      "avg_cap_chg20": "+",
+      "avg_down_cap": "-",
+      "avg_up_cap": "+",
+      "neg_share": "-"
+    },
+    "sign_basis": "사용자 가설 방향(알트가 더 빠지고 덜 따라가는 국면 = 하락기). 기존 실거래 오버레이(backtest_regime_capture)는 반대(집단 bleed = 반전 롱 최적)를 가정 — 반대로 크게 나오면 REVERSED 로 기록, 통과 아님",
+    "horizons": [
+      20,
+      60
+    ],
+    "holm_m": 10,
+    "controls": "AR(1) 0.99 · 연 사인파 x 지평 2 = 4, 2개 이상 C1 통과 시 INVALID",
+    "frame": "validate_altseason 그대로 import — 회전 검정 귀무(최소 이동 1.5x지평)·MDE·judge·분할(train 2018~2021 / holdout 2022~)·IC1 0.20 / IC2 0.15",
+    "target": "알트(BTC 제외, ETH 포함, 이력 180봉 이상) 중앙값의 이후 수익률(절대). BTC 대비 초과수익은 진단 D2",
+    "diagnostics": [
+      "D1 avg_cap 5일 평균 양수→음수 전환 사건 뒤 수익 vs 무조건부",
+      "D2 BTC 초과수익 타깃 IC",
+      "D3 데이터 끝 날짜 읽기"
+    ],
+    "prior_before_run": "CONFIRMED 0 예상. 방향은 REVERSED 쪽이 더 그럴듯(기존 연구의 집단 bleed 뒤 반등). 가장 있을 법한 결과는 변화형(chg20)의 MDE 만 낮고 IC 는 그 아래.",
+    "data": "data_long/ (커밋된 81종목 1d, 2017~2026-09-06) — 네트워크 불필요",
+    "deploy_on_pass": false,
+    "registered_on": "2026-09-28"
   }
 }

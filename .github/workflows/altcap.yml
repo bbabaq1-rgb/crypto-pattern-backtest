@@ -1,0 +1,40 @@
+name: Research — Alt capture asymmetry as direction signal (pre-registered)
+
+# 시장 평균 상승·하락 비대칭(avg_cap)으로 알트 상승기·하락기를 가를 수 있나 — registry altcap_prereg_2026_09_28.
+# 판정 도구는 validate_altseason 그대로. 네트워크 불필요 — 커밋된 data_long/ 만 읽는다.
+# DEPLOY_ON_PASS=False, 실거래 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_altcap.py"
+      - "test_altcap.py"
+      - ".github/workflows/altcap.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: |
+          python test_altseason.py
+          python test_altcap.py
+      - name: Pre-registered alt-capture test
+        run: python validate_altcap.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: altcap-${{ github.run_number }}
+          path: _altcap.json
+          if-no-files-found: ignore
