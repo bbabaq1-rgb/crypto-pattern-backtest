@@ -164,6 +164,38 @@ check("87,397 레벨에 확장 플랫 읽기 병기",
       any(lv["px"] == 87397.0 and "확장 플랫" in lv["means"] for lv in COUNT["levels"]))
 check("파동 라벨·가격은 재라벨 없음", [w["price"] for w in COUNT["waves"]] == [57717.55, 66924.0, 62210.0, 82283.0, 74888.0, 87397.0])
 
+# ---------------------------------------------------------------- §10 확률표
+print("[10] 확률표 outlook (2026-09-28)")
+ol = COUNT.get("outlook")
+check("outlook 블록 존재", bool(ol))
+check("S1+S2+S3 = 100", sum(ol["scenarios_pct"].values()) == 100)
+check("S1 안 지그재그+플랫+WXY = 100", sum(ol["wave2_shape_pct_within_S1"].values()) == 100)
+check("트리거 가격은 레벨 표·A 저점·B 최소 레벨에 이미 있는 값 (새 숫자를 만들지 않는다)", all(
+    t["px"] in {lv["px"] for lv in COUNT["levels"]} | set(COUNT["correction"]["B_min_levels"].values())
+    | {COUNT["correction"]["A"]["end"]}
+    for t in ol["triggers"]))
+check("코드에 확률 숫자·트리거 가격 하드코딩 없음",
+      "85606" not in SRC and "86928" not in SRC and '"S1": 55' not in SRC)
+bar_ = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
+quiet = [bar_("2026-09-28", 83190, 84992), bar_("2026-09-29", 83000, 84500)]
+o = ew.outlook_status(COUNT, quiet)
+check("상자 안이면 트리거 0 발동", not o["reassess"] and not any(t["fired"] for t in o["triggers"]))
+check("ABC(S1 안) = 지그재그 + 플랫", o["abc_within_S1"] == 60 and o["wxy_within_S1"] == 40)
+check("무조건부 = S1 비중 곱", abs(o["abc_uncond"] - 33) < 1e-9 and abs(o["wxy_uncond"] - 22) < 1e-9)
+brk = ew.outlook_status(COUNT, quiet + [bar_("2026-09-30", 82500, 83100)])
+fired = [t["px"] for t in brk["triggers"] if t["fired"]]
+check("82,709 아래 저가 → A 저점 이탈만 발동", fired == [82709.0] and brk["reassess"])
+up = ew.outlook_status(COUNT, quiet + [bar_("2026-09-30", 85000, 87500)])
+check("87,500 고가 → 85,606·86,928·87,397 상향 트리거 발동",
+      sorted(t["px"] for t in up["triggers"] if t["fired"]) == [85606.0, 86928.0, 87397.0])
+check("트리거가 발동해도 코드는 확률을 바꾸지 않는다", brk["scenarios"] == ol["scenarios_pct"]
+      and brk["shape"] == ol["wave2_shape_pct_within_S1"])
+check("기준일 당일 포함 이후 봉만 본다", 'r["d"] >= count["outlook"]["as_of"]' in SRC)
+no_ol = {k: v for k, v in COUNT.items() if k != "outlook"}
+check("outlook 없으면 None (종전 동작)", ew.outlook_status(no_ol, quiet) is None)
+check("revisions 에 2026-09-28 항목 + 사용자 승인",
+      any(r["date"] == "2026-09-28" and r.get("approved_by") == "user" for r in COUNT["revisions"]))
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))
