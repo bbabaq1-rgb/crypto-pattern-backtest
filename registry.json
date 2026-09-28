@@ -5796,5 +5796,61 @@
       "report": "report_kimchi.md",
       "live_change": "none"
     }
+  },
+  "altcap_prereg_2026_09_28": {
+    "status": "REJECTED",
+    "requested_by": "user — '사전 등록 시험으로 설계해서 돌려줘' (알트가 BTC·ETH 보다 더 빠지는 비율로 상승기·하락기를 가를 수 있나)",
+    "module": "validate_altcap.py",
+    "tests": "test_altcap.py",
+    "workflow": ".github/workflows/altcap.yml",
+    "question": "시장 평균 상승·하락 비대칭(avg_cap, 실거래 compute_capture 식 그대로)이 이후 20·60일 알트 중앙 수익률의 방향을 말해주는가",
+    "features_declared_sign": {
+      "avg_cap": "+",
+      "avg_cap_chg20": "+",
+      "avg_down_cap": "-",
+      "avg_up_cap": "+",
+      "neg_share": "-"
+    },
+    "sign_basis": "사용자 가설 방향(알트가 더 빠지고 덜 따라가는 국면 = 하락기). 기존 실거래 오버레이(backtest_regime_capture)는 반대(집단 bleed = 반전 롱 최적)를 가정 — 반대로 크게 나오면 REVERSED 로 기록, 통과 아님",
+    "horizons": [
+      20,
+      60
+    ],
+    "holm_m": 10,
+    "controls": "AR(1) 0.99 · 연 사인파 x 지평 2 = 4, 2개 이상 C1 통과 시 INVALID",
+    "frame": "validate_altseason 그대로 import — 회전 검정 귀무(최소 이동 1.5x지평)·MDE·judge·분할(train 2018~2021 / holdout 2022~)·IC1 0.20 / IC2 0.15",
+    "target": "알트(BTC 제외, ETH 포함, 이력 180봉 이상) 중앙값의 이후 수익률(절대). BTC 대비 초과수익은 진단 D2",
+    "diagnostics": [
+      "D1 avg_cap 5일 평균 양수→음수 전환 사건 뒤 수익 vs 무조건부",
+      "D2 BTC 초과수익 타깃 IC",
+      "D3 데이터 끝 날짜 읽기"
+    ],
+    "prior_before_run": "CONFIRMED 0 예상. 방향은 REVERSED 쪽이 더 그럴듯(기존 연구의 집단 bleed 뒤 반등). 가장 있을 법한 결과는 변화형(chg20)의 MDE 만 낮고 IC 는 그 아래.",
+    "data": "data_long/ (커밋된 81종목 1d, 2017~2026-09-06) — 네트워크 불필요",
+    "deploy_on_pass": false,
+    "registered_on": "2026-09-28",
+    "result_2026_09_28": {
+      "run": "36393971755 (altcap.yml #1)",
+      "verdict": "판 VALID (음성 대조 C1 통과 0/4) · CONFIRMED 0 / INCONCLUSIVE 0 / REVERSED 0 / REJECTED 10",
+      "cells": {
+        "avg_cap@20": "train -0.127 / holdout -0.117 (선언 +, 둘 다 반대지만 문턱 0.20 미달)",
+        "avg_cap_chg20@20": "-0.117 / -0.119 (MDE 0.137 로 가장 낮음 — 차분형 예상 적중, 부호는 반대)",
+        "avg_down_cap@20": "-0.012 / +0.002",
+        "avg_up_cap@20": "-0.173 / -0.149 (두 분할 같은 방향 — 알트가 잘 따라 오를수록 이후 약함, 문턱 미달)",
+        "neg_share@20": "+0.122 / +0.089",
+        "avg_cap@60": "-0.054 / -0.097",
+        "avg_cap_chg20@60": "-0.084 / -0.027",
+        "avg_down_cap@60": "-0.028 / -0.001",
+        "avg_up_cap@60": "-0.182 / -0.054",
+        "neg_share@60": "+0.015 / +0.056"
+      },
+      "controls": "ctrl_season@60 train IC +0.201, ctrl_ar1 +0.174~0.179 — 잡음 대조의 |IC| 가 실제 지표 10셀 전부보다 크거나 같다(최대 실제 0.182)",
+      "mde_train": "0.137 ~ 0.307",
+      "d1_flip_events": "train 13건: 전환 뒤 20일 알트 +10.67%(양수 77%) vs 무조건부 +0.72% — 사용자 가설 반대(전환 뒤 오히려 상승) / holdout 20건: -4.41%(양수 30%) vs -3.26% — 가설 방향이나 차이 작음. 분할 간 부호 역전",
+      "d2_excess_vs_btc": "avg_down_cap train -0.257/-0.321 (가설 방향) → holdout +0.165/+0.117 (반대). avg_cap train +0.096 → holdout -0.252. 모든 지표가 분할 간 부호가 뒤집힌다",
+      "d3_today": "2026-09-06 (data_long 끝): avg_cap -0.181 / 음수 알트 70% — 러너 실시간 값은 9/28 +0.32(알트 반등 뒤)",
+      "prior_check": "적중 — CONFIRMED 0, 차분형 MDE 최저·IC 는 그 아래. 반쯤 — 'REVERSED 쪽이 그럴듯': train 부호는 10셀 중 7셀이 선언 반대(역발상 쪽)였으나 문턱에 못 미쳐 REVERSED 0",
+      "implication": "시장 평균 비대칭은 알트 시장의 이후 방향(20·60일)을 어느 쪽으로도 말하지 못한다. 실거래 오버레이(avg_cap>0 → 신규 롱 x0.6)는 '패턴 거래 성과'로 채택된 것이라 이 결과로 무효가 되지는 않으나, 'complacent 국면 뒤 알트 약세'라는 서사를 지지하는 증거는 이 판에 없다(holdout avg_cap@20 -0.117 로 방향만 맞음). 관찰 기간 중이라 무변경."
+    }
   }
 }
