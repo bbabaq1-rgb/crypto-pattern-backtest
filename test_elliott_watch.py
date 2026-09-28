@@ -266,7 +266,8 @@ cc = zu["C_count"]
 check("C 시작 = B 고점, i < 시작, ii 는 i 와 시작 사이",
       cc["start"]["px"] > cc["ii"]["px"] > cc["i"]["px"])
 check("A 구조 점검 기록 (5파·3파 둘 다 가능, 깊이 규칙으로 판정)", "4파 고점 84,665" in zu["A_structure_check"])
-check("코드에 C 카운트 가격 하드코딩 없음", "83091" not in SRC and "85158" not in SRC and "85250" not in SRC)
+check("코드에 C 카운트 가격 하드코딩 없음 (85250 은 파일 키 이름에만)", "83091" not in SRC and "85158" not in SRC
+      and all("zigzag_C_targets_from_B_85250" in ln for ln in SRC.splitlines() if "85250" in ln))
 H = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
 bars = [H("2026-09-27 12:00", 84400, 85100), H("2026-09-27 14:00", 84400, 84900),
         H("2026-09-28 05:00", 82675, 83500), H("2026-09-28 06:00", 82900, 83300)]
