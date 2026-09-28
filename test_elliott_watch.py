@@ -204,6 +204,52 @@ check("outlook_status 가 풀어 쓴 이름을 넘긴다",
       o["scenario_names"]["S1"] == COUNT["scenarios"]["S1_wave1_of_new_impulse"]["label"])
 check("C 목표마다 풀어 쓴 설명", set(COUNT["correction"]["C_target_labels"]) == set(COUNT["correction"]["C_targets"]))
 
+# ---------------------------------------------------------------- §11 채점 장부
+print("[11] 채점 장부 scorebook (2026-09-28)")
+sb = COUNT.get("scorebook")
+check("scorebook 존재 + 질문 2개 이상", bool(sb) and len(sb["questions"]) >= 2)
+check("모든 질문에 예측·무작위 보행·반반 기준·판정 규칙·사건 정의",
+      all({"forecast", "baselines", "rule", "event", "as_of"} <= set(q) and
+          {"random_walk", "coin"} <= set(q["baselines"]) for q in sb["questions"]))
+check("예측은 0~1 확률", all(0 < q["forecast"] < 1 for q in sb["questions"]))
+q1 = next(q for q in sb["questions"] if q["id"] == "Q1")
+check("Q1 무작위 보행 기준 = 기준가에서 두 가격까지 거리 비율",
+      abs(q1["baselines"]["random_walk"] - (q1["basis_px"] - q1["rule"]["down"]) /
+          (q1["rule"]["up"] - q1["rule"]["down"])) < 1e-3)
+check("Q1 판정 가격은 기존 레벨에서만", {q1["rule"]["up"], q1["rule"]["down"]} <=
+      {lv["px"] for lv in COUNT["levels"]})
+check("Q2 예측 = 확률표의 W-X-Y 비중 (사후 조정 없음)",
+      next(q for q in sb["questions"] if q["id"] == "Q2")["forecast"] * 100
+      == ol["wave2_shape_pct_within_S1"]["wxy"])
+B = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
+fq = {"rule": {"type": "first_touch", "up": 100.0, "down": 80.0}, "void_if_below": 50.0}
+check("first_touch 미결", ew.resolve_question(fq, [B("a", 85, 95)])["state"] == "open")
+check("first_touch 위 먼저", ew.resolve_question(fq, [B("a", 85, 95), B("b", 90, 101), B("c", 70, 90)])["outcome"] == "up")
+check("first_touch 아래 먼저", ew.resolve_question(fq, [B("a", 79, 95), B("b", 90, 101)])["outcome"] == "down")
+check("한 봉이 양쪽 → 보류", ew.resolve_question(fq, [B("a", 79, 101)])["state"] == "ambiguous")
+check("무효선 이탈 → void", ew.resolve_question(fq, [B("a", 49, 90)])["state"] == "void")
+wq = {"rule": {"type": "wxy_after_c", "top": 100.0, "c_zone": 90.0, "x_frac": 0.382}, "void_if_below": 50.0}
+# L=80 → X 성립선 80+0.382*20=87.64
+check("W-X-Y: C 영역 → 저점 80 → 38.2% 반등 → 새 저점",
+      ew.resolve_question(wq, [B("a", 89, 95), B("b", 80, 88), B("c", 84, 88), B("d", 79, 86)])["outcome"] == "wxy")
+check("반등이 저점을 먼저 깨지 않고 38.2% 성립해야 X — 같은 봉에 저점 갱신이면 L 갱신",
+      ew.resolve_question(wq, [B("a", 89, 95), B("b", 80, 85), B("c", 78, 88)])["state"] == "open")
+check("단일 ABC: X 반등 뒤 고점 돌파가 먼저",
+      ew.resolve_question(wq, [B("a", 85, 95), B("b", 82, 89), B("c", 88, 101)])["outcome"] == "abc")
+check("C 영역 전에 고점 돌파 → 2파 아님, 무효",
+      ew.resolve_question(wq, [B("a", 95, 101)])["state"] == "void")
+check("브리어 점수", abs(ew.brier(0.275, False) - 0.075625) < 1e-12 and abs(ew.brier(0.4, True) - 0.36) < 1e-12)
+rec = {**COUNT, "scorebook": {"questions": [dict(q1, status="resolved", outcome="down", resolved_on="x")]}}
+st = ew.scorebook_status(rec, [])
+check("파일에 기록된 결과만 누적에 들어간다 + 기준과 나란히 채점",
+      st["cumulative"]["n"] == 1 and abs(st["cumulative"]["forecast"] - 0.275 ** 2) < 1e-12
+      and abs(st["cumulative"]["random_walk"] - 0.6524 ** 2) < 1e-12)
+st2 = ew.scorebook_status(COUNT, [B("2026-09-29 00:00", 76000, 83000)])
+check("봉으로 판정만 나고 파일 미기록이면 누적에 안 들어간다 (커밋 전 점수 없음)",
+      st2["cumulative"]["n"] == 0 and st2["rows"][0]["state"] == "resolved")
+check("채점 코드는 매매 모듈과 무관 (§1 격리 유지)", "scorebook" not in open("scheduler.py").read()
+      and "scorebook" not in open("paper_executor.py").read())
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))

@@ -231,6 +231,89 @@ def outlook_status(count, rows_since):
     }
 
 
+def resolve_question(q, bars):
+    """채점 질문 하나를 봉 목록(as_of 당일 포함 이후, 6h 오름차순)으로 판정한다. 파일은 안 건드린다.
+
+    반환: {"state": open|resolved|void|ambiguous, "outcome": ..., "note": ...}
+    같은 봉이 두 가격을 다 건드리면 순서를 알 수 없으니 'ambiguous' — 사람이 1시간봉으로 확인한다.
+    """
+    r = q["rule"]
+    void_lo = q.get("void_if_below")
+    if r["type"] == "first_touch":
+        for b in bars:
+            if void_lo is not None and b["l"] < void_lo:
+                return {"state": "void", "outcome": None, "note": f"{b['d']} 무효선 이탈"}
+            hit_up, hit_dn = b["h"] > r["up"], b["l"] < r["down"]
+            if hit_up and hit_dn:
+                return {"state": "ambiguous", "outcome": None, "note": f"{b['d']} 한 봉이 양쪽을 다 건드림"}
+            if hit_up:
+                return {"state": "resolved", "outcome": "up", "note": b["d"]}
+            if hit_dn:
+                return {"state": "resolved", "outcome": "down", "note": b["d"]}
+        return {"state": "open", "outcome": None, "note": ""}
+    if r["type"] == "wxy_after_c":
+        top, zone, xf = r["top"], r["c_zone"], r["x_frac"]
+        low, armed = None, False
+        for b in bars:
+            if void_lo is not None and b["l"] < void_lo:
+                return {"state": "void", "outcome": None, "note": f"{b['d']} 무효선 이탈"}
+            if low is None:                                   # ① C 영역 진입 전
+                if b["h"] > top:
+                    return {"state": "void", "outcome": None, "note": f"{b['d']} C 영역 전에 고점 돌파 — 2파 아님"}
+                if b["l"] < zone:
+                    low = b["l"]
+                continue
+            if not armed:                                     # ② X 반등 대기, 최저가 갱신
+                if b["h"] > top:
+                    return {"state": "resolved", "outcome": "abc", "note": f"{b['d']} 반등이 곧장 고점 돌파"}
+                if b["h"] >= low + xf * (top - low) and b["l"] >= low:
+                    armed = True
+                    continue
+                low = min(low, b["l"])
+                continue
+            hit_up, hit_dn = b["h"] > top, b["l"] < low       # ③ 새 저점 vs 고점 돌파
+            if hit_up and hit_dn:
+                return {"state": "ambiguous", "outcome": None, "note": f"{b['d']} 한 봉이 양쪽을 다 건드림"}
+            if hit_dn:
+                return {"state": "resolved", "outcome": "wxy", "note": f"{b['d']} X 반등 뒤 새 저점 (L={low:,.0f})"}
+            if hit_up:
+                return {"state": "resolved", "outcome": "abc", "note": f"{b['d']} X 반등이 고점 돌파 (L={low:,.0f})"}
+        stage = "C 영역 대기" if low is None else ("X 반등 대기" if not armed else "새 저점 vs 고점 돌파 대기")
+        return {"state": "open", "outcome": None,
+                "note": stage + ("" if low is None else f" (현재 L={low:,.0f})")}
+    raise ValueError(f"알 수 없는 규칙 {r['type']}")
+
+
+def brier(p, happened):
+    return (p - (1.0 if happened else 0.0)) ** 2
+
+
+def scorebook_status(count, bars_6h):
+    """채점 장부. 파일에 이미 resolved 로 기록된 질문은 그 결과를 쓰고, open 은 봉으로 판정해 본다."""
+    sb = count.get("scorebook")
+    if not sb:
+        return None
+    rows, tot = [], {"forecast": 0.0, "random_walk": 0.0, "coin": 0.0, "n": 0}
+    for q in sb["questions"]:
+        if q.get("status") == "resolved":
+            st = {"state": "resolved", "outcome": q["outcome"], "note": q.get("resolved_on", ""), "recorded": True}
+        else:
+            st = resolve_question(q, [b for b in bars_6h if b["d"] >= q["as_of"]])
+            st["recorded"] = False
+        row = {"id": q["id"], "question": q["question"], "forecast": q["forecast"],
+               "baselines": q["baselines"], **st}
+        if st["state"] == "resolved":
+            hap = st["outcome"] == q["event"]
+            row["brier"] = {"forecast": brier(q["forecast"], hap),
+                            **{k: brier(v, hap) for k, v in q["baselines"].items()}}
+            if st["recorded"]:
+                for k in ("forecast", "random_walk", "coin"):
+                    tot[k] += row["brier"][k]
+                tot["n"] += 1
+        rows.append(row)
+    return {"rows": rows, "cumulative": tot}
+
+
 def run():
     count = json.load(open(COUNT_FILE))
     daily = fetch(86400, 200)
@@ -266,7 +349,14 @@ def run():
     ols = None
     if count.get("outlook"):
         ols = outlook_status(count, [r for r in daily if r["d"] >= count["outlook"]["as_of"]])
+    sbs = None
+    if count.get("scorebook"):
+        first = min(q["as_of"] for q in count["scorebook"]["questions"])
+        days = (dt.datetime.utcnow() - dt.datetime.strptime(first, "%Y-%m-%d")).days + 3
+        six_sb = six if days <= 28 else fetch(21600, days)
+        sbs = scorebook_status(count, six_sb)
     res = {
+        "scorebook": sbs,
         "outlook": ols,
         "correction": cor,
         "asof_utc": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
@@ -328,6 +418,30 @@ def run():
         for t in ols["triggers"]:
             if t["fired"]:
                 print(f"    ** {t['name']} 발동 — {t['effect']} → 확률 재평가 필요(revisions 기록) **")
+    if sbs:
+        print("  채점 장부 (브리어 점수, 낮을수록 좋음 — 기준: 무작위 보행 / 반반):")
+        for r in sbs["rows"]:
+            bl = r["baselines"]
+            head = (f"    {r['id']} {r['question']} — 내 예측 {r['forecast']:.1%} "
+                    f"(무작위 보행 {bl['random_walk']:.1%} / 반반 {bl['coin']:.0%})")
+            print(head)
+            if r["state"] == "resolved":
+                b = r["brier"]
+                tag = "기록됨" if r["recorded"] else "** 판정 나옴 — 파일에 결과 기록·커밋 필요 **"
+                print(f"       결과 {r['outcome']} ({r['note']}) | 점수 내 예측 {b['forecast']:.3f} / "
+                      f"무작위 보행 {b['random_walk']:.3f} / 반반 {b['coin']:.3f}  {tag}")
+            elif r["state"] == "ambiguous":
+                print(f"       ** 판정 보류 — {r['note']} → 1시간봉으로 순서 확인 필요 **")
+            elif r["state"] == "void":
+                print(f"       무효 — {r['note']} (파일에 void 기록 필요)")
+            else:
+                print(f"       미결 — {r['note'] or '두 가격 모두 미도달'}")
+        c = sbs["cumulative"]
+        if c["n"]:
+            print(f"    누적 {c['n']}건 평균: 내 예측 {c['forecast']/c['n']:.3f} / "
+                  f"무작위 보행 {c['random_walk']/c['n']:.3f} / 반반 {c['coin']/c['n']:.3f}")
+        else:
+            print("    누적: 아직 판정된 질문 없음")
     print("  살아 있는 시나리오: " +
           " / ".join(count["scenarios"].get(k, {}).get("label", k)
                      for k, v in res["scenarios"].items() if v and not k.startswith("_")))
