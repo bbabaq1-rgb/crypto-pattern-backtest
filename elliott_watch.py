@@ -314,6 +314,36 @@ def scorebook_status(count, bars_6h):
     return {"rows": rows, "cumulative": tot}
 
 
+def c_count_status(cc, bars_1h, px):
+    """지그재그 C 내부 5파 진행. cc = correction.zigzag_update.C_count (없으면 None).
+
+    bars_1h 는 'YYYY-MM-DD HH:MM' 오름차순 1시간봉. ii 시각 이후 봉만 본다.
+    판정만 한다 — 라벨(i, ii 가격)은 파일에만 있다.
+    """
+    if not cc:
+        return None
+    start, i_px, ii = cc["start"]["px"], cc["i"]["px"], cc["ii"]
+    i_len = start - i_px
+    after = [b for b in bars_1h if b["d"] > ii["ts"]]
+    if not after:
+        return None
+    k = min(range(len(after)), key=lambda j: after[j]["l"])
+    iii_low = after[k]["l"]
+    post = after[k + 1:]
+    bounce_hi = max([b["h"] for b in post] + [px]) if post else px
+    return {
+        "i_len": i_len,
+        "ii_retrace_pct": (ii["px"] - i_px) / i_len * 100,
+        "iii_low": iii_low, "iii_low_ts": after[k]["d"],
+        "iii_len_x_i": (ii["px"] - iii_low) / i_len,
+        "iii_targets": {r: ii["px"] - r * i_len for r in cc["iii_ratios_of_i"]},
+        "invalid": max(b["h"] for b in after) > ii["px"],
+        "bounce_hi": bounce_hi,
+        "above_i_low": bounce_hi > i_px,
+        "passed_i_low": iii_low < i_px,
+    }
+
+
 def run():
     count = json.load(open(COUNT_FILE))
     daily = fetch(86400, 200)
@@ -355,7 +385,12 @@ def run():
         days = (dt.datetime.utcnow() - dt.datetime.strptime(first, "%Y-%m-%d")).days + 3
         six_sb = six if days <= 28 else fetch(21600, days)
         sbs = scorebook_status(count, six_sb)
+    ccs = None
+    zz_up = (count.get("correction") or {}).get("zigzag_update_2026_09_28") or {}
+    if zz_up.get("C_count"):
+        ccs = c_count_status(zz_up["C_count"], fetch(3600, 6), px)
     res = {
+        "c_count": ccs,
         "scorebook": sbs,
         "outlook": ols,
         "correction": cor,
@@ -404,6 +439,21 @@ def run():
             for k, v in zz_up["zigzag_C_targets_from_B_85250"].items():
                 print(f"    {v:>9,.0f}  C = A 의 {k.split('=')[1].rstrip('A')}배")
             print(f"    확인: {zz_up['confirm']} | 부정: {zz_up['deny']}")
+            cc = zz_up.get("C_count")
+            if ccs and cc:
+                t = ccs["iii_targets"]
+                print(f"  C 내부 5파 ({cc['start']['px']:,.0f} 시작): i {cc['i']['px']:,.0f} (-{ccs['i_len']:,.0f}) · "
+                      f"ii {cc['ii']['px']:,.0f} (i 의 {ccs['ii_retrace_pct']:.1f}% 되돌림) · "
+                      f"iii 진행 중 저가 {ccs['iii_low']:,.0f} ({ccs['iii_low_ts']}Z, i 의 {ccs['iii_len_x_i']:.2f}배)")
+                print("    iii 목표: " + " / ".join(f"i 의 {r}배 {v:,.0f}" for r, v in t.items()))
+                if ccs["invalid"]:
+                    print(f"    ** ii 고점 {cc['ii']['px']:,.0f} 돌파 — C 카운트 무효, 재라벨 필요(revisions) **")
+                elif ccs["above_i_low"]:
+                    print(f"    iii 저점 뒤 반등 {ccs['bounce_hi']:,.0f} 이 i 저점 {cc['i']['px']:,.0f} 위 → "
+                          f"iv 아님: iii 미완(iii 안의 작은 반등) 또는 C 종결 대각")
+                else:
+                    print(f"    iii 저점 뒤 반등 {ccs['bounce_hi']:,.0f} 은 i 저점 {cc['i']['px']:,.0f} 아래 → "
+                          f"iii 완료·iv 진행 가능 (iv 는 {cc['i']['px']:,.0f} 을 넘으면 안 됨)")
         else:
             cl = count["correction"].get("C_target_labels", {})
             print("  C 목표 (플랫 가정):")
