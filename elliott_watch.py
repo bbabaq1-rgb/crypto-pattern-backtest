@@ -225,6 +225,9 @@ def outlook_status(count, rows_since):
         "triggers": trig,
         "reassess": any(t["fired"] for t in trig),
         "discriminator": ol.get("wxy_vs_abc_discriminator", ""),
+        "scenario_names": {k: count.get("scenarios", {}).get(full, {}).get("label", k)
+                           for k, full in ol.get("scenario_keys", {}).items()},
+        "shape_names": ol.get("shape_labels", {}),
     }
 
 
@@ -300,27 +303,34 @@ def run():
     print(f"  RSI14: 3파 {div['w3']:.1f} → 5파 {div['w5']:.1f} → 현재 {div['now']:.1f}")
     if cor:
         flags = " ".join(f"{k}:{'✓' if v['hit'] else '✗'}" for k, v in cor["B_min"].items())
-        print(f"  2파 A-B-C: A {cor['A_start']:,.0f}→{cor['A_end']:,.0f} (-{cor['A_size']:,.0f}) | "
+        print(f"  2파 조정 A-B-C: A 하락 {cor['A_start']:,.0f}→{cor['A_end']:,.0f} (-{cor['A_size']:,.0f}) | "
               f"B 고점 {cor['B_high']:,.0f} = A 의 {cor['B_retrace_pct']:.1f}% (현재 {cor['now_retrace_pct']:.1f}%) | "
               f"플랫 B 최소 {flags}"
               + ("  ** A 저점 이탈 — 플랫 가설 재계산 **" if cor["A_end_broken"] else ""))
-        print("  C 목표: " + " / ".join(f"{k} {v:,.0f}" for k, v in cor["C_targets"].items()))
+        cl = count["correction"].get("C_target_labels", {})
+        print("  C 목표 (플랫 가정):")
+        for k, v in cor["C_targets"].items():
+            print(f"    {v:>9,.0f}  {cl.get(k, k)}")
     if ols:
-        sc, sh = ols["scenarios"], ols["shape"]
-        print(f"  확률표({ols['as_of']} 기준 {ols['basis_px']:,.0f}, 주관): "
-              f"S1 {sc['S1']}% / S2 {sc['S2']}% / S3 {sc['S3']}%")
-        print(f"    2파 마무리(S1 안): ABC {ols['abc_within_S1']}% "
-              f"(지그재그 {sh['zigzag_abc']} · 플랫 {sh['flat_abc']}) vs WXY {ols['wxy_within_S1']}% "
-              f"| 무조건부 ABC {ols['abc_uncond']:.0f}% / WXY {ols['wxy_uncond']:.0f}%")
-        print("    트리거: " + " / ".join(
-            f"{t['px']:,.0f}{'↓' if t['dir'] == 'below' else '↑'} {'발동' if t['fired'] else '✗'}"
+        sc, sh, nm, sl = ols["scenarios"], ols["shape"], ols["scenario_names"], ols["shape_names"]
+        print(f"  확률표({ols['as_of']} 기준 {ols['basis_px']:,.0f}, 주관 — 검증된 모델 아님):")
+        for k in ("S1", "S2", "S3"):
+            print(f"    {sc[k]:>3}%  {nm.get(k, k)}")
+        print(f"    2파가 어떻게 끝나나 (첫 번째 시나리오가 맞을 때): "
+              f"단일 ABC {ols['abc_within_S1']}% "
+              f"({sl.get('zigzag_abc', 'zigzag')} {sh['zigzag_abc']} · {sl.get('flat_abc', 'flat')} {sh['flat_abc']}) "
+              f"vs {sl.get('wxy', 'WXY')} {ols['wxy_within_S1']}%")
+        print(f"    전체 기준으로 환산: 단일 ABC {ols['abc_uncond']:.0f}% / 복합 W-X-Y {ols['wxy_uncond']:.0f}% "
+              f"(나머지는 다른 두 시나리오)")
+        print("    재평가 트리거: " + " / ".join(
+            f"{t['name']} {t['px']:,.0f}{'↓' if t['dir'] == 'below' else '↑'} {'발동' if t['fired'] else '✗'}"
             for t in ols["triggers"]))
         for t in ols["triggers"]:
             if t["fired"]:
                 print(f"    ** {t['name']} 발동 — {t['effect']} → 확률 재평가 필요(revisions 기록) **")
     print("  살아 있는 시나리오: " +
-          ", ".join(k for k, v in res["scenarios"].items()
-                    if v and not k.startswith("_")))
+          " / ".join(count["scenarios"].get(k, {}).get("label", k)
+                     for k, v in res["scenarios"].items() if v and not k.startswith("_")))
     json.dump(res, open(OUT_FILE, "w"), ensure_ascii=False, indent=1)
     print(f"  → {OUT_FILE}")
     return res

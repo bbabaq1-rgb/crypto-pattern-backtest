@@ -196,6 +196,14 @@ check("outlook 없으면 None (종전 동작)", ew.outlook_status(no_ol, quiet) 
 check("revisions 에 2026-09-28 항목 + 사용자 승인",
       any(r["date"] == "2026-09-28" and r.get("approved_by") == "user" for r in COUNT["revisions"]))
 
+check("시나리오마다 풀어 쓴 label 이 있다 (약자 표기 금지, 2026-09-28 요청)",
+      all(v.get("label") for v in COUNT["scenarios"].values()))
+check("확률표 약자 → 시나리오 키 매핑이 전부 실제 시나리오를 가리킨다",
+      set(ol["scenario_keys"].values()) == set(COUNT["scenarios"].keys()))
+check("outlook_status 가 풀어 쓴 이름을 넘긴다",
+      o["scenario_names"]["S1"] == COUNT["scenarios"]["S1_wave1_of_new_impulse"]["label"])
+check("C 목표마다 풀어 쓴 설명", set(COUNT["correction"]["C_target_labels"]) == set(COUNT["correction"]["C_targets"]))
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))
