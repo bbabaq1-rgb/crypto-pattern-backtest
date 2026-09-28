@@ -259,6 +259,29 @@ check("봉으로 판정만 나고 파일 미기록이면 누적에 안 들어간
 check("채점 코드는 매매 모듈과 무관 (§1 격리 유지)", "scorebook" not in open("scheduler.py").read()
       and "scorebook" not in open("paper_executor.py").read())
 
+# ---------------------------------------------------------------- §12 C 내부 5파
+print("[12] C 내부 5파 카운트 (2026-09-28)")
+zu = COUNT["correction"]["zigzag_update_2026_09_28"]
+cc = zu["C_count"]
+check("C 시작 = B 고점, i < 시작, ii 는 i 와 시작 사이",
+      cc["start"]["px"] > cc["ii"]["px"] > cc["i"]["px"])
+check("A 구조 점검 기록 (5파·3파 둘 다 가능, 깊이 규칙으로 판정)", "4파 고점 84,665" in zu["A_structure_check"])
+check("코드에 C 카운트 가격 하드코딩 없음", "83091" not in SRC and "85158" not in SRC and "85250" not in SRC)
+H = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
+bars = [H("2026-09-27 12:00", 84400, 85100), H("2026-09-27 14:00", 84400, 84900),
+        H("2026-09-28 05:00", 82675, 83500), H("2026-09-28 06:00", 82900, 83300)]
+st = ew.c_count_status(cc, bars, 83200)
+check("iii 저가 = ii 이후 최저", st["iii_low"] == 82675)
+check("iii 길이 배수 = (ii-저가)/i", abs(st["iii_len_x_i"] - (cc["ii"]["px"] - 82675) / (cc["start"]["px"] - cc["i"]["px"])) < 1e-9)
+check("iii 목표 1.618배 = ii - 1.618×i", abs(st["iii_targets"][1.618] - (cc["ii"]["px"] - 1.618 * (cc["start"]["px"] - cc["i"]["px"]))) < 1e-6)
+check("저점 뒤 반등이 i 저점 위 → iv 아님 플래그", st["above_i_low"] is True and st["invalid"] is False)
+st2 = ew.c_count_status(cc, bars[:3] + [H("2026-09-28 06:00", 82800, 82950)], 82900)
+check("반등이 i 저점 아래면 iv 가능", st2["above_i_low"] is False)
+st3 = ew.c_count_status(cc, bars + [H("2026-09-28 07:00", 84000, 85300)], 85200)
+check("ii 고점 돌파 → 카운트 무효", st3["invalid"] is True)
+check("ii 시각 이전 봉은 안 본다", ew.c_count_status(cc, [H("2026-09-26 00:00", 70000, 80000)], 83000) is None)
+check("C_count 없으면 None", ew.c_count_status(None, bars, 83000) is None)
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))
