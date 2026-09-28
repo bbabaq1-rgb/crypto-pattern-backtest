@@ -194,6 +194,40 @@ def correction_status(count, px, high_after_A, low_after_A):
     return out
 
 
+def outlook_status(count, rows_since):
+    """확률표(count["outlook"]) + 표 기준일 이후 트리거 발동 여부. 없으면 None — 종전 동작.
+
+    확률은 파일 값을 그대로 옮길 뿐이다. 트리거가 발동해도 코드는 확률을 바꾸지 않고
+    '재평가 필요'만 표시한다 — 변경은 revisions 에 사유와 함께 사람이 기록한다.
+    rows_since 는 표 기준일(as_of) **당일 포함** 이후의 봉이다.
+    """
+    ol = count.get("outlook")
+    if not ol:
+        return None
+    sc = ol["scenarios_pct"]
+    sh = ol["wave2_shape_pct_within_S1"]
+    s1 = sc["S1"] / 100.0
+    abc_in = sh["zigzag_abc"] + sh["flat_abc"]
+    lo = min((r["l"] for r in rows_since), default=None)
+    hi = max((r["h"] for r in rows_since), default=None)
+    trig = []
+    for t in ol["triggers"]:
+        if t["dir"] == "below":
+            fired = lo is not None and lo < t["px"]
+        else:
+            fired = hi is not None and hi > t["px"]
+        trig.append(dict(t, fired=fired))
+    return {
+        "as_of": ol["as_of"], "basis_px": ol["basis_px"],
+        "scenarios": sc, "shape": sh,
+        "abc_within_S1": abc_in, "wxy_within_S1": sh["wxy"],
+        "abc_uncond": abc_in * s1, "wxy_uncond": sh["wxy"] * s1,
+        "triggers": trig,
+        "reassess": any(t["fired"] for t in trig),
+        "discriminator": ol.get("wxy_vs_abc_discriminator", ""),
+    }
+
+
 def run():
     count = json.load(open(COUNT_FILE))
     daily = fetch(86400, 200)
@@ -226,7 +260,11 @@ def run():
         cor = correction_status(count, px,
                                 max((r["h"] for r in after_a), default=px),
                                 min((r["l"] for r in after_a), default=px))
+    ols = None
+    if count.get("outlook"):
+        ols = outlook_status(count, [r for r in daily if r["d"] >= count["outlook"]["as_of"]])
     res = {
+        "outlook": ols,
         "correction": cor,
         "asof_utc": dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M"),
         "labeled_on": count["labeled_on"],
@@ -267,6 +305,19 @@ def run():
               f"플랫 B 최소 {flags}"
               + ("  ** A 저점 이탈 — 플랫 가설 재계산 **" if cor["A_end_broken"] else ""))
         print("  C 목표: " + " / ".join(f"{k} {v:,.0f}" for k, v in cor["C_targets"].items()))
+    if ols:
+        sc, sh = ols["scenarios"], ols["shape"]
+        print(f"  확률표({ols['as_of']} 기준 {ols['basis_px']:,.0f}, 주관): "
+              f"S1 {sc['S1']}% / S2 {sc['S2']}% / S3 {sc['S3']}%")
+        print(f"    2파 마무리(S1 안): ABC {ols['abc_within_S1']}% "
+              f"(지그재그 {sh['zigzag_abc']} · 플랫 {sh['flat_abc']}) vs WXY {ols['wxy_within_S1']}% "
+              f"| 무조건부 ABC {ols['abc_uncond']:.0f}% / WXY {ols['wxy_uncond']:.0f}%")
+        print("    트리거: " + " / ".join(
+            f"{t['px']:,.0f}{'↓' if t['dir'] == 'below' else '↑'} {'발동' if t['fired'] else '✗'}"
+            for t in ols["triggers"]))
+        for t in ols["triggers"]:
+            if t["fired"]:
+                print(f"    ** {t['name']} 발동 — {t['effect']} → 확률 재평가 필요(revisions 기록) **")
     print("  살아 있는 시나리오: " +
           ", ".join(k for k, v in res["scenarios"].items()
                     if v and not k.startswith("_")))
