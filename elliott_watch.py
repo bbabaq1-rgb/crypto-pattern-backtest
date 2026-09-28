@@ -396,11 +396,19 @@ def run():
         print(f"  2파 조정 A-B-C: A 하락 {cor['A_start']:,.0f}→{cor['A_end']:,.0f} (-{cor['A_size']:,.0f}) | "
               f"B 고점 {cor['B_high']:,.0f} = A 의 {cor['B_retrace_pct']:.1f}% (현재 {cor['now_retrace_pct']:.1f}%) | "
               f"플랫 B 최소 {flags}"
-              + ("  ** A 저점 이탈 — 플랫 가설 재계산 **" if cor["A_end_broken"] else ""))
-        cl = count["correction"].get("C_target_labels", {})
-        print("  C 목표 (플랫 가정):")
-        for k, v in cor["C_targets"].items():
-            print(f"    {v:>9,.0f}  {cl.get(k, k)}")
+              + (("  ** A 저점 이탈 — 플랫 폐기, 지그재그로 재계산됨 **" if count["correction"].get("zigzag_update_2026_09_28")
+                 else "  ** A 저점 이탈 — 플랫 가설 재계산 **") if cor["A_end_broken"] else ""))
+        zz_up = count["correction"].get("zigzag_update_2026_09_28")
+        if zz_up:
+            print("  C 목표 (지그재그 — 플랫 폐기, B 고점 기준):")
+            for k, v in zz_up["zigzag_C_targets_from_B_85250"].items():
+                print(f"    {v:>9,.0f}  C = A 의 {k.split('=')[1].rstrip('A')}배")
+            print(f"    확인: {zz_up['confirm']} | 부정: {zz_up['deny']}")
+        else:
+            cl = count["correction"].get("C_target_labels", {})
+            print("  C 목표 (플랫 가정):")
+            for k, v in cor["C_targets"].items():
+                print(f"    {v:>9,.0f}  {cl.get(k, k)}")
     if ols:
         sc, sh, nm, sl = ols["scenarios"], ols["shape"], ols["scenario_names"], ols["shape_names"]
         print(f"  확률표({ols['as_of']} 기준 {ols['basis_px']:,.0f}, 주관 — 검증된 모델 아님):")
