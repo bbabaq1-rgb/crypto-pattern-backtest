@@ -283,6 +283,37 @@ check("ii 고점 돌파 → 카운트 무효", st3["invalid"] is True)
 check("ii 시각 이전 봉은 안 본다", ew.c_count_status(cc, [H("2026-09-26 00:00", 70000, 80000)], 83000) is None)
 check("C_count 없으면 None", ew.c_count_status(None, bars, 83000) is None)
 
+# ---------------------------------------------------------------- §13 네 번째 시나리오 (삼각수렴)
+print("[13] 네 번째 시나리오 — 1파의 5파 안 4파 삼각수렴 (2026-09-28 사용자 가설)")
+s4 = COUNT["scenarios"].get("S4_wave4_triangle_in_wave5")
+check("네 번째 시나리오 존재 + 제안자 기록", bool(s4) and s4.get("proposed_by") == "user" and s4.get("label"))
+tr = s4["triangle"]
+check("삼각형 무효선·D 상한은 레벨 표에 있다", {tr["kill_close_below"], tr["D_max"]} <= {lv["px"] for lv in COUNT["levels"]})
+check("확률표에 네 번째 시나리오 포함, 합 100", "S4" in ol["scenarios_pct"] and sum(ol["scenarios_pct"].values()) == 100)
+check("코드에 삼각형 가격 하드코딩 없음", "82400" not in SRC and "82675" not in SRC and "4688" not in SRC)
+S = lambda d, lo, hi, c: {"d": d, "o": c, "h": hi, "l": lo, "c": c}
+base = [S("2026-09-28 00:00", 82675, 84992, 83300), S("2026-09-28 06:00", 83000, 83500, 83100)]
+t0 = ew.triangle_status(COUNT, base)
+check("상자 안이면 살아 있음·경고 없음", t0["alive"] and not t0["killed"] and not t0["d_over"] and not t0["confirmed"])
+check("감시 시작 이전 봉은 무시", ew.triangle_status(COUNT, [S("2026-09-27 18:00", 70000, 90000, 70000)] + base)["alive"])
+t1 = ew.triangle_status(COUNT, base + [S("2026-09-28 12:00", 82300, 83100, tr["kill_close_below"] - 1)])
+check("6시간봉 종가가 무효선 아래 → 무효", t1["killed"] and not t1["alive"])
+t2 = ew.triangle_status(COUNT, base + [S("2026-09-28 12:00", 82300, 83100, tr["kill_close_below"] + 50)])
+check("저가만 찌르고 종가는 위 → 살아 있음 + C 저점 갱신 표시", t2["alive"] and t2["new_low_below_C"])
+t3 = ew.triangle_status(COUNT, base + [S("2026-09-28 12:00", 84000, tr["D_max"] + 100, 85000)])
+check("D 상한 초과 → 경고", t3["d_over"] and t3["alive"])
+t4 = ew.triangle_status(COUNT, base + [S("2026-09-28 12:00", 84000, tr["confirm_above"] + 10, 87000)])
+check("1파 고점 돌파 → 확인 (D 경고 아님)", t4["confirmed"] and not t4["d_over"])
+no4 = {**COUNT, "scenarios": {k: v for k, v in COUNT["scenarios"].items() if k != "S4_wave4_triangle_in_wave5"}}
+check("삼각형 블록 없으면 None", ew.triangle_status(no4, base) is None)
+q5 = next(q for q in sb["questions"] if q["id"] == "Q5")
+q6 = next(q for q in sb["questions"] if q["id"] == "Q6")
+check("Q5 예측 = 삼각형 + 큰 3파 비중", abs(q5["forecast"] * 100 - (ol["scenarios_pct"]["S4"] + ol["scenarios_pct"]["S2"])) < 1e-9)
+check("Q6 무작위 보행 = 거리 비율", abs(q6["baselines"]["random_walk"] - (q6["basis_px"] - q6["rule"]["down"]) /
+      (q6["rule"]["up"] - q6["rule"]["down"])) < 1e-3)
+check("기존 Q1~Q4 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"] for i in ("Q1", "Q2", "Q3", "Q4")]
+      == [0.275, 0.40, 0.20, 0.55])
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))

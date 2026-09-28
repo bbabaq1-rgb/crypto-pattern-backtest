@@ -169,6 +169,33 @@ def scenarios_alive(count, px, low_since_top):
     return alive
 
 
+def triangle_status(count, bars_6h):
+    """네 번째 시나리오(1파의 5파 안 4파 삼각수렴) 판정. 파일에 triangle 블록이 없으면 None.
+
+    무효: 감시 시작 이후 6시간봉 **종가**가 kill_close_below 아래.
+    경고: D 가 D_max 를 넘음(삼각형 윗선이 안 내려옴) — 단 confirm_above 돌파면 확인으로 본다.
+    확인: confirm_above 상향 돌파 = 삼각형 뒤 5파 스러스트 시작.
+    가격은 전부 파일 값이다.
+    """
+    sc = count.get("scenarios", {})
+    key = next((k for k, v in sc.items() if isinstance(v, dict) and v.get("triangle")), None)
+    if not key:
+        return None
+    t = sc[key]["triangle"]
+    bars = [b for b in bars_6h if b["d"] >= t["watch_from"]]
+    killed = any(b["c"] < t["kill_close_below"] for b in bars)
+    hi = max((b["h"] for b in bars), default=None)
+    lo = min((b["l"] for b in bars), default=None)
+    confirmed = hi is not None and hi > t["confirm_above"]
+    d_over = hi is not None and hi > t["D_max"] and not confirmed
+    return {
+        "key": key, "alive": not killed,
+        "killed": killed, "confirmed": confirmed, "d_over": d_over,
+        "new_low_below_C": lo is not None and lo < t["C_end"],
+        "low": lo, "high": hi, "t": t,
+    }
+
+
 def correction_status(count, px, high_after_A, low_after_A):
     """2파 조정(A-B-C) 진행률. count["correction"] 이 없으면 None — 종전 동작 그대로.
 
@@ -385,6 +412,7 @@ def run():
         days = (dt.datetime.utcnow() - dt.datetime.strptime(first, "%Y-%m-%d")).days + 3
         six_sb = six if days <= 28 else fetch(21600, days)
         sbs = scorebook_status(count, six_sb)
+    tri = triangle_status(count, six)
     ccs = None
     zz_up = (count.get("correction") or {}).get("zigzag_update_2026_09_28") or {}
     if zz_up.get("C_count"):
@@ -404,7 +432,9 @@ def run():
         "retrace_of_w1_pct": (top - low_since_top) / (top - w0) * 100,
         "new_high": high_since_top > top,
         "levels": level_table(count["levels"], px),
-        "scenarios": scenarios_alive(count, px, low_since_top),
+        "scenarios": dict(scenarios_alive(count, px, low_since_top),
+                          **({tri["key"]: tri["alive"]} if tri else {})),
+        "triangle": {k: v for k, v in tri.items() if k != "t"} if tri else None,
         "sub5": {"iii": sub["iii"], "iv": sub["iv"],
                  "broke_iii": bool(six_high and six_high > sub["iii"]),
                  "broke_iv": bool(six_low and six_low < sub["iv"])},
@@ -462,7 +492,7 @@ def run():
     if ols:
         sc, sh, nm, sl = ols["scenarios"], ols["shape"], ols["scenario_names"], ols["shape_names"]
         print(f"  확률표({ols['as_of']} 기준 {ols['basis_px']:,.0f}, 주관 — 검증된 모델 아님):")
-        for k in ("S1", "S2", "S3"):
+        for k in sc:
             print(f"    {sc[k]:>3}%  {nm.get(k, k)}")
         print(f"    2파가 어떻게 끝나나 (첫 번째 시나리오가 맞을 때): "
               f"단일 ABC {ols['abc_within_S1']}% "
@@ -500,6 +530,17 @@ def run():
                   f"무작위 보행 {c['random_walk']/c['n']:.3f} / 반반 {c['coin']/c['n']:.3f}")
         else:
             print("    누적: 아직 판정된 질문 없음")
+    if tri:
+        t = tri["t"]
+        state = ("** 무효 — 6시간봉 종가가 무효선 아래 **" if tri["killed"] else
+                 "** 확인 — 1파 고점 돌파, 5파 스러스트 시작 **" if tri["confirmed"] else
+                 "경고 — D 가 상한을 넘음(윗선이 안 내려옴)" if tri["d_over"] else "진행 중")
+        print(f"  4파 삼각수렴 (사용자 가설): {state}")
+        print(f"    A {t['A_start']:,.0f}→{t['A_end']:,.0f} · B {t['B_end']:,.0f} · C {t['C_end']:,.0f} · D·E 대기 | "
+              f"무효: 6시간봉 종가 {t['kill_close_below']:,.0f} 아래 / D 상한 {t['D_max']:,.0f} / "
+              f"확인: {t['confirm_above']:,.0f} 돌파 → 스러스트 목표 = 돌파 지점 + {t['thrust_width']:,.0f}")
+        if tri["new_low_below_C"] and not tri["killed"]:
+            print(f"    C 저점 {t['C_end']:,.0f} 아래 저가 {tri['low']:,.0f} — 종가는 무효선 위. C 연장 중이거나 곧 무효")
     print("  살아 있는 시나리오: " +
           " / ".join(count["scenarios"].get(k, {}).get("label", k)
                      for k, v in res["scenarios"].items() if v and not k.startswith("_")))
