@@ -314,6 +314,33 @@ check("Q6 무작위 보행 = 거리 비율", abs(q6["baselines"]["random_walk"] 
 check("기존 Q1~Q4 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"] for i in ("Q1", "Q2", "Q3", "Q4")]
       == [0.275, 0.40, 0.20, 0.55])
 
+# ---------------------------------------------------------------- §14 ETH 교차 확인
+print("[14] ETH 교차 확인 (2026-09-28)")
+ec = COUNT.get("eth_cross")
+check("eth_cross 블록 존재, 고점 > B > A", bool(ec) and ec["top"]["px"] > ec["B_end"]["px"] > ec["A_end"]["px"])
+check("ETH 기준 시각이 BTC 와 같다 (A 끝 날짜·B 끝 시각)",
+      ec["A_end"]["ts"][:10] == COUNT["correction"]["A"]["end_date"]
+      and ec["B_end"]["ts"] == COUNT["correction"]["zigzag_update_2026_09_28"]["C_count"]["start"]["ts"])
+check("코드에 ETH 가격 하드코딩 없음", "2626" not in SRC and "2742" not in SRC and "2807" not in SRC)
+check("fetch 가 상품 인자를 받는다 (기본 BTC-USD)", "def fetch(granularity, days, product=PRODUCT)" in SRC)
+E = lambda d, lo, hi, c: {"d": d, "o": c, "h": hi, "l": lo, "c": c}
+btcA = COUNT["correction"]["A"]["end"]
+eth_ok = [E("2026-09-25 10:00", 2700, 2745, 2720), E("2026-09-28 05:00", 2634.38, 2660, 2650)]
+btc_brk = [E("2026-09-25 10:00", 84000, 85300, 85000), E("2026-09-28 05:00", btcA - 34, 83533, 83160)]
+btc_ok = [E("2026-09-25 10:00", 84000, 85300, 85000), E("2026-09-28 05:00", btcA + 100, 83533, 83160)]
+eth_brk = [E("2026-09-25 10:00", 2700, 2745, 2720), E("2026-09-28 05:00", ec["A_end"]["px"] - 1, 2660, 2640)]
+r1 = ew.eth_cross_status(ec, eth_ok, btc_brk, btcA)
+check("BTC 만 이탈 → 비확인 + 수렴 삼각형 모양", r1["verdict"].startswith("비확인") and r1["contracting"])
+check("B 되돌림 % = (B-A)/(고점-A)", abs(r1["B_retrace_pct"] - (ec["B_end"]["px"] - ec["A_end"]["px"]) /
+      (ec["top"]["px"] - ec["A_end"]["px"]) * 100) < 1e-9)
+check("B 고점 시각 이전 봉은 안 본다 (09-25 10:00 봉 무시)", r1["eth_high"] == 2660)
+check("둘 다 이탈 → 확인", ew.eth_cross_status(ec, eth_brk, btc_brk, btcA)["verdict"].startswith("확인"))
+check("둘 다 위", ew.eth_cross_status(ec, eth_ok, btc_ok, btcA)["verdict"].startswith("둘 다"))
+check("ETH 만 이탈 → 역비확인", ew.eth_cross_status(ec, eth_brk, btc_ok, btcA)["verdict"].startswith("역비확인"))
+r5 = ew.eth_cross_status(ec, eth_ok + [E("2026-09-28 10:00", 2700, ec["B_end"]["px"] + 5, 2745)], btc_ok, btcA)
+check("ETH 가 B 고점을 넘으면 표시 + 수렴 모양 해제", r5["eth_over_B"] and not r5["contracting"])
+check("eth_cross 없으면 None", ew.eth_cross_status(None, eth_ok, btc_ok, btcA) is None)
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))
