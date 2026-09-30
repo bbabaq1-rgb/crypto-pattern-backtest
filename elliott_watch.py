@@ -371,6 +371,29 @@ def c_count_status(cc, bars_1h, px):
     }
 
 
+def aw_status(aw, bars_1h, px):
+    """더 큰 A/W 재계산 진행. aw = correction.aw_update_2026_09_30 (없으면 None).
+
+    A/W 끝 시각 이후 1시간봉으로 B/X 고점·되돌림·레벨 도달과 C/Y 잠정 목표를 잰다.
+    C/Y 목표는 B/X 고점에 매달리므로 고점이 바뀌면 같이 바뀐다. 가격은 전부 파일 값이다.
+    """
+    if not aw:
+        return None
+    a = aw["AW"]
+    size = a["start"] - a["end"]
+    after = [b for b in bars_1h if b["d"] > a["end_ts"]]
+    hi = max([b["h"] for b in after] + [px])
+    lo = min([b["l"] for b in after] + [px])
+    return {
+        "size": size, "bx_high": hi,
+        "bx_retrace_pct": (hi - a["end"]) / size * 100,
+        "now_retrace_pct": (px - a["end"]) / size * 100,
+        "levels": {k: dict(v, hit=hi >= v["px"]) for k, v in aw["B_levels"].items()},
+        "cy_targets": {r: hi - r * size for r in aw["CY_ratios_of_AW"]},
+        "broke_AW_low": lo < a["end"],
+    }
+
+
 def eth_cross_status(ec, eth_bars, btc_bars, btc_A_end):
     """ETH 교차 확인. ec = count["eth_cross"] (없으면 None). 봉은 'YYYY-MM-DD HH:MM' 오름차순 1시간봉.
 
@@ -448,11 +471,13 @@ def run():
     tri = triangle_status(count, six)
     ccs = None
     zz_up = (count.get("correction") or {}).get("zigzag_update_2026_09_28") or {}
+    aw_up = (count.get("correction") or {}).get("aw_update_2026_09_30")
     btc_1h = None
-    if zz_up.get("C_count") or count.get("eth_cross"):
+    if zz_up.get("C_count") or count.get("eth_cross") or aw_up:
         btc_1h = fetch(3600, 10)
     if zz_up.get("C_count"):
         ccs = c_count_status(zz_up["C_count"], btc_1h, px)
+    aws = aw_status(aw_up, btc_1h, px) if aw_up else None
     ecs = None
     if count.get("eth_cross") and count.get("correction"):
         ec = count["eth_cross"]
@@ -460,6 +485,7 @@ def run():
         ecs = eth_cross_status(ec, fetch(3600, max(days, 10), ec["product"]),
                                btc_1h if days <= 10 else fetch(3600, days), count["correction"]["A"]["end"])
     res = {
+        "aw": aws,
         "eth_cross": ecs,
         "c_count": ccs,
         "scorebook": sbs,
@@ -504,10 +530,25 @@ def run():
         print(f"  2파 조정 A-B-C: A 하락 {cor['A_start']:,.0f}→{cor['A_end']:,.0f} (-{cor['A_size']:,.0f}) | "
               f"B 고점 {cor['B_high']:,.0f} = A 의 {cor['B_retrace_pct']:.1f}% (현재 {cor['now_retrace_pct']:.1f}%) | "
               f"플랫 B 최소 {flags}"
-              + (("  ** A 저점 이탈 — 플랫 폐기, 지그재그로 재계산됨 **" if count["correction"].get("zigzag_update_2026_09_28")
-                 else "  ** A 저점 이탈 — 플랫 가설 재계산 **") if cor["A_end_broken"] else ""))
+              + (("  ** A 저점 이탈은 속임수로 판정 — 아래 A/W 재계산 **" if aw_up else
+                  "  ** A 저점 이탈 — 플랫 폐기, 지그재그로 재계산됨 **" if count["correction"].get("zigzag_update_2026_09_28")
+                  else "  ** A 저점 이탈 — 플랫 가설 재계산 **") if cor["A_end_broken"] else ""))
         zz_up = count["correction"].get("zigzag_update_2026_09_28")
-        if zz_up:
+        if aws:
+            a = aw_up["AW"]
+            print(f"  더 큰 A/W 재계산: A/W {a['start']:,.0f}→{a['end']:,.0f} (-{aws['size']:,.0f}, {a['inside']}) | "
+                  f"B/X 고점 {aws['bx_high']:,.0f} = A/W 의 {aws['bx_retrace_pct']:.1f}% (현재 {aws['now_retrace_pct']:.1f}%)")
+            print("    B/X 레벨: " + " / ".join(f"{v['label']} {v['px']:,.0f} {'✓' if v['hit'] else '✗'}"
+                                             for v in aws["levels"].values()))
+            print("    C/Y 잠정 목표 (B/X 고점 기준 — 고점이 바뀌면 같이 바뀜): " + " / ".join(
+                f"A/W 의 {r}배 {v:,.0f}" for r, v in aws["cy_targets"].items()))
+            if aws["broke_AW_low"]:
+                print(f"    ** A/W 저점 {a['end']:,.0f} 이탈 — 지금 반등은 B/X 로 확정, C/Y 하락 진행 **")
+            print(f"    읽는 법: {aw_up['read']}")
+            cc = (zz_up or {}).get("C_count") or {}
+            if cc.get("status") == "invalid":
+                print(f"  지그재그 C 와 C 내부 5파: 보류·무효 기록됨 ({cc['invalidated']['ts']}Z) — {aw_up['old_zigzag_C']}")
+        elif zz_up:
             print("  C 목표 (지그재그 — 플랫 폐기, B 고점 기준):")
             for k, v in zz_up["zigzag_C_targets_from_B_85250"].items():
                 print(f"    {v:>9,.0f}  C = A 의 {k.split('=')[1].rstrip('A')}배")
@@ -592,6 +633,11 @@ def run():
               f"확인: {t['confirm_above']:,.0f} 돌파 → 스러스트 목표 = 돌파 지점 + {t['thrust_width']:,.0f}")
         if tri["new_low_below_C"] and not tri["killed"]:
             print(f"    C 저점 {t['C_end']:,.0f} 아래 저가 {tri['low']:,.0f} — 종가는 무효선 위. C 연장 중이거나 곧 무효")
+        alt = count["scenarios"][tri["key"]].get("iv_alternative_2026_09_30")
+        if alt:
+            ok = (tri["low"] is None) or tri["low"] > alt["overlap_line"]
+            print(f"    대안 읽기: {alt['read']} 겹침선 {alt['overlap_line']:,.0f} "
+                  + ("유지" if ok else "** 이탈 — 이 읽기 무효 **"))
     print("  살아 있는 시나리오: " +
           " / ".join(count["scenarios"].get(k, {}).get("label", k)
                      for k, v in res["scenarios"].items() if v and not k.startswith("_")))
