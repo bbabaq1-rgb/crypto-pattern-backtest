@@ -225,8 +225,11 @@ check("Q1 판정 가격은 기존 레벨에서만", {q1["rule"]["up"], q1["rule"
 check("Q2 예측은 등록 당시 값 그대로 (사후 조정 없음, 9/28 첫 표의 W-X-Y 40%)",
       next(q for q in sb["questions"] if q["id"] == "Q2")["forecast"] == 0.40)
 wxy_qs = [q for q in sb["questions"] if q["event"] == "wxy"]
-check("가장 최근 W-X-Y 질문의 예측 = 현재 확률표의 W-X-Y 비중",
-      abs(wxy_qs[-1]["forecast"] * 100 - ol["wave2_shape_pct_within_S1"]["wxy"]) < 1e-9)
+TABLES = [ol] + list(ol.get("previous") or [])
+tbl_of = lambda q: next((t for t in TABLES if t.get("basis_px") == q["basis_px"]), None)
+check("W-X-Y 질문 예측 = 등록 당시(같은 기준가) 확률표의 W-X-Y 비중",
+      all(tbl_of(q) and abs(q["forecast"] * 100 - tbl_of(q)["wave2_shape_pct_within_S1"]["wxy"]) < 1e-9
+          for q in wxy_qs))
 check("재평가해도 Q1 예측은 그대로 (새 질문 추가 방식)",
       next(q for q in sb["questions"] if q["id"] == "Q1")["forecast"] == 0.275)
 check("재평가 전 확률표가 previous 에 보존", ol.get("previous") and ol["previous"][0]["scenarios_pct"] == {"S1": 55, "S2": 20, "S3": 25})
@@ -308,7 +311,9 @@ no4 = {**COUNT, "scenarios": {k: v for k, v in COUNT["scenarios"].items() if k !
 check("삼각형 블록 없으면 None", ew.triangle_status(no4, base) is None)
 q5 = next(q for q in sb["questions"] if q["id"] == "Q5")
 q6 = next(q for q in sb["questions"] if q["id"] == "Q6")
-check("Q5 예측 = 삼각형 + 큰 3파 비중", abs(q5["forecast"] * 100 - (ol["scenarios_pct"]["S4"] + ol["scenarios_pct"]["S2"])) < 1e-9)
+t5 = tbl_of(q5)
+check("Q5 예측 = 등록 당시 표의 삼각형 + 큰 3파 비중",
+      bool(t5) and abs(q5["forecast"] * 100 - (t5["scenarios_pct"]["S4"] + t5["scenarios_pct"]["S2"])) < 1e-9)
 check("Q6 무작위 보행 = 거리 비율", abs(q6["baselines"]["random_walk"] - (q6["basis_px"] - q6["rule"]["down"]) /
       (q6["rule"]["up"] - q6["rule"]["down"])) < 1e-3)
 check("기존 Q1~Q4 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"] for i in ("Q1", "Q2", "Q3", "Q4")]
@@ -340,6 +345,51 @@ check("ETH 만 이탈 → 역비확인", ew.eth_cross_status(ec, eth_brk, btc_ok
 r5 = ew.eth_cross_status(ec, eth_ok + [E("2026-09-28 10:00", 2700, ec["B_end"]["px"] + 5, 2745)], btc_ok, btcA)
 check("ETH 가 B 고점을 넘으면 표시 + 수렴 모양 해제", r5["eth_over_B"] and not r5["contracting"])
 check("eth_cross 없으면 None", ew.eth_cross_status(None, eth_ok, btc_ok, btcA) is None)
+
+# ---------------------------------------------------------------- §15 A/W 재계산
+print("[15] A/W 재계산 (2026-09-30)")
+cor = COUNT["correction"]
+aw = cor.get("aw_update_2026_09_30")
+check("aw 블록 존재: A/W 시작 > 끝, 끝 시각 기록", bool(aw) and aw["AW"]["start"] > aw["AW"]["end"] and aw["AW"]["end_ts"])
+AWs = aw["AW"]["start"] - aw["AW"]["end"]
+check("B/X 레벨 가격 = 끝 + 비율 × A/W 크기 (반올림 1달러)",
+      all(abs(v["px"] - (aw["AW"]["end"] + float(r) * AWs)) <= 1.0 for r, v in aw["B_levels"].items()))
+check("A/W 시작 = 카운트의 5파(=1파) 고점", aw["AW"]["start"] == COUNT["waves"][-1]["price"])
+check("9/28 C 내부 카운트는 무효로 기록(지우지 않음)",
+      cor["zigzag_update_2026_09_28"]["C_count"].get("status") == "invalid"
+      and cor["zigzag_update_2026_09_28"]["C_count"].get("start"))
+H = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
+end_ts = aw["AW"]["end_ts"]
+before = H("2026-09-27 00:00", 60000, 99999)
+after = [H("2026-09-29 00:00", aw["AW"]["end"] + 100, aw["AW"]["end"] + 2000),
+         H("2026-09-30 12:00", aw["AW"]["end"] + 500, aw["AW"]["end"] + 3104)]
+r = ew.aw_status(aw, [before] + after, aw["AW"]["end"] + 1500)
+hi = aw["AW"]["end"] + 3104
+check("A/W 끝 이전 봉은 무시", r["bx_high"] == hi and not r["broke_AW_low"])
+check("B/X 되돌림 % = (고점-끝)/크기", abs(r["bx_retrace_pct"] - 3104 / AWs * 100) < 1e-9)
+check("현재 되돌림 % = (현재가-끝)/크기", abs(r["now_retrace_pct"] - 1500 / AWs * 100) < 1e-9)
+check("레벨 도달 = B/X 고점 이상", all(v["hit"] == (hi >= v["px"]) for v in r["levels"].values()))
+check("C/Y 잠정 목표 = B/X 고점 - 비율 × 크기",
+      all(abs(r["cy_targets"][k] - (hi - k * AWs)) < 1e-9 for k in aw["CY_ratios_of_AW"]))
+check("현재가가 B/X 고점보다 높으면 고점으로 반영", ew.aw_status(aw, after, hi + 10)["bx_high"] == hi + 10)
+brk = after + [H("2026-09-30 18:00", aw["AW"]["end"] - 1, aw["AW"]["end"] + 200)]
+check("A/W 저점 아래 봉 → 이탈 표시", ew.aw_status(aw, brk, aw["AW"]["end"] + 100)["broke_AW_low"])
+check("aw 블록 없으면 None", ew.aw_status(None, after, 1.0) is None)
+lv_px = {lv["px"] for lv in COUNT["levels"]}
+check("새 트리거 가격은 전부 레벨에 있다", all(t["px"] in lv_px for t in COUNT["outlook"]["triggers"]))
+alt = COUNT["scenarios"]["S4_wave4_triangle_in_wave5"].get("iv_alternative_2026_09_30")
+check("대안 4파 읽기: 겹침선 < A/W 저점 (임펄스 규칙 통과)", bool(alt) and alt["overlap_line"] < aw["AW"]["end"])
+q7 = next(q for q in sb["questions"] if q["id"] == "Q7")
+check("Q7 무작위 보행 = 거리 비율", abs(q7["baselines"]["random_walk"] - (q7["basis_px"] - q7["rule"]["down"]) /
+      (q7["rule"]["up"] - q7["rule"]["down"])) < 1e-3)
+check("Q7 판정 가격은 기존 레벨에서만", {q7["rule"]["up"], q7["rule"]["down"]} <= lv_px)
+check("Q7 기준가 = 현재 확률표 기준가", q7["basis_px"] == ol["basis_px"])
+check("기존 Q1~Q6 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
+      for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40])
+check("재평가 직전 표(삼각형 판)가 previous 끝에 보존",
+      ol["previous"][-1]["scenarios_pct"] == {"S1": 40, "S4": 25, "S2": 10, "S3": 25})
+check("코드에 A/W 가격·레벨 하드코딩 없음",
+      not any(x in SRC for x in ("82510", "82,510", "4887", "86908", "81925", "84750", "85614")))
 
 print()
 if FAIL:
