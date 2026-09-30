@@ -318,10 +318,10 @@ check("안 겹치면 종전대로 재정렬한다", not _merged_of(True, K, set(
 check("메인 신호(cap 아님)는 이 분기를 안 탄다 — cascade 배리어 동작 불변",
       not _merged_of(False, K, {K}, {K}, {K}, set()))
 
-# ── §8 종목 제외 (2026-09-22 사용자 지시 "tp1 은 비트 제외") ──────────────────
-# 고정하는 것 둘: ① tp1 코호트에서 BTC 가 빠진다 ② `exclude` 가 없는 항목은 **완전히 불변**
-#                 (cascade·4h adopted 가 이 필드를 안 가지므로 그 경로는 한 줄도 안 바뀐다)
-print("\n§8 tp1 BTC 제외")
+# ── §8 종목 제외 (2026-09-22 사용자 지시 "tp1 은 비트 제외" → 2026-09-30 해제 "다시 비트코인도 포함") ──
+# 고정하는 것 둘: ① exclude 메커니즘(선택 필드)의 동작 ② 현재 배포 항목은 전부 exclude 없음 = BTC 포함
+#                 (필드가 없는 항목은 종전 경로 그대로 — 한 줄도 안 바뀐다)
+print("\n§8 종목 제외 메커니즘 / tp1 BTC 복귀")
 _base = ["BTC", "ETH", "SOL", "XRP"]
 check("exclude 없으면 종전과 동일 (인자 생략)", sch._cohort_symbols(None, _base) == _base)
 check("exclude=None 도 동일", sch._cohort_symbols(None, _base, None) == _base)
@@ -345,7 +345,7 @@ finally:
 _uni = json.load(open("universe.json", encoding="utf-8"))
 _tp1 = [a for a in _uni["adopted_1h_patterns"] if a["pattern"] == "tp1_engulfing_1h"]
 check("universe 에 tp1 항목이 하나", len(_tp1) == 1)
-check("tp1 exclude = ['BTC']", _tp1 and _tp1[0].get("exclude") == ["BTC"])
+check("tp1 exclude 없음 — 2026-09-30 BTC 복귀", _tp1 and "exclude" not in _tp1[0])
 check("tp1 코호트는 top20 그대로", _tp1 and _tp1[0].get("cohort") == "top20")
 for _a in _uni["adopted_1h_patterns"] + _uni["adopted_4h_patterns"] + _uni.get("adopted_patterns", []):
     if _a.get("pattern") != "tp1_engulfing_1h":
