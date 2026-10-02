@@ -383,13 +383,26 @@ q7 = next(q for q in sb["questions"] if q["id"] == "Q7")
 check("Q7 무작위 보행 = 거리 비율", abs(q7["baselines"]["random_walk"] - (q7["basis_px"] - q7["rule"]["down"]) /
       (q7["rule"]["up"] - q7["rule"]["down"])) < 1e-3)
 check("Q7 판정 가격은 기존 레벨에서만", {q7["rule"]["up"], q7["rule"]["down"]} <= lv_px)
-check("Q7 기준가 = 현재 확률표 기준가", q7["basis_px"] == ol["basis_px"])
+check("Q7 기준가 = 등록 당시 확률표 기준가", bool(tbl_of(q7)))
 check("기존 Q1~Q6 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
       for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40])
-check("재평가 직전 표(삼각형 판)가 previous 끝에 보존",
-      ol["previous"][-1]["scenarios_pct"] == {"S1": 40, "S4": 25, "S2": 10, "S3": 25})
+check("삼각형 판 표가 previous 에 보존",
+      any(t["scenarios_pct"] == {"S1": 40, "S4": 25, "S2": 10, "S3": 25} for t in ol["previous"]))
 check("코드에 A/W 가격·레벨 하드코딩 없음",
       not any(x in SRC for x in ("82510", "82,510", "4887", "86908", "81925", "84750", "85614")))
+
+print("[16] 90% 회복 재평가 (2026-10-02)")
+q8 = next(q for q in sb["questions"] if q["id"] == "Q8")
+check("Q8 무작위 보행 = 거리 비율", abs(q8["baselines"]["random_walk"] - (q8["basis_px"] - q8["rule"]["down"]) /
+      (q8["rule"]["up"] - q8["rule"]["down"])) < 1e-3)
+check("Q8 판정 가격은 기존 레벨에서만", {q8["rule"]["up"], q8["rule"]["down"]} <= lv_px)
+check("Q8 기준가 = 현재 확률표 기준가", q8["basis_px"] == ol["basis_px"])
+check("확률표 합 100 · 형태 합 100", sum(ol["scenarios_pct"].values()) == 100 and sum(ol["wave2_shape_pct_within_S1"].values()) == 100)
+check("직전 표(9/30 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 84750.0)
+check("발동한 트리거(86,908)는 목록에서 빠짐", all(t["px"] != 86908.0 for t in ol["triggers"]))
+check("Q1~Q7 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
+      for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48])
+check("코드에 89,547 하드코딩 없음", "89547" not in SRC and "89,547" not in SRC)
 
 print()
 if FAIL:
