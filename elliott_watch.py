@@ -56,15 +56,21 @@ def _curl(url, timeout=40):
 
 def fetch(granularity, days, product=PRODUCT):
     """[{d,o,h,l,c}] 오름차순. 코인베이스는 [time, low, high, open, close, volume] 순서다."""
-    end = dt.datetime.utcnow() + dt.timedelta(days=1)
+    now = dt.datetime.utcnow()
+    end = now + dt.timedelta(days=1)
     start = end - dt.timedelta(days=days)
     rows, cur = {}, start
     step = dt.timedelta(seconds=granularity * 290)
-    while cur < end:
+    # 시작이 미래인 구간은 요청하지 않는다 — 코인베이스가 {'message': 'Start cannot be in the future'}
+    # 를 돌려주고, 그 dict 를 캔들로 읽으면 키(문자열)가 섞여 정렬에서 터진다(2026-10-06).
+    while cur < end and cur < now:
         nxt = min(cur + step, end)
         u = (CB.format(p=product) + f"?granularity={granularity}"
              f"&start={cur.isoformat()}Z&end={nxt.isoformat()}Z")
-        for c in _curl(u):
+        got = _curl(u)
+        if not isinstance(got, list):
+            raise RuntimeError(f"fetch 실패: {u} :: {str(got)[:200]}")
+        for c in got:
             rows[c[0]] = c
         cur = nxt
     out = []
