@@ -404,6 +404,37 @@ check("Q1~Q7 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i
       for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48])
 check("코드에 89,547 하드코딩 없음", "89547" not in SRC and "89,547" not in SRC)
 
+print("[17] fetch — 미래 시작 구간 요청 안 함 (2026-10-06)")
+import datetime as _dt
+_calls = []
+def _fake_curl(u, timeout=40):
+    st = _dt.datetime.fromisoformat(u.split("start=")[1].split("Z")[0])
+    if st > _dt.datetime.utcnow():
+        return {"message": "Start cannot be in the future"}
+    _calls.append(u)
+    t0 = int(st.replace(tzinfo=_dt.timezone.utc).timestamp())
+    return [[t0 + 3600 * i, 1.0, 2.0, 1.5, 1.5, 0.0] for i in range(3)]
+_orig = ew._curl
+ew._curl = _fake_curl
+try:
+    _ok = True
+    try:
+        _rows = ew.fetch(3600, 13, "ETH-USD")
+    except Exception as _e:
+        _ok = False
+    check("13일 1시간봉(구간 2개 이상) 조회가 미래 구간 거부로 터지지 않음", _ok)
+    check("요청한 구간은 전부 시작이 현재 이전", all(
+        _dt.datetime.fromisoformat(u.split("start=")[1].split("Z")[0]) <= _dt.datetime.utcnow() for u in _calls))
+    ew._curl = lambda u, timeout=40: {"message": "rate limited"}
+    _raised = False
+    try:
+        ew.fetch(3600, 3, "ETH-USD")
+    except RuntimeError:
+        _raised = True
+    check("목록이 아닌 응답은 RuntimeError 로 드러남(정렬 오류로 숨지 않음)", _raised)
+finally:
+    ew._curl = _orig
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))
