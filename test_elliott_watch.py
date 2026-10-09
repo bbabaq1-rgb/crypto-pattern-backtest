@@ -256,7 +256,9 @@ st = ew.scorebook_status(rec, [])
 check("파일에 기록된 결과만 누적에 들어간다 + 기준과 나란히 채점",
       st["cumulative"]["n"] == 1 and abs(st["cumulative"]["forecast"] - 0.275 ** 2) < 1e-12
       and abs(st["cumulative"]["random_walk"] - 0.6524 ** 2) < 1e-12)
-st2 = ew.scorebook_status(COUNT, [B("2026-09-29 00:00", 76000, 83000)])
+_open = {**COUNT, "scorebook": {**sb, "questions": [{k: v for k, v in q.items() if k not in ("outcome", "resolved_on")} | {"status": "open"}
+                                                   for q in sb["questions"]]}}
+st2 = ew.scorebook_status(_open, [B("2026-09-29 00:00", 76000, 83000)])
 check("봉으로 판정만 나고 파일 미기록이면 누적에 안 들어간다 (커밋 전 점수 없음)",
       st2["cumulative"]["n"] == 0 and st2["rows"][0]["state"] == "resolved")
 check("채점 코드는 매매 모듈과 무관 (§1 격리 유지)", "scorebook" not in open("scheduler.py").read()
@@ -396,13 +398,27 @@ q8 = next(q for q in sb["questions"] if q["id"] == "Q8")
 check("Q8 무작위 보행 = 거리 비율", abs(q8["baselines"]["random_walk"] - (q8["basis_px"] - q8["rule"]["down"]) /
       (q8["rule"]["up"] - q8["rule"]["down"])) < 1e-3)
 check("Q8 판정 가격은 기존 레벨에서만", {q8["rule"]["up"], q8["rule"]["down"]} <= lv_px)
-check("Q8 기준가 = 현재 확률표 기준가", q8["basis_px"] == ol["basis_px"])
+check("Q8 기준가 = 등록 당시 확률표 기준가", bool(tbl_of(q8)))
 check("확률표 합 100 · 형태 합 100", sum(ol["scenarios_pct"].values()) == 100 and sum(ol["wave2_shape_pct_within_S1"].values()) == 100)
-check("직전 표(9/30 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 84750.0)
+check("9/30 판 표가 previous 에 보존", any(t["basis_px"] == 84750.0 for t in ol["previous"]))
 check("발동한 트리거(86,908)는 목록에서 빠짐", all(t["px"] != 86908.0 for t in ol["triggers"]))
 check("Q1~Q7 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
       for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48])
 check("코드에 89,547 하드코딩 없음", "89547" not in SRC and "89,547" not in SRC)
+
+print("[18] A/W 저점·겹침선 이탈 재평가 (2026-10-09)")
+q9 = next(q for q in sb["questions"] if q["id"] == "Q9")
+check("Q9 무작위 보행 = 거리 비율", abs(q9["baselines"]["random_walk"] - (q9["basis_px"] - q9["rule"]["down"]) /
+      (q9["rule"]["up"] - q9["rule"]["down"])) < 1e-3)
+check("Q9 판정 가격은 기존 레벨에서만", {q9["rule"]["up"], q9["rule"]["down"]} <= lv_px)
+check("Q9 기준가 = 현재 확률표 기준가", q9["basis_px"] == ol["basis_px"])
+check("직전 표(10/02 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 86818.0)
+check("발동한 트리거(82,510·81,925)는 목록에서 빠짐", all(t["px"] not in (82510.0, 81925.0) for t in ol["triggers"]))
+check("Q1~Q8 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
+      for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51])
+check("판정 기록은 status·outcome·resolved_on 셋 다", all(
+      q.get("outcome") and q.get("resolved_on") for q in sb["questions"] if q["status"] == "resolved"))
+check("코드에 79,342 하드코딩 없음", "79342" not in SRC and "79,342" not in SRC)
 
 print("[17] fetch — 미래 시작 구간 요청 안 함 (2026-10-06)")
 import datetime as _dt
