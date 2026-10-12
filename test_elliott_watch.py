@@ -451,6 +451,14 @@ try:
 finally:
     ew._curl = _orig
 
+print("[19] BTC 1시간봉 창이 A/W 끝을 덮는다 (2026-10-12)")
+_aw_end = _dt.datetime.strptime(COUNT["correction"]["aw_update_2026_09_30"]["AW"]["end_ts"][:10], "%Y-%m-%d")
+for _late in (3, 10, 14, 40):
+    _now = _aw_end + _dt.timedelta(days=_late)
+    _d = ew.btc_1h_days(COUNT, _now)
+    check(f"A/W 끝 +{_late}일: 창 {_d}일이 A/W 끝 이전부터 시작", _now - _dt.timedelta(days=_d) < _aw_end and _d >= 10)
+check("A/W 블록 없으면 기본 10일", ew.btc_1h_days({}, _aw_end) == 10)
+
 print()
 if FAIL:
     print(f"실패 {len(FAIL)}건: " + " | ".join(FAIL))

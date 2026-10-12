@@ -377,6 +377,20 @@ def c_count_status(cc, bars_1h, px):
     }
 
 
+def btc_1h_days(count, now):
+    """BTC 1시간봉을 며칠치 받아야 하나. 기본 10일, A/W 블록이 있으면 A/W 끝 시각까지 덮는다.
+
+    2026-10-12 수정: 10일 고정이면 A/W 끝(9/28) 뒤 10일이 지나 B/X 고점(10/02 87,249)이 창 밖으로
+    밀려나 B/X 고점·C/Y 목표가 조용히 바뀌었다(86,996 / 82,109·80,780·79,089 로 찍힘).
+    """
+    need = 10
+    aw = (count.get("correction") or {}).get("aw_update_2026_09_30")
+    if aw:
+        end = dt.datetime.strptime(aw["AW"]["end_ts"][:10], "%Y-%m-%d")
+        need = max(need, (now - end).days + 2)
+    return need
+
+
 def aw_status(aw, bars_1h, px):
     """더 큰 A/W 재계산 진행. aw = correction.aw_update_2026_09_30 (없으면 None).
 
@@ -480,7 +494,7 @@ def run():
     aw_up = (count.get("correction") or {}).get("aw_update_2026_09_30")
     btc_1h = None
     if zz_up.get("C_count") or count.get("eth_cross") or aw_up:
-        btc_1h = fetch(3600, 10)
+        btc_1h = fetch(3600, btc_1h_days(count, dt.datetime.utcnow()))
     if zz_up.get("C_count"):
         ccs = c_count_status(zz_up["C_count"], btc_1h, px)
     aws = aw_status(aw_up, btc_1h, px) if aw_up else None
