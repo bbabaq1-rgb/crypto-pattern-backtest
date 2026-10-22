@@ -123,6 +123,12 @@ def cap_margin(cap, pattern, trades):
     # 값을 그대로 쓴다 = 포트 = max(포트 × (1+ret×lev), start). 종전 reset_on_loss(무조건 start)와
     # 무리셋(2026-09-19 오전, 곱셈만) 의 중간. 위로는 복리·아래로는 start 가 바닥.
     floor = bool(cap.get("loss_floor"))
+    # hold_on_loss (2026-10-22 사용자 지시 "손절했을때 70부터 시작이 아니라 손절 진입한 금액으로 복귀해서
+    # 포지션 잡는걸로"): 손실 거래는 포트를 줄이지 않는다 — 다음 진입은 그 손절 거래에 넣었던 증거금 그대로.
+    # 손실은 계좌에서 나가고 포트는 익절로만 커진다. hold_on_loss_since 이후(exit_date 기준) 청산분에만 적용 —
+    # 그 전 거래는 당시 규칙(loss_floor)으로 계산해 전환 시점의 포트를 그대로 이어받는다(소급 급증 방지).
+    hold = bool(cap.get("hold_on_loss"))
+    hold_since = str(cap.get("hold_on_loss_since") or "")
     seq = [t for t in trades
            if t.get("pattern") == pattern and t.get("method") == "D" and t.get("ret") is not None]
     # 리셋·바닥은 순서에 민감하다 — 시간순(청산일, 진입일)으로 정렬, 같은 날은 장부 순서 유지(stable).
@@ -131,6 +137,8 @@ def cap_margin(cap, pattern, trades):
     pot = start
     for t in seq:
         r = float(t["ret"])
+        if hold and r < 0 and str(t.get("exit_date") or "")[:10] >= hold_since:
+            continue              # 손절 → 그 거래의 진입 증거금으로 재진입(포트 불변, 2026-10-22)
         if reset and r < 0:
             pot = start           # 손절(순손실) → 시작 금액으로 리셋 (2026-09-09 사용자 지시 "손절나면 30달러로 리셋")
         else:

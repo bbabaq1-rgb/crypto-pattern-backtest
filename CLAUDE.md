@@ -2352,6 +2352,14 @@
     tp1_engulfing_1h 는 suspended_1h_patterns → **adopted_1h_patterns 복귀**, registry status forced_live_user, 이력은
     universe 항목 `suspension_history`·registry `resumed_2026_10_22`. 규칙·복리 포트(바닥 $70)·max_open 1 무변경, 다음 fast 틱부터 진입.
     marubozu 정지는 유지. 커밋된 direction_switch.json 스냅샷도 맞춤(test_routing 이 실거래 표와 대조).
+  · **tp1 손절 규칙 변경 — hold_on_loss (2026-10-22 같은 날, 사용자 지시 "손절했을때 70부터 시작이 아니라 손절 진입한
+    금액으로 복귀해서 포지션 잡는걸로 규칙변경")**: registry `live_cap.hold_on_loss` true / `hold_on_loss_since` "2026-10-22".
+    `paper_executor.cap_margin` 이 since 이후 청산된 **손실 거래는 포트를 줄이지 않는다** — 다음 진입은 그 손절 거래의 증거금
+    그대로이고 포트는 익절로만 커진다(그래서 $70 아래로도 안 간다). **since 전 거래는 종전 loss_floor 규칙으로 계산**해 전환
+    시점 포트를 이어받는다 — 이력 전체를 새 규칙으로 다시 계산하면 과거 손절 수십 건이 사라져 포트가 한 번에 뛰기 때문(소급 금지).
+    날짜 없는 행은 since 전으로 취급. **대가**: 손절 1건 손실이 포트 크기에 비례(포트 × 약 24.6%)하고 포트가 내려오지 않으므로
+    익절이 쌓일수록 건당 위험 달러가 커진다(검증상 tp1 건당 −0.11~−0.28%, 음수 기대값). 실거래 가용잔고가 모자라면
+    place_swap_entry 가 free×0.9 로 줄인다. 되돌리기 `hold_on_loss=false` 한 줄. test_tp1_live §7 +9.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
