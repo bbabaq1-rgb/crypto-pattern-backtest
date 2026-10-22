@@ -98,7 +98,7 @@ u = json.load(open("universe.json", encoding="utf-8"))
 ad = {a["pattern"] for a in u.get("adopted_1h_patterns", [])}
 su = {a["pattern"] for a in u.get("suspended_1h_patterns", [])}
 check("bat_1h/butterfly_1h 는 adopted 에서 빠지고 suspended 에 있음",
-      not ({"bat_1h", "butterfly_1h"} & ad) and su == {"bat_1h", "butterfly_1h"}, (ad, su))
+      not ({"bat_1h", "butterfly_1h"} & ad) and {"bat_1h", "butterfly_1h"} <= su, (ad, su))
 check("cascade 는 계속 adopted", "cascade_fade_long_1h" in ad)
 r = json.load(open("registry.json", encoding="utf-8"))
 st = {p["id"]: p["status"] for p in r["patterns"]}

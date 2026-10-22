@@ -506,7 +506,7 @@
       "category": "캔들",
       "difficulty": 1,
       "detector_file": "detector_marubozu.py",
-      "status": "passed",
+      "status": "suspended_user",
       "passed_tf": "1d",
       "precision": {
         "slip": {
@@ -528,7 +528,8 @@
         "restored": false,
         "note": "마모 없음"
       },
-      "precision_note": "강등유지: 워크포워드 미통과"
+      "precision_note": "강등유지: 워크포워드 미통과",
+      "suspended_2026_10_22": "2026-10-22 사용자 결정 '마루보주 정지' — 1개월 실거래 관찰(observation_report run 39702141675): 실거래 11건 중 수익 0건(손절 10건), 관찰기간 n2 −$12.40·이후 n3 −$20.62. 백테스트 n=19 로 판정 불가였던 셀. 신규 진입만 정지, 열린 포지션은 방식D 규칙대로(1d tf 유지)."
     },
     {
       "id": "gartley",
@@ -919,7 +920,7 @@
       "id": "tp1_engulfing_1h",
       "name": "User-forced +1% take-profit scalp (engulfing 1h long, top20)",
       "category": "intraday",
-      "status": "forced_live_user",
+      "status": "suspended_user",
       "detector_file": "detector_engulfing.py",
       "passed_tf": null,
       "validation": "**검증 미통과 — 사용자 강제 실행(2026-09-09 '그냥 30달러만 강제 진행해볼수 있어?')**. tp_small(1d)·tp_1h(1h)·tp_regime(레짐) 세 판 전부 REJECTED: 1h 실측 승률 88.00% vs 손익분기 91.11%, 건당 −0.28%(≈왕복 수수료). 자율 반영 조항 밖 — 배포 근거가 아니라 사용자 결정 기록.",
@@ -974,7 +975,8 @@
         "live_change": "tp1 진입 대상에서 BTC 제외 — 그 외 실거래 변경 없음",
         "lifted_2026_09_30": "**해제** — 2026-09-30 사용자 지시 'Tp1 다시 비트코인도 포함시키게 변경해줘'. universe.json tp1 항목의 `exclude` 삭제(한 줄). BTC 가 top20 코호트에 들면 다시 tp1 진입 대상이다. `_cohort_symbols` 의 exclude 인자(선택 필드)는 코드에 남는다 — 필드가 없는 항목은 종전과 완전히 같다. 사이징·배리어·슬롯·중복 방어·청산·코호트 정의 불변. 9/22 수동 청산 1건은 여전히 10/06 대조 보고에서 따로 표시한다.",
         "live_change_2026_09_30": "tp1 진입 대상에 BTC 복귀 — 그 외 실거래 변경 없음"
-      }
+      },
+      "suspended_2026_10_22": "2026-10-22 사용자 결정 'tp1 정지' — 1개월 실거래 관찰: 누적 38건 −$40.76, 실거래 승률 70~81% vs 손익분기 91.11% (tp_1h 검증 REJECTED 예측대로). 신규 진입만 정지, 열린 포지션은 registry exit_spec(OCO ±1%/−8%)·live_cap 로 계속 관리."
     }
   ],
   "rejected_4h": [
@@ -5854,5 +5856,42 @@
       "prior_check": "적중 — CONFIRMED 0, 차분형 MDE 최저·IC 는 그 아래. 반쯤 — 'REVERSED 쪽이 그럴듯': train 부호는 10셀 중 7셀이 선언 반대(역발상 쪽)였으나 문턱에 못 미쳐 REVERSED 0",
       "implication": "시장 평균 비대칭은 알트 시장의 이후 방향(20·60일)을 어느 쪽으로도 말하지 못한다. 실거래 오버레이(avg_cap>0 → 신규 롱 x0.6)는 '패턴 거래 성과'로 채택된 것이라 이 결과로 무효가 되지는 않으나, 'complacent 국면 뒤 알트 약세'라는 서사를 지지하는 증거는 이 판에 없다(holdout avg_cap@20 -0.117 로 방향만 맞음). 관찰 기간 중이라 무변경."
     }
+  },
+  "time_prop_prereg_2026_10_22": {
+    "status": "pre_registered",
+    "asked": "2026-10-22 사용자 '글렌닐리의 파동 규모 반영 여부 확인, 안 되어 있으면 파동·시간 스케일 반영 검토' → 'A안 사전등록해서 돌려줘'",
+    "finding_before": "닐리 개념은 매매 경로에 미반영(terminal_detect 미등재 주석·elliott_count 관찰 메모뿐). 방식D 보유한도는 TF·패턴 무관 30봉 고정.",
+    "hypothesis": "패턴 형성에 걸린 시간에 비례해 보유 시간을 주면(닐리식 가격·시간 비례) 같은 신호의 결과가 나아진다",
+    "targets": {
+      "triple_bottom_4h": "ALL·top30·롱·인과 판, F=신호봉−L1",
+      "equal_lows_4h": "ALL·top30·롱, F=신호봉−(최저 피봇 ±0.3% 안 가장 이른 피봇)"
+    },
+    "arms": {
+      "D": "현행 −8% 손절·레짐 전환·30봉",
+      "P(k)": "보유한도만 H=clip(round(k·F),6,180), 주 판정 k=1.0, 진단 k=0.5/2.0(사후 선택 금지)"
+    },
+    "split": "train < 2025-01-01 <= holdout",
+    "criteria": {
+      "P1": "전체 두 패턴 합친 평균 diff>0 & 월 클러스터 부트 1000회 단측 p<0.05",
+      "P2": "두 패턴 각각 평균 diff>0",
+      "P3": "달력 전·후반 둘 다 diff>0",
+      "P4": "holdout diff>0",
+      "Q1": "포트폴리오(validate_portfolio current, 배경=현 배포 집합·marubozu/tp1 정지 반영) holdout CAGR·Calmar ≥ D",
+      "Q2": "train CAGR·Calmar ≥ D",
+      "Q3": "holdout 짝지음 블록 부트 300회 P(P Calmar>D)≥0.60",
+      "consistency": "이 판의 대상 D 거래 = validate_portfolio.collect_4h 의 대상 거래(불일치면 판정 무효)"
+    },
+    "prior": "약 15% — 청산 변형 E·F·G·H·T·R·X·ATR·D_time 전부 기각 전례. 단 '짧게 자르기'가 아니라 형성 시간 맞춤이라 기전이 다르다. 예상 실패 지점 P2(한 패턴만) 또는 Q(긴 보유가 슬롯 점유). equal_lows 는 F≤30 이라 k=1.0 에서 보유한도가 줄기만 한다(늘리는 쪽은 triple_bottom 뿐) — 결과 전 기록.",
+    "known_limits": [
+      "4h 이력 약 3년(1100일)",
+      "정적 top30 코호트",
+      "형성 봉수는 디텍터 구조에서 기계적으로 뽑은 정의 — 닐리 원문 정의 아님(원문 미확인, 2차 자료만)"
+    ],
+    "deploy_on_pass": false,
+    "files": [
+      "validate_time_prop.py",
+      "test_time_prop.py",
+      ".github/workflows/time_prop.yml"
+    ]
   }
 }
