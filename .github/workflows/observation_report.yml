@@ -1,0 +1,25 @@
+name: Observation Report (read-only)
+
+# 1개월 실거래 관찰 보고 — trades 테이블 select 전용. 매매·DB 쓰기 없음.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - observation_report.py
+      - .github/workflows/observation_report.yml
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install supabase python-dotenv
+      - name: Report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python observation_report.py
