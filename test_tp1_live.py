@@ -214,6 +214,27 @@ check("복리 포트: 다른 패턴·방식A·R 행은 무시", pe.cap_margin(ca
 check("복리 포트: $10 미만이면 None(주문 안 냄) — 리셋 없는 설정에서", pe.cap_margin(_noreset, PAT, [tr(PAT, -0.082)] * 8) is None)
 check("리셋·바닥 설정 모두 연속 손절에 $70 유지", pe.cap_margin(_reset, PAT, [tr(PAT, -0.082)] * 5) == 70.0 and pe.cap_margin(cap, PAT, [tr(PAT, -0.082)] * 5) == 70.0)
 check("compound 아니면 margin_usd 고정", pe.cap_margin(dict(margin_usd=30.0, leverage=3), PAT, [tr(PAT, 0.5)]) == 30.0)
+# **2026-10-22 사용자 결정 "손절했을때 70부터 시작이 아니라 손절 진입한 금액으로 복귀"** — hold_on_loss:
+# since 이후 청산된 손실 거래는 포트를 안 줄인다(다음 진입 = 그 손절 거래의 증거금). since 전은 loss_floor 그대로.
+check("현행 설정: hold_on_loss 켜짐, since 2026-10-22",
+      cap.get("hold_on_loss") is True and cap.get("hold_on_loss_since") == "2026-10-22", cap)
+_d = lambda pat, ret, d: dict(tr(pat, ret), exit_date=d, entry_date=d)
+_wins_new = [_d(PAT, 0.008, f"2026-10-{23 + k:02d}") for k in range(3)]      # 70 → 75.17
+h1 = pe.cap_margin(cap, PAT, _wins_new + [_d(PAT, -0.082, "2026-10-27")])
+check("hold: 익절 3건 뒤 손절 → 손절 거래 증거금(75.17) 그대로", abs(h1 - round(70 * 1.024 ** 3, 2)) < 0.02, h1)
+h2 = pe.cap_margin(cap, PAT, _wins_new + [_d(PAT, -0.082, "2026-10-27"), _d(PAT, 0.008, "2026-10-28")])
+check("hold: 손절 뒤 익절은 그 금액에서 계속 복리(75.17 × 1.024)", abs(h2 - round(70 * 1.024 ** 4, 2)) < 0.02, h2)
+h3 = pe.cap_margin(cap, PAT, [_d(PAT, -0.082, f"2026-10-{23 + k:02d}") for k in range(5)])
+check("hold: 연속 손절에도 70 유지(바닥 아래로 안 감)", h3 == 70.0, h3)
+h4 = pe.cap_margin(cap, PAT, _big + [_d(PAT, -0.01, "2026-10-30")])
+check("hold: 작은 손실도 포트 불변(84.60)", abs(h4 - round(70 * 1.024 ** 8, 2)) < 0.02, h4)
+_old = [_d(PAT, 0.008, "2026-10-01"), _d(PAT, -0.082, "2026-10-02")]      # since 전 → 바닥 규칙 → 70
+h5 = pe.cap_margin(cap, PAT, _old)
+check("hold: since 전 손절은 종전 바닥 규칙(→70) — 소급 안 함", h5 == 70.0, h5)
+h6 = pe.cap_margin(cap, PAT, _old + [_d(PAT, 0.008, "2026-10-23"), _d(PAT, -0.082, "2026-10-24")])
+check("hold: 전환 시점 포트(70)를 이어받아 익절 71.68 → 손절 후에도 71.68", abs(h6 - 71.68) < 1e-9, h6)
+check("hold: 날짜 없는 행은 since 전으로 취급(종전 규칙)", pe.cap_margin(cap, PAT, [tr(PAT, 0.008), tr(PAT, -0.082)]) == 70.0)
+check("hold 끄면 종전 바닥 규칙으로 복귀", pe.cap_margin(dict(cap, hold_on_loss=False), PAT, _wins_new + [_d(PAT, -0.082, "2026-10-27")]) == 70.0)
 check("registry live_cap: compound·start_margin 70", cap.get("compound") is True and cap.get("start_margin") == 70.0)
 
 rows_ = [dict(symbol="LTC", direction="long", pattern="engulfing", live_mode=True, d_closed=False, live_order=dict(qty=3.0)),
