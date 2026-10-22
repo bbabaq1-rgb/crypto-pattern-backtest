@@ -1,0 +1,40 @@
+name: Research — time-proportional max hold (pre-registered A, 2026-10-22)
+
+# 글렌 닐리 파동 규모 관점 — 보유한도 = clip(round(k × 형성봉수), 6, 180), 주 판정 k=1.0.
+# 대상 triple_bottom_4h / equal_lows_4h (실거래 설정). 짝지음 + 포트폴리오 프레임.
+# 사전 등록 registry time_prop_prereg_2026_10_22. DEPLOY_ON_PASS=False — 매매·DB 무관.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "validate_time_prop.py"
+      - "test_time_prop.py"
+      - ".github/workflows/time_prop.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_time_prop.py
+      - name: Run
+        run: python validate_time_prop.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: time-prop-${{ github.run_number }}
+          path: _time_prop.json
+          if-no-files-found: ignore

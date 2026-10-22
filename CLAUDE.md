@@ -2338,6 +2338,20 @@
     서사를 지지하는 증거도 없다. **알트 강도·비대칭 계열로 시장 방향 맞히기는 알트 시즌 30셀·차분 판·이번 10셀로 닫혔다.**
   validate_altcap.py / test_altcap.py(17) / altcap.yml / report_altcap.md
 
+- **1개월 실거래 관찰 보고 → marubozu·tp1 정지 (2026-10-22, 사용자 결정 "마루보주만 tp1 정지")**: observation_report.py
+  (trades 읽기 전용 집계, run 39702141675). 관찰기간 진입(9/06~10/06) 실거래 방식D 97건 +0.97% 실현 **+$1.61**(정지 구간
+  10/02~10/09 손절 7건 −$56.16 포함) / 재가동 후(10/09~) 38건 −2.28% **−$90.92**(bull_btc 레짐에서 vol_awakening −$31·tp1 −$29).
+  · **marubozu 실거래 11건 중 수익 0건**(손절 10) → adopted_patterns → suspended_patterns. **tp1 누적 38건 −$40.76**, 승률 70~81%
+    vs 손익분기 91% → adopted_1h_patterns → suspended_1h_patterns. 둘 다 **신규 진입만 정지** — 열린 포지션은 그대로 관리
+    (marubozu 는 _pattern_tf 가 suspended 도 읽어 1d 유지, tp1 은 registry exit_spec·live_cap 유지로 OCO·cap 경로 보존).
+    registry status suspended_user. 수익 셀: equal_lows_4h +$55 / three_soldiers_4h +$15 / triple_bottom_4h +$12.
+  · 미결(사용자 결정 보류): fvg 롱(altseason) −3.95% n10 · engulfing 숏(altseason) −5.35% n6 — 둘 다 v4 기각/그림자 셀과 같은
+    방향. 현 레짐 bull_btc 라 당장 발화 안 함.
+- **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
+  `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
+  보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
+  포트폴리오 Q1~Q3 전부. DEPLOY_ON_PASS=False. 사전 확률 약 15%. validate_time_prop.py / test_time_prop.py / time_prop.yml.
+
 ## 다음 할 일
 - [x] **김치 프리미엄 사전 등록 결과 판독 완료 (2026-09-22, run 35744717876)** — 가족 X·T 주 판정 7셀 전부
       REJECTED, OOS 재현 0, 대조 0/5 → 판 VALID. 실거래 무변경
