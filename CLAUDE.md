@@ -2345,8 +2345,13 @@
     vs 손익분기 91% → adopted_1h_patterns → suspended_1h_patterns. 둘 다 **신규 진입만 정지** — 열린 포지션은 그대로 관리
     (marubozu 는 _pattern_tf 가 suspended 도 읽어 1d 유지, tp1 은 registry exit_spec·live_cap 유지로 OCO·cap 경로 보존).
     registry status suspended_user. 수익 셀: equal_lows_4h +$55 / three_soldiers_4h +$15 / triple_bottom_4h +$12.
-  · 미결(사용자 결정 보류): fvg 롱(altseason) −3.95% n10 · engulfing 숏(altseason) −5.35% n6 — 둘 다 v4 기각/그림자 셀과 같은
-    방향. 현 레짐 bull_btc 라 당장 발화 안 함.
+  · **altseason 두 셀 OFF + tp1 재가동 (2026-10-22 같은 날, 사용자 결정 "fvg 롱이랑 engulfing 숏 altseason 둘 다 꺼줘 / tp1 은
+    다시 켜줘")**: `direction_switch.ROUTING_OVERRIDES` 에 (bull_altseason, fvg)·(bull_altseason, engulfing) FLAT 추가 —
+    관찰 fvg 롱 −3.95% n10 −$21.28 / engulfing 숏 −5.35% n6 −$24.63, v4 에서도 각각 REJECTED/SHADOW. **bull_altseason 에서는
+    이제 FOCUS(engulfing/fvg) 진입이 없다**(ih 는 marubozu 와 달리 무게이트로 계속). 현 레짐 bull_btc 라 즉시 변화 없음.
+    tp1_engulfing_1h 는 suspended_1h_patterns → **adopted_1h_patterns 복귀**, registry status forced_live_user, 이력은
+    universe 항목 `suspension_history`·registry `resumed_2026_10_22`. 규칙·복리 포트(바닥 $70)·max_open 1 무변경, 다음 fast 틱부터 진입.
+    marubozu 정지는 유지. 커밋된 direction_switch.json 스냅샷도 맞춤(test_routing 이 실거래 표와 대조).
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +

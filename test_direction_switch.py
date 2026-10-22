@@ -33,7 +33,13 @@ check("decide: 둘 다 음수 -> FLAT", ds.decide(-0.01, 50, -0.02, 50)[0] == "F
 
 # 2. 오버라이드 표 자체
 check("override: (bear, fvg) 는 FLAT (2026-09-05 저녁 사용자 결정 — 2026 단일 해 이익)", ds.ROUTING_OVERRIDES.get(("bear", "fvg")) == "FLAT")
-check("override: 그 외 항목 없음", set(ds.ROUTING_OVERRIDES) == {("bear", "fvg")})
+check("override: (bull_altseason, fvg) 는 FLAT (2026-10-22 사용자 결정 — 관찰 n10 −3.95%)",
+      ds.ROUTING_OVERRIDES.get(("bull_altseason", "fvg")) == "FLAT")
+check("override: (bull_altseason, engulfing) 는 FLAT (2026-10-22 사용자 결정 — 관찰 숏 n6 −5.35%)",
+      ds.ROUTING_OVERRIDES.get(("bull_altseason", "engulfing")) == "FLAT")
+check("override: 그 외 항목 없음", set(ds.ROUTING_OVERRIDES) ==
+      {("bear", "fvg"), ("bull_altseason", "fvg"), ("bull_altseason", "engulfing")})
+check("override: bull_btc 는 건드리지 않음", not any(rg == "bull_btc" for rg, _ in ds.ROUTING_OVERRIDES))
 check("override: bear engulfing 은 건드리지 않음", ("bear", "engulfing") not in ds.ROUTING_OVERRIDES)
 check("override: 값은 long/short/FLAT 만",
       all(v in ("long", "short", "FLAT") for v in ds.ROUTING_OVERRIDES.values()))

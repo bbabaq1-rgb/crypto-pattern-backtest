@@ -1,8 +1,8 @@
 {
   "routing": {
     "bull_altseason": {
-      "engulfing": "short",
-      "fvg": "long"
+      "engulfing": "FLAT",
+      "fvg": "FLAT"
     },
     "bull_btc": {
       "engulfing": "long",
@@ -18,7 +18,9 @@
     }
   },
   "overrides": {
-    "bear/fvg": "FLAT"
+    "bear/fvg": "FLAT",
+    "bull_altseason/fvg": "FLAT",
+    "bull_altseason/engulfing": "FLAT"
   },
   "current": {
     "date": "2026-06-24",

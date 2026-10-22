@@ -30,6 +30,11 @@ REGIMES = ["bull_altseason", "bull_btc", "bear", "sideways"]
 #     test_direction_switch 가 현 상태(FLAT)를 고정한다. 되돌리려면 항목을 지운다.
 ROUTING_OVERRIDES = {
     ("bear", "fvg"): "FLAT",
+    # 2026-10-22 사용자 결정 "fvg 롱이랑 engulfing 숏 altseason 둘 다 꺼줘" —
+    # 1개월 관찰 보고(observation_report, run 39702141675): bull_altseason fvg 롱 n10 −3.95% −$21.28 /
+    # engulfing 숏 n6 −5.35% −$24.63. v4 에서도 fvg|altseason REJECTED, engulfing_short|altseason SHADOW.
+    ("bull_altseason", "fvg"): "FLAT",
+    ("bull_altseason", "engulfing"): "FLAT",
 }
 
 
