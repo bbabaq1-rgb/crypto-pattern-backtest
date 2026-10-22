@@ -5858,7 +5858,7 @@
     }
   },
   "time_prop_prereg_2026_10_22": {
-    "status": "pre_registered",
+    "status": "REJECTED",
     "asked": "2026-10-22 사용자 '글렌닐리의 파동 규모 반영 여부 확인, 안 되어 있으면 파동·시간 스케일 반영 검토' → 'A안 사전등록해서 돌려줘'",
     "finding_before": "닐리 개념은 매매 경로에 미반영(terminal_detect 미등재 주석·elliott_count 관찰 메모뿐). 방식D 보유한도는 TF·패턴 무관 30봉 고정.",
     "hypothesis": "패턴 형성에 걸린 시간에 비례해 보유 시간을 주면(닐리식 가격·시간 비례) 같은 신호의 결과가 나아진다",
@@ -5892,6 +5892,20 @@
       "validate_time_prop.py",
       "test_time_prop.py",
       ".github/workflows/time_prop.yml"
-    ]
+    ],
+    "result_2026_10_22": {
+      "run": "39704050307",
+      "verdict": "주 판정 k=1.0 REJECTED — P1~P4·Q1~Q3 7개 전부 실패. 진단 k=0.5·2.0 도 REJECTED",
+      "consistency": "이 판의 대상 D 거래 = validate_portfolio.collect_4h 대상 거래 완전 일치(2091 vs 2091)",
+      "formation": "형성 봉수 F 중앙 23 · 10~90분위 8~37 · 범위 3~70. k=1.0 이면 H 중앙 23, 30봉 미만 1678건·초과 377건 → 대부분 보유를 줄이는 쪽",
+      "paired_k1": "n=2091(triple_bottom 809 / equal_lows 1282), 보유가 달라진 거래 1458, 평균 D +1.21% → P +0.71%(보유 23.7→17.8봉), diff −0.496%p 월부트 p 0.967, 패턴별 −0.255 / −0.648, 전반 −0.263 후반 −0.660, holdout(n1361) −0.645",
+      "paired_k05": "diff −0.828%p p 0.981, 두 패턴·전후반·holdout 전부 음수",
+      "paired_k2": "diff −0.415%p p 0.899, 전반 +0.444 후반 −1.019 holdout −1.162",
+      "portfolio": "D train CAGR +70.4% Calmar 0.85 / holdout −65.3% Calmar −0.70 · k1.0 train +61.7% 0.76 / holdout −75.5% −0.81 · k0.5 +68.1% 0.84 / −76.3% −0.82 · k2.0 train +85.6% 1.10 / holdout −74.5% −0.81",
+      "boot": "P(P Calmar > D) k1.0 36% / k0.5 32% / k2.0 10%",
+      "reading": "형성 시간에 비례해 보유를 바꾸면 줄이든(k0.5·1.0) 늘리든(k2.0) 현행 30봉 고정보다 나쁘다. 줄이면 바닥형의 수익이 나는 꼬리를 자르고, 늘리면 train 에서만 좋고 holdout 에서 무너진다(k2.0 train Calmar 1.10 은 사후 선택 금지 — 진단 셀). 청산 변형 열 번째 기각",
+      "prior_check": "사전 확률 약 15% — 기각 방향 적중. 예상 실패 지점(P2 한 패턴만 / Q 슬롯 점유)보다 넓게 실패: 두 패턴 모두 음수",
+      "live_change": "없음 — 방식D 30봉 유지"
+    }
   }
 }
