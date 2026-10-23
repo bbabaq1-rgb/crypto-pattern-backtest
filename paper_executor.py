@@ -22,6 +22,7 @@ import exit_barriers as xb
 import sizing
 import regime_switch as rs
 import exchange as ex_mod
+import ai_judge
 
 CAPITAL = 200.0    # 시뮬레이션 가상자본 $200
 POS_PCT = 0.20
@@ -1234,6 +1235,13 @@ def run(stamp=None):
     # 필요한 이유: 같은 실행에서 메인이 먼저 들고 cap 이 뒤따르면(2026-09-11 SOL 실측)
     # main_keys·okx_dir_keys 는 실행 시작 스냅샷이라 그 겹침을 못 본다.
     entered_main_run = set()
+    # AI 판단 레이어(2026-10-23 사용자 결정) — ai_judge.MODE 가 "shadow" 면 기록만 하고 주문은 종전과 같다.
+    # 키가 없으면 아예 호출하지 않는다(빈 행을 DB 에 남기지 않기 위해).
+    ai_records = []
+    ai_on = ai_judge.available()
+    ai_ctx = {"rows_of": rows_of, "avg_cap": market_cap, "trades": trades}
+    if not ai_on:
+        print(f"  [ai] ANTHROPIC_API_KEY 없음 — AI 판단 생략(mode={ai_judge.MODE})")
 
     # 장부 구성 진단(2026-09-08 사용자 결정 B) — **출력만, 거래 동작 무변경**.
     # 계기: OKX 앱 실포지션 13 vs 로그 '오픈 16건' 불일치(사용자 지적). 그 16 은 장부 행 수다.
@@ -1272,6 +1280,27 @@ def run(stamp=None):
             stop_px, target_px, _ = bar
         else:
             stop_px = entry * (1 - STOP) if s["direction"] == "long" else entry * (1 + STOP)
+
+        # AI 판단(2026-10-23): 신호 수치만 보고 take/reduce/skip. shadow 에서는 기록뿐이고 아래 주문
+        # 경로는 ai_mult=1.0 으로 종전과 같다. 신호 집합·손절·청산·슬롯·중복 방어는 AI 가 못 건드린다.
+        aj = None
+        if ai_on:
+            if len(ai_records) < ai_judge.MAX_CALLS_PER_RUN:
+                aj = ai_judge.judge(rows, ei, dict(s, stop=stop_px),
+                                    ctx=dict(ai_ctx, regime=regmap.get(rows[ei]["date"])))
+            else:
+                aj = {"symbol": s["symbol"], "pattern": s["pattern"], "direction": s["direction"],
+                      "tf": s.get("tf", "1d"), "entry_date": s["date"], "entry_ts": s.get("ts") or rows[ei].get("ts"),
+                      "mode": ai_judge.MODE, "model": ai_judge.MODEL, "error": "max_calls"}
+            aj["code_action"] = "not_entered"
+            ai_records.append(aj)
+            if aj.get("decision"):
+                print(f"  [ai] {s['symbol']} {s['pattern']} {s['direction']} → {aj['decision']} "
+                      f"x{aj['size_mult']} (conf {aj['confidence']}, {aj.get('latency_ms')}ms) "
+                      f"{aj.get('reasons')}" + ("" if ai_judge.MODE == "veto" else "  [shadow — 주문 무변경]"))
+            elif aj.get("error"):
+                print(f"  [ai] {s['symbol']} {s['pattern']} 판단 실패({aj['error']}) — 주문 경로 무변경")
+        ai_mult = ai_judge.apply(aj)
 
         live_info    = {}
         # 앙상블 Grade 기반 사이징: A×1.5 / B×1.0 / C×0.7 / D×0.5
@@ -1379,11 +1408,19 @@ def run(stamp=None):
                     continue
                 live_size_usd = sz_["margin_usd"]
 
-            result, reason = ex_mod.place_swap_entry(
-                live_conn, s["symbol"], s["direction"], stop_px,
-                size_usd=live_size_usd, target_px=target_px,
-                **({"leverage": live_lev} if live_lev else {}),
-            )
+            # AI veto(모드가 veto 일 때만 1.0 이 아니다): 축소는 증거금에 곱하고, skip 은 실주문을 안 낸다.
+            # 페이퍼 행은 아래에서 그대로 만들어져 '걸렀으면 어땠나'를 끝까지 추적한다.
+            if ai_mult < 1.0:
+                live_size_usd = round(live_size_usd * ai_mult, 2)
+                print(f"  [ai] {s['symbol']} veto 배율 x{ai_mult} → margin=${live_size_usd:.2f}")
+            if ai_mult <= 0.0 or live_size_usd < sizing.MIN_MARGIN:
+                result, reason = None, f"ai_{'skip' if ai_mult <= 0.0 else 'below_min'}"
+            else:
+                result, reason = ex_mod.place_swap_entry(
+                    live_conn, s["symbol"], s["direction"], stop_px,
+                    size_usd=live_size_usd, target_px=target_px,
+                    **({"leverage": live_lev} if live_lev else {}),
+                )
             if result is None:
                 print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
                 # 주문 실패 시 size_for_pos = POS_USD (페이퍼 기록만 유지)
@@ -1472,7 +1509,12 @@ def run(stamp=None):
                  target=(round(target_px, 8) if target_px else None),
                  size_usd=size_for_pos, d_closed=False,
                  a_closed=bool(spec),      # ATR 경로는 방식A 병행 비교 없음
+                 # AI 판단(2026-10-23) — 결과 대조용. DB positions 컬럼 없으면 insert_tolerant 가 제외.
+                 ai_decision=(aj or {}).get("decision"), ai_size_mult=(aj or {}).get("size_mult"),
+                 ai_confidence=(aj or {}).get("confidence"),
                  **live_info)
+        if aj is not None:
+            aj["code_action"] = "live" if live_info else "paper"
         still_open.append(p); new_positions.append(p); new += 1
 
     # JSON은 항상 저장(로컬 폴백/원천)
@@ -1483,6 +1525,9 @@ def run(stamp=None):
     dbt = push_trades_db(new_trades)
     dbp = push_positions_db(new_positions)
     mark_closed_db(closed_now)
+    if ai_records:
+        n_ai = ai_judge.push_db([{k: v for k, v in r.items()} for r in ai_records])
+        print(f"  {ai_judge.summary_line(ai_records)} | DB+{n_ai}")
     dbmsg = f" | DB동기화 trades+{dbt}/positions+{dbp}" if _db() else " | DB미설정(JSON만)"
     live_msg = f" | 실거래주문 {live_orders}건" if live_conn else ""
     print(f"[paper] 신규진입 {new}건 | 오픈 {len(still_open)}건 | 누적 체결 {len(trades)}건{live_msg}{dbmsg}")

@@ -2360,6 +2360,25 @@
     날짜 없는 행은 since 전으로 취급. **대가**: 손절 1건 손실이 포트 크기에 비례(포트 × 약 24.6%)하고 포트가 내려오지 않으므로
     익절이 쌓일수록 건당 위험 달러가 커진다(검증상 tp1 건당 −0.11~−0.28%, 음수 기대값). 실거래 가용잔고가 모자라면
     place_swap_entry 가 free×0.9 로 줄인다. 되돌리기 `hold_on_loss=false` 한 줄. test_tp1_live §7 +9.
+- **AI 판단 레이어 — 그림자 기록 시작 (2026-10-23, 사용자 결정 "우리 자동매매의 수익률은 솔직히 형편없어 매매 판단을
+  기존거에 ai 판단으로 개선할수 있는 방법을 찾는다 … 클로드 md를 수정해서라도 이번 판단 규칙은 개선한다" → 선택 ①그림자 기록
+  먼저 ②차트 수치만 ③전 배포 패턴)**: registry `ai_judge_prereg_2026_10_23`. ai_judge.py / test_ai_judge.py(59) /
+  supabase_schema_ai_judge.sql. 핵심 원칙 '매매 결정은 결정론적 코드만' 개정(아래 핵심 원칙 참조).
+  · **기전**: paper_executor 진입 루프에서 중복 방어 뒤·사이징 앞에 `ai_judge.judge()` — 신호봉까지의 수치 특성(1/5/20/60봉 수익률·
+    ATR·거래량 비율·RSI·MA20/50/200 거리·60봉 위치·BTC/ETH 동반 수익·레짐·avg_cap·같은 패턴 최근 20건 실거래 성과)만 JSON 으로
+    넘겨 claude-sonnet-5-5 온도 0 이 take/reduce/skip + size_mult + confidence + reasons 를 돌려준다. **AI 는 거르거나 줄일 수만 있다**
+    (size_mult 상한 1.0 코드 고정, 신호 생성·손절·청산·슬롯·중복 방어 불변 — test 가 통합 지점을 소스로 고정).
+  · **현행 MODE="shadow"** — 판단을 `ai_judgments`(+positions.ai_decision/ai_size_mult/ai_confidence)에 기록만 하고 **주문은
+    종전과 바이트 단위로 같다**(apply 가 shadow 에서 항상 1.0). veto 로 바꾸면 skip 은 실주문을 안 내고(페이퍼 행은 남겨 추적)
+    reduce 는 증거금에 곱한다. 키 없음·HTTP 오류·파싱 실패는 error 로 기록하고 거래 경로 무영향. 호출 상한 25건/실행.
+  · **왜 그림자부터** — 이 레포에서 AI(주관) 판단이 영점을 이긴 기록이 없다(엘리엇 채점 장부 브리어 0.243 vs 무작위 보행 0.205).
+    그림자에서는 모든 신호가 종전대로 진입하므로 take/skip 두 집단의 **실제 방식D 결과**를 그대로 비교할 수 있다.
+  · **승격 기준(사전 등록)**: 판단 붙은 해소 거래 n≥60 또는 3주 중 늦은 쪽에서 mean(take) − mean(skip∪reduce) ≥ +1.0%p AND
+    mean(skip∪reduce) < 0(월 블록 부트 p<.10) + veto 가상 자산곡선 Calmar > current·부트 우위 ≥0.60 → **veto 전환 제안(사용자 결정)**.
+    skip+reduce 비율 10% 미만·70% 초과면 '필터로 기능 안 함'. 프롬프트·특성·모델을 바꾸면 prompt_hash 별로 표본을 새로 센다.
+    **사전 확률 약 20%** — 입력이 가격 파생 수치뿐이라 xsec_chars·regime_quality 가 '방향 정보 거의 없음'을 보인 축이다.
+  · **선결(사용자 실행)**: GitHub secrets `ANTHROPIC_API_KEY` 등록(없으면 매 실행 `[ai] ANTHROPIC_API_KEY 없음 — AI 판단 생략` 한 줄,
+    거래 무영향) + `supabase_schema_ai_judge.sql` 실행(GRANT 포함 — perp_daily 교훈). 비용은 신호당 호출 1회, 월 수 달러 수준.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
@@ -2371,6 +2390,9 @@
     청산 변형 열 번째 기각(E·F·G·H·T·R·X·ATR·D_time 에 이어).
 
 ## 다음 할 일
+- [ ] **AI 판단 레이어 선결 2건 (사용자 실행)** — GitHub secrets `ANTHROPIC_API_KEY` 등록 · Supabase SQL Editor 에서
+      `supabase_schema_ai_judge.sql` 실행. 둘 다 되면 다음 틱부터 `[ai] shadow 판단 N건` 로그와 ai_judgments 적재 시작.
+      **3주 뒤(≈2026-11-13) 또는 해소 거래 60건** 에 승격 판정(registry ai_judge_prereg_2026_10_23)
 - [x] **김치 프리미엄 사전 등록 결과 판독 완료 (2026-09-22, run 35744717876)** — 가족 X·T 주 판정 7셀 전부
       REJECTED, OOS 재현 0, 대조 0/5 → 판 VALID. 실거래 무변경
 - [ ] **kp_volshare(한국 거래 집중도) 별도 사전 등록 (사용자 결정)** — 김치 판의 **진단 셀**이 train(IC +0.080
@@ -2668,7 +2690,13 @@
   **재실행 원칙**: 프레임이 바뀌면 '바뀐 층 하나로만 탈락했던 셀'만 다시 돌린다 — 나머지를 다시 돌리면 결과를 보고 셀을
   고르는 것이 된다(2026-09-09 범위: guard_v4 14셀 → v5 / pit_cohort 11셀 → `--rules v5` / engulf_tf 4h 롱 → v3).
   달력 홀드아웃만 있는 종료된 시험(tb_wide·tp_*·late_entry·exit_1w·routing)은 홀드아웃 외 사유로 끝났으므로 그대로 둔다.
-- 매매 결정은 결정론적 코드만 — LLM은 코드 생성/수정만
+- **매매 결정 — 2026-10-23 개정 (사용자 결정 "AI 투자판단이 클로드md 상의 금지사항이면 클로드 md를 수정해서라도 이번 판단 규칙은 개선한다")**:
+  종전 '매매 결정은 결정론적 코드만' 을 다음으로 바꾼다. **진입 가부·크기 조정에 AI 판단 레이어를 허용한다**(`ai_judge.py`).
+  단 ① 신호는 코드(디텍터)가 내고 AI 는 그것을 **거르거나 줄일 수만** 있다 — 신호를 만들거나 크기를 키우지 못한다(size_mult ≤ 1.0 코드 고정)
+  ② 손절 주문·청산 집행·사이징 상한(RISK_FRAC/LEV_CAP/MAX_POS)·킬스위치는 종전대로 코드가 정한다
+  ③ **모든 AI 판단은 model·prompt_hash·입력 특성과 함께 기록**돼 사후 검증 가능해야 한다
+  ④ 모드 전환(shadow→veto)은 사전 등록 기준(registry `ai_judge_prereg_2026_10_23`)을 채운 뒤 사용자 결정.
+  엘리엇 브리핑 등 '관찰 전용' 산출물을 매매에 쓰지 않는다는 규칙은 그대로다 — 매매에 쓰는 AI 판단은 이 레이어 하나뿐이다.
 - 손절 주문 없으면 실거래 절대 안 됨
 
 ## 주요 파일
