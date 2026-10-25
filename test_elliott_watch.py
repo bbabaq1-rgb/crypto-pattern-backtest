@@ -177,7 +177,9 @@ check("트리거 가격은 레벨 표·A 저점·B 최소 레벨에 이미 있�
 check("코드에 확률 숫자·트리거 가격 하드코딩 없음",
       "85606" not in SRC and "86928" not in SRC and '"S1": 55' not in SRC)
 bar_ = lambda d, lo, hi: {"d": d, "o": lo, "h": hi, "l": lo, "c": hi}
-quiet = [bar_("2026-09-28", 83190, 84992), bar_("2026-09-29", 83000, 84500)]
+_dn = max(t["px"] for t in ol["triggers"] if t["dir"] == "below")
+_upx = min(t["px"] for t in ol["triggers"] if t["dir"] == "above")
+quiet = [bar_("2026-09-28", _dn + 300, _upx - 300), bar_("2026-09-29", _dn + 500, _upx - 500)]  # 현재 트리거 상자 안
 o = ew.outlook_status(COUNT, quiet)
 check("상자 안이면 트리거 0 발동", not o["reassess"] and not any(t["fired"] for t in o["triggers"]))
 shp = ol["wave2_shape_pct_within_S1"]
@@ -411,8 +413,8 @@ q9 = next(q for q in sb["questions"] if q["id"] == "Q9")
 check("Q9 무작위 보행 = 거리 비율", abs(q9["baselines"]["random_walk"] - (q9["basis_px"] - q9["rule"]["down"]) /
       (q9["rule"]["up"] - q9["rule"]["down"])) < 1e-3)
 check("Q9 판정 가격은 기존 레벨에서만", {q9["rule"]["up"], q9["rule"]["down"]} <= lv_px)
-check("Q9 기준가 = 현재 확률표 기준가", q9["basis_px"] == ol["basis_px"])
-check("직전 표(10/02 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 86818.0)
+check("Q9 기준가 = 등록 당시 확률표 기준가", bool(tbl_of(q9)))
+check("10/02 판 표가 previous 에 보존", any(t["basis_px"] == 86818.0 for t in ol["previous"]))
 check("발동한 트리거(82,510·81,925)는 목록에서 빠짐", all(t["px"] not in (82510.0, 81925.0) for t in ol["triggers"]))
 check("Q1~Q8 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
       for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51])
@@ -458,6 +460,17 @@ for _late in (3, 10, 14, 40):
     _d = ew.btc_1h_days(COUNT, _now)
     check(f"A/W 끝 +{_late}일: 창 {_d}일이 A/W 끝 이전부터 시작", _now - _dt.timedelta(days=_d) < _aw_end and _d >= 10)
 check("A/W 블록 없으면 기본 10일", ew.btc_1h_days({}, _aw_end) == 10)
+
+print("[20] C/Y 1.618배 이탈 재평가 (2026-10-25)")
+q10 = next(q for q in sb["questions"] if q["id"] == "Q10")
+check("Q10 무작위 보행 = 거리 비율", abs(q10["baselines"]["random_walk"] - (q10["basis_px"] - q10["rule"]["down"]) /
+      (q10["rule"]["up"] - q10["rule"]["down"])) < 1e-3)
+check("Q10 판정 가격은 기존 레벨에서만", {q10["rule"]["up"], q10["rule"]["down"]} <= lv_px)
+check("Q10 기준가 = 현재 확률표 기준가", q10["basis_px"] == ol["basis_px"])
+check("직전 표(10/09 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 81710.0)
+check("발동한 트리거(79,342)는 목록에서 빠짐", all(t["px"] != 79342.0 for t in ol["triggers"]))
+check("Q1~Q9 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
+      for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51, 0.30])
 
 print()
 if FAIL:
