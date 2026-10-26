@@ -2571,6 +2571,10 @@
     보고, PR 본문의 규칙·n·평균·run id 가 그 run 의 주석과 맞는지만 확인하도록 고쳤다(research_spawner_prompt.md ④).
     **운영 메모**: 첫 dispatch(run 40337966297)는 잡이 생성되지 않은 채 대기열에 8분 멈췄고 취소 API 도 409('아직 queued 전')로
     거부했다 — 다시 dispatch 하자 10초 안에 돌았다. 사이클 세션은 dispatch 뒤 run 이 5분 넘게 잡 없이 queued 면 재dispatch 한다.
+- **게이트 복권형 지표 대체 시험 R-001 INCONCLUSIVE (2026-10-26, 자율 연구, run 40361969714)**: registry `lottery_gate_prereg_2026_10_26` / report_lottery_gate.md.
+  승률≥35% 대신 L=(top5≤50% ∧ 절사평균>0) 적용. audit_winrate 셀 모집단 재사용, core 17셀에서 L통과 1 / 탈락 16 / v2통과 11 → 표본 부족.
+  v2탈락∧L통과 0셀 — triple_bottom_1d 전부 절사평균<0(−8% 손절에서 상하 절사가 우측 꼬리를 지워 중앙값처럼 작동). rho(홀드아웃): 승률 −0.10 / top5 +0.21 / 절사갭 −0.39.
+  사전 확률(INCONCLUSIVE 0.40) 적중. **게이트·실거래 무변경**, 문턱 변경은 사용자 결정. 후속 R-070·R-071. validate_lottery_gate.py / test_lottery_gate.py / lottery_gate.yml
 
 ## 다음 할 일
 - [x] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26 완료)** — fast 10:03Z·11:03Z·12:03Z, daily 12:00Z 전부 오류 없음 ·
