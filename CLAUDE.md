@@ -2516,6 +2516,9 @@
     있다. 위험 상수(RISK_FRAC 1.5% · LEV_CAP 3 · MAX_POS 13 · 상한 2.5배)는 불변 — 계산만 바로잡았다. 그 외 진입·청산 규칙 불변.
   · 한계: 엔진 청산 수익률이 체결가를 모를 때 봉 기준(예: 손절 −8.2%)이라 보정 달러도 추정이다. daily_summary 는 페이퍼
     pnl_usd 를 써서 무관. 9/04 이전 진입분은 실제 2배라 대상 아님.
+- **three_soldiers_4h 코호트 all → top30 축소 REJECTED (2026-10-26, 자율 연구 R-003 수동 가속, run 40313502181)**: registry `ts_top30_prereg_2026_10_26` / report_ts_top30.md.
+  validate_portfolio 프레임에서 three_soldiers 거래 중 순위≥30 을 제거한 arm 대 현행. **걸러진 135건은 음수가 아니라 +2.28%**(train +4.58% / holdout -0.79%), 월 블록 부트 P(평균<0)=0.116 로 F1 탈락. 포트폴리오 holdout Calmar current -0.64 vs top30 -0.80, J1·J2·J5 실패(J3 63%·J4 통과). 남는 101건 train +2.30% / holdout +0.88%.
+  revival 의 'top30 PASSED / all REJECTED' 는 패턴 단독 프레임의 관찰이었고 포트폴리오에서는 순위 밖 거래가 오히려 양의 기여라 축소할 근거가 없다. 사전 확률 PASSED 0.30 — 탈락 쪽 경고 적중. **실거래 무변경, cohort 미추가.** 한계: 정적 순위·달력 분할. validate_ts_top30.py / test_ts_top30.py(18) / ts_top30.yml
 
 ## 다음 할 일
 - [ ] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26)** — fast 10:03Z·daily 12:00Z 로그에 오류 없음 · `[live 사이징]` 정상 ·
