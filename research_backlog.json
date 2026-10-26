@@ -64,13 +64,13 @@
       "blocked_until": null,
       "est_cost_h": 8,
       "priority": 1,
-      "status": "in_progress",
+      "status": "done",
       "owner": "agent",
       "added_by": "claude",
       "added_on": "2026-10-26",
       "started_at": "2026-10-26T06:42:54Z",
       "session": "routine_20261026T0642",
-      "result": null,
+      "result": "MIXED (run 40281874611): 풀링 n=8815 차 +0.373%p t 4.72 월부트 .065 / 셀 양수 4/7(P3 실패) / 전후반 +0.70·+0.04 / 최근365일 +0.05%. 이득의 대부분은 vol_awakening_4h(n=5081, +0.49%p t 6.46). 실거래 변경 없음.",
       "notes": "통과해도 실거래 적용은 보고 후 — 집행 경로(엔진 종가 손절 + 거래소 재해 손절)가 신규 코드라 동작 불변 테스트 선행."
     },
     {
@@ -464,6 +464,52 @@
       "session": null,
       "result": null,
       "notes": "에이전트 몫 아님. 보고는 이미 됨."
+    },
+    {
+      "kind": "prereg_test",
+      "deploy_on_pass": false,
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-10-26",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "status": "ready",
+      "expected_gain": "",
+      "notes": "반증 기준: 전후반 둘 중 하나라도 음수 / CI 0 포함 / 대조군(셀 무작위 진입 동일 청산)에서도 같은 우위면 패턴이 아니라 4h 일반 현상 → NOISE. 통과해도 deploy_on_pass=false.",
+      "id": "R-020",
+      "title": "D_close 이득의 출처 — vol_awakening_4h 한정 반증 3종",
+      "source": "R-002 결과: 풀링 이득의 대부분이 한 셀(n=5081, t 6.46), 나머지 6셀 중 3셀 음수, 후반 +0.04%p 로 소멸. 사후 선택 셀이라 validate_ih_exit 식 반증이 선행",
+      "hypothesis": "vol_awakening_4h 에서 D_close 우위는 실재하는 셀 특성이다(시간분할 양쪽 양수·월 블록 CI가 0 배제·다른 4h 고빈도 패턴 대조군 대비 특이).",
+      "prior": 0.15,
+      "est_cost_h": 4,
+      "priority": 2
+    },
+    {
+      "kind": "prereg_test",
+      "deploy_on_pass": false,
+      "prerequisites": [
+        "validate_portfolio 에 청산 arm 훅 — 동작 불변 테스트"
+      ],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-10-26",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "status": "ready",
+      "expected_gain": "",
+      "notes": "validate_portfolio J1~J6 기준 그대로, 재해 손절 −15% 고정. 슬롯 점유 시간 증가가 핵심 기전.",
+      "id": "R-021",
+      "title": "D_close 를 슬롯 경합 프레임(validate_portfolio)에서 재측정",
+      "source": "R-002 풀링 자산곡선이 슬롯 범람 프레임(CAGR −40%, MDD −96%)이라 P5 가 무의미 — method_b 결함과 같은 자리",
+      "hypothesis": "실거래 슬롯(MAX_POS 13)·증거금 경합 하에서도 D_close 가 current(D)보다 holdout Calmar 가 높다. 종가 손절은 손절 지연으로 보유기간이 늘어 슬롯 점유가 커진다.",
+      "prior": 0.12,
+      "est_cost_h": 6,
+      "priority": 2
     }
   ]
 }
