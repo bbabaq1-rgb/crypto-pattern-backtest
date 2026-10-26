@@ -1,5 +1,7 @@
 <!-- 스포너 예약 작업(Claude Code Remote, 이 레포 작업 세션에 자기 바인딩, CRON_TZ=Asia/Seoul 36 1 * * *) 의 프롬프트 사본.
-     예약 작업을 다시 만들 때 create_trigger(prompt=아래 전문, cron 위와 같음, persistent 자기 바인딩) 로 쓴다. 2026-10-26 생성 trig_01WQhCMF5RTf3mYKJ3JQGLAY. -->
+     예약 작업을 다시 만들 때 create_trigger(prompt=아래 전문, cron 위와 같음, persistent 자기 바인딩) 로 쓴다. 2026-10-26 생성 trig_01WQhCMF5RTf3mYKJ3JQGLAY.
+     2026-10-26 14:22Z 동기화: 실제 예약 작업은 ①~④·불변을 아래와 같게 두고, '폴백 프롬프트' 절만 이 파일을 가리키는 한 줄로 줄여 저장했다
+     (자식 프롬프트 원본을 두 곳에 손으로 복사해 두면 어긋난다 — 폴백 전문의 사본은 이 파일 하나). -->
 [자율 연구 사이클 스포너 — 매일 KST 01:36 발화, 이 세션이 자식 세션을 띄운다]
 배경: 예약 작업이 직접 만든 세션에는 레포가 붙지 않아 2026-10-26 두 번(05:35Z·06:13Z) 30~40초 만에 죽었고, 이 세션이 create_session(source_url) 로 띄운 자식(06:42Z, session_01ScCtVg9kuvmtPnrAcxnDBd)은 22분 만에 R-002 사이클을 완주했다(PR #125). 그래서 발화 경로는 반드시 이 세션의 create_session 이다.
 
@@ -25,7 +27,7 @@
 도구 사정(이 세션에는 MCP 커넥터가 없다): GitHub 는 `gh api`(REST — PR 생성 `POST repos/{o}/{r}/pulls`, 준비 `POST .../pulls/{n}/ccr/ready_for_review`, 머지 `PUT .../pulls/{n}/merge`, 체크 `GET .../commits/{sha}/check-runs`, 워크플로 dispatch `POST .../actions/workflows/<file>.yml/dispatches`, 실행 조회 `GET .../actions/runs?...`, 잡 로그 `GET .../actions/jobs/{id}/logs`). Supabase 는 직접 못 읽는다 — DB 를 읽어야 하는 항목(장부 부검 등)은 observation_report.yml 처럼 **GitHub Actions 워크플로(시크릿 보유)에서 읽어 아티팩트·로그로 받는다**. 러너 결과를 기다릴 때 `send_later` 가 있으면 체크인을 걸고, 없으면 Bash `run_in_background` 로 `gh api` 를 60초 간격으로 폴링해 run 이 completed 가 되면 종료하는 스크립트(최대 2시간)를 띄워라 — 종료가 당신을 깨운다. 전경 sleep 은 막혀 있다.
 
 운용 점검 — 가설 사이클보다 먼저, 매번(사용자 결정 2026-10-26: 정지·시동 권한 위임. 판정은 registry steward_rules_2026_10_26 규칙으로만, RESEARCH_LOOP.md 0절):
-A. `gh api -X POST repos/bbabaq1-rgb/crypto-pattern-backtest/actions/workflows/steward.yml/dispatches -f ref=master` → `GET .../actions/workflows/steward.yml/runs?branch=master&per_page=1` 로 그 run 이 completed 될 때까지 기다린다(백그라운드 폴링) → `GET .../actions/runs/{id}/jobs` 의 job id → **`GET .../check-runs/{job id}/annotations`** 에서 제목이 `steward` 로 시작하는 주석을 읽는다(`steward 발동 없음` notice 또는 `steward S1`·`steward S2` warning — 본문에 단위·n·평균·조치). 잡 로그 다운로드(`.../jobs/{id}/logs`)는 외부 저장소 리다이렉트라 gh 가 거부한다.
+A. `gh api -X POST repos/bbabaq1-rgb/crypto-pattern-backtest/actions/workflows/steward.yml/dispatches -f ref=master` → `GET .../actions/workflows/steward.yml/runs?branch=master&per_page=1` 로 그 run 이 completed 될 때까지 기다린다(백그라운드 폴링) → `GET .../actions/runs/{id}/jobs` 의 job id → **`GET .../check-runs/{job id}/annotations`** 에서 제목이 `steward` 로 시작하는 주석을 읽는다(`steward 발동 없음` notice 또는 `steward S1`·`steward S2` warning — 본문에 단위·n·평균·조치). 잡 로그 다운로드(`.../jobs/{id}/logs`)는 외부 저장소 리다이렉트라 gh 가 거부한다. dispatch 한 run 이 5분 넘게 잡 없이 queued 면(취소 API 도 409) 한 번 더 dispatch 하고 먼저 completed 된 run 을 쓴다.
 B. `daily_scheduler.yml` 최근 1회·`fast_scheduler.yml` 최근 3회의 conclusion 과 각 잡의 check-run 주석(제목 `ops sl_failed`·`ops stop_reregistered` — 체결 엔진이 손절 등록 실패·손절 재등록 때 찍는다)을 확인한다(로그 대신 주석, A 와 같은 이유). 손절 실패가 연속 2틱 이상이거나 손절 상태를 확인할 수 없으면 universe.json `trading_halt` 를 켠다(active·since·reason); 켜져 있고 원인 해소 + 깨끗한 1틱이면 끈다.
 C. 발동이 있으면 로그에 적힌 조치를 그대로 PR 로 집행한다(universe adopted→suspended 이동 + suspended_date·suspended_reason / ROUTING_OVERRIDES FLAT + direction_switch.json 스냅샷 손으로 맞춤 / regimes 에서 레짐 제외). registry 메모·CLAUDE.md 한 항목·정지 상태 테스트 갱신(선례 커밋 657fbc7) → tests.yml 전 목록 그린 → PR → CI 그린 → 머지. 정지는 신규 진입만 — 열린 포지션은 건드리지 않는다. 판단이 안 서면 집행하지 말고 backlog notes 에 적는다.
 D. 재개·배포(R1·R2)와 AI veto 전환(R3)은 사전 등록 시험 결과로만 — 이 점검에서 새로 켜지 않는다.

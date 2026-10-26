@@ -12,7 +12,8 @@ registry `steward_rules_2026_10_26` 의 사전 등록 규칙으로만 한다 —
 
 1. **판정 받기** — `steward.yml` 을 master 로 dispatch 하고 끝날 때까지 기다린 뒤(보통 2~3분) 그 잡의 **check-run 주석**
    (`GET repos/{o}/{r}/check-runs/{job id}/annotations`, 제목이 `steward` 로 시작)을 읽는다 — 잡 로그 다운로드는 외부 저장소
-   리다이렉트라 세션의 gh 가 거부한다.
+   리다이렉트라 세션의 gh 가 거부한다. dispatch 한 run 이 5분 넘게 잡 없이 queued 면(취소 API 도 409 로 거부 — 2026-10-26 실측)
+   한 번 더 dispatch 하고 먼저 completed 된 run 을 쓴다.
    `steward.py` 가 실거래 장부(trades — 방식D 실거래)에 S1(미확인 + n≥10 · 평균<0)·S2(n≥20 · 평균<0 · 28일 · 주 클러스터 P<.05)를
    기계적으로 적용한 결과다. 발동이 없으면 '운용: 발동 없음' 으로 기록하고 2단계로.
 2. **결함 확인(S3·H)** — `daily_scheduler.yml` 최근 1회와 `fast_scheduler.yml` 최근 3회의 결론과 check-run 주석
