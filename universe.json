@@ -634,5 +634,11 @@
     "rank_fail_note": "HYPE/ENA/KAITO 등은 500봉 미만이라 후보에서 제외(1년 뒤 재스캔)",
     "review": "분기마다 universe_okx_scan 재실행으로 목록 갱신. 경계 종목 과적합 주의",
     "decision": "사용자 2026-09-04 '유니버스 80 적용'"
+  },
+  "trading_halt": {
+    "active": false,
+    "since": null,
+    "reason": null,
+    "note": "전체 신규 진입 정지 스위치(2026-10-26 사용자 위임 — registry steward_rules_2026_10_26 의 H). active=true 면 paper_executor.trading_halt_state() 가 킬스위치와 같은 경로로 신규 실거래 진입만 막는다(청산·손절 점검·페이퍼 기록 계속). 켜고 끄는 것은 운용 결함 확인·해소 시 에이전트가 PR 로 — since·reason 을 같이 적는다."
   }
 }

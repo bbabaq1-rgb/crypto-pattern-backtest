@@ -321,6 +321,26 @@ SIZING_MODE = "risk"
 # 금액을 재입금하면 입금 즉시 킬스위치가 걸려 신규 진입이 전면 차단되는 문제가 있었다.
 EQUITY_FLOOR = 100.0
 
+
+def trading_halt_state(path="universe.json"):
+    """
+    전체 신규 진입 정지 스위치 (2026-10-26 사용자 위임 — registry steward_rules_2026_10_26 의 H).
+    universe.json["trading_halt"] = {"active": bool, "since": str, "reason": str}. active 면 킬스위치와 같은
+    경로로 **신규 실거래 진입만** 막는다 — 청산 모니터링·손절 점검·페이퍼 기록은 그대로 돈다.
+    반환 (active, reason). 키가 없거나 active 가 거짓이면 (False, "") = 종전 동작.
+    파일이 없으면 종전 동작(테스트·로컬), 있는데 파싱이 안 되면 fail-closed — 정지 여부를 모르면 진입을 보류한다
+    (잔고 조회 실패 때와 같은 원칙).
+    """
+    if not os.path.exists(path):
+        return False, ""
+    try:
+        h = json.load(open(path, encoding="utf-8")).get("trading_halt") or {}
+    except Exception as e:
+        return True, f"universe.json 읽기 실패({type(e).__name__}) — 정지 여부 미확인, 신규 진입 보류(fail-closed)"
+    if not isinstance(h, dict) or h.get("active") is not True:
+        return False, ""
+    return True, str(h.get("reason") or "사유 미기재")
+
 # 앙상블 Grade 기반 포지션 사이징 배수
 GRADE_SIZE_MULT = {"A": 1.5, "B": 1.0, "C": 0.7, "D": 0.5}
 
@@ -1113,6 +1133,12 @@ def run(stamp=None, slow=None):
             notify.send(msg)
         else:
             print(f"  [kill] equity ${equity:.2f} / 하한 ${EQUITY_FLOOR:.2f} — 통과")
+
+        # 안전망 3: 전체 신규 진입 정지 스위치(2026-10-26 운용 위임 H) — 손절·청산 점검 뒤에 둔다
+        halt_on, halt_why = trading_halt_state()
+        if halt_on:
+            kill_switch = True
+            print(f"  [halt] 전체 신규 진입 정지(universe.json trading_halt) — {halt_why}")
 
     # 1) 오픈 포지션 청산 모니터링
     #    방식D 청산 조건 충족 + live_mode 포지션 → 실제 OKX reduceOnly 청산 주문.

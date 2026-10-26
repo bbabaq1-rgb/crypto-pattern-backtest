@@ -1,0 +1,47 @@
+name: Steward — live stop-rule check (read-only)
+
+# 운용 점검(2026-10-26 정지·시동 권한 위임, registry steward_rules_2026_10_26). steward.py 는 Supabase trades 를
+# select 만 하고 universe.json·direction_switch.json 을 읽어 정지 규칙(S1·S2) 발동 여부를 표로 낸다 — 주문·DB·파일 쓰기 없음.
+# 조치 집행은 자율 연구 사이클 세션이 PR 로 한다(RESEARCH_LOOP.md 0단계). 매일 schedule 은 보고용이라 지연이 무해하고
+# 스케줄러 워크플로와 concurrency 그룹을 공유하지 않는다. 사이클 세션은 시작할 때 dispatch 해 최신 장부로 판정한다.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "13 16 * * *"          # 매일 16:13 UTC (01:13 KST — 자율 사이클 01:36 KST 전)
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "steward.py"
+      - "test_steward.py"
+      - ".github/workflows/steward.yml"
+
+jobs:
+  steward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: python test_steward.py
+      - name: Steward check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        # push(배관 확인)는 알림 없이, schedule/dispatch 만 --notify(발동이 있을 때만 보낸다)
+        run: python steward.py ${{ github.event_name == 'push' && ' ' || '--notify' }}
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-report-${{ github.run_number }}
+          path: _steward_report.md
+          if-no-files-found: ignore

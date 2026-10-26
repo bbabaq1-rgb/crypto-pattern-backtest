@@ -11,6 +11,12 @@
 
 도구 사정(이 세션에는 MCP 커넥터가 없다): GitHub 는 `gh api`(REST — PR 생성 `POST repos/{o}/{r}/pulls`, 준비 `POST .../pulls/{n}/ccr/ready_for_review`, 머지 `PUT .../pulls/{n}/merge`, 체크 `GET .../commits/{sha}/check-runs`, 워크플로 dispatch `POST .../actions/workflows/<file>.yml/dispatches`, 실행 조회 `GET .../actions/runs?...`, 잡 로그 `GET .../actions/jobs/{id}/logs`). Supabase 는 직접 못 읽는다 — DB 를 읽어야 하는 항목(장부 부검 등)은 observation_report.yml 처럼 **GitHub Actions 워크플로(시크릿 보유)에서 읽어 아티팩트·로그로 받는다**. 러너 결과를 기다릴 때 `send_later` 가 있으면 체크인을 걸고, 없으면 Bash `run_in_background` 로 `gh api` 를 60초 간격으로 폴링해 run 이 completed 가 되면 종료하는 스크립트(최대 2시간)를 띄워라 — 종료가 당신을 깨운다. 전경 sleep 은 막혀 있다.
 
+운용 점검 — 가설 사이클보다 먼저, 매번(사용자 결정 2026-10-26: 정지·시동 권한 위임. 판정은 registry steward_rules_2026_10_26 규칙으로만, RESEARCH_LOOP.md 0절):
+A. `gh api -X POST repos/bbabaq1-rgb/crypto-pattern-backtest/actions/workflows/steward.yml/dispatches -f ref=master` → `GET .../actions/workflows/steward.yml/runs?branch=master&per_page=1` 로 그 run 이 completed 될 때까지 기다린다(백그라운드 폴링) → `GET .../actions/runs/{id}/jobs` → `GET .../actions/jobs/{job}/logs` 에서 `[steward] 발동` 줄을 읽는다.
+B. `daily_scheduler.yml` 최근 1회·`fast_scheduler.yml` 최근 3회의 conclusion 과 로그에서 손절 등록 실패(`sl_failed`)·예외를 확인한다. 손절 실패가 연속 2틱 이상이거나 손절 상태를 확인할 수 없으면 universe.json `trading_halt` 를 켠다(active·since·reason); 켜져 있고 원인 해소 + 깨끗한 1틱이면 끈다.
+C. 발동이 있으면 로그에 적힌 조치를 그대로 PR 로 집행한다(universe adopted→suspended 이동 + suspended_date·suspended_reason / ROUTING_OVERRIDES FLAT + direction_switch.json 스냅샷 손으로 맞춤 / regimes 에서 레짐 제외). registry 메모·CLAUDE.md 한 항목·정지 상태 테스트 갱신(선례 커밋 657fbc7) → tests.yml 전 목록 그린 → PR → CI 그린 → 머지. 정지는 신규 진입만 — 열린 포지션은 건드리지 않는다. 판단이 안 서면 집행하지 말고 backlog notes 에 적는다.
+D. 재개·배포(R1·R2)와 AI veto 전환(R3)은 사전 등록 시험 결과로만 — 이 점검에서 새로 켜지 않는다.
+
 한 사이클 = 한 가설:
 0. 잠금·선택 — backlog 에서 status=ready, blocked_until 경과, prerequisites 충족인 항목 중 priority 숫자가 가장 낮은 것 하나. 다른 세션이 36시간 안에 in_progress 로 잠근 항목은 건너뛴다. 36시간 넘은 in_progress 항목이 있으면 그것을 이어받는다(메모를 읽고 중단 지점부터). 고른 항목에 status=in_progress·started_at(UTC ISO)·session(세션 ID 를 모르면 `routine_<UTC 시작시각, 분 단위>`)을 적고 그 커밋을 먼저 push 한다.
 1. 사전 등록 — registry.json 에 `<id>_prereg_<날짜>`: 가설·셀·동결 파라미터·판정 기준·진단 셀·사전 확률과 근거·known_limits·DEPLOY_ON_PASS(backlog deploy_on_pass 와 같게). 결과를 보기 전에 쓴다.
@@ -19,6 +25,6 @@
 4. 결과 판독 — 러너 워크플로 run 을 기다린다(위 도구 사정 참조). 판정은 코드가 낸 것을 그대로 옮기고 사전 확률을 채점한다(맞은 것·틀린 것 둘 다). 진단 셀에서 사후에 골라 살리지 않는다.
 5. 기록 — report_<id>.md · CLAUDE.md '현재 상태' 항목(기존 항목과 같은 밀도) · research_log.csv 한 줄 · backlog status=done + result. 사전 등록 기준 전부 통과이고 경계값이 아니며 deploy_on_pass=true 일 때만 자율 반영 규칙(2026-09-05)대로 실거래에 반영하고 무엇을 왜 켰는지 적는다.
 6. 탐색 의무 — backlog 에 신규 가설을 2개 이상 추가한다(출처: 실거래 장부 부검 / 레포 리포트의 후속·미측정 문구 / 외부 문헌(웹 검색, 출처 URL) / 기각된 시험의 기전). 각 항목에 hypothesis·prior(0.05 이상)·근거·반증 조건·est_cost_h·priority 를 적는다. test_research_loop.py 가 그린이어야 한다.
-7. 보고 — 세션의 마지막 메시지가 사용자 푸시 알림이다. 형식: `[연구 사이클 YYYY-MM-DD] <id> <판정> — 한 줄 결과 / 실거래 변경 여부 / 새 가설 N개(id) / 다음 사이클 예정 항목`. 러너 결과를 못 봤으면 어디까지 했는지와 backlog 메모 위치를 적는다. 한국어로, 짧게.
+7. 보고 — 세션의 마지막 메시지가 사용자 푸시 알림이다. 형식: `[연구 사이클 YYYY-MM-DD] 운용: <집행한 조치 또는 '발동 없음'> · <id> <판정> — 한 줄 결과 / 실거래 변경 여부 / 새 가설 N개(id) / 다음 사이클 예정 항목`. 러너 결과를 못 봤으면 어디까지 했는지와 backlog 메모 위치를 적는다. 한국어로, 짧게.
 
-불변(절대): 손절 주문 없으면 실거래 없음 · 사전 등록 전 결과 열람 금지 · 사후 선택·격자 최대값 선택 금지 · 한 사이클에 가설 하나 · 위험 수준(RISK_FRAC/LEV_CAP/MAX_POS/EQUITY_FLOOR)·열린 포지션 수동 청산·자금 이동·게이트 문턱·CLAUDE.md 원칙 ②(AI 청산 실효)는 사용자 결정이라 시험·보고까지만 하고 적용하지 않는다 · 실거래 코드를 건드리면 동작 불변 테스트를 함께 넣는다 · tests.yml 그린이 머지 조건 · Vault 비밀·API 키를 출력하지 않는다. 사용자에게 질문하지 말고 RESEARCH_LOOP.md 의 규칙으로 판단한다 — 판단이 안 서는 지점은 backlog notes 에 적고 보수적인 쪽을 택한다.
+불변(절대): 정지·재개·전체 정지는 steward_rules_2026_10_26 규칙으로만(재량 금지) · 손절 주문 없으면 실거래 없음 · 사전 등록 전 결과 열람 금지 · 사후 선택·격자 최대값 선택 금지 · 한 사이클에 가설 하나 · 위험 수준(RISK_FRAC/LEV_CAP/MAX_POS/EQUITY_FLOOR)·열린 포지션 수동 청산·자금 이동·게이트 문턱·CLAUDE.md 원칙 ②(AI 청산 실효)는 사용자 결정이라 시험·보고까지만 하고 적용하지 않는다 · 실거래 코드를 건드리면 동작 불변 테스트를 함께 넣는다 · tests.yml 그린이 머지 조건 · Vault 비밀·API 키를 출력하지 않는다. 사용자에게 질문하지 말고 RESEARCH_LOOP.md 의 규칙으로 판단한다 — 판단이 안 서는 지점은 backlog notes 에 적고 보수적인 쪽을 택한다.
