@@ -6098,5 +6098,29 @@
       "prior_scorecard": "사전 0.15 오답(통과). 적중: 동료 셀 ≈0 이라 셀 특이적, 전후반 감쇠(후반 +0.15)",
       "live_change": "none"
     }
+  },
+  "dclose_port_prereg_2026_10_26": {
+    "status": "preregistered",
+    "date": "2026-10-26",
+    "backlog": "R-021",
+    "trigger": "자율 연구 루프 R-021 (수동 가속 세션)",
+    "why": "R-002(D_close) 풀링 자산곡선이 슬롯 범람 프레임(CAGR −40%, MDD −96%)이라 P5 가 무의미했다 — method_b 와 같은 결함. 종가 손절은 손절 지연으로 보유가 길어져 슬롯 점유가 커진다. 그 비용은 슬롯 경합 프레임에서만 보인다.",
+    "frozen": {
+      "frame": "validate_portfolio 그대로 — 배포 집합(1d 라우팅 복제 6셀 + 4h adopted 4종)·사이징(RISK 1.5%/LEV 3/변동성 타겟팅)·MAX_POS 13·START_EQ·분할 train<2025-01-01<=holdout·슬롯 배분 current. arm 이 바꾸는 것은 청산 규칙 하나.",
+      "arms": "D(현행 mt.outcome_d) vs D_close(주 판정: 종가 ≤ 진입가×0.92 이면 종가 청산, 숏은 대칭 / 재해 손절 저가·고가 ±15% 고정 / opp·레짐 전환·만기는 D 와 동일). 같은 신호·같은 가격 경로 — 신호는 공유하고 청산만 다르다.",
+      "hook": "sizing_vol.collect_all / validate_portfolio.collect_1d·collect_4h 에 outcome_fn=None 인자. None 이면 종전과 동일(test_dclose_port 가 고정).",
+      "criteria": "holdout J1 CAGR > D / J2 Calmar > D / J3 짝지음 블록 부트(300회, 같은 재표집 인덱스를 두 arm 에 적용)에서 P(Calmar_Dclose > Calmar_D) >= 0.60 / J4 MDD 가 D 보다 5%p 넘게 나쁘지 않음 / J5 train CAGR·Calmar 둘 다 D 이상 / J6 노출 정합 holdout 진입 시점 평균 레버리지 비 0.90~1.10. 전부 충족 → ADOPT_CANDIDATE.",
+      "diagnostics": "평균 보유일·슬롯 스킵·증거금 스킵·체결 수, 패턴별 체결 수 변화, 거래 단위 평균차(월 블록 부트). 진단은 판정 아님 — 사후에 골라 살리지 않는다.",
+      "DEPLOY_ON_PASS": false
+    },
+    "prior": "약 0.12 (backlog). R-002 가 후반 +0.04%p 로 소멸 중이고 최근 365일 +0.05% 이며 종가 손절 평균 실현손실이 −9.6% 로 D 의 −8.2% 보다 깊다. 보유 연장은 슬롯을 더 오래 잡는다 → 포트폴리오에서는 더 불리할 것. 방향은 'REJECTED(J2 또는 J3 탈락)' 예상, 크기는 예측하지 않는다.",
+    "known_limits": [
+      "포트폴리오 프레임 분할은 달력 2025-01-01(프레임 자체 규약) — 국면 홀드아웃(frame_v3) 아님, 2025~26 bear 지배",
+      "정적 top30 코호트(PIT 아님)",
+      "지연 0 가정, 형성 중인 봉 탐지 불일치 미반영",
+      "종가 손절의 실제 집행 경로(엔진 종가 판정 + 거래소 재해 손절)는 신규 코드라 통과해도 사용자 결정",
+      "marubozu 는 2026-10-22 정지 중이나 sizing_vol 의 mt.PATS 에 남아 있으면 D·D_close 양 arm 에 동일하게 포함 — arm 비교는 상쇄"
+    ],
+    "live_change": "none"
   }
 }

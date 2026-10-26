@@ -52,6 +52,7 @@ jobs:
                    test_exit_consistency.py \
                    test_dclose.py \
                    test_dclose_vol.py \
+                   test_dclose_port.py \
                    test_ma_breakout.py \
                    test_ma180.py \
                    test_frame_v3.py \
