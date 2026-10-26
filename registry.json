@@ -6236,7 +6236,7 @@
     ]
   },
   "bull_btc_prereg_2026_10_26": {
-    "status": "PREREGISTERED",
+    "status": "REJECTED",
     "DEPLOY_ON_PASS": true,
     "backlog": "R-060",
     "registered": "2026-10-26 (결과 열람 전, 로컬 스모크 없음)",
@@ -6258,6 +6258,8 @@
     "deploy_if_passed": "direction_switch.ROUTING_OVERRIDES 에 (bull_btc, engulfing)·(bull_btc, fvg) FLAT + direction_switch.json 스냅샷 + universe.json adopted_4h 항목 regimes 에서 bull_btc 제외(three_soldiers_4h 는 [bull_altseason]). 정지는 신규 진입만. 1h(cascade)는 레짐 게이트 코드가 없어 이번 범위 밖(코드+동작 불변 테스트가 함께일 때만)",
     "diagnostics": "패턴별 제거 거래(holdout/train 평균, leave-one-pattern-out Calmar), 진입일 BTC 1년 고점 낙폭 버킷(0~-10/-10~-20/<-20, diag_bull_phase 와 같은 고정 버킷) — 판정 아님, 사후에 골라 살리지 않는다",
     "prior": "PASSED 약 0.20. 근거: 최근 2주 실거래 알트 롱 -5.4%·guard_v4 D1 OOS bull_btc 무작위 롱 -1.70% 는 정지 쪽 증거이나, train(2023~24) bull_btc 알트 롱은 강했다(D1 +5.24%) — K2(train 에서도 이길 것)에서 탈락할 가능성이 가장 크다. 레짐 구간 안 거래는 같은 국면에 몰려 있어 부트 K5 가 0.60 을 넘기 어렵다고 본다. 가장 가능성 높은 결과는 K2 실패 REJECTED. 결과를 보고 '최근 국면 우선'으로 K2 를 완화하지 않는다",
-    "known_limits": "정적 end-of-data 코호트 순위(PIT 아님) / 4h 이력 약 2년 / 라벨 후행성(bull_btc 는 국면 끝자락에 몰림) / 구간 성과는 실현 손익 기준 자산곡선이라 보유 중 평가손 미반영 / 홀드아웃 구간이 2025~26 에 흩어진 비연속 일들 / 1h cascade·tp1 은 포트폴리오 프레임 밖 / 이 시험은 '지금 bull_btc 라벨이 알트 롱에 나쁘다'를 보지 레짐 라벨러 개선을 보지 않는다"
+    "known_limits": "정적 end-of-data 코호트 순위(PIT 아님) / 4h 이력 약 2년 / 라벨 후행성(bull_btc 는 국면 끝자락에 몰림) / 구간 성과는 실현 손익 기준 자산곡선이라 보유 중 평가손 미반영 / 홀드아웃 구간이 2025~26 에 흩어진 비연속 일들 / 1h cascade·tp1 은 포트폴리오 프레임 밖 / 이 시험은 '지금 bull_btc 라벨이 알트 롱에 나쁘다'를 보지 레짐 라벨러 개선을 보지 않는다",
+    "run": 40340912571,
+    "result": "K1 holdout 제거 거래 n=2729 평균 +3.67% P(<0) .133 실패 / K5 부트 우위 1% 실패 / K6 무작위 제거 백분위 5% 실패 / K2·K3·K4 통과(arm 구간 로그수익 train +50.4% vs -25.8%, holdout -8.2% vs -72.6%) / K7 적격 4 중 음수 2. 사전 확률(PASSED 0.20, 예상 실패 K2) 방향 적중·실패 지점 오답. BTC 낙폭 버킷 진단은 detlib 키 오류('c')로 비어 있음. 실거래 무변경"
   }
 }
