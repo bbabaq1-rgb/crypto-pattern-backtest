@@ -6080,6 +6080,23 @@
     "prior": "REAL_CELL_EFFECT 약 0.15. 근거: R-002 에서 후반 +0.04%p 로 소멸 중이고 사후 선택 셀이라 F1 에서 걸릴 가능성이 가장 높다. F3 는 vol_awakening 신호 직후가 변동성이 큰 구간이라 무작위(조용한 구간 포함)보다 저가 스파이크 털림이 많아 오히려 통과할 여지가 있다고 본다. 두 힘이 반대라 크기는 예측하지 않는다.",
     "known_limits": "무작위 대조군은 시간 균등이라 변동성 환경이 신호와 다르다(C_month 가 진단) / 4h 이력 약 2년이라 전후반 각 1년 / 정적 top30 / 사후 선택 셀의 반증이라 통과해도 '기각을 면했다'이지 배포 근거 아님.",
     "deploy_path_note": "통과해도 DEPLOY_ON_PASS=False — 종가 손절 집행 경로 신규 코드 필요, 사용자 결정",
-    "smoke_disclosure": "로컬에서 합성 데이터 테스트만 — 실데이터 주 판정 수치 열람 없음"
+    "smoke_disclosure": "로컬에서 합성 데이터 테스트만 — 실데이터 주 판정 수치 열람 없음",
+    "result_2026_10_26": {
+      "run": 40313723250,
+      "verdict": "REAL_CELL_EFFECT",
+      "F": "F1 F2 F3 모두 통과",
+      "n": 5081,
+      "diff_pp": 0.495,
+      "t": 6.46,
+      "halves": "+0.85/+0.15",
+      "boot_lo_pp": 0.157,
+      "ctrl_mean_pp": 0.135,
+      "ctrl_p95_pp": 0.195,
+      "C_month_pp": 0.337,
+      "holdout365_pp": 0.221,
+      "peers": "equal_lows -0.12 / triple_bottom +0.04 / three_soldiers -0.17",
+      "prior_scorecard": "사전 0.15 오답(통과). 적중: 동료 셀 ≈0 이라 셀 특이적, 전후반 감쇠(후반 +0.15)",
+      "live_change": "none"
+    }
   }
 }
