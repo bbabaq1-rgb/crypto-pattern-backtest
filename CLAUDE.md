@@ -2542,7 +2542,11 @@
   · **장치**: `steward.py`(읽기 전용 — trades 실거래 방식D·universe·direction_switch 로 S1·S2 판정, 패턴 층 표본은 '지금 켜진
     레짐'의 거래만) + `steward.yml`(매일 16:13Z + dispatch, 발동 시 텔레그램) + 자율 연구 사이클 0단계 '운용 점검'(최신 실행을
     읽어 발동 조치를 PR 로 집행) + `paper_executor.trading_halt_state()`(universe.json `trading_halt` — 킬스위치 경로 재사용,
-    파싱 실패 fail-closed, 현재 꺼짐). test_steward.py(54) · test_executor_safety +9.
+    파싱 실패 fail-closed, 현재 꺼짐). test_steward.py(59) · test_executor_safety +13.
+  · **판정 전달 경로 = check-run 주석**: 자식 세션의 gh 는 잡 로그 다운로드(외부 저장소 리다이렉트)를 거부한다. 그래서
+    steward 는 판정을 `::warning title=steward S1::…`/`::notice title=steward 발동 없음::…` 으로, 체결 엔진은 손절 등록 실패·손절
+    재등록을 `::warning title=ops …::` 로 찍고(`paper_executor.ops_annotation`, 출력 전용·Actions 안에서만) 세션은
+    `check-runs/{job id}/annotations` 로 읽는다. 첫 실DB 실행(run 40336389774)이 오프라인 판정과 같았다 — 발동 1건 inverted_hammer S1.
   · **첫 적용(맹검 아님 — 규칙을 쓰기 전에 실거래 표를 봤다)**: 오프라인 실행에서 S1 **tp1**(n38 −0.51%, 이미 정지)·
     **inverted_hammer**(n17 −0.73%, 등급 U — v4 REJECTED·exit_consistency bp .69) 발동. 10/22 사용자가 ih 를 유지했던 결정을
     위임 규칙이 뒤집는 것이라 그 사실을 기록한다. vol_awakening_4h(V)는 패턴 n45 −0.21% P .44 로 미발동, bull_btc 셀 n14 −6.33% 는 n<20.
@@ -2990,7 +2994,7 @@
   슬롯 경합이 대상. 사전 등록 registry portfolio_prereg_2026_09_10, DEPLOY_ON_PASS=False. test_portfolio.py
 - paper_executor.slot_occupancy / occupancy_txt: 슬롯 점유 패턴 분포 — 진단 출력 전용(2026-09-10)
 - steward.py / .github/workflows/steward.yml: 운용 점검(2026-10-26 정지·시동 위임) — 실거래 장부에 사전 등록 정지 규칙(S1·S2)을
-  기계적으로 적용해 발동 목록을 낸다(읽기 전용). 집행은 자율 연구 사이클 0단계가 PR 로. test_steward.py(54)
+  기계적으로 적용해 발동 목록을 낸다(읽기 전용, 판정은 check-run 주석으로도 낸다). 집행은 자율 연구 사이클 0단계가 PR 로. test_steward.py(59)
 - paper_executor.trading_halt_state / universe.json `trading_halt`: 전체 신규 진입 정지 스위치(킬스위치 경로 재사용, 기본 꺼짐)
 - ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).
   특성 v2(book_*/d1_*/stop_atr), prompt_version 집계 키, 토큰 기록. 주문·거래소·스케줄러 import 없음(test 고정)

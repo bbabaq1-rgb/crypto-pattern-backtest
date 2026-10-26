@@ -10,6 +10,7 @@ test_steward.py — 운용 점검(steward, 2026-10-26 정지·시동 권한 위�
   7. 조치 문구: focus → ROUTING_OVERRIDES / adopted → suspended 이동 / 셀 → regimes 제외 / 1h 셀은 조치 없음
   8. 읽기 전용 — 매매 경로가 이 모듈을 import 하지 않고, 이 모듈은 쓰기·주문 호출이 없다
   9. 워크플로·배선: steward.yml(읽기 전용, dispatch), tests.yml 등록
+ 10. GitHub 주석: 자율 사이클 세션은 잡 로그를 못 받으므로(외부 저장소 리다이렉트) 판정을 주석으로 내보낸다
 """
 import io
 import json
@@ -163,6 +164,17 @@ check("steward.yml: dispatch + 로직 테스트 + 보고서 업로드", "workflo
       and "steward.py" in wf and "upload-artifact" in wf)
 check("steward.yml: 매매 시크릿(OKX) 없음 — DB 읽기·텔레그램만", "OKX" not in wf and "SUPABASE_SERVICE_KEY" in wf)
 check("tests.yml 에 test_steward", "test_steward.py" in io.open(".github/workflows/tests.yml", encoding="utf-8").read())
+
+# ── 10. GitHub 주석 — 자율 사이클이 잡 로그 대신 check-runs annotations API 로 읽는다 ──────────────
+ann0 = sw.annotations([], 8, 179)
+check("발동 없음 → notice 한 줄, 제목 'steward' 로 시작", len(ann0) == 1 and ann0[0].startswith("::notice title=steward"), ann0)
+_, hits_a = sw.evaluate(trades, uni, routing)
+ann1 = sw.annotations(hits_a, 9, 40)
+check("발동 → warning 줄, 제목에 규칙·본문에 단위·조치", len(ann1) == len(hits_a) == 1
+      and ann1[0].startswith("::warning title=steward S1::") and "inverted_hammer·long" in ann1[0] and "조치:" in ann1[0], ann1)
+check("주석은 한 줄(줄바꿈 없음)", all("\n" not in a for a in ann0 + ann1))
+check("주석 상한 10(단계당 경고 주석 한도)", len(sw.annotations(hits_a * 15, 1, 1)) == 10)
+check("주석은 Actions 안에서만 찍는다", 'os.environ.get("GITHUB_ACTIONS") == "true"' in src)
 
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)

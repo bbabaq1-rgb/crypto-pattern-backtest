@@ -392,5 +392,28 @@ check("halt: 킬스위치 경로를 재사용(kill_switch=True → 신규 실거
       "kill_switch = True" in _run[_i_halt:_i_exit] and "if live_conn and kill_switch:" in _run
       and "if live_conn and not kill_switch:" in _run)
 
+# ── 운용 결함 주석(2026-10-26 운용 위임 H) — 출력 전용 ──────────────────────────────────────
+import contextlib, io as _io
+_buf = _io.StringIO()
+_ga = os.environ.pop("GITHUB_ACTIONS", None)
+with contextlib.redirect_stdout(_buf):
+    pe.ops_annotation("sl_failed", "X long fvg sl_failed(...)")
+check("ops 주석: Actions 밖에서는 아무것도 안 찍는다", _buf.getvalue() == "", _buf.getvalue())
+os.environ["GITHUB_ACTIONS"] = "true"
+_buf = _io.StringIO()
+with contextlib.redirect_stdout(_buf):
+    _r = pe.ops_annotation("sl_failed", "X long\nfvg  reason")
+if _ga is None:
+    os.environ.pop("GITHUB_ACTIONS", None)
+else:
+    os.environ["GITHUB_ACTIONS"] = _ga
+check("ops 주석: Actions 안에서 warning 한 줄, 제목 'ops <종류>'",
+      _buf.getvalue() == "::warning title=ops sl_failed::X long fvg reason\n" and _r is None, repr(_buf.getvalue()))
+_run2 = src_pe.split("def run(", 1)[1]
+check("ops 주석 호출 지점: 손절 재등록 · 진입 손절 실패 두 곳",
+      'ops_annotation("stop_reregistered"' in _run2 and 'ops_annotation("sl_failed"' in _run2)
+check("ops 주석은 반환값을 쓰지 않는다(분기·주문에 영향 없음)",
+      "= ops_annotation(" not in src_pe and "if ops_annotation(" not in src_pe)
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

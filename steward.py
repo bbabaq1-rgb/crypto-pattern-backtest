@@ -24,6 +24,7 @@ steward.py — 운용 점검: 사전 등록 정지 규칙(registry steward_rules
 import argparse
 import io
 import json
+import os
 import random
 import sys
 from collections import defaultdict
@@ -249,6 +250,20 @@ def render(out, hits, ref):
     return "\n".join(L) + "\n"
 
 
+def annotations(hits, n_units, n_rows):
+    """GitHub Actions 주석 줄. 자율 사이클 세션은 잡 로그를 못 받는다(외부 저장소 리다이렉트를 gh 가 거부) —
+    대신 `GET repos/{o}/{r}/check-runs/{id}/annotations` 로 이 주석을 읽어 판정을 가져간다. 제목은 항상 'steward' 로 시작."""
+    if not hits:
+        return [f"::notice title=steward 발동 없음::판정 단위 {n_units}개, 실거래 방식D {n_rows}행 — 규칙 {RULES_ID}"]
+    out = []
+    for r in hits[:10]:                       # 단계당 경고 주석 상한 10
+        name = f"{r['unit'][0]}·{r['unit'][1]}" + (f"·{r['regime']}" if r["regime"] else "")
+        st = r["stats"]
+        msg = f"{name} ({r['layer']}) n={st['n']} 평균 {st['mean']:+.2f}% → 조치: {r['action']}"
+        out.append(f"::warning title=steward {'+'.join(r['hits'])}::" + msg.replace("\n", " "))
+    return out
+
+
 def fetch_trades():
     import supabase_client as sc
     cli = sc.get_client("service")
@@ -278,6 +293,9 @@ def main(argv=None):
     for r in hits:
         name = f"{r['unit'][0]}·{r['unit'][1]}" + (f"·{r['regime']}" if r["regime"] else "")
         print(f"[steward] 발동 {'+'.join(r['hits'])} {name} → {r['action']}")
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        for line in annotations(hits, sum(r["layer"] == "패턴" for r in out), len(live_d(trades))):
+            print(line)
     if a.notify and hits:
         import notify
         notify.send("🧭 <b>운용 점검 — 정지 규칙 발동</b>\n" + "\n".join(
