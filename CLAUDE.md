@@ -2438,7 +2438,10 @@
       백필 확인. **커넥터는 이제 crypto-backtest 조직만 본다**(Supabase 허가가 한 번에 한 조직 — NumPick 접근은 빠짐).
       claude.ai 커넥터 설정에서 쓰기 도구는 '승인 필요' 유지, Pause project 는 차단 권고(거래 DB 일시정지 = pg_cron 발화·기록 전부 정지).
       **자동 판정 주의**: 같은 세션의 positions 3컬럼 migration 은 auto 모드 분류기가 '운영 배포'로 1차 거절 → 사용자 명시 승인 뒤 통과.
-  · 테스트: test_ai_judge 59→124건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점·DB 내성) / test_ai_judge_report 60건(매칭·부트 결정론·판정 규칙·확장 컬럼 없는 행 복원) — tests.yml.
+  · **positions.ai_* 미기록 결함 (2026-10-26 12:00Z 실측 → 수정)**: 진입 포지션 dict 에는 ai_decision/ai_size_mult/ai_confidence 가
+    있었으나 `push_positions_db` 의 컬럼 목록에서 빠져 DB 행이 늘 비어 있었다(첫 실측 ADA·AAVE). 3줄 추가로 수정, 주문 무관.
+    판단 기록 원천은 ai_judgments 라 평가·승격 표본은 영향 없음.
+  · 테스트: test_ai_judge 59→126건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점·DB 내성·positions 판단 컬럼) / test_ai_judge_report 60건(매칭·부트 결정론·판정 규칙·확장 컬럼 없는 행 복원) — tests.yml.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
@@ -2521,9 +2524,12 @@
   revival 의 'top30 PASSED / all REJECTED' 는 패턴 단독 프레임의 관찰이었고 포트폴리오에서는 순위 밖 거래가 오히려 양의 기여라 축소할 근거가 없다. 사전 확률 PASSED 0.30 — 탈락 쪽 경고 적중. **실거래 무변경, cohort 미추가.** 한계: 정적 순위·달력 분할. validate_ts_top30.py / test_ts_top30.py(18) / ts_top30.yml
 
 ## 다음 할 일
-- [ ] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26)** — fast 10:03Z·daily 12:00Z 로그에 오류 없음 · `[live 사이징]` 정상 ·
-      새 진입의 positions 행에 qty/leverage/sl_order_id 기록 · `ai_judgments 스키마 미존재 컬럼 제외` 사라짐 ·
-      supabase_fix_pnl_leverage_2026_10_26.sql 재실행으로 머지 전 2배 기록분 0건(멱등)
+- [x] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26 완료)** — fast 10:03Z·11:03Z·12:03Z, daily 12:00Z 전부 오류 없음 ·
+      12:00Z 실거래 진입 2건(ADA·AAVE equal_lows_4h) `[live 사이징]` lev=3x 정상, positions 행에 qty·leverage 3·sl_order_id·entry_ts
+      기록 → 12:03Z 복원 11건 정상 · ai_judgments 9행(진입 2·청산 7)이 kind·prompt_version 을 insert 로 직접 기록(제외 경고 없음) ·
+      보정 SQL 2배 잔여 0건. **부수 발견·수정**: positions.ai_decision/ai_size_mult/ai_confidence 가 늘 비어 있었다 —
+      push_positions_db 의 컬럼 목록에서 빠져 있었다. 3줄 추가 + test_ai_judge §12. 평가는 ai_judgments 를 쓰므로 승격 판정 표본은
+      무영향이고 ADA·AAVE 2행은 보정하지 않는다
 - [x] **자율 연구 루프 — 첫 사이클 결과 확인 (2026-10-26)** — 예약 작업 직접 세션 2회 실패(레포 미연결) → 스포너 경로로
       R-002 완주(MIXED, PR #125, 22분). 위 '자율 연구 루프' 항목의 '첫 사이클 실측' 참조
 - [ ] **스포너 2일차 확인 (2026-10-27 01:36 KST 발화)** — 스포너(이 세션)가 자식을 띄우고 25분 체크인이 잠금 커밋을 확인하는지.
