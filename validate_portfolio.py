@@ -119,17 +119,18 @@ def _tf_rank(pattern):
     return 1 if pattern.endswith("_4h") else 0
 
 
-def collect_1d(syms):
+def collect_1d(syms, outcome_fn=None):
     """1d 배포 셀 — sizing_vol 의 라우팅 복제를 그대로 쓴다(같은 코드로 재현)."""
     sv.ROUTING_MODE = True
-    raw = sv.collect_all(syms)
+    raw = sv.collect_all(syms, outcome_fn=outcome_fn)
     # (entry_date, exit_date, ret, hold, label, sym, vol) → 공통 레코드
     return [dict(t_in=mx._tnum(r[0]), t_out=mx._tnum(r[1]), ret=r[2], pattern=r[4],
                  sym=r[5], vol=r[6], tf="1d", rank=None) for r in raw]
 
 
-def collect_4h(rows_by, ranked, regmap):
+def collect_4h(rows_by, ranked, regmap, outcome_fn=None):
     """4h adopted 4종 — 방식D, top30 코호트, 항목별 레짐 게이트."""
+    outcome_fn = outcome_fn or mt.outcome_d      # R-021 훅 — None 이면 종전 동작
     table = {c[0]: (c[1], c[2], c[3]) for c in va.PATTERNS}
     rank_of = {s: i for i, s in enumerate(ranked)}
     out = []
@@ -147,7 +148,7 @@ def collect_4h(rows_by, ranked, regmap):
                 if gate is not None and regmap.get(rows[si]["date"]) not in gate:
                     n_gate += 1
                     continue
-                ret, hold, _ = mt.outcome_d(rows, si, direction, set())
+                ret, hold, _ = outcome_fn(rows, si, direction, set())
                 xi = min(si + hold, len(rows) - 1)
                 # **ts 는 ms 라 그대로 쓰면 1d(날짜 ordinal)와 다른 축에 놓인다** — 2026-09-10
                 # 1차 실행이 정확히 그 버그로 무효였다(4h 전부가 1d 뒤로 정렬돼 슬롯 경합이
