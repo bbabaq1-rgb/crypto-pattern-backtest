@@ -5916,7 +5916,7 @@
     "status": "SHADOW_RECORDING",
     "asked": "2026-10-23 사용자 결정 '우리 자동매매의 수익률은 솔직히 형편없어 매매 판단을 기존거에 ai 판단으로 개선할수 있는 방법을 찾는다 … 클로드 md를 수정해서라도 이번 판단 규칙은 개선한다' → 선택: 그림자 기록 먼저 / 차트 수치만 / 전 배포 패턴",
     "principle_change": "CLAUDE.md '매매 결정은 결정론적 코드만' → '진입 가부·크기 조정에 AI 판단 레이어 허용. 손절·청산 집행·사이징 상한·킬스위치는 코드가 정하고 AI 는 그 안에서 거르거나 줄일 수만 있다. 모든 AI 판단은 기록돼 사후 검증 가능해야 한다.'",
-    "mechanism": "ai_judge.judge(rows, ei, sig, ctx) — 신호봉까지의 수치 특성(수익률 1/5/20/60봉·ATR·거래량 비율·RSI·MA 거리·60봉 위치·BTC/ETH 동반 수익·레짐·avg_cap·같은 패턴 최근 20건 실거래 성과)만 프롬프트에 넣고 claude-sonnet-5-5 온도 0 으로 take/reduce/skip + size_mult(≤1) + confidence + reasons(JSON). 신호 생성·손절·청산·슬롯·중복 방어 불변. 뉴스 등 외부 텍스트 입력 없음(사용자 선택).",
+    "mechanism": "ai_judge.judge(rows, ei, sig, ctx) — 신호봉까지의 수치 특성(수익률 1/5/20/60봉·ATR·거래량 비율·RSI·MA 거리·60봉 위치·BTC/ETH 동반 수익·레짐·avg_cap·같은 패턴 최근 20건 실거래 성과)만 프롬프트에 넣고 claude-opus-5-5 effort low 로(2026-10-26 교정 — production_finding 참조) take/reduce/skip + size_mult(≤1) + confidence + reasons(JSON). 신호 생성·손절·청산·슬롯·중복 방어 불변. 뉴스 등 외부 텍스트 입력 없음(사용자 선택).",
     "mode_now": "shadow — ai_judge.MODE. 판단은 ai_judgments 테이블(+positions.ai_decision/ai_size_mult/ai_confidence)에 기록만 하고 주문은 종전과 바이트 단위로 같다(test_ai_judge 가 고정).",
     "evaluation_prereg": {
       "unit": "그림자 기간에 판단이 붙은 뒤 방식D 로 해소된 실거래·페이퍼 거래(모든 신호가 종전대로 진입하므로 가상 추적 불필요)",
@@ -5924,7 +5924,8 @@
       "primary": "mean(ret | take) − mean(ret | skip∪reduce) ≥ +1.0%p AND mean(ret | skip∪reduce) < 0, 월 블록 부트스트랩 1000회 p<0.10",
       "secondary": "veto 적용 가상 자산곡선(validate_portfolio 프레임, 배포 집합·사이징 고정, skip 제외·reduce 배율 반영) Calmar > current, 부트 우위 ≥0.60",
       "promotion": "primary·secondary 모두 통과 → ai_judge.MODE='veto' 전환 제안(실주문 변경이므로 사용자 결정). primary 만 통과 → 그림자 연장 3주. 둘 다 실패 → 그림자 종료·기록 유지, 재설계는 새 사전 등록",
-      "no_post_hoc": "프롬프트·특성·모델을 결과 본 뒤 바꾸면 그 시점부터 표본을 새로 센다(prompt_hash 가 갈라진 행은 같은 표본에 섞지 않는다)"
+      "no_post_hoc": "프롬프트·특성·모델을 결과 본 뒤 바꾸면 그 시점부터 표본을 새로 센다. **집계 키는 (model, prompt_version)** — prompt_hash 는 특성값까지 해시해 신호마다 다르므로 집계 키가 될 수 없다(2026-10-26 정정, 종전 문구 'prompt_hash 별' 은 오류). prompt_version 이 갈라진 행은 같은 표본에 섞지 않는다",
+      "report": "ai_judge_report.py(읽기 전용) 가 primary·필터 비율·표본 수·확신 보정표·실현 $ 간이 지표를 (model, prompt_version) 별로 계산해 _ai_judge_report.md 와 텔레그램으로 낸다 — 주간(ai_judge_report.yml schedule) + dispatch. secondary(veto 가상 자산곡선)는 OHLC 가 필요해 보고에 없고 승격 판단 시점에 별도 실행"
     },
     "prior": "낮다. 이 레포에서 AI(주관) 판단이 영점을 이긴 기록이 없다 — 엘리엇 채점 장부 누적 브리어 0.243 vs 무작위 보행 0.205(n=5); 외부 BitMEX 분석 가격 피처 방향 정확도 50~52%. 입력이 '차트 수치만' 이라 가격 파생 정보 밖의 것은 없다 — xsec_chars 24변수·regime_quality 가 그 축에 방향 정보가 거의 없음을 보였다. 다만 신호별 '손절에 걸릴 확률' 순위는 승률 변수(rvol20·bb_width·adx14 CANDIDATE)와 겹쳐 평균이 아닌 순위 정보가 있을 수 있다. 사전 확률 약 20%.",
     "known_limits": [
@@ -5934,14 +5935,61 @@
       "API 키 없음·HTTP 오류·파싱 실패는 error 로 기록하고 주문 경로는 무영향(fail-open 은 AI 레이어에만, 안전장치는 코드가 별도 보유)"
     ],
     "deploy_requires": [
-      "GitHub secrets ANTHROPIC_API_KEY 등록(사용자)",
-      "supabase_schema_ai_judge.sql 실행(사용자, GRANT 포함)"
+      "GitHub secrets ANTHROPIC_API_KEY 등록(사용자 — 2026-10-25 완료)",
+      "supabase_schema_ai_judge.sql 실행(사용자, GRANT 포함 — 2026-10-26 1차 실행 완료)",
+      "**2026-10-26 확장 컬럼(kind/prompt_version/entry_px/mark_*/unreal_ret/bars_held/live_mode/tokens_*) 추가분 재실행(사용자)** — 실행 전엔 insert_tolerant 가 그 컬럼을 제외해 kind/prompt_version 이 비고 보고가 v1 로 묶는다"
     ],
     "files": [
       "ai_judge.py",
-      "paper_executor.py(진입 루프)",
+      "paper_executor.py(진입 루프 + 1-c 청산 검토)",
       "supabase_schema_ai_judge.sql",
-      "test_ai_judge.py"
+      "test_ai_judge.py",
+      "ai_judge_report.py",
+      "test_ai_judge_report.py",
+      ".github/workflows/ai_judge_report.yml"
+    ],
+    "prompt_versions": {
+      "v1": "2026-10-23 ~ 2026-10-26 — prompt_version 컬럼이 없던 구 행(ai_judgments.prompt_version IS NULL). 특성 v1(수익률/ATR/거래량/RSI/MA/BTC·ETH/레짐/패턴 최근 성과). 키 등록 직후라 표본은 거의 없다 · **실제로는 기록된 판단이 0건** — temperature=0 으로 전 호출 http_400(production_finding_2026_10_26)",
+      "entry_v2_2026_10_26": "ai_judge.PROMPT_VERSION. 특성 v2 — 포트폴리오 맥락(book_rows/live/max/long/short/same_pattern/symbol_held) · 상위 TF 맥락(d1_ret_5/20·d1_rsi14·d1_ma50/200_dist — 4h/1h 신호에 **신호봉 마감 시점에 닫힌 일봉만**) · stop_atr · sym_recent_n/mean · bar_hour_utc · 시스템 프롬프트가 새 필드 설명. 표본은 이 버전부터 새로 센다(결과를 본 뒤의 변경이 아니다 — 2026-10-26 시점 v1 표본 0~수 건) · model claude-opus-5-5 / effort low / 샘플링 파라미터 없음"
+    },
+    "code_action_vocab_2026_10_26": "live / paper(실거래 미연결) / paper_kill_switch / paper_order_fail / slot_full / dup_live / cap_full / cap_pot_empty / size_skip / order_fail(cap) / not_entered(루프 중단) — '왜 실주문이 없었나' 를 평가에서 가른다(종전 live/paper/not_entered 셋)",
+    "production_finding_2026_10_26": "**실거래 첫 실측: 10/23~26 의 AI 호출은 전부 실패했다.** 10/26 00:00Z 로그 `[ai] GRASS vol_awakening_4h 판단 실패(http_400)`. 원인은 요청 본문의 temperature=0 — Claude 5.5 계열은 기본값 외 샘플링 값(temperature/top_p/top_k)에 400 을 돌려주고 API 버전 2026-10-21 부터는 어떤 값이든 400 이다(claude-api 스킬 drift 표). 종전 코드는 HTTP 코드만 남겨 원인을 못 봤다. 수정: 샘플링 파라미터 제거 + output_config.effort=low + max_tokens 4000(생각 토큰 포함) + HTTP 오류 본문의 type·message 기록 + 빈 답은 stop_reason(empty_max_tokens / refusal:<category>) 기록. 모델은 claude-opus-5-5 로 전환(스킬 기본값·2x 비용이나 월 수 달러 수준). 같은 실행에서 ai_judgments 테이블 미존재(PGRST205)도 보였으나 02:17Z 보고 워크플로가 0행을 정상 읽어 그 사이 SQL 1차 실행이 반영된 것으로 확인. 따라서 **그림자 표본은 이 PR 머지 뒤 첫 신호부터 시작**한다(v1 표본 0건)."
+  },
+  "ai_exit_prereg_2026_10_26": {
+    "status": "SHADOW_RECORDING",
+    "asked": "2026-10-26 사용자 지시 'AI 를 통해서 판단 및 매매 개선할 수 있는 항목들 개선해서 구현해' — 진입 판단 그림자(10/23)에 이어 청산 쪽을 같은 방식(기록 먼저)으로 연다",
+    "why_exit": "실거래 손실의 대부분은 −8% 손절이다(관찰 보고: marubozu 11건 중 손절 10 · 정지 구간 손절 7건 −$56). 레포의 규칙 기반 청산 변형은 열 번 기각됐다(E·F·G·H·T·R·X·ATR·D_time·time_prop) — 가격 규칙으로는 안 됐으니 '지금 상태' 를 보고 손절을 피할 수 있는지를 AI 에 물어 기록한다. 기대는 낮다",
+    "mechanism": "paper_executor.run 1-c: 느린 틱(scheduler --slow)에서만, 방식D 로 들고 있는 행(exit_spec 패턴·d_closed·진입봉 미특정 제외)을 ai_judge.judge_exits 가 **한 번의 배치 호출**로 hold/exit 판정. 특성 = 마크봉(마지막 행)까지의 수치 — unreal_ret·stop_dist·mfe/mae·bars_held/left·레짐 전환·ret/ATR/RSI/MA/거래량·BTC 동반·패턴 최근 성과. 기록 행 kind=exit, mark_ts/mark_px/unreal_ret/bars_held/live_mode 컬럼 · model claude-opus-5-5 / effort low / 샘플링 파라미터 없음",
+    "no_live_effect": "**어떤 모드에서도 주문·청산·포지션 수명에 닿지 않는다.** CLAUDE.md 원칙 ②(청산 집행은 코드) 그대로 — 실효를 주려면 원칙 개정 + 사용자 결정. test_ai_judge §10 이 '청산 검토 결과는 ai_records 에만 들어가고 주문·청산 코드가 읽지 않는다' 를 소스로 고정",
+    "evaluation_prereg": {
+      "unit": "검토가 한 번 이상 붙은 뒤 방식D 로 해소된 포지션. 포지션마다 **첫 exit 제안** 시점의 마크봉 종가 청산 가상 수익(unreal_ret − 수수료 0.2%)과 실제 방식D 수익의 차 = adv(exit). exit 제안이 한 번도 없던 포지션은 첫 검토 시점의 같은 양 = adv(hold-only) — 대조군",
+      "min_sample": "exit 제안이 붙은 해소 포지션 n≥40 또는 기록 시작 후 4주 중 늦은 쪽. exit 제안 비율이 검토 행의 5% 미만이면 '필터로 기능 안 함', 60% 초과면 '과잉 청산' 으로 기록",
+      "primary": "mean(adv|exit) ≥ +0.5%p AND mean(adv|exit) − mean(adv|hold-only) > 0, 월 블록 부트스트랩 1000회 p<0.10",
+      "secondary": "exit 제안 포지션 중 실제 방식D 가 손절로 끝난 비율 > hold-only 포지션의 손절 비율 (exit 제안이 손절을 골라내는가)",
+      "promotion": "primary·secondary 통과 → **기록 유지 + 사용자 보고**. 실거래 청산에 쓰려면 CLAUDE.md 원칙 ②(청산 집행은 코드) 개정이 먼저이고 그건 사용자 결정 — 이 사전 등록은 '효과가 있는가' 까지만 답한다. 실패 → 그림자 종료·기록 유지, 재설계는 새 사전 등록",
+      "no_post_hoc": "프롬프트·특성·모델을 바꾸면 EXIT_PROMPT_VERSION 을 올려 표본을 새로 센다. 첫 exit 제안 기준(마지막 제안·최선 제안 아님)은 결과 전에 고정",
+      "report": "ai_judge_report.exit_eval — 같은 보고 파일 §2"
+    },
+    "prior": "낮다(약 15%). 레포에서 '조기 청산' 변형은 전부 승자를 잘라 졌고(method_e/f/h/t/x), AI 입력도 같은 가격 파생 수치다. 다만 규칙과 달리 AI 는 포지션별로 '손절 임박' 패턴을 종합해 볼 수 있어, 효과가 있다면 secondary(손절 선별)에서 먼저 보일 것",
+    "known_limits": [
+      "가상 청산가는 마크봉 종가(형성 중인 봉일 수 있음) — 실체결 슬리피지 미반영이라 adv 는 낙관 상한",
+      "느린 틱 6회/일이라 1d 포지션은 하루 6번, 4h 포지션은 봉마다 한 번 검토된다 — 첫 exit 제안 시점 해상도가 4시간",
+      "배치 한 번에 MAX_EXIT_POS=20 — 넘치면 뒤쪽 행은 max_pos 로 미판단",
+      "포지션이 리뷰 뒤 reconcile(거래소 손절)로 닫히면 trades 의 exit_reason 라벨에 의존 — 2026-09-17 exit_reason_of 이후 라벨은 체결가 대조라 신뢰 가능",
+      "집계 키 (symbol, pattern, direction, entry_date) — 같은 날 같은 종목·패턴 재진입(4h) 은 첫 거래에 붙는다"
+    ],
+    "cost": "느린 틱마다 호출 1회(포지션 수와 무관) — 하루 6회, 월 수 달러 수준. 토큰 사용량은 tokens_in/out 컬럼으로 추적",
+    "deploy_requires": [
+      "supabase_schema_ai_judge.sql 재실행(2026-10-26 확장 컬럼 — 사용자)"
+    ],
+    "files": [
+      "ai_judge.py(exit_features/judge_exits/parse_batch)",
+      "paper_executor.py(1-c)",
+      "scheduler.py(run slow=)",
+      "ai_judge_report.py",
+      "test_ai_judge.py",
+      "test_ai_judge_report.py",
+      "supabase_schema_ai_judge.sql"
     ]
   }
 }

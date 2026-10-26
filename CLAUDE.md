@@ -2370,7 +2370,7 @@
   supabase_schema_ai_judge.sql. 핵심 원칙 '매매 결정은 결정론적 코드만' 개정(아래 핵심 원칙 참조).
   · **기전**: paper_executor 진입 루프에서 중복 방어 뒤·사이징 앞에 `ai_judge.judge()` — 신호봉까지의 수치 특성(1/5/20/60봉 수익률·
     ATR·거래량 비율·RSI·MA20/50/200 거리·60봉 위치·BTC/ETH 동반 수익·레짐·avg_cap·같은 패턴 최근 20건 실거래 성과)만 JSON 으로
-    넘겨 claude-sonnet-5-5 온도 0 이 take/reduce/skip + size_mult + confidence + reasons 를 돌려준다. **AI 는 거르거나 줄일 수만 있다**
+    넘겨 LLM 이 take/reduce/skip + size_mult + confidence + reasons 를 돌려준다(**모델·요청 형태는 10/26 교정** — 아래 확장 항목). **AI 는 거르거나 줄일 수만 있다**
     (size_mult 상한 1.0 코드 고정, 신호 생성·손절·청산·슬롯·중복 방어 불변 — test 가 통합 지점을 소스로 고정).
   · **현행 MODE="shadow"** — 판단을 `ai_judgments`(+positions.ai_decision/ai_size_mult/ai_confidence)에 기록만 하고 **주문은
     종전과 바이트 단위로 같다**(apply 가 shadow 에서 항상 1.0). veto 로 바꾸면 skip 은 실주문을 안 내고(페이퍼 행은 남겨 추적)
@@ -2383,6 +2383,37 @@
     **사전 확률 약 20%** — 입력이 가격 파생 수치뿐이라 xsec_chars·regime_quality 가 '방향 정보 거의 없음'을 보인 축이다.
   · **선결(사용자 실행)**: GitHub secrets `ANTHROPIC_API_KEY` 등록(없으면 매 실행 `[ai] ANTHROPIC_API_KEY 없음 — AI 판단 생략` 한 줄,
     거래 무영향) + `supabase_schema_ai_judge.sql` 실행(GRANT 포함 — perp_daily 교훈). 비용은 신호당 호출 1회, 월 수 달러 수준.
+- **AI 판단 레이어 확장 — 특성 v2 · 청산 검토(그림자) · 평가 보고 자동화 (2026-10-26, 사용자 지시 "AI 를 통해서 판단 및 매매
+  개선할 수 있는 항목들 개선해서 구현해")**: registry `ai_exit_prereg_2026_10_26` + `ai_judge_prereg_2026_10_23` 개정. **실거래 주문·청산·
+  사이징·슬롯 무변경** — 바뀐 것은 AI 가 보는 입력, AI 가 기록하는 대상, 그 기록을 집계하는 코드다.
+  · **진입 특성 v2(`PROMPT_VERSION=entry_v2_2026_10_26`)**: 포트폴리오 맥락(`book_*` — live 활성 수/상한 13/롱·숏 수/같은 패턴 수/같은
+    종목 보유), 상위 TF 맥락(`d1_*` — 4h/1h 신호에 **신호봉 마감 시점에 닫힌 일봉만**, `_align_closed` 가 ts+1d ≤ 마감시각으로 고정 →
+    형성 중인 일봉을 보면 룩어헤드), 손절 ATR 배수, 같은 종목 최근 5건 성과, 봉 시각. **prompt_version 컬럼 신설** — 종전 사전 등록의
+    'prompt_hash 별로 표본을 센다' 는 **오류**였다(해시에 특성값이 들어가 신호마다 다르다). 집계 키는 (model, prompt_version), 구 행은 v1.
+    키 등록 직후라 v1 표본은 0~수 건 — 결과를 본 뒤의 변경이 아니다.
+  · **청산 검토(그림자) `ai_judge.judge_exits`** — 느린 틱(scheduler `--slow` → `paper_executor.run(stamp, slow=)`)에서만 방식D 로 들고 있는
+    행(exit_spec 패턴·d_closed·진입봉 미특정 제외)을 **한 번의 배치 호출**로 hold/exit 판정해 `ai_judgments`(kind=exit, mark_px/unreal_ret/
+    bars_held/live_mode) 에 적는다. 특성은 마크봉(마지막 행)까지 — 미실현·손절 거리·mfe/mae·보유/잔여 봉·레짐 전환·상태 지표.
+    **어떤 모드에서도 주문에 닿지 않는다**(test_ai_judge §10: 결과는 ai_records 에만 들어가고 청산 코드가 읽지 않는다). 원칙 ②(청산 집행은
+    코드) 그대로 — 효과가 확인돼도 실효 부여는 원칙 개정 + 사용자 결정. 계기: 실거래 손실의 대부분이 −8% 손절인데 규칙 기반 청산 변형은
+    열 번 기각 → 규칙이 못 본 '지금 상태' 종합 판단에 정보가 있는지 기록으로 잰다. 사전 확률 약 15%.
+    평가(사전 등록): 포지션마다 **첫 exit 제안** 시점 '마크봉 종가 청산 가상 수익 − 0.2%' 와 실제 방식D 수익의 차 adv. primary mean(adv|exit)
+    ≥ +0.5%p AND > mean(adv|hold-only), 월 블록 부트 p<.10, n≥40 또는 4주. secondary exit 제안 포지션의 실제 손절률 > hold-only.
+  · **평가 보고 자동화 `ai_judge_report.py` + `ai_judge_report.yml`(주간 월요일 01:41Z + dispatch, 읽기 전용)** — 사전 등록 기준(진입 primary·
+    필터 비율 10~70%·n≥60 / 청산 primary·secondary)을 **코드가 계산**해 _ai_judge_report.md + 텔레그램으로 낸다. 사람이 표본·문턱을 고르지
+    않게 하는 장치. secondary(veto 가상 자산곡선)는 OHLC 가 필요해 승격 시점에 별도 실행. 구 행(prompt_version NULL)은 'v1' 그룹.
+  · **code_action 세분화** — 종전 live/paper/not_entered → slot_full / dup_live / cap_full / cap_pot_empty / size_skip / order_fail / kill_switch /
+    paper_order_fail / paper_kill_switch. '왜 실주문이 없었나' 를 평가에서 가른다. 토큰 사용량(tokens_in/out) 기록으로 비용 추적.
+  · **실거래 첫 실측 — 10/23~26 의 AI 호출은 전부 http_400 이었다(판단 0건 기록)**: 10/26 00:00Z 로그 `[ai] GRASS vol_awakening_4h
+    판단 실패(http_400)`. 원인은 요청의 `temperature: 0` — Claude 5.5 계열은 기본값 외 샘플링 값에 400, API 2026-10-21 부터는 어떤 값이든
+    400(claude-api 스킬 drift 표). 종전 코드는 HTTP 코드만 남겨 원인을 못 봤다. **수정**: 샘플링 파라미터 제거 · `output_config.effort=low` ·
+    max_tokens 4000(생각 토큰 포함) · HTTP 오류 본문 type·message 기록 · 빈 답은 `empty_<stop_reason>`/`refusal:<category>` 기록.
+    **모델 claude-sonnet-5-5 → claude-opus-5-5**(스킬 기본값, 비용 2x 지만 월 수 달러). '온도 0 결정론' 은 더 이상 성립하지 않는다 —
+    model·prompt_version·features 기록으로 추적. 같은 실행의 `ai_judgments` 미존재(PGRST205)는 02:17Z 보고 워크플로가 0행을 정상
+    읽어 사용자 SQL 1차 실행으로 해소 확인. **그림자 표본은 이 머지 뒤 첫 신호부터**(v1 표본 0건) — 승격 시계도 거기서 시작.
+  · **선결(사용자)**: `supabase_schema_ai_judge.sql` **재실행**(멱등 — 확장 컬럼 10개 alter). 실행 전까지 insert_tolerant 가 그 컬럼을
+    제외해 적재는 되지만 kind/prompt_version 이 비어 보고가 전부 v1 로 묶인다. 비용: 진입 신호당 1회 + 느린 틱당 배치 1회(≈6회/일).
+  · 테스트: test_ai_judge 59→120건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점) / test_ai_judge_report 46건(매칭·부트 결정론·판정 규칙) — tests.yml.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
@@ -2394,9 +2425,13 @@
     청산 변형 열 번째 기각(E·F·G·H·T·R·X·ATR·D_time 에 이어).
 
 ## 다음 할 일
-- [ ] **AI 판단 레이어 선결 2건 (사용자 실행)** — GitHub secrets `ANTHROPIC_API_KEY` 등록 · Supabase SQL Editor 에서
-      `supabase_schema_ai_judge.sql` 실행. 둘 다 되면 다음 틱부터 `[ai] shadow 판단 N건` 로그와 ai_judgments 적재 시작.
-      **3주 뒤(≈2026-11-13) 또는 해소 거래 60건** 에 승격 판정(registry ai_judge_prereg_2026_10_23)
+- [x] **AI 판단 레이어 선결 2건 (사용자 실행 완료)** — `ANTHROPIC_API_KEY` 등록(10/25) · `supabase_schema_ai_judge.sql` 1차 실행(10/26)
+- [ ] **AI 판단 레이어 확장 컬럼 — `supabase_schema_ai_judge.sql` 재실행 (사용자, 2026-10-26)** — kind/prompt_version/entry_px/mark_ts/
+      mark_px/unreal_ret/bars_held/live_mode/tokens_in/tokens_out 10개 alter(멱등). 확인 쿼리는 파일 끝.
+      실행 전까지 적재는 되지만 집계 키(kind·prompt_version)가 비어 보고가 v1 로 묶인다
+- [ ] **AI 판단 승격 판정 — 진입 ≈2026-11-16(머지 후 첫 기록 + 3주) 또는 해소 거래 60건 / 청산 검토 ≈2026-11-23(4주) 또는 exit 제안 해소 40건** —
+      ai_judge_report.yml 주간 보고(월요일) 또는 dispatch 로 표를 받고, 진입 primary 통과 시 secondary(veto 가상 자산곡선) 별도 실행 후
+      사용자 결정(registry ai_judge_prereg_2026_10_23 / ai_exit_prereg_2026_10_26). 청산 검토는 통과해도 기록 유지·보고까지 — 실효는 원칙 ② 개정
 - [x] **김치 프리미엄 사전 등록 결과 판독 완료 (2026-09-22, run 35744717876)** — 가족 X·T 주 판정 7셀 전부
       REJECTED, OOS 재현 0, 대조 0/5 → 판 VALID. 실거래 무변경
 - [ ] **kp_volshare(한국 거래 집중도) 별도 사전 등록 (사용자 결정)** — 김치 판의 **진단 셀**이 train(IC +0.080
@@ -2700,6 +2735,8 @@
   ② 손절 주문·청산 집행·사이징 상한(RISK_FRAC/LEV_CAP/MAX_POS)·킬스위치는 종전대로 코드가 정한다
   ③ **모든 AI 판단은 model·prompt_hash·입력 특성과 함께 기록**돼 사후 검증 가능해야 한다
   ④ 모드 전환(shadow→veto)은 사전 등록 기준(registry `ai_judge_prereg_2026_10_23`)을 채운 뒤 사용자 결정.
+  ⑤ (2026-10-26) 청산 검토 `ai_judge.judge_exits` 는 **기록 전용** — ② 에 따라 어떤 모드에서도 주문·청산에 닿지 않는다. 실효를 주려면
+  이 원칙 ② 를 먼저 개정해야 하고 그것은 사용자 결정이다(registry `ai_exit_prereg_2026_10_26`).
   엘리엇 브리핑 등 '관찰 전용' 산출물을 매매에 쓰지 않는다는 규칙은 그대로다 — 매매에 쓰는 AI 판단은 이 레이어 하나뿐이다.
 - 손절 주문 없으면 실거래 절대 안 됨
 
@@ -2794,6 +2831,10 @@
   바꿔 비교(current / cap4·6·8 / prio_edge / cohort20). 사이징·청산은 실거래 고정. 패턴 단독 C3 가 못 보는
   슬롯 경합이 대상. 사전 등록 registry portfolio_prereg_2026_09_10, DEPLOY_ON_PASS=False. test_portfolio.py
 - paper_executor.slot_occupancy / occupancy_txt: 슬롯 점유 패턴 분포 — 진단 출력 전용(2026-09-10)
+- ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).
+  특성 v2(book_*/d1_*/stop_atr), prompt_version 집계 키, 토큰 기록. 주문·거래소·스케줄러 import 없음(test 고정)
+- ai_judge_report.py / .github/workflows/ai_judge_report.yml: 그림자 기록의 사전 등록 기준 집계(읽기 전용, 주간 + dispatch, 텔레그램 요약)
+- supabase_schema_ai_judge.sql: ai_judgments 테이블 + positions ai_* 컬럼 + 2026-10-26 확장 컬럼 alter(멱등, GRANT 포함)
 - registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 + triple_bottom_1w suspended_lookahead → 배포 중
   1d×4(engulfing/fvg/ih/marubozu) + 4h×1(three_soldiers) + 1h×1(cascade))
 - regime_multi.py / method_m.py: 레짐 스케일(주봉/4h) 연구 — 기각 기록용. report_regime_scale.md

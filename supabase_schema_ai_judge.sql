@@ -25,7 +25,18 @@ create table if not exists public.ai_judgments (
     latency_ms    integer,
     error         text,
     features      text,                      -- 프롬프트에 넣은 수치(JSON) — 재현·사후 분석용
-    code_action   text                       -- live / paper / not_entered — 코드가 실제로 한 일
+    code_action   text,                      -- live / paper / paper_* / slot_full / dup_live / size_skip … — 코드가 실제로 한 일
+    -- 2026-10-26 확장 컬럼(아래 alter 와 같은 목록 — 새 설치는 여기서, 기존 설치는 alter 로 받는다)
+    kind          text,                      -- entry(진입 판단) / exit(청산 검토, 기록 전용)
+    prompt_version text,                     -- 표본 집계 키(ai_judge.PROMPT_VERSION / EXIT_PROMPT_VERSION)
+    entry_px      double precision,          -- 신호봉 종가(entry) / 포지션 진입가(exit)
+    mark_ts       bigint,                    -- exit: 마크봉 ts
+    mark_px       double precision,          -- exit: 마크봉 종가 — '지금 청산' 가상 체결가
+    unreal_ret    double precision,          -- exit: 마크 시점 미실현 수익률(방향 반영, 수수료 전)
+    bars_held     integer,                   -- exit: 보유 봉수
+    live_mode     boolean,                   -- exit: 실포지션 여부
+    tokens_in     integer,                   -- API 사용량(비용 추적)
+    tokens_out    integer
 );
 comment on table public.ai_judgments is
   '신호별 AI 판단 기록(ai_judge.py). shadow 에서는 주문 무영향. (symbol, pattern, direction, entry_ts) 로 positions/trades 와 대조.';
@@ -35,10 +46,24 @@ create index if not exists ai_judgments_judged_idx on public.ai_judgments (judge
 grant select, insert, update, delete on table public.ai_judgments to service_role;
 grant usage, select on sequence public.ai_judgments_id_seq to service_role;
 
+-- 2026-10-26 확장 — 이미 테이블을 만든 설치는 이 alter 들이 컬럼을 보강한다(멱등). 실행 전까지는
+-- insert_tolerant 가 해당 컬럼을 제외하므로 적재는 계속되지만 kind/prompt_version 이 비어 집계가 안 된다.
+alter table public.ai_judgments add column if not exists kind           text;
+alter table public.ai_judgments add column if not exists prompt_version text;
+alter table public.ai_judgments add column if not exists entry_px       double precision;
+alter table public.ai_judgments add column if not exists mark_ts        bigint;
+alter table public.ai_judgments add column if not exists mark_px        double precision;
+alter table public.ai_judgments add column if not exists unreal_ret     double precision;
+alter table public.ai_judgments add column if not exists bars_held      integer;
+alter table public.ai_judgments add column if not exists live_mode      boolean;
+alter table public.ai_judgments add column if not exists tokens_in      integer;
+alter table public.ai_judgments add column if not exists tokens_out     integer;
+create index if not exists ai_judgments_kind_idx on public.ai_judgments (kind, prompt_version);
+
 -- positions 에도 판단 요약 3컬럼 (없으면 insert_tolerant 가 자동 제외 — 있으면 결과 대조가 한 테이블로 끝난다)
 alter table public.positions add column if not exists ai_decision   text;
 alter table public.positions add column if not exists ai_size_mult  double precision;
 alter table public.positions add column if not exists ai_confidence double precision;
 
 -- 확인용
--- select decision, count(*) from public.ai_judgments group by 1;
+-- select kind, prompt_version, decision, count(*) from public.ai_judgments group by 1,2,3 order by 1,2,3;
