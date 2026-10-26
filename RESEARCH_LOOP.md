@@ -10,6 +10,14 @@
 **선결이 충족된 가장 높은 우선순위 항목 하나**를 고른다. 세션은 아래 7단계를 끝내거나, 러너 결과를 기다려야 하면
 `status=in_progress` 로 잠그고 메모를 남긴 뒤 끝난다(다음 사이클이 이어받는다).
 
+**세션 생성 경로(2026-10-26 실측)**: Claude Code Remote 예약 작업이 **직접** 만드는 세션에는 레포가 붙지 않는다
+(`sources: []`, 태그 `config:no-git-repo`) — 05:35Z·06:13Z 두 세션은 add_repo 지시까지 넣고도 30~40초 만에 끝났고 커밋 0.
+그래서 예약 작업은 지속 세션(**스포너**)에 자기 바인딩돼 있고, 스포너가 `create_session(source_url=레포, model=claude-sonnet-5-5,
+prompt=research_cycle_prompt.md 전문)` 으로 자식 세션을 띄운다(06:42Z 자식이 22분 만에 R-002 완주, PR #125).
+**자식 프롬프트의 원본은 `research_cycle_prompt.md`** — 바꾸려면 PR 로 바꾼다(스포너는 파일이 없을 때만 내장 폴백을 쓴다).
+스포너 프롬프트 사본은 `research_spawner_prompt.md`. 스포너 세션이 아카이브되면 어느 세션에서든 같은 자기 바인딩 예약 작업을
+다시 만든다(사본 그대로). 스포너는 자식이 2분 안에 죽고 커밋이 없을 때만 사용자에게 보고한다 — 정상 사이클의 보고는 자식의 마지막 메시지다.
+
 0. **잠금·선택** — `git fetch origin master && git checkout master && git pull`. backlog 에서 `status=ready` 이고
    `blocked_until` 이 지났고 `prerequisites` 가 충족된 항목 중 `priority` 가 가장 낮은 숫자(1=최우선)를 고른다.
    다른 세션이 36시간 안에 `in_progress` 로 잠근 항목은 건너뛴다. 고른 항목에 `status=in_progress`,

@@ -5,6 +5,8 @@ test_research_loop.py — 자율 연구 루프(2026-10-26) 장부 고정. 네트
      blocked 항목은 blocked_until 또는 prerequisites 가 있다 · 선결에 적힌 R-id 는 존재한다 · ready 항목이 최소 5개
   2. RESEARCH_LOOP.md 가 불변 조항(손절·사전 등록·사후 선택·사용자 결정 영역·deploy_on_pass)을 담고 있다
   3. CLAUDE.md 핵심 원칙에 탐구 자율권이 있고, tests.yml 이 이 테스트를 돌린다
+  4. 자식 세션 프롬프트 원본 research_cycle_prompt.md 가 있고 불변 조항·절차 참조를 담는다(2026-10-26 — 예약 작업이
+     직접 만든 세션엔 레포가 없어 스포너가 create_session 으로 띄운다; 프롬프트는 레포가 원본). 스포너 사본은 폴백에 원본 전문을 품는다
 """
 import io
 import json
@@ -54,6 +56,19 @@ for phrase in ("손절 주문 없으면 실거래 없음", "사전 등록 전에
 cl = io.open("CLAUDE.md", encoding="utf-8").read()
 check("CLAUDE.md 핵심 원칙에 탐구 자율권", "탐구 자율권" in cl and "RESEARCH_LOOP.md" in cl)
 check("tests.yml 에 test_research_loop", "test_research_loop.py" in io.open(".github/workflows/tests.yml", encoding="utf-8").read())
+
+# ── 4. 자식 세션 프롬프트 원본 ──────────────────────────────────────────────
+import os
+check("research_cycle_prompt.md 존재", os.path.exists("research_cycle_prompt.md"))
+cp = io.open("research_cycle_prompt.md", encoding="utf-8").read() if os.path.exists("research_cycle_prompt.md") else ""
+for phrase in ("손절 주문 없으면 실거래 없음", "사전 등록 전 결과 열람 금지", "사후 선택", "한 사이클에 가설 하나",
+               "RESEARCH_LOOP.md", "research_backlog.json", "신규 가설을 2개 이상", "사용자 결정", "질문하지 말고",
+               "결과를 보기 전에 쓴다"):
+    check(f"research_cycle_prompt.md: '{phrase}'", phrase in cp)
+check("RESEARCH_LOOP.md 가 세션 생성 경로(스포너·research_cycle_prompt.md)를 적는다", "research_cycle_prompt.md" in md and "스포너" in md)
+sp = io.open("research_spawner_prompt.md", encoding="utf-8").read() if os.path.exists("research_spawner_prompt.md") else ""
+check("research_spawner_prompt.md 폴백이 원본 전문을 그대로 품는다", bool(cp) and cp.strip() in sp)
+check("스포너는 create_session(source_url) 경로를 쓴다", "create_session" in sp and "source_url" in sp)
 
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)
