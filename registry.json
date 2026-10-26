@@ -6057,5 +6057,26 @@
       "as_of": "2026-10-26"
     },
     "limits": "엔진 청산 수익률은 체결가를 모를 때 봉 기준(예: 손절 -8.2%)이라 보정 달러도 추정. 레버리지 축만 바로잡았다."
+  },
+  "ts_top30_prereg_2026_10_26": {
+    "status": "PREREGISTERED",
+    "DEPLOY_ON_PASS": true,
+    "backlog": "R-003",
+    "registered": "2026-10-26 (결과 열람 전, 로컬 스모크 없음)",
+    "hypothesis": "three_soldiers_4h 를 전 종목(현행)에서 top30 코호트로 좁히면 걸러진 거래가 음수이고 포트폴리오 holdout Calmar 가 오른다.",
+    "cells": "validate_portfolio 프레임(1d 배포 6셀 라우팅 복제 + 4h adopted 4종) — arm current(three_soldiers 전 종목, bull 게이트) vs top30(three_soldiers 거래 중 turnover 순위 >=30 제거)",
+    "frozen": {
+      "top_n": 30,
+      "min_n": 10,
+      "f1_p": 0.9,
+      "boot": 2000,
+      "seed": 42,
+      "split": "2025-01-01",
+      "portfolio": "validate_portfolio 와 동일(MAX_POS·RISK·LEV·방식D·변동성타겟팅)"
+    },
+    "criteria": "F1 걸러진 거래 평균<0 & 월 블록 부트 P(<0)>=0.90 / F1b 걸러진 train·holdout 각각 <0 / F2 포트폴리오 holdout J1~J5 / F3 남는 거래 train·holdout 각각 >0. 전부 PASSED, n<10 만 실패 사유면 INCONCLUSIVE, 그 외 REJECTED",
+    "deploy_if_passed": "universe.json adopted_4h three_soldiers_4h 항목에 cohort:'top30' 한 줄(신호 집합 감소 방향). 다른 항목·paper_executor·scheduler 불변, detect_on_closed_bar 는 범위 밖(R-013)",
+    "prior": "PASSED 약 0.30. 근거: revival top30 bull_btc PASSED(n=84 +2.92%)/all REJECTED, exit_consistency 에서 all·BULL 국면 홀드아웃 n=92 -0.42%. 반대로 걸러진 거래가 음수라는 보장은 없고(regime 베이스라인 bp .165~.39 로 top30 도 약함), F1b·F3 가 holdout(bear 해)에서 동시에 요구돼 탈락 가능성이 크다",
+    "known_limits": "정적 end-of-data 순위(PIT 아님) / 4h 이력 약 2년이라 holdout 이 2025~26 bear 지배 / 포트폴리오는 달력 분할(frame_v3 국면 홀드아웃 아님 — validate_portfolio 프레임 고정) / 걸러진 거래는 bull 게이트 통과분만"
   }
 }
