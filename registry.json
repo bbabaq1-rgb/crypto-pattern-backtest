@@ -5960,7 +5960,8 @@
       "sql_backfill": "supabase_schema_ai_judge.sql 끝 update 3개(멱등) — 같은 규칙으로 DB 에 영구화",
       "prereg_unchanged": "기준·문턱·표본 정의 무변경. 적용 시점의 기록 행 0건(04:00Z 7행은 유실) — 결과를 본 뒤의 변경이 아니다",
       "test": "test_ai_judge_report §7 — 컬럼이 있을 때와 평가 결과 완전 일치 · 마커 키가 실제 특성에 존재·비중첩 · SQL 백필 어휘 일치"
-    }
+    },
+    "sql_applied_2026_10_26": "supabase_schema_ai_judge.sql 재실행 완료 — 사용자가 Supabase 커넥터를 거래 DB 조직(crypto-backtest)으로 재연결한 뒤 Claude 가 apply_migration(ai_judgments_extend_2026_10_26)으로 실행. ai_judgments 29컬럼, 기존 7행 kind/prompt_version 백필 확인."
   },
   "ai_exit_prereg_2026_10_26": {
     "status": "SHADOW_RECORDING",
@@ -6027,5 +6028,34 @@
     "known_limits": "풀링 자산곡선은 슬롯 경합을 7패턴 합산 단순 프레임으로 근사(validate_portfolio 프레임 아님) — arm 비교용 상대 지표로만 / 정적 top20·30 코호트 / 4h 이력 약 2년 / 재해 손절 15% 는 결과 전 고정 값(다른 폭 비교 안 함) / 같은 월·같은 시장 충격에서 신호가 상관돼 t 는 과대 — 월 블록 부트(P2)가 보정 / 거래소 재해 손절은 저가 체결 가정(갭 미반영, D 와 동일 낙관)",
     "deploy_path_note": "통과해도 적용 불가: 엔진 종가 손절 + 거래소 재해 손절 신규 집행 경로 필요(동작 불변 테스트 선행), 사용자 결정",
     "smoke_disclosure": "로컬에서 합성 데이터 테스트만 실행 — 실데이터 주 판정 수치 열람 없음"
+  },
+  "leverage_default_defect_2026_10_26": {
+    "status": "DEFECT_FOUND_FIXED",
+    "date": "2026-10-26",
+    "approved": "사용자 '이번에 변경되는것들 전부 목록화해줘 전부 승인' (2026-10-26)",
+    "found_while": "AI 판단 기록 SQL 을 Supabase 커넥터로 실행하려고 positions 스키마와 코드 경로를 점검하다 발견",
+    "what": "paper_executor 세 곳이 실거래 레버리지를 live_order 에서만 읽고 없으면 2배(엔진 D 청산 pnl_live_usd · 총 명목가 상한의 열린 노출) 또는 1배(settle_by_algo OCO 집행 손익)로 가정했다.",
+    "cause": "러너는 매 실행 DB 에서 포지션을 복원하는데 positions 에 leverage 컬럼이 없어 live_order 가 늘 유실됐다. 실제 레버리지는 2026-09-04 08:51Z(#17 LEV_CAP 2→3) 진입분부터 3배.",
+    "evidence": {
+      "engine_closes_implied_lev": "9/04 이후 진입 엔진 청산 실거래 74건 역산 레버리지(pnl/수익률/증거금) 1.953~2.097 — 전부 2배 기록",
+      "okx_side_implied_lev": "같은 기간 거래소 체결분(OKX 실손익) 주별 중앙값 2.87~2.97 (3배에서 수수료·슬리피지 차감)"
+    },
+    "impact": {
+      "records": "엔진이 닫은 거래(만기·레짐 전환·엔진 손절·tp1 엔진 익절)의 달러 손익이 실제의 2/3. 거래소 체결분은 정확. 10/22 관찰 보고 '+$1.61' 이 과소 — 보정 후 +$75.32.",
+      "risk_cap": "총 명목가 상한(equity x 2.5)이 열린 노출을 2/3 로 세어 실효 상한이 약 3.75배였다. 2026-09-18 결정 전제('13.3개에서 상한')가 성립하지 않았고 MAX_POS 13 이 먼저 걸려 왔다.",
+      "not_affected": "% 수익률·건수·손절 비율·daily_summary(페이퍼 pnl_usd)·9/04 이전 진입분(실제 2배)"
+    },
+    "fix": {
+      "code": "paper_executor.live_notional_of = size_usd x live_leverage_of(유실 시 LIVE_CAPS / sizing.LEV_CAP) 를 세 곳에 적용, '모르면 N배' 기본값 제거. 같은 계산에서 유령 행(D 청산 완료·A 만 남음)을 명목가 합계에서 제외(슬롯 계수 2026-09-08 결정 C 와 같은 기준). test_executor_safety +9",
+      "db_schema": "positions.qty / leverage / sl_order_id 추가 (migration positions_live_order_cols_2026_10_26 — supabase_schema_patch_2026_09 의 9/17 미적용분, 나머지 컬럼은 이미 존재). 새 포지션부터 live_order 복원",
+      "db_backfill": "supabase_fix_pnl_leverage_2026_10_26.sql — 대상 74건 pnl_live_usd x1.5, 합계 +143.48 → +215.22, id md5 243c6369c87f5e8b0dc5220eef1f20bd 보정 전후 일치, 2배 잔존 0. 멱등(2배 밴드 조건)"
+    },
+    "behavior_change": "총 명목가 상한이 설계대로 계산돼 열린 포지션이 많을 때 신규 진입이 종전보다 일찍 상한 스킵될 수 있다. 위험 상수(RISK_FRAC 1.5% · LEV_CAP 3 · MAX_POS 13 · 상한 2.5배)는 불변.",
+    "period_totals_after_fix": {
+      "entry_0906_1006_usd": 75.32,
+      "entry_1007_on_usd": -124.45,
+      "as_of": "2026-10-26"
+    },
+    "limits": "엔진 청산 수익률은 체결가를 모를 때 봉 기준(예: 손절 -8.2%)이라 보정 달러도 추정. 레버리지 축만 바로잡았다."
   }
 }

@@ -2345,6 +2345,9 @@
 - **1개월 실거래 관찰 보고 → marubozu·tp1 정지 (2026-10-22, 사용자 결정 "마루보주만 tp1 정지")**: observation_report.py
   (trades 읽기 전용 집계, run 39702141675). 관찰기간 진입(9/06~10/06) 실거래 방식D 97건 +0.97% 실현 **+$1.61**(정지 구간
   10/02~10/09 손절 7건 −$56.16 포함) / 재가동 후(10/09~) 38건 −2.28% **−$90.92**(bull_btc 레짐에서 vol_awakening −$31·tp1 −$29).
+  · **정정 (2026-10-26) — 위 달러 합계는 과소 기록이었다**: 엔진이 닫은 청산의 pnl_live_usd 가 레버리지 2배 가정으로 기록돼
+    실제(3배)의 2/3 였다(아래 '레버리지 기본값 결함' 항목). DB 보정 후 관찰기간 진입분 **+$1.61 → +$75.32**, 10/07 이후
+    진입분 −$124.45(2026-10-26 기준). % 수익률·건수·손절 비율과 그에 근거한 셀 판단은 영향 없음(레버리지 축만 틀렸다).
   · **marubozu 실거래 11건 중 수익 0건**(손절 10) → adopted_patterns → suspended_patterns. **tp1 누적 38건 −$40.76**, 승률 70~81%
     vs 손익분기 91% → adopted_1h_patterns → suspended_1h_patterns. 둘 다 **신규 진입만 정지** — 열린 포지션은 그대로 관리
     (marubozu 는 _pattern_tf 가 suspended 도 읽어 1d 유지, tp1 은 registry exit_spec·live_cap 유지로 OCO·cap 경로 보존).
@@ -2430,6 +2433,11 @@
       unreal_ret/bars_held 는 features(JSON) 폴백. 테스트가 '컬럼이 있을 때와 평가 결과가 완전히 같다'를 고정.
       ② SQL 끝에 같은 규칙의 **백필 update 3개**(멱등, `where … is null`) — 재실행하면 그 전 행도 DB 에서 영구 복원.
       ③ 사전 등록 기준·문턱·표본 정의는 무변경(기록 0건 상태에서의 장부 규칙 추가 — 결과를 본 뒤의 변경이 아니다).
+    · **해소 (2026-10-26 약 09:25Z)** — 사용자가 커넥터를 거래 DB 조직(crypto-backtest, `gvwbkapqxxseiopkanpq`)으로 재연결 →
+      Claude 가 apply_migration(`ai_judgments_extend_2026_10_26`)으로 실행. ai_judgments 29컬럼, 기존 7행 kind·prompt_version
+      백필 확인. **커넥터는 이제 crypto-backtest 조직만 본다**(Supabase 허가가 한 번에 한 조직 — NumPick 접근은 빠짐).
+      claude.ai 커넥터 설정에서 쓰기 도구는 '승인 필요' 유지, Pause project 는 차단 권고(거래 DB 일시정지 = pg_cron 발화·기록 전부 정지).
+      **자동 판정 주의**: 같은 세션의 positions 3컬럼 migration 은 auto 모드 분류기가 '운영 배포'로 1차 거절 → 사용자 명시 승인 뒤 통과.
   · 테스트: test_ai_judge 59→124건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점·DB 내성) / test_ai_judge_report 60건(매칭·부트 결정론·판정 규칙·확장 컬럼 없는 행 복원) — tests.yml.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
@@ -2474,19 +2482,42 @@
   기전은 상쇄: D 손절 3521건 중 일부 회복(-8.2→-7.27%)하나 종가 손절 평균 -9.6%(-8% 보다 깊음). 재해 손절 -15% 비용은 ≈0(nocat 차 +0.005%p).
   P5 자산곡선은 슬롯 범람 프레임(CAGR -40%)이라 무의미. 사전 확률(P1 0.20/전체 0.12) 방향 적중, 단일 셀 지배는 예상 못 함. 후속 R-020·R-021.
   validate_dclose.py / test_dclose.py / dclose.yml
+- **레버리지 기본값 결함 — 엔진 청산 달러 손익 2/3 기록 · 총 명목가 상한 느슨 → 수정·과거 보정 (2026-10-26, 사용자 승인
+  "이번에 변경되는것들 전부 목록화해줘 전부 승인")**: registry `leverage_default_defect_2026_10_26`. AI 기록용 SQL 을 실행하려고
+  positions 스키마와 코드 경로를 점검하다 발견.
+  · **결함**: paper_executor 세 곳이 레버리지를 live_order 에서만 읽고 없으면 **2배**(엔진 D 청산 pnl_live_usd · 총 명목가 상한의
+    열린 노출) 또는 **1배**(OCO 집행 확인 손익)로 가정했다. 러너는 매 실행 DB 에서 포지션을 복원하는데 positions 에 leverage
+    컬럼이 없어 live_order 가 늘 유실됐고, 실제 레버리지는 2026-09-04 08:51Z(#17) 진입분부터 **3배**다.
+  · **증거(DB)**: 9/04 이후 진입 엔진 청산 실거래 74건의 역산 레버리지(pnl ÷ 수익률 ÷ 증거금) **1.953~2.097, 전부 2배**.
+    같은 기간 거래소 체결분(OKX 실손익)은 주별 중앙 **2.87~2.97배**.
+  · **영향 ① 기록**: 엔진이 닫은 거래(만기·레짐 전환·엔진 손절·tp1 엔진 익절)의 달러 손익이 실제의 2/3. 거래소 체결분은 정확.
+    10/22 관찰 보고의 '+$1.61' 이 이 결함으로 작게 나왔다 — 보정 후 **+$75.32**. % 수익률·건수·손절 비율은 무관.
+  · **영향 ② 실거래 위험 계산**: 총 명목가 상한(자산 x 2.5)이 열린 노출을 실제의 2/3 로 세어 실효 상한이 약 3.75배였다.
+    2026-09-18 결정의 전제('건당 18.75% 라 13.3개에서 상한')가 성립하지 않았고 MAX_POS 13 이 먼저 걸려 왔다.
+  · **수정 3종**: ① 코드 — `paper_executor.live_notional_of`(= 증거금 x `live_leverage_of`, 유실 시 LIVE_CAPS·sizing.LEV_CAP)를
+    세 곳에 적용하고 '모르면 N배' 기본값 제거. 같은 계산에서 **유령 행(D 청산 완료·A 만 남음)을 명목가 합계에서 뺀다** —
+    실포지션이 없는 행이고 슬롯 계수는 2026-09-08 결정 C 로 이미 빼고 있다. test_executor_safety +9(복원 메인 행 3배 ·
+    cap 행 LIVE_CAPS · OCO 집행 손익 동작 · 기본값 잔존 금지 · 유령 행 제외). ② DB — positions.qty/leverage/sl_order_id 추가(supabase_schema_patch_2026_09 의 9/17 미적용분, 나머지
+    컬럼은 이미 있었다) → 새 포지션부터 live_order 가 복원돼 겹친 종목 청산 수량·배리어 행 OCO 가드·레버리지가 정확해진다.
+    ③ 과거 보정 — supabase_fix_pnl_leverage_2026_10_26.sql: 대상 74건 pnl_live_usd x1.5, 합계 +143.48 → +215.22, id 해시 보정 전후
+    일치, 2배로 남은 행 0. 멱등(2배 밴드 조건)이라 코드 머지 전 사이 기록분은 같은 파일 재실행으로 보정한다.
+  · **동작 변화(의도된 것)**: 총 명목가 상한이 설계대로 계산돼 **열린 포지션이 많을 때 신규 진입이 종전보다 일찍 상한 스킵**될 수
+    있다. 위험 상수(RISK_FRAC 1.5% · LEV_CAP 3 · MAX_POS 13 · 상한 2.5배)는 불변 — 계산만 바로잡았다. 그 외 진입·청산 규칙 불변.
+  · 한계: 엔진 청산 수익률이 체결가를 모를 때 봉 기준(예: 손절 −8.2%)이라 보정 달러도 추정이다. daily_summary 는 페이퍼
+    pnl_usd 를 써서 무관. 9/04 이전 진입분은 실제 2배라 대상 아님.
 
 ## 다음 할 일
+- [ ] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26)** — fast 10:03Z·daily 12:00Z 로그에 오류 없음 · `[live 사이징]` 정상 ·
+      새 진입의 positions 행에 qty/leverage/sl_order_id 기록 · `ai_judgments 스키마 미존재 컬럼 제외` 사라짐 ·
+      supabase_fix_pnl_leverage_2026_10_26.sql 재실행으로 머지 전 2배 기록분 0건(멱등)
 - [x] **자율 연구 루프 — 첫 사이클 결과 확인 (2026-10-26)** — 예약 작업 직접 세션 2회 실패(레포 미연결) → 스포너 경로로
       R-002 완주(MIXED, PR #125, 22분). 위 '자율 연구 루프' 항목의 '첫 사이클 실측' 참조
 - [ ] **스포너 2일차 확인 (2026-10-27 01:36 KST 발화)** — 스포너(이 세션)가 자식을 띄우고 25분 체크인이 잠금 커밋을 확인하는지.
       안 돌면 list_triggers 의 last_run 과 자식 get_session. 스포너 세션이 아카이브돼 있으면 `research_spawner_prompt.md` 전문으로
       자기 바인딩 예약 작업을 다시 만든다. R-020·R-021 이 priority 2 로 큐 최상단(R-001 은 priority 1 — 다음 사이클 예정)
 - [x] **AI 판단 레이어 선결 2건 (사용자 실행 완료)** — `ANTHROPIC_API_KEY` 등록(10/25) · `supabase_schema_ai_judge.sql` 1차 실행(10/26)
-- [ ] **AI 판단 레이어 확장 컬럼 — `supabase_schema_ai_judge.sql` 재실행 (사용자 또는 커넥터 재승인 후 Claude, 2026-10-26)** —
-      10개 alter + 백필 update 3개(전부 멱등). 확인 쿼리는 파일 끝. **Claude 가 대신 실행하려면 Supabase 커넥터에 거래 DB 조직
-      (`dyagijenawkywzqxmtgj`, crypto-bac…)이 포함돼야 한다 — 지금은 NumPick 조직만 보여 permission denied.**
-      실행 전까지 적재는 되고(10회 재시도) 보고도 kind/prompt_version 을 decision·특성에서 복원해 집계하므로 표본은 안 깨진다;
-      재실행은 그 복원을 DB 에 영구화하고 재시도를 없애는 일
+- [x] **AI 판단 레이어 확장 컬럼 — `supabase_schema_ai_judge.sql` 재실행 완료 (2026-10-26 약 09:25Z)** — 사용자가 Supabase
+      커넥터를 거래 DB 조직으로 재연결한 뒤 Claude 가 실행. ai_judgments 29컬럼, 기존 7행 백필 확인
 - [ ] **AI 판단 승격 판정 — 진입 ≈2026-11-16(머지 후 첫 기록 + 3주) 또는 해소 거래 60건 / 청산 검토 ≈2026-11-23(4주) 또는 exit 제안 해소 40건** —
       ai_judge_report.yml 주간 보고(월요일) 또는 dispatch 로 표를 받고, 진입 primary 통과 시 secondary(veto 가상 자산곡선) 별도 실행 후
       사용자 결정(registry ai_judge_prereg_2026_10_23 / ai_exit_prereg_2026_10_26). 청산 검토는 통과해도 기록 유지·보고까지 — 실효는 원칙 ② 개정
@@ -2642,10 +2673,8 @@
       실측 지연으로 재평가하니 1h 크론만으로 게이트 통과(+1.54%/median +0.31%)
 - [x] **크론 분리** (2026-09-01) — 매시 실행 + SLOW_TICK_HOURS 게이팅. 배포 패턴 무영향
 - [x] 캐스케이드 adopted_1h_patterns 등재 (2026-09-01, 사용자 승인) — registry deployed
-- [ ] **supabase_schema_patch_2026_09.sql 실행** (사용자, SQL Editor) — 실행 전까지 entry_ts/tf/
-      entry_regime 등이 복원 시 유실. **2026-09-17 에 qty/leverage/sl_order_id 3컬럼 추가** —
-      이게 없어 tp1 시장가 청산이 메인 레그까지 닫았다(ONDO). 코드는 지분 비율 폴백으로 안전하게
-      돌지만, 실행하면 계약 수를 정확히 알고 'OCO 이미 집행' 가드도 살아난다
+- [x] **supabase_schema_patch_2026_09.sql 실행 완료 (2026-10-26)** — 6+5 컬럼은 이미 있었고 9/17 추가분
+      positions.qty/leverage/sl_order_id 만 Claude 가 추가(사용자 승인). 새 포지션부터 live_order 복원
 - [x] **하모닉 5종 재검증 결과 판독** (2026-09-03) — 7셀 전부 인과 판 REJECT, triple_bottom_1w 도 정지
 - [ ] **UNI(triple_bottom 1w 롱) 처리** — 패턴은 정지, 포지션은 D 규칙대로 유지 중. 수동 청산 여부는 사용자 판단
 - [ ] **방식D 를 1d engulfing/fvg 외 배포 TF 에서 검증** (method_d 확장) — ih/marubozu/
@@ -2903,6 +2932,8 @@
 - ai_judge_report.py / .github/workflows/ai_judge_report.yml: 그림자 기록의 사전 등록 기준 집계(읽기 전용, 주간 + dispatch, 텔레그램 요약).
   kind_of/pv_of/col_or_feat 가 확장 컬럼 없이 적재된 행을 decision·features 에서 복원(2026-10-26)
 - supabase_schema_ai_judge.sql: ai_judgments 테이블 + positions ai_* 컬럼 + 2026-10-26 확장 컬럼 alter + 백필 update(멱등, GRANT 포함)
+- supabase_fix_pnl_leverage_2026_10_26.sql: 엔진 청산 pnl_live_usd 레버리지 보정(x1.5, 2배 밴드 조건이라 멱등) — 1차 74건(2026-10-26).
+  paper_executor.live_notional_of 가 실거래 명목가의 단일 원천(레버리지 유실 시 규격에서 복원)
 - registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 + triple_bottom_1w suspended_lookahead → 배포 중
   1d×4(engulfing/fvg/ih/marubozu) + 4h×1(three_soldiers) + 1h×1(cascade))
 - regime_multi.py / method_m.py: 레짐 스케일(주봉/4h) 연구 — 기각 기록용. report_regime_scale.md

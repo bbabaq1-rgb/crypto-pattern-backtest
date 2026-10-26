@@ -9,6 +9,7 @@
   - ensure_stop_orders(replace=): 살아있는 algo 를 취소하고 새 배리어로 재등록
   - place_swap_entry: 주문 재조회로 실제 평균 체결가 사용
   - 실거래 손익(pnl_live_usd) 기록 경로
+  - 실거래 명목가·손익의 레버리지 — 복원 행도 규격 레버리지(2026-10-26 결함 수정)
 
 실행: python test_executor_safety.py
 """
@@ -318,6 +319,45 @@ check("청산 라벨: 손익 부호가 어긋나면 배리어에 붙이지 않�
 check("청산 라벨 교정은 reason 문자열만 — reconcile 이 그 함수를 쓴다",
       "reason = exit_reason_of(pos, fill, hist.get(\"type\"))" in _src
       and 'hist.get("type") in ("2", "3", "5")' not in _src)
+
+# ── 실거래 명목가·손익의 레버리지 (2026-10-26 결함 수정, 사용자 승인 "전부 승인") ──────────────
+# 종전: 레버리지를 live_order 에서만 읽고 없으면 2배(엔진 D 청산 손익·총 명목가 상한) / 1배(OCO 집행
+# 확인 손익)로 가정. 러너는 매 실행 DB 에서 복원하는데 positions 에 leverage 컬럼이 없어 live_order 가
+# 늘 유실됐다 → 엔진 청산 pnl_live_usd 가 실제(3배)의 2/3, 총 명목가 상한은 열린 노출을 2/3 로 셈.
+import sizing as _sz
+_lev_main = float(_sz.LEV_CAP)
+_cap = pe.LIVE_CAPS.get("tp1_engulfing_1h") or {}
+_lev_cap = float(_cap.get("leverage") or 0)
+check("레버리지: live_order 에 값이 있으면 그것을 쓴다",
+      abs(pe.live_notional_of(dict(pattern="fvg", size_usd=20.0, live_order={"leverage": 5})) - 100.0) < 1e-9)
+check("레버리지: 복원돼 live_order 가 없는 메인 행은 규격(sizing.LEV_CAP)",
+      abs(pe.live_notional_of(dict(pattern="vol_awakening_4h", size_usd=20.0)) - 20.0 * _lev_main) < 1e-9)
+check("레버리지: 복원된 cap 행(tp1)은 LIVE_CAPS 레버리지",
+      _lev_cap > 0 and abs(pe.live_notional_of(dict(pattern="tp1_engulfing_1h", size_usd=70.0, live_order=None))
+                           - 70.0 * _lev_cap) < 1e-9)
+check("레버리지: 현행 규격이 2배가 아니면 복원 행이 2배로 세어지지 않는다(결함의 직접 재현)",
+      _lev_main == 2.0 or pe.live_notional_of(dict(pattern="fvg", size_usd=10.0)) != 20.0)
+check("레버리지: size_usd 가 없으면 0", pe.live_notional_of(dict(pattern="fvg")) == 0.0)
+check("레버리지: paper_executor 에 '모르면 N배' 기본값이 남지 않는다",
+      'get("leverage") or 2' not in src_pe and 'get("leverage") or 1' not in src_pe)
+check("레버리지: 세 지점이 모두 live_notional_of 를 쓴다(OCO 집행 손익·엔진 D 청산 손익·총 명목가 상한)",
+      "notional = live_notional_of(pos)" in src_pe
+      and "notional_ = live_notional_of(pos)" in src_pe
+      and "open_notional = sum(live_notional_of(p) for p in still_open" in src_pe)
+check("총 명목가 합계는 유령 행(D 청산 완료·A 만 남음)을 뺀다 — 슬롯 계수(2026-09-08 결정 C)와 같은 기준",
+      'if p.get("live_mode") and not p.get("d_closed"))' in src_pe.split("open_notional = sum(", 1)[1][:200])
+
+# 동작: 레버리지 없이 sl_order_id 만 복원된 tp1 행의 OCO 집행 → 손익이 규격 레버리지로 기록된다
+_orig_algo = ex_mod.algo_state
+ex_mod.algo_state = lambda conn, aid: {"state": "effective", "actual_px": 101.0, "actual_side": "tp"}
+_tr = []
+_pos = dict(symbol="SOL", pattern="tp1_engulfing_1h", direction="long", entry_price=100.0, entry_date="2026-10-26",
+            size_usd=70.0, live_mode=True, live_order={"sl_order_id": "algo-1"}, regime="bull_btc", tf="1h")
+_ok = pe.settle_by_algo(_pos, object(), _tr, "2026-10-26")
+ex_mod.algo_state = _orig_algo
+_pnl = (_tr[-1].get("pnl_live_usd") if _tr else None)
+check("레버리지 동작: OCO 집행 확인 손익 = 총수익 x 증거금 x 규격 레버리지(종전 1배)",
+      _ok and _pnl is not None and abs(_pnl - 0.01 * 70.0 * _lev_cap) < 1e-6, (_ok, _pnl))
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)

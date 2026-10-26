@@ -209,6 +209,21 @@ def live_leverage_of(pos):
         return 2.0
 
 
+def live_notional_of(pos):
+    """
+    이 행의 실거래 명목가 = 증거금(size_usd) x 실제 레버리지(live_leverage_of).
+
+    2026-10-26 결함 수정(사용자 승인 "전부 승인"): 종전 세 곳이 레버리지를 live_order 에서만 읽고
+    없으면 2배(엔진 D 청산 손익·총 명목가 상한) 또는 1배(OCO 집행 확인 손익)로 가정했다. 러너는 매
+    실행 DB 에서 포지션을 복원하는데 positions 에 leverage 컬럼이 없어 live_order 가 늘 유실됐고,
+    실제 레버리지는 2026-09-04 부터 3배다. 그래서 ① 엔진이 닫은 거래의 pnl_live_usd 가 실제의 2/3
+    로 기록됐고(거래소 체결분은 OKX 실손익이라 정확) ② 총 명목가 상한이 열린 노출을 2/3 로 세어
+    설계(2026-09-18 '13개 근처에서 상한')보다 느슨했다. live_leverage_of 는 유실 시 규격
+    (LIVE_CAPS / sizing.LEV_CAP)에서 되살리므로 세 곳 모두 이 함수를 쓴다.
+    """
+    return float(pos.get("size_usd") or 0) * live_leverage_of(pos)
+
+
 def close_qty_for(pos, positions):
     """
     D 청산 시 시장가로 닫을 몫. 같은 종목·방향을 다른 살아 있는 실거래 행이 함께 들면
@@ -266,7 +281,7 @@ def settle_by_algo(pos, live_conn, trades, today):
     else:
         reason = "atr_exchange"
     pos["entry_idx"] = pos.get("entry_idx", 0)
-    notional = float(pos.get("size_usd") or 0) * float(lo.get("leverage") or 1)
+    notional = live_notional_of(pos)          # 2026-10-26: 종전 '모르면 1배' → 규격 레버리지
     _record_trade(trades, pos, "D", (pos["entry_idx"], px, gross - FEE, reason), exit_date=today,
                   extra={"pnl_live_usd": round(gross * notional, 4) if notional else None})
     pos["d_closed"] = True
@@ -1172,8 +1187,7 @@ def run(stamp=None, slow=None):
                                 r = ((fill - base) / base if pos["direction"] == "long"
                                      else (base - fill) / base)
                                 ex = (ex[0], fill, r - FEE, ex[3])
-                            lo_ = pos.get("live_order") or {}
-                            notional_ = float(pos.get("size_usd") or 0) * float(lo_.get("leverage") or 2)
+                            notional_ = live_notional_of(pos)   # 2026-10-26: 종전 '모르면 2배' → 규격 레버리지
                             live_extra = {"pnl_live_usd": round(ex[2] * notional_, 2) if notional_ else None}
                             print(f"  [live] {pos['symbol']} {pos['direction']} D청산 실행 "
                                   f"({ex[3]}) fill={fill}")
@@ -1413,10 +1427,12 @@ def run(stamp=None, slow=None):
                 eq_now   = (bal_info or {}).get("equity") if isinstance(bal_info, dict) else None
                 eq_now   = float(eq_now or 0.0)
                 stop_pct = abs(entry - stop_px) / entry if entry else 0.0
-                # 이미 열린 실거래 포지션의 명목가 합 (총 노출 캡용)
-                open_notional = sum(
-                    float(p.get("size_usd") or 0) * float((p.get("live_order") or {}).get("leverage") or 2)
-                    for p in still_open if p.get("live_mode"))
+                # 이미 열린 실거래 포지션의 명목가 합 (총 노출 캡용). 2026-10-26: 레버리지를 모르면 2배로
+                # 세던 것을 규격 레버리지로 — 열린 노출을 실제의 2/3 로 세어 상한이 설계보다 느슨했다.
+                # 같은 날 D 청산이 끝난 유령 행(A 다리만 남음 — 실포지션 없음)도 뺀다. 슬롯 계수
+                # (live_open_count)는 2026-09-08 사용자 결정 C 로 이미 빼고 있어 같은 기준에 맞춘다.
+                open_notional = sum(live_notional_of(p) for p in still_open
+                                    if p.get("live_mode") and not p.get("d_closed"))
                 # 실주문 위험은 **등급·TF확증 배수 없이** equity x RISK_FRAC (2026-09-03).
                 # 앙상블 등급은 어떤 백테스트에도 근거가 없는 휴리스틱인데 단독 1d 신호가
                 # C(x0.7), 단독 4h/1h 신호가 D(x0.5) 로 나와 '위험 1%' 채택이 실제로는
