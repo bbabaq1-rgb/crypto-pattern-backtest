@@ -402,5 +402,39 @@ check("push_db: SQL 재실행 전 DB 에서도 entry·exit 행이 전부 기록�
       and len({tuple(sorted(r.keys())) for r in _store_cli.store}) == 1)
 check("push_db 는 max_drop=32 를 넘긴다(소스)", "insert_tolerant(cli, TABLE, rows, max_drop=32)" in open("ai_judge.py", encoding="utf-8").read())
 
+
+# ── 12. positions 에 AI 판단 요약 3컬럼이 실린다 (2026-10-26 12:00Z 실측: ADA·AAVE 행 ai_* 가 비어 있었다) ──
+class _PosQ:
+    def __init__(self, store=None, rows=None): self.store, self.rows = store, rows
+    def eq(self, *a): return self
+    def execute(self):
+        if self.rows is not None:
+            self.store.extend(self.rows)
+        class _R: pass
+        r = _R(); r.data = list(self.rows or []); return r
+class _PosT:
+    def __init__(self, store): self.store = store
+    def delete(self): return _PosQ()
+    def insert(self, rows): return _PosQ(self.store, rows)
+class _PosCli:
+    def __init__(self): self.store = []
+    def table(self, name): return _PosT(self.store)
+_pcli = _PosCli()
+_orig_db = pe._db
+pe._db = lambda: _pcli
+try:
+    n_pos = pe.push_positions_db([dict(
+        symbol="ADA", pattern="equal_lows_4h", direction="long", entry_date="2026-10-26", entry_price=0.2048,
+        stop=0.1885, size_usd=31.98, live_mode=True, entry_ts=1, tf="4h",
+        ai_decision="reduce", ai_size_mult=0.5, ai_confidence=0.55,
+        live_order={"qty": 4.6, "leverage": 3, "sl_order_id": "sl1"})])
+finally:
+    pe._db = _orig_db
+_prow = _pcli.store[0] if _pcli.store else {}
+check("push_positions_db 가 AI 판단 3컬럼을 싣는다(종전 누락)", n_pos == 1 and _prow.get("ai_decision") == "reduce"
+      and _prow.get("ai_size_mult") == 0.5 and _prow.get("ai_confidence") == 0.55, _prow)
+check("push_positions_db 의 live_order 3컬럼은 그대로", _prow.get("qty") == 4.6 and _prow.get("leverage") == 3
+      and _prow.get("sl_order_id") == "sl1" and _prow.get("method") == "AD-LIVE")
+
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)

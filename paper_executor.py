@@ -639,6 +639,10 @@ def push_positions_db(new_positions):
              "qty": (p.get("live_order") or {}).get("qty"),
              "leverage": (p.get("live_order") or {}).get("leverage"),
              "sl_order_id": (p.get("live_order") or {}).get("sl_order_id"),
+             # AI 판단 요약(2026-10-23 컬럼). 종전엔 포지션 dict 에만 있고 여기서 빠져 DB 행이 늘 비어 있었다
+             # (2026-10-26 12:00Z ADA·AAVE 실측). 평가는 ai_judgments 를 쓰므로 표시·대조용이다.
+             "ai_decision": p.get("ai_decision"), "ai_size_mult": p.get("ai_size_mult"),
+             "ai_confidence": p.get("ai_confidence"),
              "status": "open",
              "method": "AD-LIVE" if p.get("live_mode") else "AD"} for p in new_positions]
     try:

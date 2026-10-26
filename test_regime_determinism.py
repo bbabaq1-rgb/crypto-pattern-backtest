@@ -131,7 +131,11 @@ check("SQL: positions 컬럼 전부", need_pos <= {c for t, c in cols if t == "p
 check("SQL: trades 컬럼 전부", need_tr <= {c for t, c in cols if t == "trades"})
 # push 코드가 미는 키와 대조
 pos_keys = set(re.findall(r'"(\w+)": p\.get\("\w+"\)', src.split("def push_positions_db")[1].split("try:")[0]))
-check("positions push 키 ⊆ 기존 스키마 ∪ 패치", pos_keys <= need_pos | {"stop_loss", "size_usd"}, pos_keys)
+# AI 판단 요약 3컬럼은 supabase_schema_ai_judge.sql 이 positions 에 만든다(2026-10-26 push 누락 수정)
+ai_sql = open("supabase_schema_ai_judge.sql", encoding="utf-8").read()
+ai_pos = {c for t, c in re.findall(r"alter table (?:public\.)?(\w+) add column if not exists (\w+)", ai_sql) if t == "positions"}
+check("AI SQL: positions 판단 3컬럼", {"ai_decision", "ai_size_mult", "ai_confidence"} <= ai_pos, ai_pos)
+check("positions push 키 ⊆ 기존 스키마 ∪ 패치 ∪ AI 판단 컬럼", pos_keys <= need_pos | ai_pos | {"stop_loss", "size_usd"}, pos_keys)
 
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)
