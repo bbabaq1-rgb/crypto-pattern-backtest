@@ -99,8 +99,9 @@ def routed_in(label, direction, date, routing, regmap):
 realized_vol = sz.realized_vol      # 진입 봉까지만 보는 연율 실현변동성(인과적)
 
 
-def collect_all(syms):
+def collect_all(syms, outcome_fn=None):
     """[(entry_date, exit_date, ret, hold, pattern, sym, vol)] 시간순. vol=None 이면 스케일 1."""
+    outcome_fn = outcome_fn or mt.outcome_d      # R-021 훅 — None 이면 종전 동작
     out = []
     syms_for, routing, regmap, suspended = (routing_ctx() if ROUTING_MODE
                                             else (None, None, None, set()))
@@ -128,7 +129,7 @@ def collect_all(syms):
                 if ROUTING_MODE and not routed_in(label, direction, rows[si]["date"], routing, regmap):
                     n_routed_out += 1
                     continue
-                ret, hold, _ = mt.outcome_d(rows, si, direction, opp_set)
+                ret, hold, _ = outcome_fn(rows, si, direction, opp_set)
                 xi = min(si + hold, len(rows) - 1)
                 out.append((rows[si]["date"], rows[xi]["date"], ret, hold, label, sym,
                             realized_vol(rows, si, tf=tf)))
