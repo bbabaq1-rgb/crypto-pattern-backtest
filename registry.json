@@ -6261,5 +6261,33 @@
     "known_limits": "정적 end-of-data 코호트 순위(PIT 아님) / 4h 이력 약 2년 / 라벨 후행성(bull_btc 는 국면 끝자락에 몰림) / 구간 성과는 실현 손익 기준 자산곡선이라 보유 중 평가손 미반영 / 홀드아웃 구간이 2025~26 에 흩어진 비연속 일들 / 1h cascade·tp1 은 포트폴리오 프레임 밖 / 이 시험은 '지금 bull_btc 라벨이 알트 롱에 나쁘다'를 보지 레짐 라벨러 개선을 보지 않는다",
     "run": 40340912571,
     "result": "K1 holdout 제거 거래 n=2729 평균 +3.67% P(<0) .133 실패 / K5 부트 우위 1% 실패 / K6 무작위 제거 백분위 5% 실패 / K2·K3·K4 통과(arm 구간 로그수익 train +50.4% vs -25.8%, holdout -8.2% vs -72.6%) / K7 적격 4 중 음수 2. 사전 확률(PASSED 0.20, 예상 실패 K2) 방향 적중·실패 지점 오답. BTC 낙폭 버킷 진단은 detlib 키 오류('c')로 비어 있음. 실거래 무변경"
+  },
+  "lottery_gate_prereg_2026_10_26": {
+    "status": "PREREGISTERED",
+    "date": "2026-10-26",
+    "backlog": "R-001",
+    "DEPLOY_ON_PASS": false,
+    "계기": "자율 연구 R-001. 승률 문턱 35% 감사(2026-09-12)가 INCONCLUSIVE 로 끝났고 사용자가 '35% 유지, 10/06 이후 승률을 복권형 지표로 직접 대체하는 설계로 간다'(2026-09-15)고 결정. 10/26 현재 미착수였다.",
+    "가설": "gate.dist_ok 의 승률>=35% 를 (top5 기여도<=TOP5_MAX AND 절사평균>0) 로 바꾸면 복권형을 더 정확히 거르고 승률 31~34% 추세형 셀을 살린다. 근거 A1: rho(승률,절사갭) +0.786 / rho(승률,top5) −0.573 / rho(승률,Calmar) −0.183 — 승률은 복권형의 대리 변수.",
+    "프레임": "audit_winrate.main() 이 만든 셀 모집단(revival 후보 + 실거래/배포/관찰 셀, top30, 1d/4h, frame_v3 국면 홀드아웃)을 **그대로 재사용** — 새 셀을 고르지 않는다. 같은 행에서 승률 대신 L 게이트를 적용해 비교만 한다.",
+    "동결": {
+      "L_gate": "L_ok = (top5_share <= 0.50) AND (trimmed_mean(10%) > 0). 총이익<=0 이면 top5 None → L 탈락. 절사평균 = mean + trim_gap(감사 행 값).",
+      "TOP5_MAX": 0.5,
+      "TRIM_MIN": 0.0,
+      "격자_진단": "TOP5_MAX {0.40,0.50,0.60} — 판정에 안 쓰고 최대값 선택 금지",
+      "core_pop": "audit_winrate 행 중 core_fails 비어 있고(n·평균·boot_p·OOS) ho_mean 있는 셀 — 결과(홀드아웃)와 독립인 선별",
+      "full_pop": "other_fails(승률 외 전 층, C2b 는 승률 누수 제거판) 비어 있는 셀 — 'L 로 판정하면 CONFIRMED' 후보"
+    },
+    "판정": {
+      "P1": "core_pop 에서 L 통과 셀의 홀드아웃 건당 평균 − L 탈락 셀 평균 >= +1.0%p AND L 통과 평균 > 0 (각 그룹 셀 >=3)",
+      "P2": "core_pop 에서 L 통과 셀 홀드아웃 평균 >= 승률(v2) 통과 셀 평균 (그룹 셀 >=3)",
+      "P3": "새로 들어오는 셀(v2 탈락 ∧ L 통과 ∧ other_fails 없음) 수 >= 2, 서로 다른 패턴 >= 2, 홀드아웃 평균 > 0",
+      "verdict": "L_SUPPORTED = P1∧P2∧P3 / L_NOT_SUPPORTED = 표본이 충분(core_pop>=10, 두 그룹 >=3)한데 P1 또는 P2 실패 / INCONCLUSIVE = 그 외(표본 부족·P3 단일 패턴)",
+      "진단_병기": "A1 상관 재계산(L 두 지표 vs 홀드아웃 · 승률 vs 홀드아웃), 4분면(v2/L 통과 조합)별 셀 목록·홀드아웃·top5·절사평균, L 이 새로 거르는 셀(v2 통과 ∧ L 탈락)"
+    },
+    "사전_확률": "L_SUPPORTED 0.25. 근거: 승률 31~34% 로만 탈락한 셀이 사실상 triple_bottom_1d 한 패턴(독립 증거 1건)이라 P3 의 '서로 다른 패턴 2개'가 가장 취약하다. 또 L 의 절사평균>0 은 방식D −8% 손절 하에서 중앙값 근처 통계라 승률 31% 셀에서 음수가 될 수 있다(그러면 L 이 오히려 더 엄격). L_NOT_SUPPORTED 0.35 / INCONCLUSIVE 0.40.",
+    "known_limits": "모집단이 이미 선별을 거친 목록(감사와 동일) · 홀드아웃이 bear 지배 국면 · TOP5_MAX 0.50·절사 10% 는 내가 정한 값(최적화 아님 — 격자는 진단) · 셀 다수가 같은 패턴의 레짐 분해라 독립 표본이 셀 수보다 적다.",
+    "산출": "validate_lottery_gate.py / test_lottery_gate.py / .github/workflows/lottery_gate.yml / report_lottery_gate.md",
+    "문턱_변경": "**게이트 문턱 자체의 변경은 사용자 결정** — 이 시험은 설계·재실행·보고까지. gate.py 는 건드리지 않는다(테스트로 고정)."
   }
 }
