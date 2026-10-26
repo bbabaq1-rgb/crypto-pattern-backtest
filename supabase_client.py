@@ -58,18 +58,22 @@ def get_client(role="service"):
     return cli
 
 
-def insert_tolerant(cli, table, rows):
+def insert_tolerant(cli, table, rows, max_drop=8):
     """
     스키마 내성 INSERT: 테이블에 없는 컬럼(PGRST204)을 에러 메시지에서 파싱해
     해당 키를 제거하고 재시도한다. (예: positions.live_mode, signals.ensemble_grade
     컬럼 미존재로 insert 전체가 실패해 데이터가 유실되던 문제의 방어막)
+
+    max_drop: 제거 시도 상한(한 번에 한 컬럼씩 알려주므로 라운드트립 수). 기본 8 — 2026-10-26 ai_judgments
+    확장 컬럼 10개가 아직 없는 DB 에서 이 한도에 걸려 **AI 판단 7행이 통째로 유실**됐다(04:00Z 로그
+    '컬럼 제거 한도 초과'). 컬럼이 많이 늘어난 테이블의 호출자는 더 큰 값을 넘긴다.
 
     성공 시 (inserted_rows, dropped_columns) 반환, 실패 시 예외 전파.
     """
     import re
     rows = [dict(r) for r in rows]   # 원본 보호
     dropped = []
-    for _ in range(8):               # 최대 8개 컬럼까지 제거 시도
+    for _ in range(max_drop):        # 최대 max_drop 개 컬럼까지 제거 시도
         try:
             res = cli.table(table).insert(rows).execute()
             return (res.data or []), dropped

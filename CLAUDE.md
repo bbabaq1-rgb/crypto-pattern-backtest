@@ -2413,7 +2413,13 @@
     읽어 사용자 SQL 1차 실행으로 해소 확인. **그림자 표본은 이 머지 뒤 첫 신호부터**(v1 표본 0건) — 승격 시계도 거기서 시작.
   · **선결(사용자)**: `supabase_schema_ai_judge.sql` **재실행**(멱등 — 확장 컬럼 10개 alter). 실행 전까지 insert_tolerant 가 그 컬럼을
     제외해 적재는 되지만 kind/prompt_version 이 비어 보고가 전부 v1 로 묶인다. 비용: 진입 신호당 1회 + 느린 틱당 배치 1회(≈6회/일).
-  · 테스트: test_ai_judge 59→120건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점) / test_ai_judge_report 46건(매칭·부트 결정론·판정 규칙) — tests.yml.
+  · **머지 후 첫 틱(04:00Z) 실측 — AI 는 돌고 DB 가 막혔다**: `[ai-exit] 그림자 청산 검토 6건 — exit 1 hold 5 | exit 제안: ETH(inverted_hammer)` ·
+    `[ai] LINK equal_lows_4h long → reduce x0.5 (conf 0.55, 2769ms)`(근거가 d1_·book 7/13·sym_recent 등 v2 특성을 실제로 인용) — http_400 해소.
+    그러나 `ai_judgments 컬럼 제거 한도 초과` 로 **7행 전부 유실(DB+0)** — `insert_tolerant` 가 모르는 컬럼을 한 번에 하나씩 최대 **8개**까지만
+    빼는데 확장 컬럼이 **10개**라 사용자 SQL 재실행 전 DB 에서 구조적으로 실패했다. **수정**: `insert_tolerant(max_drop=)` 인자(기본 8 — 다른
+    호출자 불변) + `push_db` 가 32 로 호출. 테스트가 가짜 DB 로 '10개 미존재에서 기본 한도는 유실·32 는 기록' 을 고정. SQL 재실행 전까지는
+    틱마다 10회 재시도 뒤 기록되고(비용 무시 가능), 재실행하면 바로 1회.
+  · 테스트: test_ai_judge 59→124건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점·DB 내성) / test_ai_judge_report 46건(매칭·부트 결정론·판정 규칙) — tests.yml.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
