@@ -362,5 +362,45 @@ check("registry 청산 검토 사전 등록: status·primary·실효 조건(원�
 check("registry 진입 사전 등록에 prompt_version 이력", "prompt_versions" in reg and aj.PROMPT_VERSION in json.dumps(reg["prompt_versions"], ensure_ascii=False))
 check("CLAUDE.md 에 청산 검토·보고 반영", "청산 검토" in cl and "ai_judge_report" in cl)
 
+
+# ── 11. DB 기록 — 확장 컬럼 10개가 아직 없는 DB (2026-10-26 04:00Z 실측 결함) ───────────────
+import supabase_client as sc
+MISSING = ["kind", "prompt_version", "entry_px", "mark_ts", "mark_px", "unreal_ret", "bars_held", "live_mode", "tokens_in", "tokens_out"]
+class _FakeQ:
+    def __init__(self, store, rows): self.store, self.rows = store, rows
+    def execute(self):
+        for col in MISSING:                       # PostgREST 는 모르는 컬럼을 한 번에 하나씩만 알려준다
+            if any(col in r for r in self.rows):
+                raise Exception(f"{{'message': \"Could not find the '{col}' column of 'ai_judgments' in the schema cache\", 'code': 'PGRST204'}}")
+        self.store.extend(self.rows)
+        class _R: pass
+        r = _R(); r.data = list(self.rows); return r
+class _FakeT:
+    def __init__(self, store): self.store = store
+    def insert(self, rows): return _FakeQ(self.store, rows)
+class _FakeCli:
+    def __init__(self): self.store = []
+    def table(self, name): return _FakeT(self.store)
+_store_cli = _FakeCli()
+try:
+    sc.insert_tolerant(_store_cli, "ai_judgments", [dict(r5), xr[0]])
+    _default_ok = True
+except RuntimeError:
+    _default_ok = False
+check("insert_tolerant 기본 한도(8)로는 확장 컬럼 10개 미존재 DB 에서 유실된다(실측 재현)", not _default_ok and _store_cli.store == [])
+_store_cli = _FakeCli()
+ins, drp = sc.insert_tolerant(_store_cli, "ai_judgments", [dict(r5), xr[0]], max_drop=32)
+check("max_drop=32 면 10개를 제외하고 기록된다", len(ins) == 2 and set(drp) == set(MISSING) and len(_store_cli.store) == 2
+      and all(c not in _store_cli.store[0] for c in MISSING) and _store_cli.store[0]["decision"] == "reduce")
+_orig_av, _orig_gc = sc.available, sc.get_client
+_store_cli = _FakeCli()
+sc.available = lambda: True
+sc.get_client = lambda role="service": _store_cli
+n_pushed = aj.push_db([dict(r5), xr[0], xr[1]])
+sc.available, sc.get_client = _orig_av, _orig_gc
+check("push_db: SQL 재실행 전 DB 에서도 entry·exit 행이 전부 기록된다(키 집합 통일 포함)", n_pushed == 3 and len(_store_cli.store) == 3
+      and len({tuple(sorted(r.keys())) for r in _store_cli.store}) == 1)
+check("push_db 는 max_drop=32 를 넘긴다(소스)", "insert_tolerant(cli, TABLE, rows, max_drop=32)" in open("ai_judge.py", encoding="utf-8").read())
+
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)

@@ -576,12 +576,14 @@ def push_db(records):
         # entry/exit 행은 키 집합이 다르다 — PostgREST 벌크 insert 는 객체 키가 같아야 하므로 합집합으로 맞추고 빈 칸은 None.
         keys = sorted({k for r in records for k in r})
         rows = [{k: r.get(k) for k in keys} for r in records]
-        inserted, dropped = sc.insert_tolerant(cli, TABLE, rows)
+        # max_drop=32: 확장 컬럼 10개가 아직 없는 DB(사용자가 SQL 재실행 전)에서도 기록이 들어가야 한다.
+        # 기본 8 이면 10개째에서 RuntimeError 로 전부 유실된다(2026-10-26 04:00Z 실측 — 판단 7행 DB+0).
+        inserted, dropped = sc.insert_tolerant(cli, TABLE, rows, max_drop=32)
         if dropped:
-            print(f"  [ai] {TABLE} 스키마 미존재 컬럼 제외: {dropped}")
+            print(f"  [ai] {TABLE} 스키마 미존재 컬럼 제외 {len(dropped)}개: {dropped} — supabase_schema_ai_judge.sql 재실행 필요")
         return len(inserted)
     except Exception as e:
-        print(f"  [ai] {TABLE} 기록 실패(무시): {str(e)[:100]}")
+        print(f"  [ai] {TABLE} 기록 실패(무시): {str(e)[:300]}")
         return 0
 
 
