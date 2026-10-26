@@ -2522,6 +2522,10 @@
 - **three_soldiers_4h 코호트 all → top30 축소 REJECTED (2026-10-26, 자율 연구 R-003 수동 가속, run 40313502181)**: registry `ts_top30_prereg_2026_10_26` / report_ts_top30.md.
   validate_portfolio 프레임에서 three_soldiers 거래 중 순위≥30 을 제거한 arm 대 현행. **걸러진 135건은 음수가 아니라 +2.28%**(train +4.58% / holdout -0.79%), 월 블록 부트 P(평균<0)=0.116 로 F1 탈락. 포트폴리오 holdout Calmar current -0.64 vs top30 -0.80, J1·J2·J5 실패(J3 63%·J4 통과). 남는 101건 train +2.30% / holdout +0.88%.
   revival 의 'top30 PASSED / all REJECTED' 는 패턴 단독 프레임의 관찰이었고 포트폴리오에서는 순위 밖 거래가 오히려 양의 기여라 축소할 근거가 없다. 사전 확률 PASSED 0.30 — 탈락 쪽 경고 적중. **실거래 무변경, cohort 미추가.** 한계: 정적 순위·달력 분할. validate_ts_top30.py / test_ts_top30.py(18) / ts_top30.yml
+- **tp1_engulfing_1h 신규 진입 정지 (2026-10-26, 사용자 결정 "tp1 정지해줘")**: adopted_1h_patterns → suspended_1h_patterns,
+  registry status suspended_user. 실거래 누적 38건(9/10~10/21 청산) 수익 30건(79%)이나 평균 −0.505%·실현 −$39.54 — 손익분기 승률
+  91.11% 미달로 백테스트 6판의 음수 기대값 그대로(레짐별 bull_altseason n28 −0.28% / bull_btc n10 −1.14%). 10/22 재가동 뒤 청산 0건.
+  열린 SOL 1건(10/22 진입)은 exit_spec·live_cap 유지로 OCO(손절 96.62/익절 106.07)가 계속 관리한다. 재개는 사용자 결정.
 
 ## 다음 할 일
 - [x] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26 완료)** — fast 10:03Z·11:03Z·12:03Z, daily 12:00Z 전부 오류 없음 ·
@@ -2708,7 +2712,7 @@
 - [x] **v4 REJECTED 라우팅 셀 3 처리 → 사용자 결정 "현 상태에서 더 이상 끄지 않고 실거래로 1달 돌려본다" (2026-09-06)** —
       engulfing|bear 롱 / fvg|bull_altseason 롱 / three_soldiers_4h|bull_altseason 포함 배포 집합 전부 유지. 끄는 방법은 참고로 남김
       (direction_switch.ROUTING_OVERRIDES FLAT + adopted_4h regimes). **관찰 종료 2026-10-06** — ih/marubozu 관찰과 같은 날
-- [ ] **tp1_engulfing_1h $70(9/10 상향 전 $30) 강제 실행 대조 보고** — 진입 30건 또는 10-06: 실거래 승률·건당·수수료 합·포트 잔액 vs tp_1h(88.00% / −0.28%). 정지·충전은 사용자 결정
+- [x] **tp1_engulfing_1h $70(9/10 상향 전 $30) 강제 실행 대조 보고** — 진입 30건 또는 10-06: 실거래 승률·건당·수수료 합·포트 잔액 vs tp_1h(88.00% / −0.28%). **종료 (2026-10-26)** — 38건 79% 승·평균 −0.505%·−$39.54, 사용자 결정으로 정지
       · **1건차 (LTC 롱, 2026-09-11 02:03Z 청산) — 익절.** 거래소 OCO 가 +1% 에서 체결(fill 52.88, 진입 52.372).
         가격수익 **+0.976%**(익절선 52.896 대비 0.03% 미끄러짐) → 수수료 0.2% 차감 **+0.776%** ×3x = 포트 **+2.33%**.
         복리 포트 **70 → $71.63**(무슬리피지 이상치 71.68 대비 −$0.05). OKX 실현 +$1.80. 청산 감지는 settle_by_algo 가

@@ -111,16 +111,20 @@ check("체결엔진: 배리어·재정렬이 exit_barriers 공용 함수", src.c
 check("체결엔진: ±k×ATR 인라인 산식 제거(한 곳만 정의)", "spec.get(\"k_atr\", ilab.K_ATR) * atr" not in src)
 
 # ── 4. 등재 정합 ─────────────────────────────────────────────────────────────
-# 2026-10-22 정지 → 같은 날 사용자 결정 'tp1 은 다시 켜줘' 로 adopted_1h_patterns 복귀(이력은 suspension_history).
-check("tp1 은 suspended_1h 에 없음(2026-10-22 재가동)", PAT not in [a["pattern"] for a in uni.get("suspended_1h_patterns", [])])
-ap = next(a for a in uni["adopted_1h_patterns"] if a["pattern"] == PAT)
-check("정지·재가동 이력 기록", any(h.get("suspended") == "2026-10-22" and h.get("resumed") == "2026-10-22"
-                              for h in ap.get("suspension_history", [])))
+# 2026-10-22 정지 → 같은 날 재가동 → 2026-10-26 사용자 결정 'tp1 정지해줘' 로 다시 suspended_1h_patterns
+# (신규 진입만 정지 — 규격은 그대로 보존, 이력은 suspension_history).
+check("tp1 은 adopted_1h 에서 빠짐(2026-10-26 정지)", PAT not in [a["pattern"] for a in uni["adopted_1h_patterns"]])
+ap = next(a for a in uni["suspended_1h_patterns"] if a["pattern"] == PAT)
+check("정지 사유·날짜 기록", ap.get("suspended_date") == "2026-10-26" and "−$39.54" in ap.get("suspended_reason", ""))
+check("정지·재가동 이력 기록(10/22 정지·재가동 + 10/26 정지 미재개)",
+      any(h.get("suspended") == "2026-10-22" and h.get("resumed") == "2026-10-22" for h in ap.get("suspension_history", []))
+      and any(h.get("suspended") == "2026-10-26" and h.get("resumed") is None for h in ap.get("suspension_history", [])))
 check("universe: engulfing 디텍터 · 롱 · 1h · top20 · 닫힌 봉", ap["module"] == "detector_engulfing"
       and ap["direction"] == "long" and ap["tf"] == "1h" and ap["cohort"] == "top20" and ap["detects_on_closed_bar"] is True, ap)
 check("universe: 사용자 강제 표시 + 검증 미통과 근거 기록", ap.get("forced_by_user") is True and "REJECTED" in ap["deploy_basis"])
-check("registry: status forced_live_user(2026-10-22 재가동), 검증 미통과 명시", rp["status"] == "forced_live_user" and "REJECTED" in rp["validation"])
-check("exit_spec·live_cap 등재", PAT in pe.EXIT_SPECS and PAT in pe.LIVE_CAPS)
+check("registry: status suspended_user(2026-10-26 정지), 검증 미통과 명시",
+      rp["status"] == "suspended_user" and "REJECTED" in rp["validation"] and rp.get("suspended_2026_10_26"))
+check("정지 후에도 exit_spec·live_cap 유지 — 열린 포지션 관리 경로 보존", PAT in pe.EXIT_SPECS and PAT in pe.LIVE_CAPS)
 check("스케줄러·체결엔진이 같은 exit_spec 을 본다", set(sch._exit_specs()) == set(pe.EXIT_SPECS))
 check("_pattern_tf(tp1) == 1h (청산 평가 tf)", pe._pattern_tf(PAT) == "1h")
 ssrc = open("scheduler.py", encoding="utf-8").read()
@@ -149,7 +153,7 @@ legacy = ["engulfing", "fvg", "inverted_hammer", "marubozu", "three_soldiers_4h"
 check("기존 배포 패턴은 exit_spec/live_cap 없음", not [p for p in legacy if p in pe.EXIT_SPECS or p in pe.LIVE_CAPS])
 check("메인 사이징 상수(RISK 1.5% / LEV_CAP 3 / MAX_LIVE_POS 13, 2026-09-18) — tp1 은 이 값을 안 쓴다",
       sizing.RISK_FRAC == 0.015 and sizing.LEV_CAP == 3 and pe.MAX_LIVE_POS == 13)
-check("1h adopted 는 cascade + tp1 (2026-10-22 재가동)", [a["pattern"] for a in uni["adopted_1h_patterns"]] == ["cascade_fade_long_1h", PAT])
+check("1h adopted 는 cascade 하나뿐 (tp1 은 2026-10-26 정지)", [a["pattern"] for a in uni["adopted_1h_patterns"]] == ["cascade_fade_long_1h"])
 
 # ── 6. eval_I + pct 배리어 = 검증 프레임(tp_1h) 청산 ────────────────────────
 import validate_tp_1h as T

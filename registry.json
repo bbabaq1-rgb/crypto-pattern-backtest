@@ -920,7 +920,7 @@
       "id": "tp1_engulfing_1h",
       "name": "User-forced +1% take-profit scalp (engulfing 1h long, top20)",
       "category": "intraday",
-      "status": "forced_live_user",
+      "status": "suspended_user",
       "detector_file": "detector_engulfing.py",
       "passed_tf": null,
       "validation": "**검증 미통과 — 사용자 강제 실행(2026-09-09 '그냥 30달러만 강제 진행해볼수 있어?')**. tp_small(1d)·tp_1h(1h)·tp_regime(레짐) 세 판 전부 REJECTED: 1h 실측 승률 88.00% vs 손익분기 91.11%, 건당 −0.28%(≈왕복 수수료). 자율 반영 조항 밖 — 배포 근거가 아니라 사용자 결정 기록.",
@@ -980,7 +980,8 @@
         "live_change_2026_09_30": "tp1 진입 대상에 BTC 복귀 — 그 외 실거래 변경 없음"
       },
       "suspended_2026_10_22": "2026-10-22 사용자 결정 'tp1 정지' — 1개월 실거래 관찰: 누적 38건 −$40.76, 실거래 승률 70~81% vs 손익분기 91.11% (tp_1h 검증 REJECTED 예측대로). 신규 진입만 정지, 열린 포지션은 registry exit_spec(OCO ±1%/−8%)·live_cap 로 계속 관리.",
-      "resumed_2026_10_22": "2026-10-22 사용자 결정 'tp1 은 다시 켜줘' — 같은 날 정지(suspended_2026_10_22) 해제. adopted_1h_patterns 복귀, exit_spec·live_cap 무변경. 관찰 보고 대조(누적 38건 −$40.76)는 기록으로 유지."
+      "resumed_2026_10_22": "2026-10-22 사용자 결정 'tp1 은 다시 켜줘' — 같은 날 정지(suspended_2026_10_22) 해제. adopted_1h_patterns 복귀, exit_spec·live_cap 무변경. 관찰 보고 대조(누적 38건 −$40.76)는 기록으로 유지.",
+      "suspended_2026_10_26": "2026-10-26 사용자 결정 'tp1 정지해줘'. 근거: 실거래 누적 38건(9/10~10/21 청산, 방식D 실주문 다리) 중 수익 30건(79%)·평균 −0.505%·실현 −$39.54(레버리지 보정 후) — 손익분기 승률 91.11% 미달이고 백테스트 6판(tp_small·tp_1h·tp_regime·tp1_stop·tp1_grid·tp1_slots)의 음수 기대값과 같은 방향. 레짐별 bull_altseason n28 −0.28% / bull_btc n10 −1.14%. 10/22 재가동 뒤 청산 0건. **신규 진입만 정지** — universe.json adopted_1h_patterns → suspended_1h_patterns. exit_spec·live_cap 유지라 열린 SOL 1건(10/22 진입, OCO 손절 96.62/익절 106.07)은 그대로 관리된다."
     }
   ],
   "rejected_4h": [
