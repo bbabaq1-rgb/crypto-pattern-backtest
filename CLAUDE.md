@@ -2522,10 +2522,39 @@
 - **three_soldiers_4h 코호트 all → top30 축소 REJECTED (2026-10-26, 자율 연구 R-003 수동 가속, run 40313502181)**: registry `ts_top30_prereg_2026_10_26` / report_ts_top30.md.
   validate_portfolio 프레임에서 three_soldiers 거래 중 순위≥30 을 제거한 arm 대 현행. **걸러진 135건은 음수가 아니라 +2.28%**(train +4.58% / holdout -0.79%), 월 블록 부트 P(평균<0)=0.116 로 F1 탈락. 포트폴리오 holdout Calmar current -0.64 vs top30 -0.80, J1·J2·J5 실패(J3 63%·J4 통과). 남는 101건 train +2.30% / holdout +0.88%.
   revival 의 'top30 PASSED / all REJECTED' 는 패턴 단독 프레임의 관찰이었고 포트폴리오에서는 순위 밖 거래가 오히려 양의 기여라 축소할 근거가 없다. 사전 확률 PASSED 0.30 — 탈락 쪽 경고 적중. **실거래 무변경, cohort 미추가.** 한계: 정적 순위·달력 분할. validate_ts_top30.py / test_ts_top30.py(18) / ts_top30.yml
-- **tp1_engulfing_1h 신규 진입 정지 (2026-10-26, 사용자 결정 "tp1 정지해줘")**: adopted_1h_patterns → suspended_1h_patterns,
-  registry status suspended_user. 실거래 누적 38건(9/10~10/21 청산) 수익 30건(79%)이나 평균 −0.505%·실현 −$39.54 — 손익분기 승률
-  91.11% 미달로 백테스트 6판의 음수 기대값 그대로(레짐별 bull_altseason n28 −0.28% / bull_btc n10 −1.14%). 10/22 재가동 뒤 청산 0건.
-  열린 SOL 1건(10/22 진입)은 exit_spec·live_cap 유지로 OCO(손절 96.62/익절 106.07)가 계속 관리한다. 재개는 사용자 결정.
+- **tp1 정지 + 정지·시동 권한 위임 — 운용 점검(steward) 신설 (2026-10-26, 사용자 결정 "tp1 정지해줘 그리고 ai 한테 아예 정지 및
+  시동 권한을 일임해서 투자하고 싶어")**: registry `steward_rules_2026_10_26`. 핵심 원칙 '운용 위임' 참조.
+  · **tp1_engulfing_1h 신규 진입 정지** — adopted_1h_patterns → suspended_1h_patterns, registry status suspended_user.
+    실거래 누적 38건(9/10~10/21 청산) 수익 30건(79%)이나 평균 −0.505%·실현 −$39.54 — 손익분기 승률 91.11% 미달로
+    백테스트 6판의 음수 기대값 그대로. 레짐별 bull_altseason n28 −0.28% / bull_btc n10 −1.14%. 10/22 재가동 뒤 청산 0건이고
+    열린 SOL 1건(10/22 진입)은 exit_spec·live_cap 유지로 OCO(손절 96.62/익절 106.07)가 계속 관리한다.
+  · **위임 범위**: 배포 단위(패턴·패턴×레짐 셀)의 신규 진입 정지·재개·신규 배포, 전체 신규 진입 정지(trading_halt)와 해제,
+    AI 판단 veto 전환을 에이전트가 사용자 확인 없이 집행. **사용자에게 남는 것**: 위험 수준(RISK_FRAC/LEV_CAP/MAX_POS/
+    EQUITY_FLOOR·live_cap) · 열린 포지션 수동 청산 · 자금 이동 · 게이트 문턱 · 원칙 ②(AI 청산 실효). 정지는 늘 **신규 진입만** 막는다.
+  · **규칙(결과 전에 적은 판정만 집행)** — S1 미확인(U 등급)+실거래 n≥10·평균<0 / S2 등급 무관 n≥20·평균<0·28일 이상·
+    주 클러스터 부트 P(평균≥0)<.05 / S3 실행 결함 즉시 / S4 10/26 이후 사전 등록 재검증 REJECTED+OOS 음수(실거래 n≥20·양수면 보류).
+    재개 R1 확인 시험 통과(2026-09-05 규칙) / R2 정지 이후 데이터를 포함한 재시험 통과로만(사용자 강제 전략은 R1 없이 재개 안 함) /
+    R3 ai_judge 사전 등록 기준 충족 시 veto. 전체 정지 H 는 손절 보장이 깨지는 운용 결함에만 — **낙폭 기반 자동 정지는 근거가
+    없어(R-010 미시험) 규칙에 넣지 않았다.** V(확인) 등급은 triple_bottom_4h·vol_awakening_4h(guard_v5)·cascade(cascade_realistic)뿐.
+  · **왜 규칙인가**: 권한은 AI 에게 넘기되 판정은 재량이 아니라 사전 등록 규칙으로 — AI 주관 판단이 영점을 이긴 증거가 아직 없고,
+    규칙이면 정지가 언제 왜 일어났는지 재현된다. 규칙을 고치는 것도 에이전트 몫이지만 새 판을 registry 에 쓰고 이후 데이터에만
+    적용한다(소급·특정 전략 겨냥 금지).
+  · **장치**: `steward.py`(읽기 전용 — trades 실거래 방식D·universe·direction_switch 로 S1·S2 판정, 패턴 층 표본은 '지금 켜진
+    레짐'의 거래만) + `steward.yml`(매일 16:13Z + dispatch, 발동 시 텔레그램) + 자율 연구 사이클 0단계 '운용 점검'(최신 실행을
+    읽어 발동 조치를 PR 로 집행) + `paper_executor.trading_halt_state()`(universe.json `trading_halt` — 킬스위치 경로 재사용,
+    파싱 실패 fail-closed, 현재 꺼짐). test_steward.py(59) · test_executor_safety +13.
+  · **판정 전달 경로 = check-run 주석**: 자식 세션의 gh 는 잡 로그 다운로드(외부 저장소 리다이렉트)를 거부한다. 그래서
+    steward 는 판정을 `::warning title=steward S1::…`/`::notice title=steward 발동 없음::…` 으로, 체결 엔진은 손절 등록 실패·손절
+    재등록을 `::warning title=ops …::` 로 찍고(`paper_executor.ops_annotation`, 출력 전용·Actions 안에서만) 세션은
+    `check-runs/{job id}/annotations` 로 읽는다. 첫 실DB 실행(run 40336389774)이 오프라인 판정과 같았다 — 발동 1건 inverted_hammer S1.
+  · **첫 적용(맹검 아님 — 규칙을 쓰기 전에 실거래 표를 봤다)**: 오프라인 실행에서 S1 **tp1**(n38 −0.51%, 이미 정지)·
+    **inverted_hammer**(n17 −0.73%, 등급 U — v4 REJECTED·exit_consistency bp .69) 발동. 10/22 사용자가 ih 를 유지했던 결정을
+    위임 규칙이 뒤집는 것이라 그 사실을 기록한다. vol_awakening_4h(V)는 패턴 n45 −0.21% P .44 로 미발동, bull_btc 셀 n14 −6.33% 는 n<20.
+    fvg 롱은 켜진 레짐(bull_btc) 표본이 n5 라 미발동(꺼진 altseason 12건은 세지 않는다).
+  · **승인 경위**: 첫 커밋을 자동 권한 검사가 '에이전트가 자기 권한을 넓히는 변경'으로 막아 tp1 정지만 먼저 반영했고(PR #133),
+    위임 범위·규칙·사용자 몫·첫 조치(inverted_hammer 정지)를 설명한 뒤 사용자가 '위임 진행'을 선택해 반영했다(같은 날, 요청도 재전송).
+  · **관찰(규칙 밖)**: 10/10 bull_btc 전환 이후 알트 롱 실거래 40건 평균 약 −5.4%(vol_awakening 1/14 승, fvg 0/5, triple_bottom_4h 1/4,
+    three_soldiers 0/3, tp1 −1.14%) — 한 국면(약 2주)이라 패턴별 규칙은 대부분 미발동. 레짐 단위 가설은 사전 등록 시험 **R-060** 으로 판정한다.
 
 ## 다음 할 일
 - [x] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26 완료)** — fast 10:03Z·11:03Z·12:03Z, daily 12:00Z 전부 오류 없음 ·
@@ -2539,12 +2568,16 @@
 - [ ] **스포너 2일차 확인 (2026-10-27 01:36 KST 발화)** — 스포너(이 세션)가 자식을 띄우고 25분 체크인이 잠금 커밋을 확인하는지.
       안 돌면 list_triggers 의 last_run 과 자식 get_session. 스포너 세션이 아카이브돼 있으면 `research_spawner_prompt.md` 전문으로
       자기 바인딩 예약 작업을 다시 만든다. R-020·R-021 이 priority 2 로 큐 최상단(R-001 은 priority 1 — 다음 사이클 예정)
+- [x] **tp1 정지 + 정지·시동 권한 위임 (2026-10-26)** — 위 '현재 상태' 항목. steward 첫 집행(inverted_hammer S1)은 steward.yml
+      첫 실행 결과로 별도 PR — 규칙 머지 → 판정 → 집행 순서를 기록으로 남기기 위해서다
+- [ ] **R-060 bull_btc 레짐 알트 롱 사전 등록 시험** — 10/10 이후 실거래 알트 롱 40건 평균 약 −5.4%(한 국면). 레짐 단위 정지는
+      패턴별 규칙(S1·S2)으로 안 잡히므로 포트폴리오 프레임 사전 등록으로 판정하고, 통과하면 R1 로 집행
 - [x] **AI 판단 레이어 선결 2건 (사용자 실행 완료)** — `ANTHROPIC_API_KEY` 등록(10/25) · `supabase_schema_ai_judge.sql` 1차 실행(10/26)
 - [x] **AI 판단 레이어 확장 컬럼 — `supabase_schema_ai_judge.sql` 재실행 완료 (2026-10-26 약 09:25Z)** — 사용자가 Supabase
       커넥터를 거래 DB 조직으로 재연결한 뒤 Claude 가 실행. ai_judgments 29컬럼, 기존 7행 백필 확인
 - [ ] **AI 판단 승격 판정 — 진입 ≈2026-11-16(머지 후 첫 기록 + 3주) 또는 해소 거래 60건 / 청산 검토 ≈2026-11-23(4주) 또는 exit 제안 해소 40건** —
       ai_judge_report.yml 주간 보고(월요일) 또는 dispatch 로 표를 받고, 진입 primary 통과 시 secondary(veto 가상 자산곡선) 별도 실행 후
-      사용자 결정(registry ai_judge_prereg_2026_10_23 / ai_exit_prereg_2026_10_26). 청산 검토는 통과해도 기록 유지·보고까지 — 실효는 원칙 ② 개정
+      **에이전트 집행(2026-10-26 운용 위임 R3)**(registry ai_judge_prereg_2026_10_23 / ai_exit_prereg_2026_10_26). 청산 검토는 통과해도 기록 유지·보고까지 — 실효는 원칙 ② 개정(사용자)
 - [x] **김치 프리미엄 사전 등록 결과 판독 완료 (2026-09-22, run 35744717876)** — 가족 X·T 주 판정 7셀 전부
       REJECTED, OOS 재현 0, 대조 0/5 → 판 VALID. 실거래 무변경
 - [ ] **kp_volshare(한국 거래 집중도) 별도 사전 등록 (사용자 결정)** — 김치 판의 **진단 셀**이 train(IC +0.080
@@ -2712,7 +2745,7 @@
 - [x] **v4 REJECTED 라우팅 셀 3 처리 → 사용자 결정 "현 상태에서 더 이상 끄지 않고 실거래로 1달 돌려본다" (2026-09-06)** —
       engulfing|bear 롱 / fvg|bull_altseason 롱 / three_soldiers_4h|bull_altseason 포함 배포 집합 전부 유지. 끄는 방법은 참고로 남김
       (direction_switch.ROUTING_OVERRIDES FLAT + adopted_4h regimes). **관찰 종료 2026-10-06** — ih/marubozu 관찰과 같은 날
-- [x] **tp1_engulfing_1h $70(9/10 상향 전 $30) 강제 실행 대조 보고** — 진입 30건 또는 10-06: 실거래 승률·건당·수수료 합·포트 잔액 vs tp_1h(88.00% / −0.28%). **종료 (2026-10-26)** — 38건 79% 승·평균 −0.505%·−$39.54, 사용자 결정으로 정지
+- [x] **tp1_engulfing_1h $70(9/10 상향 전 $30) 강제 실행 대조 보고** — 진입 30건 또는 10-06: 실거래 승률·건당·수수료 합·포트 잔액 vs tp_1h(88.00% / −0.28%). **종료 (2026-10-26)** — 38건 79% 승·평균 −0.505%·−$39.54, 사용자 결정으로 정지(위 '현재 상태')
       · **1건차 (LTC 롱, 2026-09-11 02:03Z 청산) — 익절.** 거래소 OCO 가 +1% 에서 체결(fill 52.88, 진입 52.372).
         가격수익 **+0.976%**(익절선 52.896 대비 0.03% 미끄러짐) → 수수료 0.2% 차감 **+0.776%** ×3x = 포트 **+2.33%**.
         복리 포트 **70 → $71.63**(무슬리피지 이상치 71.68 대비 −$0.05). OKX 실현 +$1.80. 청산 감지는 settle_by_algo 가
@@ -2845,7 +2878,8 @@
   단 ① 신호는 코드(디텍터)가 내고 AI 는 그것을 **거르거나 줄일 수만** 있다 — 신호를 만들거나 크기를 키우지 못한다(size_mult ≤ 1.0 코드 고정)
   ② 손절 주문·청산 집행·사이징 상한(RISK_FRAC/LEV_CAP/MAX_POS)·킬스위치는 종전대로 코드가 정한다
   ③ **모든 AI 판단은 model·prompt_hash·입력 특성과 함께 기록**돼 사후 검증 가능해야 한다
-  ④ 모드 전환(shadow→veto)은 사전 등록 기준(registry `ai_judge_prereg_2026_10_23`)을 채운 뒤 사용자 결정.
+  ④ 모드 전환(shadow→veto)은 사전 등록 기준(registry `ai_judge_prereg_2026_10_23`)을 채운 뒤 **에이전트가 집행**한다
+  (2026-10-26 운용 위임 R3 — 종전 '사용자 결정'에서 변경, 아래 '운용 위임' 참조).
   ⑤ (2026-10-26) 청산 검토 `ai_judge.judge_exits` 는 **기록 전용** — ② 에 따라 어떤 모드에서도 주문·청산에 닿지 않는다. 실효를 주려면
   이 원칙 ② 를 먼저 개정해야 하고 그것은 사용자 결정이다(registry `ai_exit_prereg_2026_10_26`).
   엘리엇 브리핑 등 '관찰 전용' 산출물을 매매에 쓰지 않는다는 규칙은 그대로다 — 매매에 쓰는 AI 판단은 이 레이어 하나뿐이다.
@@ -2858,6 +2892,14 @@
   에이전트가 집는다. **사용자 결정으로 남는 것은 종전과 같다**: 위험 수준 · 수동 청산 · 자금 이동 · 게이트 문턱 · 원칙 ②(AI 청산 실효).
   그 영역의 시험도 돌리고 보고까지 하되 적용하지 않는다. 자율 반영 규칙(2026-09-05)·사전 등록·사후 선택 금지·손절 불변은 그대로다 —
   바뀐 것은 **누가 다음 가설을 고르느냐** 하나다. test_research_loop.py 가 backlog 스키마·불변 조항·자식 프롬프트 원본을 고정.
+- **운용 위임 — 정지·시동 (2026-10-26, 사용자 결정 "ai 한테 아예 정지 및 시동 권한을 일임해서 투자하고 싶어")**:
+  배포 단위의 **신규 진입 정지·재개·신규 배포**, **전체 신규 진입 정지(trading_halt)·해제**, **AI 판단 veto 전환**은 에이전트가
+  사용자 확인 없이 집행한다. 판정은 registry `steward_rules_2026_10_26` 의 사전 등록 규칙(S1~S4·R1~R3·H)으로만 하고 — 그날의
+  재량이 아니다 — 집행마다 PR·registry·CLAUDE.md 기록과 한 줄 보고(자율 사이클의 마지막 메시지)를 남긴다. 매일의 판정은
+  `steward.py`/`steward.yml` 이 내고 자율 연구 사이클 0단계가 집행한다(RESEARCH_LOOP.md). 규칙을 바꿀 때는 새 판을 쓰고 이후 데이터에만
+  적용한다. **사용자에게 남는 것**: 위험 수준(RISK_FRAC/LEV_CAP/MAX_POS/EQUITY_FLOOR·live_cap 증거금) · 열린 포지션 수동 청산 ·
+  자금 이동 · 게이트 문턱 · 원칙 ②(AI 청산 실효). 정지는 신규 진입만 막는다 — 열린 포지션은 각자의 청산 규칙대로 끝까지 간다.
+  위 '자율 반영 권한'의 '사용자 결정으로 남는 것' 목록은 이 범위로 읽는다(정지·재개는 이제 에이전트 몫).
 - 손절 주문 없으면 실거래 절대 안 됨
 
 ## 주요 파일
@@ -2951,6 +2993,9 @@
   바꿔 비교(current / cap4·6·8 / prio_edge / cohort20). 사이징·청산은 실거래 고정. 패턴 단독 C3 가 못 보는
   슬롯 경합이 대상. 사전 등록 registry portfolio_prereg_2026_09_10, DEPLOY_ON_PASS=False. test_portfolio.py
 - paper_executor.slot_occupancy / occupancy_txt: 슬롯 점유 패턴 분포 — 진단 출력 전용(2026-09-10)
+- steward.py / .github/workflows/steward.yml: 운용 점검(2026-10-26 정지·시동 위임) — 실거래 장부에 사전 등록 정지 규칙(S1·S2)을
+  기계적으로 적용해 발동 목록을 낸다(읽기 전용, 판정은 check-run 주석으로도 낸다). 집행은 자율 연구 사이클 0단계가 PR 로. test_steward.py(59)
+- paper_executor.trading_halt_state / universe.json `trading_halt`: 전체 신규 진입 정지 스위치(킬스위치 경로 재사용, 기본 꺼짐)
 - ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).
   특성 v2(book_*/d1_*/stop_atr), prompt_version 집계 키, 토큰 기록. 주문·거래소·스케줄러 import 없음(test 고정)
 - ai_judge_report.py / .github/workflows/ai_judge_report.yml: 그림자 기록의 사전 등록 기준 집계(읽기 전용, 주간 + dispatch, 텔레그램 요약).

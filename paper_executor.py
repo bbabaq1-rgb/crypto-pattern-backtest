@@ -321,6 +321,36 @@ SIZING_MODE = "risk"
 # 금액을 재입금하면 입금 즉시 킬스위치가 걸려 신규 진입이 전면 차단되는 문제가 있었다.
 EQUITY_FLOOR = 100.0
 
+
+def trading_halt_state(path="universe.json"):
+    """
+    전체 신규 진입 정지 스위치 (2026-10-26 사용자 위임 — registry steward_rules_2026_10_26 의 H).
+    universe.json["trading_halt"] = {"active": bool, "since": str, "reason": str}. active 면 킬스위치와 같은
+    경로로 **신규 실거래 진입만** 막는다 — 청산 모니터링·손절 점검·페이퍼 기록은 그대로 돈다.
+    반환 (active, reason). 키가 없거나 active 가 거짓이면 (False, "") = 종전 동작.
+    파일이 없으면 종전 동작(테스트·로컬), 있는데 파싱이 안 되면 fail-closed — 정지 여부를 모르면 진입을 보류한다
+    (잔고 조회 실패 때와 같은 원칙).
+    """
+    if not os.path.exists(path):
+        return False, ""
+    try:
+        h = json.load(open(path, encoding="utf-8")).get("trading_halt") or {}
+    except Exception as e:
+        return True, f"universe.json 읽기 실패({type(e).__name__}) — 정지 여부 미확인, 신규 진입 보류(fail-closed)"
+    if not isinstance(h, dict) or h.get("active") is not True:
+        return False, ""
+    return True, str(h.get("reason") or "사유 미기재")
+
+def ops_annotation(kind, msg):
+    """
+    운용 결함 신호를 GitHub Actions 주석으로 내보낸다(2026-10-26 운용 위임 H). 자율 사이클 세션은 잡 로그를
+    못 받으므로(외부 저장소 리다이렉트) `check-runs/{id}/annotations` 로 이 주석을 읽어 전체 정지 여부를 판단한다.
+    **출력 전용** — Actions 밖에서는 아무것도 안 찍고, 어떤 경우에도 매매 경로에 영향을 주지 않는다.
+    """
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning title=ops {kind}::" + " ".join(str(msg).split())[:300])
+
+
 # 앙상블 Grade 기반 포지션 사이징 배수
 GRADE_SIZE_MULT = {"A": 1.5, "B": 1.0, "C": 0.7, "D": 0.5}
 
@@ -1090,6 +1120,7 @@ def run(stamp=None, slow=None):
             import notify
             notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
                         "\n".join(f"  {s}: SL @ {px}" for s, px in fixed_sl))
+            ops_annotation("stop_reregistered", ", ".join(f"{s} SL@{px}" for s, px in fixed_sl))
         # 안전망 1-b: 포지션 없는 고아 손절 주문 취소(트리거 시 신규 진입 방지)
         if orphan_sl:
             import notify
@@ -1113,6 +1144,12 @@ def run(stamp=None, slow=None):
             notify.send(msg)
         else:
             print(f"  [kill] equity ${equity:.2f} / 하한 ${EQUITY_FLOOR:.2f} — 통과")
+
+        # 안전망 3: 전체 신규 진입 정지 스위치(2026-10-26 운용 위임 H) — 손절·청산 점검 뒤에 둔다
+        halt_on, halt_why = trading_halt_state()
+        if halt_on:
+            kill_switch = True
+            print(f"  [halt] 전체 신규 진입 정지(universe.json trading_halt) — {halt_why}")
 
     # 1) 오픈 포지션 청산 모니터링
     #    방식D 청산 조건 충족 + live_mode 포지션 → 실제 OKX reduceOnly 청산 주문.
@@ -1493,6 +1530,8 @@ def run(stamp=None, slow=None):
                 )
             if result is None:
                 print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
+                if str(reason).startswith("sl_failed"):
+                    ops_annotation("sl_failed", f"{s['symbol']} {s['direction']} {s['pattern']} {reason}")
                 _ai_action(aj, "order_fail")
                 # 주문 실패 시 size_for_pos = POS_USD (페이퍼 기록만 유지)
                 if cap:

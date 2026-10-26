@@ -981,7 +981,7 @@
       },
       "suspended_2026_10_22": "2026-10-22 사용자 결정 'tp1 정지' — 1개월 실거래 관찰: 누적 38건 −$40.76, 실거래 승률 70~81% vs 손익분기 91.11% (tp_1h 검증 REJECTED 예측대로). 신규 진입만 정지, 열린 포지션은 registry exit_spec(OCO ±1%/−8%)·live_cap 로 계속 관리.",
       "resumed_2026_10_22": "2026-10-22 사용자 결정 'tp1 은 다시 켜줘' — 같은 날 정지(suspended_2026_10_22) 해제. adopted_1h_patterns 복귀, exit_spec·live_cap 무변경. 관찰 보고 대조(누적 38건 −$40.76)는 기록으로 유지.",
-      "suspended_2026_10_26": "2026-10-26 사용자 결정 'tp1 정지해줘'. 근거: 실거래 누적 38건(9/10~10/21 청산, 방식D 실주문 다리) 중 수익 30건(79%)·평균 −0.505%·실현 −$39.54(레버리지 보정 후) — 손익분기 승률 91.11% 미달이고 백테스트 6판(tp_small·tp_1h·tp_regime·tp1_stop·tp1_grid·tp1_slots)의 음수 기대값과 같은 방향. 레짐별 bull_altseason n28 −0.28% / bull_btc n10 −1.14%. 10/22 재가동 뒤 청산 0건. **신규 진입만 정지** — universe.json adopted_1h_patterns → suspended_1h_patterns. exit_spec·live_cap 유지라 열린 SOL 1건(10/22 진입, OCO 손절 96.62/익절 106.07)은 그대로 관리된다."
+      "suspended_2026_10_26": "2026-10-26 사용자 결정 'tp1 정지해줘'(같은 메시지에서 정지·시동 권한을 에이전트에 위임 — registry steward_rules_2026_10_26). 근거: 실거래 누적 38건(9/10~10/21 청산, 방식D 실주문 다리) 중 수익 30건(79%)·평균 −0.505%·실현 −$39.54(레버리지 보정 후) — 손익분기 승률 91.11% 미달이고 백테스트 6판(tp_small·tp_1h·tp_regime·tp1_stop·tp1_grid·tp1_slots)의 음수 기대값과 같은 방향. 레짐별 bull_altseason n28 −0.28% / bull_btc n10 −1.14%. 10/22 재가동 뒤 청산 0건. 위임 규칙으로 읽어도 S1(미확인 전략·실거래 n≥10·평균<0)에 해당. **신규 진입만 정지** — universe.json adopted_1h_patterns → suspended_1h_patterns. exit_spec·live_cap 유지라 열린 SOL 1건(10/22 진입, OCO 손절 96.62/익절 106.07)은 그대로 관리된다. 재개는 R2(정지 이후 데이터를 포함한 사전 등록 재시험 통과)로만."
     }
   ],
   "rejected_4h": [
@@ -6161,5 +6161,62 @@
     "deploy_if_passed": "universe.json adopted_4h three_soldiers_4h 항목에 cohort:'top30' 한 줄(신호 집합 감소 방향). 다른 항목·paper_executor·scheduler 불변, detect_on_closed_bar 는 범위 밖(R-013)",
     "prior": "PASSED 약 0.30. 근거: revival top30 bull_btc PASSED(n=84 +2.92%)/all REJECTED, exit_consistency 에서 all·BULL 국면 홀드아웃 n=92 -0.42%. 반대로 걸러진 거래가 음수라는 보장은 없고(regime 베이스라인 bp .165~.39 로 top30 도 약함), F1b·F3 가 holdout(bear 해)에서 동시에 요구돼 탈락 가능성이 크다",
     "known_limits": "정적 end-of-data 순위(PIT 아님) / 4h 이력 약 2년이라 holdout 이 2025~26 bear 지배 / 포트폴리오는 달력 분할(frame_v3 국면 홀드아웃 아님 — validate_portfolio 프레임 고정) / 걸러진 거래는 bull 게이트 통과분만"
+  },
+  "steward_rules_2026_10_26": {
+    "decision": "2026-10-26 사용자 위임 'tp1 정지해줘 그리고 ai 한테 아예 정지 및 시동 권한을 일임해서 투자하고 싶어' — 배포 단위의 신규 진입 정지·재개·신규 배포, 전체 신규 진입 정지(trading_halt)와 해제, AI 판단 레이어 veto 전환을 에이전트가 사용자 확인 없이 집행한다. 집행은 이 규칙으로만 하고 매번 PR·registry·CLAUDE.md 기록과 한 줄 보고(자율 사이클 마지막 메시지 = 푸시 알림)를 남긴다.",
+    "delegated": [
+      "배포 단위(패턴·패턴×레짐 셀)의 신규 진입 정지 — universe.json adopted→suspended 이동, adopted 항목 regimes 축소, direction_switch.ROUTING_OVERRIDES FLAT",
+      "정지된 단위의 재개와 신규 배포 — R1·R2 충족 시",
+      "전체 신규 진입 정지·해제 — universe.json trading_halt (H)",
+      "AI 판단 레이어 shadow→veto 전환 — R3",
+      "위 조치를 집행하는 데 필요한 실거래 배선(adopted 항목·cohort·regimes 필드, 라우팅 오버라이드)"
+    ],
+    "user_only": [
+      "위험 수준 — RISK_FRAC / LEV_CAP / MAX_LIVE_POS / EQUITY_FLOOR / 총 명목가 상한 / 변동성 타겟팅 상수 / live_cap 증거금·복리 규칙",
+      "열린 포지션 수동 청산 — 정지는 신규 진입만 막는다. 열린 포지션은 각자의 청산 규칙(방식D·OCO)대로 끝까지 간다",
+      "자금 이동(입출금)",
+      "게이트 문턱 자체의 변경",
+      "CLAUDE.md 원칙 ②(AI 청산 검토의 실효) 개정"
+    ],
+    "invariants": "손절 주문 없으면 실거래 없음 · 진입·청산 집행은 결정론적 코드 · 사전 등록 전 결과 열람 금지 · 사후 선택 금지 · tests.yml 그린이 머지 조건 · 실거래 코드를 건드리면 동작 불변 테스트",
+    "ledger": "trades — method D 이고 live_mode True 또는 exit_reason 에 '실거래'(observation_report 정의, 2026-09-01 이전 태그 실거래 포함). 수익률 return_pct 기준이라 사이징 변경과 무관",
+    "units": "패턴(pattern, direction)과 셀(+진입 레짐) 두 층, 지금 켜진 단위만. 패턴 층 표본은 '지금 켜진 레짐'의 거래 — 라우팅으로 이미 꺼진 레짐의 성적이 켜진 레짐을 끄는 근거가 되지 않게. 4레짐 전부 켜진 단위만 레짐 미상('?') 거래를 센다. 1h 블록은 레짐 게이트가 없어 셀 조치 수단이 없다(패턴 층만)",
+    "tiers": "V = 그 단위의 최신 사전 등록 확인 시험이 CONFIRMED/PASSED(셀은 패턴 등급 상속). 나머지 전부 U. 새 확인이 나오면 steward.CONFIRMED 와 아래 confirmed_units 를 함께 고친다(test_steward 가 일치 고정)",
+    "confirmed_units": {
+      "triple_bottom_4h|long": "guard_v5 2026-09-09 CONFIRMED — OOS n=365 +1.59% bp .000",
+      "vol_awakening_4h|long": "guard_v5 2026-09-09 CONFIRMED — OOS n=2593 +0.21% bp .000",
+      "cascade_fade_long_1h|long": "cascade_realistic 2026-09-01 PASSED — 1h 크론 +1.54% med +0.31% bp .000"
+    },
+    "thresholds": {
+      "S1_min_n": 10,
+      "S2_min_n": 20,
+      "S2_min_span_days": 28,
+      "S2_alpha": 0.05,
+      "boot": 10000,
+      "seed": 20261026,
+      "cluster": "진입일 ISO 주 — 같은 주에 물린 거래는 한 사건"
+    },
+    "stop_rules": {
+      "S1": "미확인 + 손실 — 등급 U, n ≥ 10, 평균 < 0 → 그 단위 신규 진입 정지. 확인된 엣지가 없는 전략은 실거래가 음수로 기울면 멈춘다(돌리는 비용 = 수수료 + 분산, 기대 이득의 근거 없음)",
+      "S2": "유의한 손실 — 등급 무관, n ≥ 20, 평균 < 0, 진입 기간 ≥ 28일, 주 클러스터 부트스트랩 P(평균 ≥ 0) < 0.05 → 정지. 확인된 전략은 한 사건(한 주의 동반 손절)으로 끄지 않는다",
+      "S3": "실행 결함 — 검증-실행 불일치(룩어헤드·형성 중 봉 등)·손절 등록 불가·장부/거래소 불일치로 그 단위의 실거래가 검증된 규칙대로 돌지 않음이 확인되면 즉시 정지. 근거(로그·커밋)를 기록",
+      "S4": "재검증 기각 — 2026-10-26 이후 완료된 사전 등록 재검증이 그 단위를 REJECTED 로 내고 OOS(국면 홀드아웃) 평균 < 0 이면 정지. 단 실거래 n ≥ 20 · 평균 > 0 이면 보류(실거래 증거 우선)"
+    },
+    "start_rules": {
+      "R1": "신규 배포 — 사전 등록 확인 시험 전 기준 통과 + 경계값 아님 + deploy_on_pass=true(결과 전에 정함). 2026-09-05 자율 반영 규칙 그대로. 새 패턴·청산 가족의 첫 시험은 deploy_on_pass=false 기본(두 번째 독립 확인 뒤 승격)",
+      "R2": "재개 — S1·S2·S4 로 정지된 단위는 정지일 이후 데이터를 포함한 사전 등록 재시험이 R1 기준을 통과할 때만. S3 는 결함 수정 + 동작 테스트 고정 + 깨끗한 실행 1회 확인 뒤. 사용자 강제 실행(forced_by_user) 전략은 R1 통과 없이 재개하지 않는다",
+      "R3": "AI 판단 veto 전환 — ai_judge_prereg_2026_10_23 의 primary·secondary 를 모두 통과하면 ai_judge.MODE='veto'. veto 는 거르거나 줄이기만 한다(size_mult≤1.0 코드 고정)"
+    },
+    "halt": {
+      "H": "전체 신규 진입 정지(universe.json trading_halt.active=true) — '손절 주문 없으면 실거래 없음'을 지킬 수 없거나 확인할 수 없는 운용 결함(손절 algo 등록 실패 연속 2틱 이상, 실포지션·장부 불일치로 손절 상태 미확인, 거래소 API 장애로 청산 경로 불능)이 확인되면 즉시. 해제는 원인 해소 + 깨끗한 실행 1틱 확인 뒤",
+      "mechanism": "paper_executor.trading_halt_state() 가 매 실행 universe.json 을 읽어 킬스위치와 같은 경로로 신규 실거래 진입만 막는다(청산·손절 점검·페이퍼 기록 계속). 키가 없거나 active=false 면 종전 동작, 파일 파싱 실패는 fail-closed",
+      "not_a_rule": "낙폭 기반 자동 정지는 규칙이 아니다 — R-010(낙폭 서킷) 시험 전에는 근거가 없다. 계좌 하한 EQUITY_FLOOR 는 사용자 결정 그대로"
+    },
+    "procedure": "steward.yml(읽기 전용, 매일 + dispatch)이 steward.py 로 S1·S2 를 판정해 표와 발동 목록을 낸다(발동 시 텔레그램). 자율 연구 사이클 세션이 0단계에서 최신 실행을 읽고 발동이 있으면 그 조치를 PR 로 집행 — universe/registry/CLAUDE.md 기록, tests.yml 그린, 머지, 마지막 메시지에 한 줄. S3·S4·H·R1~R3 는 사이클 세션이 근거를 확인해 같은 경로로 집행",
+    "anti_flapping": "재개는 R2 로만 — 정지 기간엔 실거래 표본이 안 쌓이므로 재개 근거는 사전 등록 재시험뿐이라 같은 주에 껐다 켰다가 생기지 않는다",
+    "rule_changes": "규칙을 고치는 것도 에이전트 몫이지만 새 판(steward_rules_<날짜>)을 registry 에 쓰고 그 뒤 데이터에만 적용한다(소급 금지). 문턱을 완화해 특정 전략을 살리거나 강화해 특정 전략을 끄는 변경은 금지 — 사후 선택",
+    "why_rules_not_discretion": "권한은 AI 에게 넘기되 판정은 결과 전에 적은 규칙으로 한다. AI(주관) 판단이 영점을 이긴 증거가 이 레포에 아직 없고(ai_judge_prereg 근거 — 엘리엇 채점 장부), 매일의 재량은 같은 장부를 보고 다른 결론을 낼 수 있다. 규칙이면 정지가 언제 왜 일어났는지 재현된다",
+    "first_application": "규칙을 쓰기 전에 현재 실거래 표(패턴·레짐별 n·평균, 2026-10-26 Supabase)를 봤다 — 문턱(n 10/20, 평균<0, p .05, 28일)은 통계 관행에서 정했고 특정 결과를 맞추려 고르지 않았지만 첫 적용은 맹검이 아니다. 오프라인 실행(10/26 장부 251행 중 실거래 방식D 179행): S1 tp1_engulfing_1h n38 −0.51%(사용자 지시로 이미 정지) · S1 inverted_hammer n17 −0.73%. vol_awakening_4h 는 V 등급이라 S1 면제이고 패턴 n45 −0.21% P(평균≥0) .44 로 S2 미발동, bull_btc 셀 n14 −6.33% 는 n<20. fvg 롱은 켜진 레짐(bull_btc) 표본 n5 라 미발동(꺼진 altseason 12건은 세지 않음)",
+    "observed_context": "10/10 bull_btc 전환 이후 알트 롱 실거래 40건 평균 약 −5.4%(vol_awakening 1/14 승, fvg 0/5, triple_bottom_4h 1/4, three_soldiers 0/3). 한 시장 국면(약 2주)이라 패턴별 규칙으로는 아직 대부분 미발동 — 레짐 단위 가설은 사전 등록 시험(R-060)으로 따로 판정한다"
   }
 }

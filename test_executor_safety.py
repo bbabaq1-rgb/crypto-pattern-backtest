@@ -359,5 +359,61 @@ _pnl = (_tr[-1].get("pnl_live_usd") if _tr else None)
 check("레버리지 동작: OCO 집행 확인 손익 = 총수익 x 증거금 x 규격 레버리지(종전 1배)",
       _ok and _pnl is not None and abs(_pnl - 0.01 * 70.0 * _lev_cap) < 1e-6, (_ok, _pnl))
 
+# ── 전체 신규 진입 정지 스위치(2026-10-26 운용 위임 H, registry steward_rules_2026_10_26) ──────────────
+import os
+import tempfile
+_td = tempfile.mkdtemp()
+
+
+def _halt(obj=None, raw=None):
+    fp = os.path.join(_td, "u.json")
+    with open(fp, "w", encoding="utf-8") as f:
+        f.write(raw if raw is not None else json.dumps(obj))
+    return pe.trading_halt_state(fp)
+
+
+check("halt: 파일 없음 → 종전 동작", pe.trading_halt_state(os.path.join(_td, "none.json")) == (False, ""))
+check("halt: 키 없음 → 종전 동작", _halt({"adopted_patterns": []}) == (False, ""))
+check("halt: active=false → 종전 동작", _halt({"trading_halt": {"active": False, "reason": "x"}}) == (False, ""))
+check("halt: active 는 진짜 true 만(문자열 'true' 는 무시)", _halt({"trading_halt": {"active": "true"}}) == (False, ""))
+check("halt: active=true → 정지 + 사유", _halt({"trading_halt": {"active": True, "reason": "손절 등록 실패 2틱"}})
+      == (True, "손절 등록 실패 2틱"))
+_bad = _halt(raw="{not json")
+check("halt: 파싱 실패 → fail-closed(정지)", _bad[0] is True and "fail-closed" in _bad[1], _bad)
+_u_now = json.load(open("universe.json", encoding="utf-8"))
+check("halt: 현재 universe.json 은 정지 꺼짐(머지가 매매를 멈추지 않는다)",
+      pe.trading_halt_state() == (False, "") and _u_now.get("trading_halt", {}).get("active") is False)
+_run = src_pe.split("def run(", 1)[1]
+_i_stop, _i_kill = _run.find("ensure_stop_orders("), _run.find("[kill] equity")
+_i_halt, _i_exit = _run.find("trading_halt_state()"), _run.find("# 1) 오픈 포지션 청산 모니터링")
+check("halt: 손절 점검·킬스위치 뒤, 청산 모니터링 앞에서 읽는다",
+      0 <= _i_stop < _i_kill < _i_halt < _i_exit, (_i_stop, _i_kill, _i_halt, _i_exit))
+check("halt: 킬스위치 경로를 재사용(kill_switch=True → 신규 실거래만 스킵)",
+      "kill_switch = True" in _run[_i_halt:_i_exit] and "if live_conn and kill_switch:" in _run
+      and "if live_conn and not kill_switch:" in _run)
+
+# ── 운용 결함 주석(2026-10-26 운용 위임 H) — 출력 전용 ──────────────────────────────────────
+import contextlib, io as _io
+_buf = _io.StringIO()
+_ga = os.environ.pop("GITHUB_ACTIONS", None)
+with contextlib.redirect_stdout(_buf):
+    pe.ops_annotation("sl_failed", "X long fvg sl_failed(...)")
+check("ops 주석: Actions 밖에서는 아무것도 안 찍는다", _buf.getvalue() == "", _buf.getvalue())
+os.environ["GITHUB_ACTIONS"] = "true"
+_buf = _io.StringIO()
+with contextlib.redirect_stdout(_buf):
+    _r = pe.ops_annotation("sl_failed", "X long\nfvg  reason")
+if _ga is None:
+    os.environ.pop("GITHUB_ACTIONS", None)
+else:
+    os.environ["GITHUB_ACTIONS"] = _ga
+check("ops 주석: Actions 안에서 warning 한 줄, 제목 'ops <종류>'",
+      _buf.getvalue() == "::warning title=ops sl_failed::X long fvg reason\n" and _r is None, repr(_buf.getvalue()))
+_run2 = src_pe.split("def run(", 1)[1]
+check("ops 주석 호출 지점: 손절 재등록 · 진입 손절 실패 두 곳",
+      'ops_annotation("stop_reregistered"' in _run2 and 'ops_annotation("sl_failed"' in _run2)
+check("ops 주석은 반환값을 쓰지 않는다(분기·주문에 영향 없음)",
+      "= ops_annotation(" not in src_pe and "if ops_annotation(" not in src_pe)
+
 print(f"\n{len(fails)} failed")
 sys.exit(1 if fails else 0)
