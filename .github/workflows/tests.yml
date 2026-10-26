@@ -85,6 +85,7 @@ jobs:
                    test_time_prop.py \
                    test_ai_judge.py \
                    test_ai_judge_report.py \
+                   test_research_loop.py \
                    test_upbit_shoot.py \
                    test_upbit_bsqueeze.py \
                    test_altseason.py \
