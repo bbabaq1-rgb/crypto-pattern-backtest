@@ -6100,7 +6100,7 @@
     }
   },
   "dclose_port_prereg_2026_10_26": {
-    "status": "preregistered",
+    "status": "REJECTED_NO_CHANGE",
     "date": "2026-10-26",
     "backlog": "R-021",
     "trigger": "자율 연구 루프 R-021 (수동 가속 세션)",
@@ -6121,6 +6121,23 @@
       "종가 손절의 실제 집행 경로(엔진 종가 판정 + 거래소 재해 손절)는 신규 코드라 통과해도 사용자 결정",
       "marubozu 는 2026-10-22 정지 중이나 sizing_vol 의 mt.PATS 에 남아 있으면 D·D_close 양 arm 에 동일하게 포함 — arm 비교는 상쇄"
     ],
-    "live_change": "none"
+    "live_change": "none",
+    "result": {
+      "run": 40313941954,
+      "verdict": "REJECTED",
+      "J": {
+        "J1": false,
+        "J2": false,
+        "J3": false,
+        "J4": true,
+        "J5": false,
+        "J6": true
+      },
+      "train": "D CAGR +57.2% Calmar 0.66 체결 1146 / D_close +52.3% 0.61 체결 1038",
+      "holdout": "D CAGR -59.6% MDD -93.0% Calmar -0.64 체결 1120 / D_close -74.4% -93.0% -0.80 체결 830",
+      "boot": "P(D_close>D)=44%",
+      "diag": "신호 8007, 거래당 평균 D +1.80% vs D_close +2.29%(+0.49%p), 보유 4.48→5.04일, holdout 스킵 슬롯 1194→1135 증거금 2148→2497",
+      "prior_scorecard": "방향 적중(REJECTED, 보유 연장). 예측 못 한 것: 슬롯 스킵은 오히려 줄지 않고 증거금 스킵이 늘었고 체결이 25% 감소 — 병목은 슬롯이 아니라 증거금"
+    }
   }
 }
