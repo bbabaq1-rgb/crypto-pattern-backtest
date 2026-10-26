@@ -39,6 +39,14 @@ FILTER_SHARE = (0.10, 0.70)
 SHADOW_START = "2026-10-23"
 EXIT_SHADOW_START = "2026-10-26"
 V1_LABEL = "v1"
+# 집계 키·종류 복원(2026-10-26): 확장 컬럼(kind/prompt_version/unreal_ret/bars_held)이 DB 에 없던 동안 적재된 행은
+# insert_tolerant 가 그 컬럼을 뺀 채 기록한다. 그래도 decision 과 features(JSON) 는 항상 남으므로 거기서 되살린다 —
+# 안 그러면 SQL 재실행 전 행이 entry 로 오분류되거나(exit 행) 'v1' 그룹으로 갈려 사전 등록 표본(n≥60)이 쪼개진다.
+ENTRY_V2 = "entry_v2_2026_10_26"          # == ai_judge.PROMPT_VERSION (test 가 동일성 고정)
+EXIT_V1 = "exit_v1_2026_10_26"            # == ai_judge.EXIT_PROMPT_VERSION
+EXIT_DECISIONS = ("hold", "exit")
+V2_MARKER_KEYS = ("stop_atr", "bar_hour_utc", "sym_recent_n", "book_rows")   # v2 진입 특성에만 있는 키
+EXIT_MARKER_KEYS = ("bars_held", "unreal_ret", "mfe", "bars_left")           # 청산 검토 특성에만 있는 키
 
 
 # ── 로딩 ─────────────────────────────────────────────────────────────────────
@@ -67,8 +75,54 @@ def _month(x):
     return _d(x)[:7]
 
 
+def feat_of(j):
+    """features(JSON 문자열) → dict. 파싱 결과를 행에 캐시하되(_feat) 원본 문자열이 바뀌면 다시 푼다. 깨진 JSON·None 은 {}."""
+    raw = j.get("features")
+    if j.get("_feat") is not None and j.get("_feat_src") is raw:
+        return j["_feat"]
+    try:
+        f = json.loads(raw) if isinstance(raw, str) and raw else (raw if isinstance(raw, dict) else {})
+    except Exception:
+        f = {}
+    if not isinstance(f, dict):
+        f = {}
+    j["_feat"], j["_feat_src"] = f, raw
+    return f
+
+
+def kind_of(j):
+    """entry / exit. kind 컬럼이 비면 decision(두 어휘가 서로 겹치지 않는다) → features 키로 복원."""
+    k = j.get("kind")
+    if k:
+        return k
+    d = j.get("decision")
+    if d in EXIT_DECISIONS:
+        return "exit"
+    if d:
+        return "entry"
+    f = feat_of(j)
+    return "exit" if any(key in f for key in EXIT_MARKER_KEYS) else "entry"
+
+
+def pv_of(j):
+    """prompt_version. 비면 exit 행은 EXIT_V1(유일한 청산 판), entry 행은 v2 마커 키가 있으면 ENTRY_V2, 없으면 v1."""
+    pv = j.get("prompt_version")
+    if pv:
+        return pv
+    if kind_of(j) == "exit":
+        return EXIT_V1
+    f = feat_of(j)
+    return ENTRY_V2 if any(key in f for key in V2_MARKER_KEYS) else V1_LABEL
+
+
+def col_or_feat(j, key):
+    """컬럼 값이 없으면(미존재 컬럼이 제거된 행) features 의 같은 키로 대체."""
+    v = j.get(key)
+    return v if v is not None else feat_of(j).get(key)
+
+
 def group_key(j):
-    return (j.get("model") or "?", j.get("prompt_version") or V1_LABEL)
+    return (j.get("model") or "?", pv_of(j))
 
 
 def d_trade_index(trades):
@@ -139,7 +193,7 @@ def entry_eval(judgments, trades, min_n=MIN_ENTRY_N):
                                   "code_action": defaultdict(int), "resolved": [], "pending": 0,
                                   "latency_ms": [], "tokens_in": 0, "tokens_out": 0})
     for j in judgments or []:
-        if (j.get("kind") or "entry") != "entry":
+        if kind_of(j) != "entry":
             continue
         g = groups[group_key(j)]
         g["n_judged"] += 1
@@ -220,7 +274,7 @@ def exit_eval(judgments, trades, min_n=MIN_EXIT_N):
     meta = defaultdict(lambda: {"n_rows": 0, "n_error": 0, "decisions": defaultdict(int),
                                 "tokens_in": 0, "tokens_out": 0})
     for j in judgments or []:
-        if j.get("kind") != "exit":
+        if kind_of(j) != "exit":
             continue
         g = meta[group_key(j)]
         g["n_rows"] += 1
@@ -249,11 +303,12 @@ def exit_eval(judgments, trades, min_n=MIN_EXIT_N):
         first_exit = next((r for r in revs if r.get("decision") == "exit"
                            and _d(r.get("judged_at")) <= _d(trade.get("exit_date"))), None)
         pick = first_exit or revs[0]
-        if pick.get("unreal_ret") is None:
+        unreal = col_or_feat(pick, "unreal_ret")
+        if unreal is None:
             continue
-        adv = (float(pick["unreal_ret"]) - FEE) - trade["ret"]
+        adv = (float(unreal) - FEE) - trade["ret"]
         rec = {"adv": adv, "month": _month(trade.get("entry_date")), "stop": is_stop_trade(trade),
-               "actual": trade["ret"], "virtual": float(pick["unreal_ret"]) - FEE, "bars_held": pick.get("bars_held"),
+               "actual": trade["ret"], "virtual": float(unreal) - FEE, "bars_held": col_or_feat(pick, "bars_held"),
                "symbol": key[1], "pattern": key[2], "confidence": pick.get("confidence"), "n_reviews": len(revs)}
         per_group[gk]["exit" if first_exit else "hold"] += [rec]
     out = {}

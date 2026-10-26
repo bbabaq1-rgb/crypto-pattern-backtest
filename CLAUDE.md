@@ -2419,7 +2419,18 @@
     빼는데 확장 컬럼이 **10개**라 사용자 SQL 재실행 전 DB 에서 구조적으로 실패했다. **수정**: `insert_tolerant(max_drop=)` 인자(기본 8 — 다른
     호출자 불변) + `push_db` 가 32 로 호출. 테스트가 가짜 DB 로 '10개 미존재에서 기본 한도는 유실·32 는 기록' 을 고정. SQL 재실행 전까지는
     틱마다 10회 재시도 뒤 기록되고(비용 무시 가능), 재실행하면 바로 1회.
-  · 테스트: test_ai_judge 59→124건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점·DB 내성) / test_ai_judge_report 46건(매칭·부트 결정론·판정 규칙) — tests.yml.
+  · **SQL 재실행을 제가 대신 못 했다 — Supabase 커넥터 범위 (2026-10-26 04:35Z, 사용자 지시 "너가 재실행해줘")**: 이 세션의
+    Supabase 커넥터는 조직 'bbabaq1-rgb's Org'(NumPick 프로젝트 2개)만 보고, 거래 DB 프로젝트 `dyagijenawkywzqxmtgj`(crypto-bac…,
+    다른 조직)는 `get_project`/`execute_sql` 모두 **permission denied**. 10/08~10/09 에는 같은 프로젝트에 질의가 됐으므로 그 뒤
+    커넥터 재연결 때 범위가 좁아진 것(10/22 부터 같은 오류). 러너 서비스키는 PostgREST 라 DDL 불가, 컨테이너에 DB 자격 증명 없음 —
+    **DDL 경로는 커넥터 재승인(claude.ai 커넥터 설정에서 Supabase 에 거래 DB 조직 포함) 뒤의 MCP 하나뿐.**
+    · **대신 한 것 — 재실행 시점과 무관하게 표본이 깨지지 않게**: ① `ai_judge_report.kind_of/pv_of/col_or_feat` —
+      kind 가 비면 decision 어휘(hold/exit ↔ take/reduce/skip, 서로 겹치지 않음)·특성 키로, prompt_version 이 비면 특성 마커
+      (v2 진입 `stop_atr`/`bar_hour_utc`/`sym_recent_n`/`book_rows`, 청산 `bars_held`/`unreal_ret`/`mfe`/`bars_left`)로 되살리고
+      unreal_ret/bars_held 는 features(JSON) 폴백. 테스트가 '컬럼이 있을 때와 평가 결과가 완전히 같다'를 고정.
+      ② SQL 끝에 같은 규칙의 **백필 update 3개**(멱등, `where … is null`) — 재실행하면 그 전 행도 DB 에서 영구 복원.
+      ③ 사전 등록 기준·문턱·표본 정의는 무변경(기록 0건 상태에서의 장부 규칙 추가 — 결과를 본 뒤의 변경이 아니다).
+  · 테스트: test_ai_judge 59→124건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점·DB 내성) / test_ai_judge_report 60건(매칭·부트 결정론·판정 규칙·확장 컬럼 없는 행 복원) — tests.yml.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
@@ -2432,9 +2443,11 @@
 
 ## 다음 할 일
 - [x] **AI 판단 레이어 선결 2건 (사용자 실행 완료)** — `ANTHROPIC_API_KEY` 등록(10/25) · `supabase_schema_ai_judge.sql` 1차 실행(10/26)
-- [ ] **AI 판단 레이어 확장 컬럼 — `supabase_schema_ai_judge.sql` 재실행 (사용자, 2026-10-26)** — kind/prompt_version/entry_px/mark_ts/
-      mark_px/unreal_ret/bars_held/live_mode/tokens_in/tokens_out 10개 alter(멱등). 확인 쿼리는 파일 끝.
-      실행 전까지 적재는 되지만 집계 키(kind·prompt_version)가 비어 보고가 v1 로 묶인다
+- [ ] **AI 판단 레이어 확장 컬럼 — `supabase_schema_ai_judge.sql` 재실행 (사용자 또는 커넥터 재승인 후 Claude, 2026-10-26)** —
+      10개 alter + 백필 update 3개(전부 멱등). 확인 쿼리는 파일 끝. **Claude 가 대신 실행하려면 Supabase 커넥터에 거래 DB 조직
+      (`dyagijenawkywzqxmtgj`, crypto-bac…)이 포함돼야 한다 — 지금은 NumPick 조직만 보여 permission denied.**
+      실행 전까지 적재는 되고(10회 재시도) 보고도 kind/prompt_version 을 decision·특성에서 복원해 집계하므로 표본은 안 깨진다;
+      재실행은 그 복원을 DB 에 영구화하고 재시도를 없애는 일
 - [ ] **AI 판단 승격 판정 — 진입 ≈2026-11-16(머지 후 첫 기록 + 3주) 또는 해소 거래 60건 / 청산 검토 ≈2026-11-23(4주) 또는 exit 제안 해소 40건** —
       ai_judge_report.yml 주간 보고(월요일) 또는 dispatch 로 표를 받고, 진입 primary 통과 시 secondary(veto 가상 자산곡선) 별도 실행 후
       사용자 결정(registry ai_judge_prereg_2026_10_23 / ai_exit_prereg_2026_10_26). 청산 검토는 통과해도 기록 유지·보고까지 — 실효는 원칙 ② 개정
@@ -2839,8 +2852,9 @@
 - paper_executor.slot_occupancy / occupancy_txt: 슬롯 점유 패턴 분포 — 진단 출력 전용(2026-09-10)
 - ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).
   특성 v2(book_*/d1_*/stop_atr), prompt_version 집계 키, 토큰 기록. 주문·거래소·스케줄러 import 없음(test 고정)
-- ai_judge_report.py / .github/workflows/ai_judge_report.yml: 그림자 기록의 사전 등록 기준 집계(읽기 전용, 주간 + dispatch, 텔레그램 요약)
-- supabase_schema_ai_judge.sql: ai_judgments 테이블 + positions ai_* 컬럼 + 2026-10-26 확장 컬럼 alter(멱등, GRANT 포함)
+- ai_judge_report.py / .github/workflows/ai_judge_report.yml: 그림자 기록의 사전 등록 기준 집계(읽기 전용, 주간 + dispatch, 텔레그램 요약).
+  kind_of/pv_of/col_or_feat 가 확장 컬럼 없이 적재된 행을 decision·features 에서 복원(2026-10-26)
+- supabase_schema_ai_judge.sql: ai_judgments 테이블 + positions ai_* 컬럼 + 2026-10-26 확장 컬럼 alter + 백필 update(멱등, GRANT 포함)
 - registry.json: 패턴 등록부 (2026-09-03: 하모닉 5종 + triple_bottom_1w suspended_lookahead → 배포 중
   1d×4(engulfing/fvg/ih/marubozu) + 4h×1(three_soldiers) + 1h×1(cascade))
 - regime_multi.py / method_m.py: 레짐 스케일(주봉/4h) 연구 — 기각 기록용. report_regime_scale.md
