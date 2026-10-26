@@ -2555,6 +2555,16 @@
     위임 범위·규칙·사용자 몫·첫 조치(inverted_hammer 정지)를 설명한 뒤 사용자가 '위임 진행'을 선택해 반영했다(같은 날, 요청도 재전송).
   · **관찰(규칙 밖)**: 10/10 bull_btc 전환 이후 알트 롱 실거래 40건 평균 약 −5.4%(vol_awakening 1/14 승, fvg 0/5, triple_bottom_4h 1/4,
     three_soldiers 0/3, tp1 −1.14%) — 한 국면(약 2주)이라 패턴별 규칙은 대부분 미발동. 레짐 단위 가설은 사전 등록 시험 **R-060** 으로 판정한다.
+  · **첫 집행 — inverted_hammer S1 (2026-10-26, steward run 40339180662 · PR #135)**: 규칙 머지(PR #134) → master 에서 운용 점검 →
+    주석 `steward S1 inverted_hammer·long (패턴) n=17 평균 −0.73%` → 집행 순서로 남겼다. universe.json adopted_patterns →
+    suspended_patterns(`suspended_by` = 규칙 id, tf 1d), registry status **suspended_steward**(사용자 결정 정지 suspended_user 와 구분)
+    + `steward_rules_2026_10_26.actions` 에 집행 기록. **1d adopted_patterns 는 이제 비어 있다** — 1d 신규 진입은 FOCUS
+    (engulfing/fvg, 레짐 라우팅)뿐이고 PATTERN_UNIVERSE 의 ih→majors 매핑은 남아도 쓰이지 않는다. 열린 ETH(10/16)·XRP(10/18)
+    2건은 방식D 1d 규칙·거래소 손절로 끝까지 간다(`_pattern_tf` 가 suspended 목록을 읽어 1d 유지). 재개는 R2 로만.
+    스포너 사후 감사도 이 종류의 PR(universe 이동·ROUTING FLAT·trading_halt)을 '실거래 코드 무단 변경'이 아니라 규칙 집행으로
+    보고, PR 본문의 규칙·n·평균·run id 가 그 run 의 주석과 맞는지만 확인하도록 고쳤다(research_spawner_prompt.md ④).
+    **운영 메모**: 첫 dispatch(run 40337966297)는 잡이 생성되지 않은 채 대기열에 8분 멈췄고 취소 API 도 409('아직 queued 전')로
+    거부했다 — 다시 dispatch 하자 10초 안에 돌았다. 사이클 세션은 dispatch 뒤 run 이 5분 넘게 잡 없이 queued 면 재dispatch 한다.
 
 ## 다음 할 일
 - [x] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26 완료)** — fast 10:03Z·11:03Z·12:03Z, daily 12:00Z 전부 오류 없음 ·
@@ -2569,7 +2579,7 @@
       안 돌면 list_triggers 의 last_run 과 자식 get_session. 스포너 세션이 아카이브돼 있으면 `research_spawner_prompt.md` 전문으로
       자기 바인딩 예약 작업을 다시 만든다. R-020·R-021 이 priority 2 로 큐 최상단(R-001 은 priority 1 — 다음 사이클 예정)
 - [x] **tp1 정지 + 정지·시동 권한 위임 (2026-10-26)** — 위 '현재 상태' 항목. steward 첫 집행(inverted_hammer S1)은 steward.yml
-      첫 실행 결과로 별도 PR — 규칙 머지 → 판정 → 집행 순서를 기록으로 남기기 위해서다
+      master 실행(run 40339180662) 결과로 별도 PR #135 — 규칙 머지 → 판정 → 집행 순서를 기록으로 남겼다
 - [ ] **R-060 bull_btc 레짐 알트 롱 사전 등록 시험** — 10/10 이후 실거래 알트 롱 40건 평균 약 −5.4%(한 국면). 레짐 단위 정지는
       패턴별 규칙(S1·S2)으로 안 잡히므로 포트폴리오 프레임 사전 등록으로 판정하고, 통과하면 R1 로 집행
 - [x] **AI 판단 레이어 선결 2건 (사용자 실행 완료)** — `ANTHROPIC_API_KEY` 등록(10/25) · `supabase_schema_ai_judge.sql` 1차 실행(10/26)

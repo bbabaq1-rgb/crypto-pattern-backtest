@@ -176,5 +176,30 @@ check("주석은 한 줄(줄바꿈 없음)", all("\n" not in a for a in ann0 + a
 check("주석 상한 10(단계당 경고 주석 한도)", len(sw.annotations(hits_a * 15, 1, 1)) == 10)
 check("주석은 Actions 안에서만 찍는다", 'os.environ.get("GITHUB_ACTIONS") == "true"' in src)
 
+# ── 11. 집행 기록 — 실제 universe/registry 상태가 집행 장부와 맞는다 ──────────────────────
+# 2026-10-26 첫 집행(inverted_hammer S1). 정지는 신규 진입만 — 열린 포지션 청산 tf 는 suspended 목록에서 1d 로 유지된다.
+real_uni = json.load(io.open("universe.json", encoding="utf-8"))
+real_reg = json.load(io.open("registry.json", encoding="utf-8"))
+acts = real_reg[sw.RULES_ID].get("actions", [])
+check("집행 장부: 항목마다 날짜·규칙·단위·n·평균·run", acts and all(
+      a.get("date") and a.get("rule") in ("S1", "S2", "S3", "S4", "H") and a.get("unit") and a.get("run")
+      and ("n" in a and "mean_pct" in a or a.get("rule") in ("S3", "H")) for a in acts), acts)
+ih_act = [a for a in acts if a.get("unit", "").startswith("inverted_hammer|long")]
+check("inverted_hammer S1 집행 기록(n17 −0.73%)", len(ih_act) == 1 and ih_act[0]["rule"] == "S1"
+      and ih_act[0]["n"] == 17 and abs(ih_act[0]["mean_pct"] + 0.73) < 1e-9, ih_act)
+check("inverted_hammer 는 adopted_patterns 에 없다",
+      "inverted_hammer" not in {a["pattern"] for a in real_uni.get("adopted_patterns", [])})
+ih_s = [a for a in real_uni.get("suspended_patterns", []) if a["pattern"] == "inverted_hammer"]
+check("inverted_hammer 는 suspended_patterns 에 — tf 1d·규칙 id·정지일", len(ih_s) == 1 and ih_s[0].get("tf") == "1d"
+      and sw.RULES_ID in ih_s[0].get("suspended_by", "") and ih_s[0].get("suspended_date") == "2026-10-26", ih_s)
+ih_r = [p for p in real_reg["patterns"] if p.get("id") == "inverted_hammer"]
+check("registry: 위임 규칙 정지는 suspended_steward(사용자 정지 suspended_user 와 구분)",
+      len(ih_r) == 1 and ih_r[0].get("status") == "suspended_steward", [p.get("status") for p in ih_r])
+_real_routing = json.load(io.open("direction_switch.json", encoding="utf-8"))["routing"]
+check("정지 뒤 운용 점검은 inverted_hammer 를 배포 단위로 세지 않는다",
+      ("inverted_hammer", "long") not in sw.deployed_units(real_uni, _real_routing))
+import paper_executor as _pe
+check("열린 ih 포지션 청산 tf = 1d(_pattern_tf 가 suspended 목록을 읽는다)", _pe._pattern_tf("inverted_hammer") == "1d")
+
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)
