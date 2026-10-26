@@ -1,0 +1,47 @@
+name: AI judge — shadow evaluation report (read-only)
+
+# AI 판단 레이어(진입 take/reduce/skip · 청산 검토 hold/exit)의 그림자 기록을 사전 등록 기준으로 집계한다.
+# ai_judge_report.py 는 Supabase ai_judgments / trades 를 select 만 한다 — 매매·DB 쓰기 무관.
+# 주간 schedule 은 보고용이라 지연이 무해하다(스케줄러 워크플로의 '폴백 제거' 결정과 무관한 별개 워크플로).
+# 승격(veto 전환·청산 실효)은 사용자 결정 — 이 보고는 그 근거 표다. registry ai_judge_prereg_2026_10_23 / ai_exit_prereg_2026_10_26.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 1 * * 1"          # 매주 월요일 01:41 UTC (10:41 KST)
+  push:
+    branches:
+      - "claude/7day-trading-signals-2bk3yq"
+    paths:
+      - "ai_judge_report.py"
+      - "test_ai_judge_report.py"
+      - ".github/workflows/ai_judge_report.yml"
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: python test_ai_judge_report.py
+      - name: Build report
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        # push(배관 확인) 는 알림 없이, schedule/dispatch 만 --notify
+        run: python ai_judge_report.py ${{ github.event_name == 'push' && ' ' || '--notify' }}
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-judge-report-${{ github.run_number }}
+          path: _ai_judge_report.md
+          if-no-files-found: ignore

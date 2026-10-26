@@ -966,7 +966,7 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
     import exchange, paper_executor
     conn = exchange.connect()
     print(f"    거래소: {conn['mode']} | {conn['note']}")
-    pr = paper_executor.run(stamp)
+    pr = paper_executor.run(stamp, slow=slow_tick)   # slow: AI 청산 검토(그림자) 틱 게이팅 전용
     out["paper"] = pr
 
     print("[7] daily_summary 기록...")

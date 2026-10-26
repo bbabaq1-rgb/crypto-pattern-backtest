@@ -59,6 +59,18 @@ R_ADVERSE_LONG = frozenset({"bear"})        # method_r.ADVERSE["R1"]["long"] 과
 # 패턴에는 검증치와 5~10배 어긋난다(±1.5ATR ≈ 0.75~1.5% vs ±8%).
 # registry.json 의 exit_spec 이 있는 패턴만 ATR 배리어로 청산한다 —
 # 즉 등재된 1d/4h/1w/1h 기존 패턴의 청산 동작은 이 변경으로 바뀌지 않는다.
+# ── AI 청산 검토(그림자) 틱 폴백 (2026-10-26) ─────────────────────────────────
+# 느린 틱 판정은 scheduler 가 run(slow=) 으로 명시해 넘긴다. 플래그가 없을 때만 UTC 시각으로
+# 추정한다 — scheduler.SLOW_TICK_HOURS 와 같아야 한다(test_ai_judge 가 고정).
+AI_EXIT_REVIEW_HOURS = (0, 4, 8, 12, 16, 20)
+
+
+def _ai_action(aj, action):
+    """AI 판단 행에 '코드가 실제로 한 일'을 적는다. 판단이 없으면(키 없음) 아무 것도 안 한다."""
+    if aj is not None:
+        aj["code_action"] = action
+
+
 EXIT_SPEC_FILE = "registry.json"
 
 
@@ -1008,7 +1020,12 @@ def reconcile_closed_positions(positions, trades, live_conn):
     return kept, closed_syms
 
 
-def run(stamp=None):
+def run(stamp=None, slow=None):
+    """
+    slow: 느린 틱(1d/4h 탐지 틱) 여부 — scheduler 가 --slow/--fast 플래그로 넘긴다. AI 청산 검토(그림자)는
+          느린 틱에서만 돈다(1d/4h 포지션 상태가 그때만 바뀌고, 매시 돌리면 같은 상태를 24번 묻는다).
+          None 이면 UTC 시각 폴백(AI_EXIT_REVIEW_HOURS). 주문·청산 동작에는 어떤 영향도 없다.
+    """
     stamp = stamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
     regmap = rs.build_regime_map()
     positions = _load(POS_FILE, [])
@@ -1187,6 +1204,35 @@ def run(stamp=None):
     if r_added:
         print(f"  [shadow-R] 방식R 행 {r_added}건 추가(기록 전용)")
 
+    # AI 판단 레이어(2026-10-23 사용자 결정) — ai_judge.MODE 가 "shadow" 면 기록만 하고 주문은 종전과 같다.
+    # 키가 없으면 아예 호출하지 않는다(빈 행을 DB 에 남기지 않기 위해).
+    ai_records = []
+    ai_on = ai_judge.available()
+    if not ai_on:
+        print(f"  [ai] ANTHROPIC_API_KEY 없음 — AI 판단 생략(mode={ai_judge.MODE})")
+
+    # 1-c) AI 청산 검토 — **그림자, 기록 전용** (2026-10-26 사용자 지시 "AI 를 통해서 판단 및 매매 개선").
+    #      느린 틱에서만, 방식D 로 들고 있는 행(exit_spec 패턴 제외 · d_closed 제외 · 진입봉 특정된 것만)을
+    #      한 번의 배치 호출로 hold/exit 판정해 ai_judgments 에 적는다. CLAUDE.md 원칙 ②(청산 집행은 코드) —
+    #      이 결과는 어떤 경로로도 주문·청산·포지션 수명에 닿지 않는다. 평가는 ai_judge_report.py 가
+    #      '마크봉 종가 청산 가상 수익 vs 실제 방식D 결과' 로 한다(registry ai_exit_prereg_2026_10_26).
+    if slow is None:
+        slow = datetime.now(timezone.utc).hour in AI_EXIT_REVIEW_HOURS
+    if ai_on and slow:
+        ex_items = []
+        for pos in still_open:
+            if pos.get("d_closed") or EXIT_SPECS.get(pos["pattern"]) or pos.get("entry_idx") is None:
+                continue
+            rows = rows_of(pos["symbol"], pos.get("tf", "1d"))
+            if not rows or len(rows) - 1 <= pos["entry_idx"]:
+                continue
+            ex_items.append({"pos": pos, "rows": rows, "ei": pos["entry_idx"], "mi": len(rows) - 1})
+        if ex_items:
+            ex_recs = ai_judge.judge_exits(
+                ex_items, ctx={"rows_of": rows_of, "trades": trades, "regmap": regmap, "max_hold": MAX_HOLD_D})
+            ai_records.extend(ex_recs)
+            print(f"  {ai_judge.exit_summary_line(ex_recs)}")
+
     # 2) 신규 진입 (signals_today.json)
 
     # 실거래 포지션 현황 — 사이징·max 체크용
@@ -1235,13 +1281,9 @@ def run(stamp=None):
     # 필요한 이유: 같은 실행에서 메인이 먼저 들고 cap 이 뒤따르면(2026-09-11 SOL 실측)
     # main_keys·okx_dir_keys 는 실행 시작 스냅샷이라 그 겹침을 못 본다.
     entered_main_run = set()
-    # AI 판단 레이어(2026-10-23 사용자 결정) — ai_judge.MODE 가 "shadow" 면 기록만 하고 주문은 종전과 같다.
-    # 키가 없으면 아예 호출하지 않는다(빈 행을 DB 에 남기지 않기 위해).
-    ai_records = []
-    ai_on = ai_judge.available()
-    ai_ctx = {"rows_of": rows_of, "avg_cap": market_cap, "trades": trades}
-    if not ai_on:
-        print(f"  [ai] ANTHROPIC_API_KEY 없음 — AI 판단 생략(mode={ai_judge.MODE})")
+    # AI 진입 판단 맥락 — book 은 still_open 그 객체라 이 루프에서 먼저 든 신호도 다음 판단에 보인다(v2).
+    ai_ctx = {"rows_of": rows_of, "avg_cap": market_cap, "trades": trades,
+              "book": still_open, "max_pos": MAX_LIVE_POS}
 
     # 장부 구성 진단(2026-09-08 사용자 결정 B) — **출력만, 거래 동작 무변경**.
     # 계기: OKX 앱 실포지션 13 vs 로그 '오픈 16건' 불일치(사용자 지적). 그 16 은 장부 행 수다.
@@ -1291,7 +1333,8 @@ def run(stamp=None):
             else:
                 aj = {"symbol": s["symbol"], "pattern": s["pattern"], "direction": s["direction"],
                       "tf": s.get("tf", "1d"), "entry_date": s["date"], "entry_ts": s.get("ts") or rows[ei].get("ts"),
-                      "mode": ai_judge.MODE, "model": ai_judge.MODEL, "error": "max_calls"}
+                      "mode": ai_judge.MODE, "model": ai_judge.MODEL, "error": "max_calls",
+                      "kind": "entry", "prompt_version": ai_judge.PROMPT_VERSION}
             aj["code_action"] = "not_entered"
             ai_records.append(aj)
             if aj.get("decision"):
@@ -1325,6 +1368,7 @@ def run(stamp=None):
         # 킬스위치 발동 시 실주문 블록 전체 스킵(페이퍼 기록은 아래에서 계속)
         if live_conn and kill_switch:
             print(f"  [live] 킬스위치 발동 중 — {s['symbol']} 실거래 진입 스킵(페이퍼만)")
+            _ai_action(aj, "kill_switch")
 
         if live_conn and not kill_switch:
             # 동시 최대 포지션 체크 — live_cap 패턴은 자기 max_open 으로만 제한(메인 슬롯 면제)
@@ -1333,16 +1377,19 @@ def run(stamp=None):
                                and p.get("pattern") == s["pattern"])
                 if pat_open >= int(cap.get("max_open", 1)):
                     print(f"  [live] {s['pattern']} 캡 포지션 {pat_open}/{cap.get('max_open', 1)} — {s['symbol']} 스킵")
+                    _ai_action(aj, "cap_full")
                     continue
             elif live_open_count >= MAX_LIVE_POS:
                 # 무엇이 무엇을 막았는지 남긴다 — 밀린 신호의 패턴·등급 + 그 시점 슬롯 점유 분포.
                 print(f"  [live] 최대 포지션({MAX_LIVE_POS}개) 도달 — {s['symbol']}"
                       f"({s['pattern']}, {s.get('ensemble_grade', '?')}등급) 스킵"
                       f" | 점유: {occupancy_txt(still_open)}")
+                _ai_action(aj, "slot_full")
                 continue
             if entry_blocked(s["symbol"], s["direction"], bool(cap), okx_dir_keys, main_keys, cap_keys):
                 print(f"  [live] {s['symbol']} {s['direction']} 같은 종목·방향 실포지션 존재 — 중복 진입 스킵"
                       + (" (cap 프로젝트 자체 보유)" if cap else ""))
+                _ai_action(aj, "dup_live")
                 continue
 
             # 포지션 사이징 — SIZING_MODE 참조
@@ -1356,6 +1403,7 @@ def run(stamp=None):
                 if m_ is None:
                     print(f"  [live 사이징] {s['pattern']} 포트 소진(증거금 < ${sizing.MIN_MARGIN:.0f}) — "
                           f"{s['symbol']} 스킵. 충전은 사용자 결정")
+                    _ai_action(aj, "cap_pot_empty")
                     continue
                 live_size_usd, live_lev = m_, int(cap.get("leverage", 1))
                 print(f"  [live 사이징] {s['symbol']} live_cap {'복리 포트' if cap.get('compound') else '고정'} "
@@ -1392,6 +1440,7 @@ def run(stamp=None):
                     print(f"  [live 사이징] {s['symbol']} risk-based 스킵 (equity ${eq_now:.2f}, "
                           f"free ${usdt_free:.2f}, stop {stop_pct:.2%}, vol_scale {vscale:.2f} "
                           f"— 이 스케일에서 주문이 나가려면 equity >= ${need:.0f})")
+                    _ai_action(aj, "size_skip")
                     continue
                 live_size_usd, live_lev = sz_["margin_usd"], sz_["leverage"]
                 vtag = ("" if abs(vscale - 1.0) < 1e-9 else
@@ -1405,6 +1454,7 @@ def run(stamp=None):
                                          regime_mult=(REGIME_CAP_MULT if regime_cut else 1.0))
                 if sz_ is None:
                     print(f"  [live] 최소주문금액 미만 — {s['symbol']} 스킵 (free ${usdt_free:.2f})")
+                    _ai_action(aj, "size_skip")
                     continue
                 live_size_usd = sz_["margin_usd"]
 
@@ -1423,6 +1473,7 @@ def run(stamp=None):
                 )
             if result is None:
                 print(f"  [live] {s['symbol']} {s['direction']} 주문 실패: {reason}")
+                _ai_action(aj, "order_fail")
                 # 주문 실패 시 size_for_pos = POS_USD (페이퍼 기록만 유지)
                 if cap:
                     continue        # cap 프로젝트는 실주문만 장부에 둔다(복리 포트 계산이 장부를 읽음)
@@ -1514,7 +1565,10 @@ def run(stamp=None):
                  ai_confidence=(aj or {}).get("confidence"),
                  **live_info)
         if aj is not None:
-            aj["code_action"] = "live" if live_info else "paper"
+            # live / paper(실거래 미연결) / paper_kill_switch / paper_order_fail — 평가 때 '왜 실주문이 없었나'를 가른다.
+            _why = aj.get("code_action")
+            aj["code_action"] = "live" if live_info else (
+                "paper" if _why in (None, "not_entered") else f"paper_{_why}")
         still_open.append(p); new_positions.append(p); new += 1
 
     # JSON은 항상 저장(로컬 폴백/원천)

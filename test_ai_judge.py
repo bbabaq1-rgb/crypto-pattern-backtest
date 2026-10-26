@@ -8,6 +8,9 @@ test_ai_judge.py — AI 판단 레이어(2026-10-23) 고정. 네트워크 없음
   5. 가짜 API 로 judge 끝까지 — 기록 행 필드
   6. 현행 모드 shadow · 체결엔진 통합 지점(소스 고정) · AI 는 신호를 못 만든다
   7. 배선: 워크플로 secret · SQL(테이블+GRANT) · tests.yml · registry 사전 등록
+  8. (2026-10-26) 특성 v2 — 포트폴리오 맥락·상위 TF 는 닫힌 일봉만(인과)·손절 ATR 배수·prompt_version·토큰
+  9. (2026-10-26) 청산 검토(그림자) — exit_features 인과·배치 파싱·한 번 호출·오류 경로·기록 키·주문 무관
+ 10. (2026-10-26) 통합 — run(slow=)·1-c 블록 위치·exit_spec/d_closed 제외·scheduler 플래그·code_action 세분화·보고 배선
 """
 import json
 import math
@@ -99,7 +102,7 @@ check("키 없음 → error=no_key, 호출 안 함, 예외 없음", r0["error"] 
 check("키 없음에도 특성·해시는 기록", r0["prompt_hash"] and r0["features"])
 os.environ["ANTHROPIC_API_KEY"] = "test-key"
 import urllib.error
-def _boom(body):
+def _boom(body, timeout=None):
     raise urllib.error.HTTPError(aj.API_URL, 529, "overloaded", {}, None)
 aj._post = _boom
 r1 = aj.judge(rows, ei, dict(SIG, stop=90.0), ctx)
@@ -150,7 +153,7 @@ check("배율은 apply 로만 얻는다", "ai_mult = ai_judge.apply(aj)" in src)
 check("veto 축소는 margin 에 곱하고 skip 은 주문을 안 낸다(페이퍼 행은 유지)",
       "live_size_usd = round(live_size_usd * ai_mult, 2)" in src and 'result, reason = None, f"ai_' in src)
 check("포지션에 판단 요약 3필드", "ai_decision=(aj or {}).get(\"decision\")" in src and "ai_confidence=" in src)
-check("code_action 기록(live/paper/not_entered)", 'aj["code_action"] = "live" if live_info else "paper"' in src
+check("code_action 기록(live / paper(+사유) / 스킵 지점별)", 'aj["code_action"] = "live" if live_info else (' in src
       and 'aj["code_action"] = "not_entered"' in src)
 check("실행 끝에 DB 기록", "ai_judge.push_db(" in src)
 # AI 레이어는 신호를 만들지 않는다 — 신호 집합·슬롯·중복·손절 코드에 손대지 않는다
@@ -175,6 +178,173 @@ check("registry 사전 등록: status·평가 기준·승격 규칙·prior", reg
 check("registry: mode_now 가 코드와 일치", aj.MODE in reg["mode_now"])
 cl = open("CLAUDE.md", encoding="utf-8").read()
 check("CLAUDE.md 원칙 개정 반영", "AI 판단 레이어" in cl and "매매 결정은 결정론적 코드만 — LLM은 코드 생성/수정만" not in cl)
+
+
+# ── 8. 특성 v2 (2026-10-26) ──────────────────────────────────────────────────
+book = [dict(symbol="SOL", direction="long", pattern="fvg", live_mode=True, d_closed=False),
+        dict(symbol="ADA", direction="short", pattern="engulfing_short", live_mode=True, d_closed=False),
+        dict(symbol="XRP", direction="long", pattern="engulfing", live_mode=True, d_closed=True),     # 유령 — 슬롯 안 먹음
+        dict(symbol="DOT", direction="long", pattern="engulfing", live_mode=False, d_closed=False)]   # 페이퍼
+fb = aj.features(rows, ei, dict(SIG, stop=rows[ei]["c"] * 0.92), dict(ctx, book=book, max_pos=13))
+check("book: 행 4 · live 활성 2(유령·페이퍼 제외) · 상한 13 · 롱1/숏1", fb["book_rows"] == 4 and fb["book_live"] == 2 and fb["book_max"] == 13
+      and fb["book_long"] == 1 and fb["book_short"] == 1)
+check("book: 같은 종목 보유 · 같은 패턴 수", fb["book_symbol_held"] is True and fb["book_same_pattern"] == 0)
+check("book 없으면 v1 키 집합 유지(하위 호환)", "book_live" not in f1 and "d1_ret_5" not in f1)
+check("손절 ATR 배수 = stop_pct / atr14_pct", abs(fb["stop_atr"] - fb["stop_pct"] / fb["atr14_pct"]) < 1e-2 and fb["bar_hour_utc"] is not None)
+check("같은 종목 최근 거래(방식D)만", aj.features(rows, ei, dict(SIG, stop=90.0), dict(ctx, trades=[
+      dict(symbol="SOL", method="D", ret=0.02), dict(symbol="SOL", method="A", ret=0.5), dict(symbol="BTC", method="D", ret=0.1)]))["sym_recent_n"] == 1)
+# 상위 TF: 4h 신호 + 1d 맥락 — 신호봉 마감 시점에 닫힌 일봉만
+DAY = 86_400_000
+d1 = walk(400, 5, 100.0)
+for i, r in enumerate(d1):
+    r["ts"] = 1_700_000_000_000 + i * DAY
+h4 = walk(400, 6, 100.0)
+for i, r in enumerate(h4):
+    r["ts"] = d1[300]["ts"] + i * 14_400_000           # 300일째 00:00 부터 4h 봉
+def rows_of_mixed(sym, tf):
+    return d1 if tf == "1d" else btc
+si = 2                                                  # 300일째 08:00 봉(마감 12:00) → 300일째 일봉은 아직 열려 있다
+sig4 = dict(SIG, tf="4h", stop=h4[si]["c"] * 0.92)
+f4 = aj.features(h4, si, sig4, {"rows_of": rows_of_mixed})
+d1_mut = [dict(r) for r in d1]
+d1_mut[300]["c"] *= 2; d1_mut[300]["h"] *= 2            # 같은 날(형성 중) 일봉을 망가뜨려도
+f4b = aj.features(h4, si, sig4, {"rows_of": lambda s_, tf: d1_mut if tf == "1d" else btc})
+check("상위 TF 맥락은 형성 중인 일봉을 안 본다(인과)", f4["d1_ret_5"] is not None and f4 == f4b)
+d1_mut2 = [dict(r) for r in d1]
+d1_mut2[299]["c"] *= 2
+f4c = aj.features(h4, si, sig4, {"rows_of": lambda s_, tf: d1_mut2 if tf == "1d" else btc})
+check("전날 닫힌 일봉은 본다", f4c["d1_ret_5"] != f4["d1_ret_5"])
+si20 = 5                                                # 300일째 20:00 봉(마감 = 다음날 00:00) → 그날 일봉은 닫힘
+f4d = aj.features(h4, si20, dict(SIG, tf="4h", stop=1.0), {"rows_of": rows_of_mixed})
+f4e = aj.features(h4, si20, dict(SIG, tf="4h", stop=1.0), {"rows_of": lambda s_, tf: d1_mut if tf == "1d" else btc})
+check("20:00 4h 봉 마감 시점엔 그날 일봉이 닫혀 있어 반영된다", f4d["d1_ret_5"] != f4e["d1_ret_5"])
+check("1d 신호에는 d1_* 를 붙이지 않는다", "d1_ret_5" not in aj.features(rows, ei, dict(SIG, stop=90.0), {"rows_of": rows_of_mixed}))
+check("_align_closed: ts+bar_ms <= close_ts 인 마지막 봉", aj._align_closed(d1, d1[10]["ts"] + DAY, DAY) == 10
+      and aj._align_closed(d1, d1[10]["ts"] + DAY - 1, DAY) == 9 and aj._align_closed([], 1, DAY) is None)
+os.environ["ANTHROPIC_API_KEY"] = "test-key"
+aj._post = lambda body, timeout=None: {"content": [{"type": "text", "text": '{"decision":"take","confidence":0.8}'}],
+                                       "usage": {"input_tokens": 1234, "output_tokens": 31}}
+r8 = aj.judge(rows, ei, dict(SIG, stop=90.0), ctx)
+check("judge: kind=entry · prompt_version · 토큰 · 신호봉 종가 기록", r8["kind"] == "entry" and r8["prompt_version"] == aj.PROMPT_VERSION
+      and r8["tokens_in"] == 1234 and r8["tokens_out"] == 31 and r8["entry_px"] == rows[ei]["c"])
+check("PROMPT_VERSION 은 v2(2026-10-26) 표기", aj.PROMPT_VERSION.startswith("entry_v2") and aj.EXIT_PROMPT_VERSION.startswith("exit_v1"))
+check("시스템 프롬프트 v2 가 새 필드(d1_/book_/stop_atr)를 설명한다", all(k in aj.SYSTEM for k in ("d1_", "book_", "stop_atr")))
+aj._post = _orig_post
+os.environ.pop("ANTHROPIC_API_KEY", None)
+
+# ── 9. 청산 검토(그림자) ─────────────────────────────────────────────────────
+POS = dict(symbol="SOL", pattern="fvg", direction="long", tf="1d", entry_date=rows[200]["date"], entry_ts=rows[200]["ts"],
+           entry_price=rows[200]["c"], stop=rows[200]["c"] * 0.92, entry_regime="bull_btc", live_mode=True)
+mi = 210
+xctx = {"rows_of": lambda s_, tf: btc, "trades": ctx["trades"], "regmap": {rows[mi]["date"]: "bear"}, "max_hold": 30}
+xf = aj.exit_features(rows, 200, mi, POS, xctx)
+rows_mut = [dict(r) for r in rows]
+for r in rows_mut[mi + 1:]:
+    r["c"] *= 3; r["l"] *= 0.1
+check("exit_features 는 마크봉 이후를 안 본다(인과)·결정론", xf == aj.exit_features(rows_mut, 200, mi, POS, xctx) == aj.exit_features(rows, 200, mi, POS, xctx))
+check("보유 10봉 · 남은 20봉 · 미실현 = 종가/진입−1", xf["bars_held"] == 10 and xf["bars_left"] == 20
+      and abs(xf["unreal_ret"] - (rows[mi]["c"] / POS["entry_price"] - 1)) < 1e-6)
+check("mfe ≥ 미실현 ≥ mae (롱)", xf["mfe"] >= xf["unreal_ret"] - 1e-9 >= xf["mae"] - 1e-9)
+check("손절 거리 = (마크−손절)/마크 · 레짐 전환 플래그", abs(xf["stop_dist"] - (rows[mi]["c"] - POS["stop"]) / rows[mi]["c"]) < 1e-4
+      and xf["regime_now"] == "bear" and xf["regime_changed"] is True)
+xs = aj.exit_features(rows, 200, mi, dict(POS, direction="short"), xctx)
+check("숏은 부호 반전(미실현·손절 거리)", abs(xs["unreal_ret"] + xf["unreal_ret"]) < 1e-9 and xs["mfe"] >= xs["unreal_ret"] - 1e-9)
+check("exit 특성 JSON 직렬화·BTC 동반·패턴 최근 성과(fvg 방식D 1건)", json.dumps(xf) and "btc_ret_5" in xf and xf["pattern_recent_n"] == 1)
+pb = aj.parse_batch('```json\n{"reviews":[{"id":"p1","decision":"EXIT","confidence":1.7,"reasons":["a","b","c"]},'
+                    '{"id":"p2","decision":"hold"},{"id":"p2","decision":"exit"},{"id":"p9","decision":"hold"},{"id":"p3","decision":"buy"}]}\n```', ["p1", "p2", "p3"])
+check("parse_batch: 대소문자·클램프·근거 2개·중복 id 첫 것·모르는 id/decision 무시",
+      pb == {"p1": {"decision": "exit", "confidence": 1.0, "reasons": ["a", "b"]}, "p2": {"decision": "hold", "confidence": 0.5, "reasons": []}}, pb)
+check("parse_batch: 다른 키로 싼 리스트도 허용 · 깨진 입력 {}", aj.parse_batch('{"result":[{"id":"p1","decision":"hold"}]}', ["p1"])["p1"]["decision"] == "hold"
+      and aj.parse_batch("nope", ["p1"]) == {} and aj.parse_batch('{"reviews": "x"}', ["p1"]) == {} and aj.parse_batch(None, ["p1"]) == {})
+items = [{"pos": POS, "rows": rows, "ei": 200, "mi": mi},
+         {"pos": dict(POS, symbol="ADA", direction="short", pattern="engulfing_short", live_mode=False), "rows": rows, "ei": 205, "mi": mi},
+         {"pos": dict(POS, symbol="BAD"), "rows": [], "ei": 0, "mi": 0}]                       # 특성 계산 실패 행
+os.environ["ANTHROPIC_API_KEY"] = "test-key"
+calls = []
+def _fake_batch(body, timeout=None):
+    calls.append(body)
+    return {"content": [{"type": "text", "text": '{"reviews":[{"id":"p1","decision":"exit","confidence":0.8,"reasons":["near stop"]},'
+                                                 '{"id":"p2","decision":"hold","confidence":0.6}]}'}],
+            "usage": {"input_tokens": 2000, "output_tokens": 80}}
+aj._post = _fake_batch
+xr = aj.judge_exits(items, xctx)
+check("judge_exits: 한 번 호출로 포지션별 행", len(calls) == 1 and len(xr) == 3)
+check("judge_exits: 판정·확신·근거·배치 해시 공유·토큰", xr[0]["decision"] == "exit" and xr[1]["decision"] == "hold" and xr[0]["confidence"] == 0.8
+      and json.loads(xr[0]["reasons"]) == ["near stop"] and xr[0]["prompt_hash"] == xr[1]["prompt_hash"] and len(xr[0]["prompt_hash"]) == 16
+      and xr[0]["tokens_in"] == 2000)
+check("judge_exits: 기록 필드(kind/exit·mark·unreal·bars·live·code_action=open·size_mult 없음·EXIT_PROMPT_VERSION)",
+      xr[0]["kind"] == "exit" and xr[0]["mark_px"] == rows[mi]["c"] and xr[0]["mark_ts"] == rows[mi]["ts"] and xr[0]["bars_held"] == 10
+      and abs(xr[0]["unreal_ret"] - xf["unreal_ret"]) < 1e-9 and xr[0]["live_mode"] is True and xr[1]["live_mode"] is False
+      and xr[0]["code_action"] == "open" and xr[0]["size_mult"] is None and xr[0]["prompt_version"] == aj.EXIT_PROMPT_VERSION
+      and xr[0]["entry_px"] == POS["entry_price"] and xr[0]["entry_ts"] == POS["entry_ts"])
+check("judge_exits: 깨진 항목은 judge_* 오류로 격리되고 나머지는 정상", xr[2]["error"].startswith("judge_") and xr[2]["decision"] is None and xr[0]["error"] is None)
+check("호출: 배치 시스템 프롬프트·온도 0·사용자 메시지에 두 id", calls[0]["system"] == aj.SYSTEM_EXIT and calls[0]["temperature"] == 0
+      and '"id": "p1"' in calls[0]["messages"][0]["content"] and '"id": "p2"' in calls[0]["messages"][0]["content"] and '"p3"' not in calls[0]["messages"][0]["content"])
+check("배치 시스템 프롬프트가 '주문 없음·손절 불변' 을 명시", "places no orders" in aj.SYSTEM_EXIT and "cannot move the stop" in aj.SYSTEM_EXIT)
+aj._post = lambda body, timeout=None: {"content": [{"type": "text", "text": '{"reviews":[{"id":"p1","decision":"hold"}]}'}]}
+xr2 = aj.judge_exits(items[:2], xctx)
+check("일부만 답하면 빠진 id 는 error=no_answer", xr2[0]["decision"] == "hold" and xr2[1]["error"] == "no_answer")
+aj._post = lambda body, timeout=None: {"content": [{"type": "text", "text": "cannot"}]}
+check("배치 파싱 실패 → 전 행 parse_fail", all(r["error"] == "parse_fail" for r in aj.judge_exits(items[:2], xctx)))
+aj._post = _boom
+check("배치 HTTP 오류 → 전 행 http_529, 예외 없음", all(r["error"] == "http_529" for r in aj.judge_exits(items[:2], xctx)))
+_mx = aj.MAX_EXIT_POS
+aj.MAX_EXIT_POS = 1
+aj._post = _fake_batch
+calls.clear()
+xr3 = aj.judge_exits(items[:2], xctx)
+check("MAX_EXIT_POS 초과 행은 max_pos 로 미판단(특성은 기록)", xr3[1]["error"] == "max_pos" and xr3[1]["features"] and xr3[0]["decision"] == "exit"
+      and '"p2"' not in calls[0]["messages"][0]["content"])
+aj.MAX_EXIT_POS = _mx
+os.environ.pop("ANTHROPIC_API_KEY", None)
+xr4 = aj.judge_exits(items[:2], xctx)
+check("키 없음 → no_key, 호출 없음", all(r["error"] == "no_key" for r in xr4))
+check("judge_exits 는 쓰레기 입력에도 예외를 안 낸다", aj.judge_exits([{"pos": {}, "rows": None, "ei": 0, "mi": 0}], None)[0]["error"].startswith("judge_")
+      and aj.judge_exits([], None) == [])
+check("exit_summary_line 집계·'기록만' 표기", "exit 1" in aj.exit_summary_line(xr) and "hold 1" in aj.exit_summary_line(xr) and "주문 무변경" in aj.exit_summary_line(xr)
+      and "미판단/오류 1" in aj.exit_summary_line(xr))
+check("summary_line 은 entry 행만 센다", aj.summary_line(xr) == "[ai] 판단 0건")
+check("exit 기록 행의 모든 키가 SQL 컬럼에 있다", all(k in sql for k in xr[0].keys()), [k for k in xr[0].keys() if k not in sql])
+check("entry 기록 행의 새 키(kind/prompt_version/tokens/entry_px)도 SQL 에 있다", all(k in sql for k in r8.keys()), [k for k in r8.keys() if k not in sql])
+check("SQL: 기존 설치 보강용 alter 가 새 컬럼 전부", all(f"add column if not exists {c}" in sql for c in
+      ("kind", "prompt_version", "entry_px", "mark_ts", "mark_px", "unreal_ret", "bars_held", "live_mode", "tokens_in", "tokens_out")))
+aj._post = _orig_post
+
+# ── 10. 통합 (2026-10-26) ─────────────────────────────────────────────────────
+src = open("paper_executor.py", encoding="utf-8").read()
+check("run(stamp=None, slow=None) — 느린 틱 플래그를 받는다", "def run(stamp=None, slow=None):" in src)
+i_shadow_r = src.find("r_added = shadow_r_records(trades, rows_of, regmap)")
+i_exit = src.find("ai_judge.judge_exits(")
+i_sig = src.find('sig = _load("signals_today.json"')
+check("1-c 청산 검토는 shadow-R 뒤·신규 진입 앞", 0 < i_shadow_r < i_exit < i_sig)
+check("청산 검토 대상: exit_spec 패턴·d_closed·진입봉 미특정 제외",
+      'if pos.get("d_closed") or EXIT_SPECS.get(pos["pattern"]) or pos.get("entry_idx") is None:' in src)
+check("느린 틱에서만(ai_on and slow) · 폴백 시각 = scheduler.SLOW_TICK_HOURS", "if ai_on and slow:" in src
+      and "slow = datetime.now(timezone.utc).hour in AI_EXIT_REVIEW_HOURS" in src)
+import scheduler as sch
+check("AI_EXIT_REVIEW_HOURS == scheduler.SLOW_TICK_HOURS", pe.AI_EXIT_REVIEW_HOURS == sch.SLOW_TICK_HOURS)
+check("scheduler 가 느린 틱 플래그를 넘긴다", "paper_executor.run(stamp, slow=slow_tick)" in open("scheduler.py", encoding="utf-8").read())
+check("청산 검토 결과는 기록(ai_records)에만 들어간다 — 주문·청산 코드가 ex_recs 를 읽지 않는다",
+      src.count("ex_recs") == 3 and "ai_records.extend(ex_recs)" in src and "exit_summary_line(ex_recs)" in src)
+check("청산 검토 블록 안에 주문·청산 호출이 없다",
+      all(w not in src[i_exit - 1500:i_exit + 400] for w in ("close_swap_position", "place_swap_entry", "ensure_stop_orders", "_record_trade(")))
+check("진입 판단 ctx 에 포트폴리오 맥락(book·max_pos)", '"book": still_open, "max_pos": MAX_LIVE_POS' in src)
+check("code_action 세분화: 스킵 지점마다 사유", all(f'_ai_action(aj, "{a}")' in src for a in
+      ("slot_full", "dup_live", "cap_full", "cap_pot_empty", "size_skip", "order_fail", "kill_switch")))
+pe._ai_action(None, "x")
+_a = {"code_action": "not_entered"}
+pe._ai_action(_a, "slot_full")
+check("_ai_action: 판단 없으면 무시 · 있으면 기록", _a["code_action"] == "slot_full")
+check("최대 포지션·중복 방어 판정 줄은 종전 그대로(test_executor_safety 가 보는 문자열)",
+      "elif live_open_count >= MAX_LIVE_POS:" in src and 'if entry_blocked(s["symbol"], s["direction"], bool(cap), okx_dir_keys, main_keys, cap_keys):' in src)
+check("실행 끝 DB 기록은 진입·청산 행을 한 번에", "ai_judge.push_db(" in src and src.count("ai_judge.push_db(") == 1)
+check("tests.yml 에 test_ai_judge_report", "test_ai_judge_report.py" in open(".github/workflows/tests.yml", encoding="utf-8").read())
+check("보고 워크플로 존재", os.path.exists(".github/workflows/ai_judge_report.yml"))
+regx = json.load(open("registry.json", encoding="utf-8"))["ai_exit_prereg_2026_10_26"]
+check("registry 청산 검토 사전 등록: status·primary·실효 조건(원칙 개정·사용자 결정)", regx["status"] == "SHADOW_RECORDING"
+      and "primary" in regx["evaluation_prereg"] and "promotion" in regx["evaluation_prereg"] and "사용자 결정" in regx["evaluation_prereg"]["promotion"])
+check("registry 진입 사전 등록에 prompt_version 이력", "prompt_versions" in reg and aj.PROMPT_VERSION in json.dumps(reg["prompt_versions"], ensure_ascii=False))
+check("CLAUDE.md 에 청산 검토·보고 반영", "청산 검토" in cl and "ai_judge_report" in cl)
 
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)
