@@ -111,7 +111,9 @@ import inspect
 check("훅 인자 기본값 None (collect_1d/collect_4h/collect_all)",
       all(inspect.signature(f).parameters["outcome_fn"].default is None
           for f in (vp.collect_1d, vp.collect_4h, vp.sv.collect_all)))
-check("simulate 시그니처 불변", list(inspect.signature(vp.simulate).parameters) == ["trades", "arm", "cap", "size_mult"])
+check("simulate 시그니처 불변(기존 인자 순서 유지, 뒤에 선택 인자 path=None 만 추가 — R-060)",
+      list(inspect.signature(vp.simulate).parameters) == ["trades", "arm", "cap", "size_mult", "path"]
+      and inspect.signature(vp.simulate).parameters["path"].default is None)
 
 # ── 짝지음 정렬·판정 ─────────────────────────────────────────────────────────
 def T(t_in, hold, ret, sym="A", pat="p"):

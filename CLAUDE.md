@@ -2522,6 +2522,12 @@
 - **three_soldiers_4h 코호트 all → top30 축소 REJECTED (2026-10-26, 자율 연구 R-003 수동 가속, run 40313502181)**: registry `ts_top30_prereg_2026_10_26` / report_ts_top30.md.
   validate_portfolio 프레임에서 three_soldiers 거래 중 순위≥30 을 제거한 arm 대 현행. **걸러진 135건은 음수가 아니라 +2.28%**(train +4.58% / holdout -0.79%), 월 블록 부트 P(평균<0)=0.116 로 F1 탈락. 포트폴리오 holdout Calmar current -0.64 vs top30 -0.80, J1·J2·J5 실패(J3 63%·J4 통과). 남는 101건 train +2.30% / holdout +0.88%.
   revival 의 'top30 PASSED / all REJECTED' 는 패턴 단독 프레임의 관찰이었고 포트폴리오에서는 순위 밖 거래가 오히려 양의 기여라 축소할 근거가 없다. 사전 확률 PASSED 0.30 — 탈락 쪽 경고 적중. **실거래 무변경, cohort 미추가.** 한계: 정적 순위·달력 분할. validate_ts_top30.py / test_ts_top30.py(18) / ts_top30.yml
+- **bull_btc 레짐 롱 신규 진입 정지 REJECTED (2026-10-26, 자율 연구 R-060, run 40340912571)**: registry `bull_btc_prereg_2026_10_26` / report_bull_btc.md.
+  validate_portfolio 프레임에서 진입 레짐 bull_btc 롱 4,673건을 전부 뺀 arm 대 현행. 판정 K1·K5·K6 실패 — 제거 거래 holdout(bull_btc 최근 365일) n=2729 평균 **+3.67%**,
+  부트 우위 1%, 같은 수 무작위 제거 대비 5백분위. 에피소드별로는 2025-08~11(-3.44%)·2026-10~(-4.47%) 짧은 에피소드만 음수, 긴 에피소드는 +1.7/+5.4%.
+  **괴리**: 거래 평균 +2.78% 인데 current 곡선 CAGR -13.4%·MDD -97.7% — 건당 평균과 복리 곡선이 반대 부호라 이 프레임 절대 수준은 예보로 못 읽는다(R-063).
+  사전 확률 PASSED 0.20 적중, 예상 실패 지점(K2)은 오답. **실거래 무변경**, 정지 변경 없음. BTC 낙폭 버킷 진단은 detlib 키 오류(`c`)로 빔 → R-064 에서 수정.
+  `vp.simulate(path=)` 읽기 전용 훅 추가(None=종전 동일, test_bull_btc·test_dclose_port 고정). validate_bull_btc.py / test_bull_btc.py(30) / bull_btc.yml
 - **tp1 정지 + 정지·시동 권한 위임 — 운용 점검(steward) 신설 (2026-10-26, 사용자 결정 "tp1 정지해줘 그리고 ai 한테 아예 정지 및
   시동 권한을 일임해서 투자하고 싶어")**: registry `steward_rules_2026_10_26`. 핵심 원칙 '운용 위임' 참조.
   · **tp1_engulfing_1h 신규 진입 정지** — adopted_1h_patterns → suspended_1h_patterns, registry status suspended_user.

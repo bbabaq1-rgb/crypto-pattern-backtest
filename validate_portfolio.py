@@ -163,7 +163,7 @@ def collect_4h(rows_by, ranked, regmap, outcome_fn=None):
     return out
 
 
-def simulate(trades, arm, cap=None, size_mult=None):
+def simulate(trades, arm, cap=None, size_mult=None, path=None):
     """
     시간순 포트폴리오 시뮬 — sizing_study/sizing_vol 과 같은 회계.
     arm 이 바꾸는 것은 **슬롯 배분뿐**: 진입 우선순위와 패턴별 상한. 사이징은 실거래 고정.
@@ -172,6 +172,10 @@ def simulate(trades, arm, cap=None, size_mult=None):
     호출 가능 객체. **None 이면 이 판의 종전 동작과 완전히 같다**(test_portfolio 가 고정) —
     포트폴리오 단위 노출 조절 arm 을 슬롯 arm 과 섞지 않으려고 훅으로만 열어 둔다.
     ctx = dict(equity, free, peak, open_pos, trades, idx, t).
+
+    path (2026-10-26, validate_bull_btc 용): 리스트를 주면 같은 시각 청산 처리 직후의 (t, equity) 를
+    append 한다 — 레짐 구간별 수익을 자산곡선에서 잘라 보기 위한 읽기 전용 기록. **None 이면 종전
+    동작과 완전히 같다**(test_bull_btc 가 고정).
     """
     evs = []
     for i, t in enumerate(trades):
@@ -208,6 +212,8 @@ def simulate(trades, arm, cap=None, size_mult=None):
             else:
                 batch.append(idx)
             i += 1
+        if path is not None:
+            path.append((t0, equity))
         if equity <= 0:
             equity = 0.0
             break
