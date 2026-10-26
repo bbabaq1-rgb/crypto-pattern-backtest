@@ -115,6 +115,20 @@ r3 = aj.judge(rows, ei, dict(SIG, stop=90.0), ctx)
 check("파싱 실패 → error=parse_fail", r3["error"] == "parse_fail" and r3["decision"] is None)
 r4 = aj.judge([], 0, dict(SIG), ctx)              # rows 비어 있음 → 특성 계산 예외
 check("특성 계산 예외도 삼킨다(judge_*)", r4["error"].startswith("judge_"))
+import io as _io
+def _boom400(body, timeout=None):
+    fp = _io.BytesIO(b'{"type":"error","error":{"type":"invalid_request_error","message":"temperature: non-default values are not supported"}}')
+    raise urllib.error.HTTPError(aj.API_URL, 400, "bad request", {}, fp)
+aj._post = _boom400
+r4b = aj.judge(rows, ei, dict(SIG, stop=90.0), ctx)
+check("HTTP 오류 본문의 type·message 를 error 에 남긴다(진단 가능)", r4b["error"].startswith("http_400:invalid_request_error:temperature"), r4b["error"])
+aj._post = lambda body, timeout=None: {"content": [{"type": "thinking", "thinking": ""}], "stop_reason": "max_tokens", "usage": {"input_tokens": 9, "output_tokens": 4000}}
+r4c = aj.judge(rows, ei, dict(SIG, stop=90.0), ctx)
+check("텍스트 없는 응답은 stop_reason 으로 기록(empty_max_tokens)·토큰은 남긴다", r4c["error"] == "empty_max_tokens" and r4c["tokens_out"] == 4000)
+aj._post = lambda body, timeout=None: {"content": [], "stop_reason": "refusal", "stop_details": {"type": "refusal", "category": "cyber"}}
+check("안전 거절은 refusal:<category>", aj.judge(rows, ei, dict(SIG, stop=90.0), ctx)["error"] == "refusal:cyber")
+check("요청 본문 어디에도 샘플링 파라미터가 없다(소스)", all(k not in open("ai_judge.py", encoding="utf-8").read() for k in ('"temperature"', '"top_p"', '"top_k"')))
+check("모델은 claude-opus-5-5(2026-10-26 전환)·effort low", aj.MODEL == "claude-opus-5-5" and aj.EFFORT == "low")
 
 # ── 5. 가짜 API 로 끝까지 ─────────────────────────────────────────────────────
 seen = {}
@@ -127,7 +141,9 @@ check("judge: 판단 필드", r5["decision"] == "reduce" and r5["size_mult"] == 
       and json.loads(r5["reasons"]) == ["rsi hot", "vol spike"] and r5["error"] is None)
 check("judge: 키·모델·모드·ts 기록", r5["model"] == aj.MODEL and r5["mode"] == aj.MODE and r5["entry_ts"] == rows[ei]["ts"]
       and r5["symbol"] == "SOL" and r5["pattern"] == "engulfing")
-check("호출: 온도 0·시스템 프롬프트·모델", seen.get("temperature") == 0 and seen.get("system") == aj.SYSTEM and seen.get("model") == aj.MODEL)
+check("호출: 샘플링 파라미터 미전송(temperature=0 이 실거래 http_400 원인)·effort low·시스템 프롬프트·모델",
+      all(k not in seen for k in ("temperature", "top_p", "top_k", "thinking")) and seen.get("output_config") == {"effort": aj.EFFORT}
+      and seen.get("system") == aj.SYSTEM and seen.get("model") == aj.MODEL and seen.get("max_tokens") >= 1024)
 check("호출: 사용자 메시지는 특성 JSON 만", seen["messages"][0]["content"].endswith(r5["features"]))
 check("시스템 프롬프트가 금지를 명시(신호 생성·크기 증가·손절 변경 불가)",
       "cannot create trades" in aj.SYSTEM and "raise size" in aj.SYSTEM and "change the stop" in aj.SYSTEM)
@@ -278,7 +294,7 @@ check("judge_exits: 기록 필드(kind/exit·mark·unreal·bars·live·code_acti
       and xr[0]["code_action"] == "open" and xr[0]["size_mult"] is None and xr[0]["prompt_version"] == aj.EXIT_PROMPT_VERSION
       and xr[0]["entry_px"] == POS["entry_price"] and xr[0]["entry_ts"] == POS["entry_ts"])
 check("judge_exits: 깨진 항목은 judge_* 오류로 격리되고 나머지는 정상", xr[2]["error"].startswith("judge_") and xr[2]["decision"] is None and xr[0]["error"] is None)
-check("호출: 배치 시스템 프롬프트·온도 0·사용자 메시지에 두 id", calls[0]["system"] == aj.SYSTEM_EXIT and calls[0]["temperature"] == 0
+check("호출: 배치 시스템 프롬프트·샘플링 미전송·사용자 메시지에 두 id", calls[0]["system"] == aj.SYSTEM_EXIT and "temperature" not in calls[0]
       and '"id": "p1"' in calls[0]["messages"][0]["content"] and '"id": "p2"' in calls[0]["messages"][0]["content"] and '"p3"' not in calls[0]["messages"][0]["content"])
 check("배치 시스템 프롬프트가 '주문 없음·손절 불변' 을 명시", "places no orders" in aj.SYSTEM_EXIT and "cannot move the stop" in aj.SYSTEM_EXIT)
 aj._post = lambda body, timeout=None: {"content": [{"type": "text", "text": '{"reviews":[{"id":"p1","decision":"hold"}]}'}]}

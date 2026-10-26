@@ -27,9 +27,12 @@ ai_judge.py — 신호별 AI 판단 레이어 (2026-10-23, 사용자 결정 "매
   실제 방식D 결과를 그대로 비교할 수 있다 — 가상 추적이 필요 없다.
 
 재현성
-  온도 0, 입력은 그 봉까지의 수치뿐(인과), 프롬프트 해시 저장. 단 모델 자체가 바뀌면 같은 입력에 다른 답이
-  나올 수 있다 — 그래서 model 을 함께 기록한다. API 키가 없거나 호출이 실패하면 error 를 기록하고
-  **거래 경로는 아무 영향도 받지 않는다**(예외를 밖으로 내지 않는다).
+  입력은 그 봉까지의 수치뿐(인과), 프롬프트 해시·버전·모델 저장. **샘플링 파라미터(temperature/top_p/top_k)는 보내지
+  않는다** — Claude 5.5 계열은 기본값 외 값에 400 을 돌려주고 API 버전 2026-10-21 부터는 어떤 값이든 400 이다.
+  실측: 2026-10-23~26 실거래 호출은 전부 temperature=0 때문에 http_400 이었다(10/26 00:00Z 로그 `판단 실패(http_400)`).
+  그래서 '같은 입력 → 같은 답' 은 보장되지 않고, 대신 model·prompt_version·features 를 행마다 기록해 추적한다.
+  API 키가 없거나 호출이 실패하면 error(HTTP 응답의 type·message 포함) 를 기록하고 **거래 경로는 아무 영향도 받지
+  않는다**(예외를 밖으로 내지 않는다).
 """
 import hashlib
 import json
@@ -40,7 +43,8 @@ import urllib.error
 import urllib.request
 
 MODE = "shadow"                    # "shadow" | "veto"  — 전환은 사용자 결정(registry 사전 등록 참조)
-MODEL = "claude-sonnet-5-5"
+MODEL = "claude-opus-5-5"             # 2026-10-26 전환(종전 claude-sonnet-5-5). 행마다 model 을 기록하므로 표본은 (model, prompt_version) 로 갈린다.
+EFFORT = "low"                        # 짧은 JSON 분류 — 추론 깊이는 effort 로만 조절(thinking 은 이 모델에서 항상 켜져 있다)
 # 표본 집계 키. 프롬프트·특성·모델 구성을 바꾸면 올린다 — 사전 등록 'no_post_hoc' 가 이 값으로 표본을 가른다.
 # (prompt_hash 는 특성값까지 해시해 신호마다 다르므로 집계 키가 될 수 없다 — 2026-10-26 정정)
 PROMPT_VERSION = "entry_v2_2026_10_26"
@@ -49,6 +53,7 @@ MAX_CALLS_PER_RUN = 25             # 한 실행에서 판단할 신호 상한(�
 MAX_EXIT_POS = 20                  # 청산 검토 배치 한 번에 넣는 포지션 상한(MAX_LIVE_POS 13 + 페이퍼 여유)
 TIMEOUT_S = 25
 EXIT_TIMEOUT_S = 60                # 배치 응답이 길다
+ENTRY_MAX_TOKENS = 4000            # 생각 토큰 포함 상한(실사용은 수백 토큰 — 비용은 usage 로 추적)
 API_URL = "https://api.anthropic.com/v1/messages"
 TABLE = "ai_judgments"
 DECISIONS = ("take", "reduce", "skip")
@@ -267,23 +272,51 @@ def _post(body, timeout=None):
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _body(system, user_text, max_tokens):
+    """
+    Messages 요청 본문. **temperature/top_p/top_k 를 넣지 않는다** — 2026-10-23~26 의 실거래 호출이 전부
+    temperature=0 으로 http_400 이었다(Claude 5.5 계열: 기본값 외 샘플링 값 400 / API 2026-10-21: 어떤 값이든 400).
+    thinking 은 이 모델에서 항상 켜져 있어 보내지 않고, 깊이는 output_config.effort 로만 조절한다.
+    max_tokens 는 생각 토큰까지 포함하므로 짧은 JSON 답이라도 넉넉히 준다(부족하면 stop_reason=max_tokens 로 빈 답).
+    """
+    return {"model": MODEL, "max_tokens": max_tokens, "system": system,
+            "output_config": {"effort": EFFORT},
+            "messages": [{"role": "user", "content": user_text}]}
+
+
+def _http_detail(e):
+    """HTTPError 응답 본문의 error.type / error.message — 진단용(종전엔 코드만 남아 원인을 못 봤다)."""
+    try:
+        j = json.loads(e.read().decode("utf-8", "replace"))
+        er = j.get("error") or {}
+        return f":{er.get('type', '')}:{str(er.get('message', ''))[:120]}"
+    except Exception:
+        return ""
+
+
 def _call_raw(system, user_text, max_tokens, timeout=None):
-    """(text, error, latency_ms, usage). 키 없음·HTTP 오류는 (None, err, ms, {})."""
+    """(text, error, latency_ms, usage). 키 없음·HTTP 오류·빈 답은 (None, err, ms, usage)."""
     if not available():
         return None, "no_key", 0, {}
-    body = {"model": MODEL, "max_tokens": max_tokens, "temperature": 0, "system": system,
-            "messages": [{"role": "user", "content": user_text}]}
+    body = _body(system, user_text, max_tokens)
     t0 = time.time()
     try:
         out = _post(body) if timeout is None else _post(body, timeout)
     except urllib.error.HTTPError as e:
-        return None, f"http_{e.code}", int((time.time() - t0) * 1000), {}
+        return None, f"http_{e.code}{_http_detail(e)}", int((time.time() - t0) * 1000), {}
     except Exception as e:
         return None, f"err_{type(e).__name__}", int((time.time() - t0) * 1000), {}
     ms = int((time.time() - t0) * 1000)
     text = "".join(blk.get("text", "") for blk in (out.get("content") or []) if blk.get("type") == "text")
     usage = out.get("usage") or {}
-    return text, None, ms, usage if isinstance(usage, dict) else {}
+    usage = usage if isinstance(usage, dict) else {}
+    if not text:
+        sr = out.get("stop_reason")
+        if sr == "refusal":          # 안전 분류기 거절 — 카테고리를 남긴다(stop_details)
+            cat = (out.get("stop_details") or {}).get("category") or "?"
+            return None, f"refusal:{cat}", ms, usage
+        return None, f"empty_{sr or 'response'}", ms, usage
+    return text, None, ms, usage
 
 
 def _json_obj(text):
@@ -346,7 +379,7 @@ def parse(text):
 
 def call(feat):
     """(parsed, error, latency_ms, raw_text). 키 없음·HTTP 오류·파싱 실패 전부 (None, err, ...) 로 돌려준다."""
-    text, err, ms, _usage = _call_raw(SYSTEM, prompt_text(feat), 300)
+    text, err, ms, _usage = _call_raw(SYSTEM, prompt_text(feat), ENTRY_MAX_TOKENS)
     if err:
         return None, err, ms, None
     parsed = parse(text)
@@ -368,7 +401,7 @@ def judge(rows, ei, sig, ctx=None, mode=None):
         feat = features(rows, ei, sig, ctx)
         rec["features"] = json.dumps(feat, ensure_ascii=False, sort_keys=True)
         rec["prompt_hash"] = prompt_hash(feat)
-        text, err, ms, usage = _call_raw(SYSTEM, prompt_text(feat), 300)
+        text, err, ms, usage = _call_raw(SYSTEM, prompt_text(feat), ENTRY_MAX_TOKENS)
         rec["latency_ms"] = ms
         rec["tokens_in"], rec["tokens_out"] = usage.get("input_tokens"), usage.get("output_tokens")
         parsed = parse(text) if not err else None
@@ -507,7 +540,7 @@ def judge_exits(items, ctx=None, mode=None):
     try:
         user = exit_prompt_text(feats)
         h = hashlib.sha256((SYSTEM_EXIT + "\n" + user).encode("utf-8")).hexdigest()[:16]
-        text, err, ms, usage = _call_raw(SYSTEM_EXIT, user, 120 + 90 * len(feats), EXIT_TIMEOUT_S)
+        text, err, ms, usage = _call_raw(SYSTEM_EXIT, user, min(16000, 1500 + 300 * len(feats)), EXIT_TIMEOUT_S)
         answers = parse_batch(text, [pid for pid, _ in feats]) if not err else {}
         by_id = {pid: i for i, (pid, _) in enumerate(feats)}
         pending = [r for r in recs if r["error"] is None]

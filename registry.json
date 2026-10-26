@@ -5916,7 +5916,7 @@
     "status": "SHADOW_RECORDING",
     "asked": "2026-10-23 사용자 결정 '우리 자동매매의 수익률은 솔직히 형편없어 매매 판단을 기존거에 ai 판단으로 개선할수 있는 방법을 찾는다 … 클로드 md를 수정해서라도 이번 판단 규칙은 개선한다' → 선택: 그림자 기록 먼저 / 차트 수치만 / 전 배포 패턴",
     "principle_change": "CLAUDE.md '매매 결정은 결정론적 코드만' → '진입 가부·크기 조정에 AI 판단 레이어 허용. 손절·청산 집행·사이징 상한·킬스위치는 코드가 정하고 AI 는 그 안에서 거르거나 줄일 수만 있다. 모든 AI 판단은 기록돼 사후 검증 가능해야 한다.'",
-    "mechanism": "ai_judge.judge(rows, ei, sig, ctx) — 신호봉까지의 수치 특성(수익률 1/5/20/60봉·ATR·거래량 비율·RSI·MA 거리·60봉 위치·BTC/ETH 동반 수익·레짐·avg_cap·같은 패턴 최근 20건 실거래 성과)만 프롬프트에 넣고 claude-sonnet-5-5 온도 0 으로 take/reduce/skip + size_mult(≤1) + confidence + reasons(JSON). 신호 생성·손절·청산·슬롯·중복 방어 불변. 뉴스 등 외부 텍스트 입력 없음(사용자 선택).",
+    "mechanism": "ai_judge.judge(rows, ei, sig, ctx) — 신호봉까지의 수치 특성(수익률 1/5/20/60봉·ATR·거래량 비율·RSI·MA 거리·60봉 위치·BTC/ETH 동반 수익·레짐·avg_cap·같은 패턴 최근 20건 실거래 성과)만 프롬프트에 넣고 claude-opus-5-5 effort low 로(2026-10-26 교정 — production_finding 참조) take/reduce/skip + size_mult(≤1) + confidence + reasons(JSON). 신호 생성·손절·청산·슬롯·중복 방어 불변. 뉴스 등 외부 텍스트 입력 없음(사용자 선택).",
     "mode_now": "shadow — ai_judge.MODE. 판단은 ai_judgments 테이블(+positions.ai_decision/ai_size_mult/ai_confidence)에 기록만 하고 주문은 종전과 바이트 단위로 같다(test_ai_judge 가 고정).",
     "evaluation_prereg": {
       "unit": "그림자 기간에 판단이 붙은 뒤 방식D 로 해소된 실거래·페이퍼 거래(모든 신호가 종전대로 진입하므로 가상 추적 불필요)",
@@ -5949,16 +5949,17 @@
       ".github/workflows/ai_judge_report.yml"
     ],
     "prompt_versions": {
-      "v1": "2026-10-23 ~ 2026-10-26 — prompt_version 컬럼이 없던 구 행(ai_judgments.prompt_version IS NULL). 특성 v1(수익률/ATR/거래량/RSI/MA/BTC·ETH/레짐/패턴 최근 성과). 키 등록 직후라 표본은 거의 없다",
-      "entry_v2_2026_10_26": "ai_judge.PROMPT_VERSION. 특성 v2 — 포트폴리오 맥락(book_rows/live/max/long/short/same_pattern/symbol_held) · 상위 TF 맥락(d1_ret_5/20·d1_rsi14·d1_ma50/200_dist — 4h/1h 신호에 **신호봉 마감 시점에 닫힌 일봉만**) · stop_atr · sym_recent_n/mean · bar_hour_utc · 시스템 프롬프트가 새 필드 설명. 표본은 이 버전부터 새로 센다(결과를 본 뒤의 변경이 아니다 — 2026-10-26 시점 v1 표본 0~수 건)"
+      "v1": "2026-10-23 ~ 2026-10-26 — prompt_version 컬럼이 없던 구 행(ai_judgments.prompt_version IS NULL). 특성 v1(수익률/ATR/거래량/RSI/MA/BTC·ETH/레짐/패턴 최근 성과). 키 등록 직후라 표본은 거의 없다 · **실제로는 기록된 판단이 0건** — temperature=0 으로 전 호출 http_400(production_finding_2026_10_26)",
+      "entry_v2_2026_10_26": "ai_judge.PROMPT_VERSION. 특성 v2 — 포트폴리오 맥락(book_rows/live/max/long/short/same_pattern/symbol_held) · 상위 TF 맥락(d1_ret_5/20·d1_rsi14·d1_ma50/200_dist — 4h/1h 신호에 **신호봉 마감 시점에 닫힌 일봉만**) · stop_atr · sym_recent_n/mean · bar_hour_utc · 시스템 프롬프트가 새 필드 설명. 표본은 이 버전부터 새로 센다(결과를 본 뒤의 변경이 아니다 — 2026-10-26 시점 v1 표본 0~수 건) · model claude-opus-5-5 / effort low / 샘플링 파라미터 없음"
     },
-    "code_action_vocab_2026_10_26": "live / paper(실거래 미연결) / paper_kill_switch / paper_order_fail / slot_full / dup_live / cap_full / cap_pot_empty / size_skip / order_fail(cap) / not_entered(루프 중단) — '왜 실주문이 없었나' 를 평가에서 가른다(종전 live/paper/not_entered 셋)"
+    "code_action_vocab_2026_10_26": "live / paper(실거래 미연결) / paper_kill_switch / paper_order_fail / slot_full / dup_live / cap_full / cap_pot_empty / size_skip / order_fail(cap) / not_entered(루프 중단) — '왜 실주문이 없었나' 를 평가에서 가른다(종전 live/paper/not_entered 셋)",
+    "production_finding_2026_10_26": "**실거래 첫 실측: 10/23~26 의 AI 호출은 전부 실패했다.** 10/26 00:00Z 로그 `[ai] GRASS vol_awakening_4h 판단 실패(http_400)`. 원인은 요청 본문의 temperature=0 — Claude 5.5 계열은 기본값 외 샘플링 값(temperature/top_p/top_k)에 400 을 돌려주고 API 버전 2026-10-21 부터는 어떤 값이든 400 이다(claude-api 스킬 drift 표). 종전 코드는 HTTP 코드만 남겨 원인을 못 봤다. 수정: 샘플링 파라미터 제거 + output_config.effort=low + max_tokens 4000(생각 토큰 포함) + HTTP 오류 본문의 type·message 기록 + 빈 답은 stop_reason(empty_max_tokens / refusal:<category>) 기록. 모델은 claude-opus-5-5 로 전환(스킬 기본값·2x 비용이나 월 수 달러 수준). 같은 실행에서 ai_judgments 테이블 미존재(PGRST205)도 보였으나 02:17Z 보고 워크플로가 0행을 정상 읽어 그 사이 SQL 1차 실행이 반영된 것으로 확인. 따라서 **그림자 표본은 이 PR 머지 뒤 첫 신호부터 시작**한다(v1 표본 0건)."
   },
   "ai_exit_prereg_2026_10_26": {
     "status": "SHADOW_RECORDING",
     "asked": "2026-10-26 사용자 지시 'AI 를 통해서 판단 및 매매 개선할 수 있는 항목들 개선해서 구현해' — 진입 판단 그림자(10/23)에 이어 청산 쪽을 같은 방식(기록 먼저)으로 연다",
     "why_exit": "실거래 손실의 대부분은 −8% 손절이다(관찰 보고: marubozu 11건 중 손절 10 · 정지 구간 손절 7건 −$56). 레포의 규칙 기반 청산 변형은 열 번 기각됐다(E·F·G·H·T·R·X·ATR·D_time·time_prop) — 가격 규칙으로는 안 됐으니 '지금 상태' 를 보고 손절을 피할 수 있는지를 AI 에 물어 기록한다. 기대는 낮다",
-    "mechanism": "paper_executor.run 1-c: 느린 틱(scheduler --slow)에서만, 방식D 로 들고 있는 행(exit_spec 패턴·d_closed·진입봉 미특정 제외)을 ai_judge.judge_exits 가 **한 번의 배치 호출**로 hold/exit 판정. 특성 = 마크봉(마지막 행)까지의 수치 — unreal_ret·stop_dist·mfe/mae·bars_held/left·레짐 전환·ret/ATR/RSI/MA/거래량·BTC 동반·패턴 최근 성과. 기록 행 kind=exit, mark_ts/mark_px/unreal_ret/bars_held/live_mode 컬럼",
+    "mechanism": "paper_executor.run 1-c: 느린 틱(scheduler --slow)에서만, 방식D 로 들고 있는 행(exit_spec 패턴·d_closed·진입봉 미특정 제외)을 ai_judge.judge_exits 가 **한 번의 배치 호출**로 hold/exit 판정. 특성 = 마크봉(마지막 행)까지의 수치 — unreal_ret·stop_dist·mfe/mae·bars_held/left·레짐 전환·ret/ATR/RSI/MA/거래량·BTC 동반·패턴 최근 성과. 기록 행 kind=exit, mark_ts/mark_px/unreal_ret/bars_held/live_mode 컬럼 · model claude-opus-5-5 / effort low / 샘플링 파라미터 없음",
     "no_live_effect": "**어떤 모드에서도 주문·청산·포지션 수명에 닿지 않는다.** CLAUDE.md 원칙 ②(청산 집행은 코드) 그대로 — 실효를 주려면 원칙 개정 + 사용자 결정. test_ai_judge §10 이 '청산 검토 결과는 ai_records 에만 들어가고 주문·청산 코드가 읽지 않는다' 를 소스로 고정",
     "evaluation_prereg": {
       "unit": "검토가 한 번 이상 붙은 뒤 방식D 로 해소된 포지션. 포지션마다 **첫 exit 제안** 시점의 마크봉 종가 청산 가상 수익(unreal_ret − 수수료 0.2%)과 실제 방식D 수익의 차 = adv(exit). exit 제안이 한 번도 없던 포지션은 첫 검토 시점의 같은 양 = adv(hold-only) — 대조군",

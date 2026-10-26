@@ -2370,7 +2370,7 @@
   supabase_schema_ai_judge.sql. 핵심 원칙 '매매 결정은 결정론적 코드만' 개정(아래 핵심 원칙 참조).
   · **기전**: paper_executor 진입 루프에서 중복 방어 뒤·사이징 앞에 `ai_judge.judge()` — 신호봉까지의 수치 특성(1/5/20/60봉 수익률·
     ATR·거래량 비율·RSI·MA20/50/200 거리·60봉 위치·BTC/ETH 동반 수익·레짐·avg_cap·같은 패턴 최근 20건 실거래 성과)만 JSON 으로
-    넘겨 claude-sonnet-5-5 온도 0 이 take/reduce/skip + size_mult + confidence + reasons 를 돌려준다. **AI 는 거르거나 줄일 수만 있다**
+    넘겨 LLM 이 take/reduce/skip + size_mult + confidence + reasons 를 돌려준다(**모델·요청 형태는 10/26 교정** — 아래 확장 항목). **AI 는 거르거나 줄일 수만 있다**
     (size_mult 상한 1.0 코드 고정, 신호 생성·손절·청산·슬롯·중복 방어 불변 — test 가 통합 지점을 소스로 고정).
   · **현행 MODE="shadow"** — 판단을 `ai_judgments`(+positions.ai_decision/ai_size_mult/ai_confidence)에 기록만 하고 **주문은
     종전과 바이트 단위로 같다**(apply 가 shadow 에서 항상 1.0). veto 로 바꾸면 skip 은 실주문을 안 내고(페이퍼 행은 남겨 추적)
@@ -2404,9 +2404,16 @@
     않게 하는 장치. secondary(veto 가상 자산곡선)는 OHLC 가 필요해 승격 시점에 별도 실행. 구 행(prompt_version NULL)은 'v1' 그룹.
   · **code_action 세분화** — 종전 live/paper/not_entered → slot_full / dup_live / cap_full / cap_pot_empty / size_skip / order_fail / kill_switch /
     paper_order_fail / paper_kill_switch. '왜 실주문이 없었나' 를 평가에서 가른다. 토큰 사용량(tokens_in/out) 기록으로 비용 추적.
+  · **실거래 첫 실측 — 10/23~26 의 AI 호출은 전부 http_400 이었다(판단 0건 기록)**: 10/26 00:00Z 로그 `[ai] GRASS vol_awakening_4h
+    판단 실패(http_400)`. 원인은 요청의 `temperature: 0` — Claude 5.5 계열은 기본값 외 샘플링 값에 400, API 2026-10-21 부터는 어떤 값이든
+    400(claude-api 스킬 drift 표). 종전 코드는 HTTP 코드만 남겨 원인을 못 봤다. **수정**: 샘플링 파라미터 제거 · `output_config.effort=low` ·
+    max_tokens 4000(생각 토큰 포함) · HTTP 오류 본문 type·message 기록 · 빈 답은 `empty_<stop_reason>`/`refusal:<category>` 기록.
+    **모델 claude-sonnet-5-5 → claude-opus-5-5**(스킬 기본값, 비용 2x 지만 월 수 달러). '온도 0 결정론' 은 더 이상 성립하지 않는다 —
+    model·prompt_version·features 기록으로 추적. 같은 실행의 `ai_judgments` 미존재(PGRST205)는 02:17Z 보고 워크플로가 0행을 정상
+    읽어 사용자 SQL 1차 실행으로 해소 확인. **그림자 표본은 이 머지 뒤 첫 신호부터**(v1 표본 0건) — 승격 시계도 거기서 시작.
   · **선결(사용자)**: `supabase_schema_ai_judge.sql` **재실행**(멱등 — 확장 컬럼 10개 alter). 실행 전까지 insert_tolerant 가 그 컬럼을
     제외해 적재는 되지만 kind/prompt_version 이 비어 보고가 전부 v1 로 묶인다. 비용: 진입 신호당 1회 + 느린 틱당 배치 1회(≈6회/일).
-  · 테스트: test_ai_judge 59→115건(v2 인과·배치 파싱·오류 격리·통합 지점) / test_ai_judge_report 46건(매칭·부트 결정론·판정 규칙) — tests.yml.
+  · 테스트: test_ai_judge 59→120건(v2 인과·배치 파싱·오류 격리·요청 형태·통합 지점) / test_ai_judge_report 46건(매칭·부트 결정론·판정 규칙) — tests.yml.
 - **A안 사전 등록 — 시간 비례 보유한도 (2026-10-22, 사용자 지시 "A안 사전등록해서 돌려줘")**: registry
   `time_prop_prereg_2026_10_22`. 닐리 파동 규모 관점(가격·시간 비례)이 매매에 **미반영**임을 확인한 뒤의 첫 시험.
   보유한도 = clip(round(k·형성봉수), 6, 180), 주 판정 k=1.0. 대상 triple_bottom_4h·equal_lows_4h. 짝지음 P1~P4 +
@@ -2422,7 +2429,7 @@
 - [ ] **AI 판단 레이어 확장 컬럼 — `supabase_schema_ai_judge.sql` 재실행 (사용자, 2026-10-26)** — kind/prompt_version/entry_px/mark_ts/
       mark_px/unreal_ret/bars_held/live_mode/tokens_in/tokens_out 10개 alter(멱등). 확인 쿼리는 파일 끝.
       실행 전까지 적재는 되지만 집계 키(kind·prompt_version)가 비어 보고가 v1 로 묶인다
-- [ ] **AI 판단 승격 판정 — 진입 ≈2026-11-16(v2 시작 3주) 또는 해소 거래 60건 / 청산 검토 ≈2026-11-23(4주) 또는 exit 제안 해소 40건** —
+- [ ] **AI 판단 승격 판정 — 진입 ≈2026-11-16(머지 후 첫 기록 + 3주) 또는 해소 거래 60건 / 청산 검토 ≈2026-11-23(4주) 또는 exit 제안 해소 40건** —
       ai_judge_report.yml 주간 보고(월요일) 또는 dispatch 로 표를 받고, 진입 primary 통과 시 secondary(veto 가상 자산곡선) 별도 실행 후
       사용자 결정(registry ai_judge_prereg_2026_10_23 / ai_exit_prereg_2026_10_26). 청산 검토는 통과해도 기록 유지·보고까지 — 실효는 원칙 ② 개정
 - [x] **김치 프리미엄 사전 등록 결과 판독 완료 (2026-09-22, run 35744717876)** — 가족 X·T 주 판정 7셀 전부
