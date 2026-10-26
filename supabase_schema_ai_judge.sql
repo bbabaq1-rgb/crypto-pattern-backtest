@@ -65,5 +65,25 @@ alter table public.positions add column if not exists ai_decision   text;
 alter table public.positions add column if not exists ai_size_mult  double precision;
 alter table public.positions add column if not exists ai_confidence double precision;
 
+-- 2026-10-26 백필 — 확장 컬럼이 없던 동안 적재된 행은 insert_tolerant 가 그 컬럼을 뺀 채 기록했다(decision·features 는 남는다).
+-- kind 는 decision 어휘(hold/exit ↔ take/reduce/skip)로, prompt_version 은 특성 키로 복원한다 —
+-- ai_judge_report.kind_of / pv_of 와 같은 규칙(보고는 DB 가 비어 있어도 같은 값을 내므로 백필은 '영구화'일 뿐이다). 멱등.
+update public.ai_judgments
+   set kind = case when decision in ('hold', 'exit') then 'exit'
+                   when decision in ('take', 'reduce', 'skip') then 'entry'
+                   when coalesce(features, '') like '%"bars_held"%' then 'exit'
+                   else 'entry' end
+ where kind is null;
+update public.ai_judgments
+   set prompt_version = case when kind = 'exit' then 'exit_v1_2026_10_26'
+                             when coalesce(features, '') like '%"stop_atr"%' then 'entry_v2_2026_10_26'
+                             else 'v1' end
+ where prompt_version is null;
+update public.ai_judgments
+   set unreal_ret = coalesce(unreal_ret, nullif(features::jsonb ->> 'unreal_ret', '')::double precision),
+       bars_held  = coalesce(bars_held,  nullif(features::jsonb ->> 'bars_held',  '')::integer)
+ where kind = 'exit' and (unreal_ret is null or bars_held is null)
+   and features is not null and left(features, 1) = '{';
+
 -- 확인용
 -- select kind, prompt_version, decision, count(*) from public.ai_judgments group by 1,2,3 order by 1,2,3;

@@ -7,6 +7,8 @@ test_ai_judge_report.py — AI 판단 그림자 평가 보고(2026-10-26) 고정
   4. 청산 검토 평가: adv 정의 · 첫 exit 제안 선택 · hold-only 대조군 · 미해소 포지션 · secondary(손절률)
   5. 렌더·텔레그램 텍스트 · 빈 입력 · 보고 모듈은 읽기 전용(쓰기 호출·매매 모듈 import 없음)
   6. 배선: 워크플로(dispatch/주간/시크릿/테스트 선행) · tests.yml
+  7. 확장 컬럼 없이 적재된 행의 복원(2026-10-26): kind 는 decision 어휘 → 특성 키, prompt_version 은 특성 마커,
+     unreal_ret/bars_held 는 features 폴백 — 컬럼이 있을 때와 평가 결과가 같다 · SQL 백필이 같은 규칙
 """
 import io
 import random
@@ -162,6 +164,52 @@ check("워크플로: 테스트 선행 · --notify(push 는 알림 없음) · Sup
       and "SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}" in wf and "TELEGRAM_CHAT_ID" in wf)
 check("워크플로: OKX·ANTHROPIC 키를 받지 않는다(읽기 전용 보고)", "OKX_KEY" not in wf and "ANTHROPIC_API_KEY" not in wf)
 check("tests.yml 에 test_ai_judge_report", "test_ai_judge_report.py" in io.open(".github/workflows/tests.yml", encoding="utf-8").read())
+
+# ── 7. 확장 컬럼 없이 적재된 행의 복원 (2026-10-26) ───────────────────────────
+# 배경: 2026-10-26 04:00Z 틱에서 AI 판단 7행이 전부 유실됐다(insert_tolerant 제거 한도). 한도를 올린 뒤에도 사용자가
+# SQL 을 재실행하기 전까지는 kind/prompt_version/unreal_ret/bars_held 가 빠진 채 적재된다 — 그 행들이 entry 로
+# 오분류되거나 'v1' 로 갈리면 사전 등록 표본(n≥60)이 쪼개진다. decision 과 features(JSON) 는 항상 남으므로 거기서 되살린다.
+import json as _json
+import ai_judge as aj
+check("복원 상수가 ai_judge 와 같다", rp.ENTRY_V2 == aj.PROMPT_VERSION and rp.EXIT_V1 == aj.EXIT_PROMPT_VERSION
+      and tuple(rp.EXIT_DECISIONS) == tuple(aj.EXIT_DECISIONS) and not set(aj.DECISIONS) & set(aj.EXIT_DECISIONS))
+_rows = [dict(date=f"2026-{1 + i // 28:02d}-{1 + i % 28:02d}", ts=1_700_000_000_000 + i * 86_400_000,
+              o=100 + i * 0.1, h=101 + i * 0.1, l=99 + i * 0.1, c=100.5 + i * 0.1, v=1000.0 + i) for i in range(80)]
+_ef = aj.features(_rows, 79, dict(pattern="fvg", direction="long", tf="1d", stop=92.0, symbol="SOL"), {"book": [], "max_pos": 13})
+_xf = aj.exit_features(_rows, 60, 79, dict(pattern="fvg", direction="long", tf="1d", entry_price=_rows[60]["c"], stop=90.0), {})
+check("v2 진입 마커 키는 실제 진입 특성에 있고 청산 특성에는 없다", all(k in _ef for k in rp.V2_MARKER_KEYS) and not any(k in _xf for k in rp.V2_MARKER_KEYS))
+check("청산 마커 키는 실제 청산 특성에 있고 진입 특성에는 없다", all(k in _xf for k in rp.EXIT_MARKER_KEYS) and not any(k in _ef for k in rp.EXIT_MARKER_KEYS))
+def _E(**kw):   # 확장 컬럼이 전부 빠진 entry 행(kind/prompt_version None)
+    r = J("SOL", "fvg", "take", "2026-10-27T04:00:00Z", "2026-10-24", kind=None, pv=None, features=_json.dumps(_ef)); r.update(kw); return r
+def _X(**kw):   # 확장 컬럼이 전부 빠진 exit 행
+    r = J("SOL", "fvg", "exit", "2026-10-27T04:00:00Z", "2026-10-24", kind=None, pv=None, features=_json.dumps(_xf)); r.update(kw); return r
+check("kind 복원: decision 어휘로(take/reduce/skip → entry, hold/exit → exit)",
+      rp.kind_of(_E()) == "entry" and rp.kind_of(_E(decision="reduce")) == "entry" and rp.kind_of(_X()) == "exit" and rp.kind_of(_X(decision="hold")) == "exit")
+check("kind 복원: 오류 행(decision 없음)은 특성 키로", rp.kind_of(_E(decision=None)) == "entry" and rp.kind_of(_X(decision=None)) == "exit")
+check("kind 컬럼이 있으면 그대로", rp.kind_of(_E(kind="exit")) == "exit")
+check("prompt_version 복원: exit → EXIT_V1 · v2 특성 → ENTRY_V2 · 마커 없으면 v1 · 있으면 그대로",
+      rp.pv_of(_X()) == rp.EXIT_V1 and rp.pv_of(_E()) == rp.ENTRY_V2
+      and rp.pv_of(_E(features='{"ret_5": 0.01}')) == rp.V1_LABEL and rp.pv_of(_E(prompt_version="zzz")) == "zzz")
+check("깨진·빈 features 에도 예외 없음(entry / v1)", rp.kind_of(_E(decision=None, features="{broken")) == "entry"
+      and rp.pv_of(_E(features=None)) == rp.V1_LABEL and rp.feat_of(_E(features="[1,2]")) == {})
+_r = _E(); _f1 = rp.feat_of(_r); _r["features"] = '{"ret_5": 0.01}'
+check("features 문자열이 바뀌면 캐시를 버린다", rp.feat_of(_r) == {"ret_5": 0.01} and _f1 is not rp.feat_of(_r))
+check("col_or_feat: 컬럼 우선, 없으면 features", rp.col_or_feat(_X(), "unreal_ret") == _xf["unreal_ret"] and rp.col_or_feat(_X(unreal_ret=0.5), "unreal_ret") == 0.5
+      and rp.col_or_feat(_E(), "bars_held") is None)
+_mix = [_E(), _X()]
+check("kind 없는 exit 행은 진입 집계에 안 들어가고 청산 집계에 들어간다",
+      list(rp.entry_eval(_mix, []).values())[0]["n_judged"] == 1 and list(rp.exit_eval(_mix, []).values())[0]["n_rows"] == 1
+      and list(rp.entry_eval(_mix, [])) == [("claude-sonnet-5-5", rp.ENTRY_V2)] and list(rp.exit_eval(_mix, [])) == [("claude-sonnet-5-5", rp.EXIT_V1)])
+_js_b = [dict(j, kind=None, prompt_version=None, features=_json.dumps(_ef)) for j in js]
+check("확장 컬럼 없이 적재된 entry 행도 같은 그룹·같은 평가 결과", rp.entry_eval(_js_b, ts) == rp.entry_eval(js, ts))
+_xj_b = [dict(j, kind=None, prompt_version=None, unreal_ret=None, bars_held=None, mark_px=None, live_mode=None,
+              features=_json.dumps(dict(_xf, unreal_ret=j["unreal_ret"], bars_held=j["bars_held"]))) for j in xj]
+check("확장 컬럼 없이 적재된 exit 행도 같은 그룹·같은 평가 결과(unreal_ret/bars_held 를 features 에서)",
+      rp.exit_eval(_xj_b, xt, min_n=1) == rp.exit_eval(xj, xt, min_n=1))
+_sql = io.open("supabase_schema_ai_judge.sql", encoding="utf-8").read()
+check("SQL 백필: 보고와 같은 어휘·마커로 kind/prompt_version/unreal_ret/bars_held 를 되살린다(멱등 where … is null)",
+      "where kind is null" in _sql and "where prompt_version is null" in _sql and all(v in _sql for v in (rp.ENTRY_V2, rp.EXIT_V1, "'v1'"))
+      and '"stop_atr"' in _sql and '"bars_held"' in _sql and "features::jsonb ->> 'unreal_ret'" in _sql and "decision in ('hold', 'exit')" in _sql)
 
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)
