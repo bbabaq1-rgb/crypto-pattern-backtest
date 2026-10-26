@@ -1,0 +1,40 @@
+name: D_close — stop judged on close vs low (research, pre-registered R-002)
+
+# 연구 전용 — 매매/DB 접근 없음, 실거래 규칙 무변경. 기준·판정은 validate_dclose.py 상단에 고정.
+# DEPLOY_ON_PASS=False — 통과해도 실거래 청산 변경은 사용자 보고 후.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "research/R-002-dclose"
+    paths:
+      - "validate_dclose.py"
+      - ".github/workflows/dclose.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_dclose.py
+      - name: Pre-registered test
+        run: python validate_dclose.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dclose-${{ github.run_number }}
+          path: _dclose.json
+          if-no-files-found: ignore

@@ -5998,5 +5998,34 @@
       "test_ai_judge_report.py",
       "supabase_schema_ai_judge.sql"
     ]
+  },
+  "dclose_prereg_2026_10_26": {
+    "status": "PREREGISTERED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-002",
+    "registered": "2026-10-26 (결과 열람 전)",
+    "hypothesis": "방식D 손절을 봉 저가 대신 종가로 판정(재해 손절 −15% 저가 동반)하면 건당 수익이 오른다. 주봉 D_close +4.3%p(t 2.3, validate_exit_1w)의 1d/4h 확인.",
+    "cells": "engulfing 1d top30(실거래 PATTERN_UNIVERSE — 사용자 강제 2026-09-04) / fvg 1d top30 / inverted_hammer 1d majors / three_soldiers_4h all BULL / triple_bottom_4h·equal_lows_4h·vol_awakening_4h top30, 롱 전용(marubozu 정지·숏 제외)",
+    "frozen": {
+      "stop": 0.08,
+      "cat_stop_low": 0.15,
+      "max_hold": 30,
+      "fee": "detlib.FEE",
+      "sizing_stop_pct": 0.08,
+      "seed": 42,
+      "boot": 1000,
+      "holdout_days": 365
+    },
+    "arms": {
+      "D": "현행 eval_D",
+      "D_close": "주 판정",
+      "D_close_nocat": "진단(재해 손절 없음 — 실거래 후보 아님)"
+    },
+    "criteria": "P1 풀링 짝지음 평균차>0 & t>2 / P2 월 블록 부트 ≤0 비율<0.10 / P3 셀 5/7 양수 / P4 전후반 둘 다 양수 / P5 풀링 자산곡선 CAGR·Calmar 둘 다 D 초과 / P6 최근 365일 평균차>0(n≥30). 전부 PASSED, P1·P2만 MIXED, 그 외 REJECTED",
+    "diagnostics": "셀별 차·t, 손절 수(D/종가/재해), D 손절 거래의 D_close 결과, 종가 손절 실현 손실 깊이, nocat 차 — 사후 선택 금지",
+    "prior": "P1 통과 약 0.20, 전체 PASSED 약 0.12. 근거: 1w 에서 +4.3%p 였으나 주봉은 저가 폭이 −8% 에 비해 매우 커 1d/4h 보다 스파이크 털림이 구조적으로 크다. 레포는 '반전 패턴 눌림목 이후 평균회귀가 이긴다'(method_t/e 기각)를 반복 확인했으므로 버티기가 유리할 여지는 있으나, 종가 손절은 −8% 보다 깊은 실현 손실(갭·연속 하락)을 허용해 평균을 깎는다. 두 힘이 반대라 방향을 확신하지 않는다",
+    "known_limits": "풀링 자산곡선은 슬롯 경합을 7패턴 합산 단순 프레임으로 근사(validate_portfolio 프레임 아님) — arm 비교용 상대 지표로만 / 정적 top20·30 코호트 / 4h 이력 약 2년 / 재해 손절 15% 는 결과 전 고정 값(다른 폭 비교 안 함) / 같은 월·같은 시장 충격에서 신호가 상관돼 t 는 과대 — 월 블록 부트(P2)가 보정 / 거래소 재해 손절은 저가 체결 가정(갭 미반영, D 와 동일 낙관)",
+    "deploy_path_note": "통과해도 적용 불가: 엔진 종가 손절 + 거래소 재해 손절 신규 집행 경로 필요(동작 불변 테스트 선행), 사용자 결정",
+    "smoke_disclosure": "로컬에서 합성 데이터 테스트만 실행 — 실데이터 주 판정 수치 열람 없음"
   }
 }

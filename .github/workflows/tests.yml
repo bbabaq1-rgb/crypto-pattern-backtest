@@ -50,6 +50,7 @@ jobs:
                    test_late_entry.py \
                    test_exit_1w.py \
                    test_exit_consistency.py \
+                   test_dclose.py \
                    test_ma_breakout.py \
                    test_ma180.py \
                    test_frame_v3.py \
