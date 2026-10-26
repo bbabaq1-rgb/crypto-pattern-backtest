@@ -51,7 +51,7 @@ cells = {c[0]: c for c in vc.CELLS}
 check("1d 배포(adopted_patterns) 전부 셀에 있음", set(ad1) <= set(cells), (set(ad1), set(cells)))
 check("4h 배포(adopted_4h_patterns) 전부 셀에 있음", set(ad4) <= set(cells), (set(ad4), set(cells)))
 sus1 = {a["pattern"] for a in u.get("suspended_patterns", [])}
-check("셀은 배포 패턴 + 이후 정지된 패턴(marubozu 2026-10-22)만", set(cells) - (set(ad1) | set(ad4)) <= sus1,
+check("셀은 배포 패턴 + 이후 정지된 패턴(marubozu 2026-10-22 · inverted_hammer 2026-10-26)만", set(cells) - (set(ad1) | set(ad4)) <= sus1,
       set(cells) - (set(ad1) | set(ad4)) - sus1)
 for pid in ad1:
     check(f"{pid}: 모듈·코호트(majors)·레짐 전부 = 실거래", cells[pid][2] == ad1[pid]["module"] and cells[pid][3] == "majors"

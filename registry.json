@@ -476,7 +476,7 @@
       "category": "캔들",
       "difficulty": 1,
       "detector_file": "detector_inverted_hammer.py",
-      "status": "passed",
+      "status": "suspended_steward",
       "passed_tf": "1d",
       "precision": {
         "slip": {
@@ -498,7 +498,8 @@
         "restored": false,
         "note": "마모 없음"
       },
-      "precision_note": "강등유지: 워크포워드 미통과"
+      "precision_note": "강등유지: 워크포워드 미통과",
+      "suspended_2026_10_26": "운용 위임 규칙 S1(registry steward_rules_2026_10_26) 발동 — steward run 40337966297. 등급 U(확인 시험 통과 없음: v4 REJECTED 승률 30% · exit_consistency 방식D n=104 −0.63% bp .69 · 실거래 신호의 93% 가 검증 안 된 형성 중 봉) + 실거래 방식D n=17 평균 −0.73%(7승, 2026-06-29~10-23 진입, 실현 −$1.68). 2026-10-22 사용자가 유지했던 결정을 위임 규칙이 뒤집는다. 신규 진입만 정지 — 열린 2건(ETH 10/16·XRP 10/18)은 방식D 1d 규칙과 거래소 손절로 끝까지 간다. 재개는 R2(정지 이후 데이터를 포함한 사전 등록 재시험 통과)로만."
     },
     {
       "id": "marubozu",
@@ -6217,6 +6218,21 @@
     "rule_changes": "규칙을 고치는 것도 에이전트 몫이지만 새 판(steward_rules_<날짜>)을 registry 에 쓰고 그 뒤 데이터에만 적용한다(소급 금지). 문턱을 완화해 특정 전략을 살리거나 강화해 특정 전략을 끄는 변경은 금지 — 사후 선택",
     "why_rules_not_discretion": "권한은 AI 에게 넘기되 판정은 결과 전에 적은 규칙으로 한다. AI(주관) 판단이 영점을 이긴 증거가 이 레포에 아직 없고(ai_judge_prereg 근거 — 엘리엇 채점 장부), 매일의 재량은 같은 장부를 보고 다른 결론을 낼 수 있다. 규칙이면 정지가 언제 왜 일어났는지 재현된다",
     "first_application": "규칙을 쓰기 전에 현재 실거래 표(패턴·레짐별 n·평균, 2026-10-26 Supabase)를 봤다 — 문턱(n 10/20, 평균<0, p .05, 28일)은 통계 관행에서 정했고 특정 결과를 맞추려 고르지 않았지만 첫 적용은 맹검이 아니다. 오프라인 실행(10/26 장부 251행 중 실거래 방식D 179행): S1 tp1_engulfing_1h n38 −0.51%(사용자 지시로 이미 정지) · S1 inverted_hammer n17 −0.73%. vol_awakening_4h 는 V 등급이라 S1 면제이고 패턴 n45 −0.21% P(평균≥0) .44 로 S2 미발동, bull_btc 셀 n14 −6.33% 는 n<20. fvg 롱은 켜진 레짐(bull_btc) 표본 n5 라 미발동(꺼진 altseason 12건은 세지 않음)",
-    "observed_context": "10/10 bull_btc 전환 이후 알트 롱 실거래 40건 평균 약 −5.4%(vol_awakening 1/14 승, fvg 0/5, triple_bottom_4h 1/4, three_soldiers 0/3). 한 시장 국면(약 2주)이라 패턴별 규칙으로는 아직 대부분 미발동 — 레짐 단위 가설은 사전 등록 시험(R-060)으로 따로 판정한다"
+    "observed_context": "10/10 bull_btc 전환 이후 알트 롱 실거래 40건 평균 약 −5.4%(vol_awakening 1/14 승, fvg 0/5, triple_bottom_4h 1/4, three_soldiers 0/3). 한 시장 국면(약 2주)이라 패턴별 규칙으로는 아직 대부분 미발동 — 레짐 단위 가설은 사전 등록 시험(R-060)으로 따로 판정한다",
+    "actions": [
+      {
+        "date": "2026-10-26",
+        "rule": "S1",
+        "unit": "inverted_hammer|long (패턴)",
+        "n": 17,
+        "mean_pct": -0.73,
+        "run": "40337966297",
+        "action": "universe.json adopted_patterns → suspended_patterns",
+        "open_positions_kept": [
+          "ETH",
+          "XRP"
+        ]
+      }
+    ]
   }
 }
