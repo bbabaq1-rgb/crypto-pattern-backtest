@@ -54,6 +54,7 @@ jobs:
                    test_ts_top30.py \
                    test_lottery_gate.py \
                    test_bull_btc.py \
+                   test_gap.py \
                    test_dclose_vol.py \
                    test_dclose_port.py \
                    test_ma_breakout.py \
