@@ -33,7 +33,7 @@ C. 발동이 있으면 로그에 적힌 조치를 그대로 PR 로 집행한다(
 D. 재개·배포(R1·R2)와 AI veto 전환(R3)은 사전 등록 시험 결과로만 — 이 점검에서 새로 켜지 않는다.
 
 한 사이클 = 한 가설:
-0. 잠금·선택 — backlog 에서 status=ready, blocked_until 경과, prerequisites 충족인 항목 중 priority 숫자가 가장 낮은 것 하나. 다른 세션이 36시간 안에 in_progress 로 잠근 항목은 건너뛴다. 36시간 넘은 in_progress 항목이 있으면 그것을 이어받는다(메모를 읽고 중단 지점부터). 고른 항목에 status=in_progress·started_at(UTC ISO)·session(세션 ID 를 모르면 `routine_<UTC 시작시각, 분 단위>`)을 적고 그 커밋을 먼저 push 한다.
+0. 잠금·선택 — backlog 에서 status=ready, blocked_until 경과, prerequisites 충족인 항목 중 priority 숫자가 가장 낮은 것 하나. 다른 세션이 36시간 안에 in_progress 로 잠근 항목은 건너뛴다. 36시간 넘은 in_progress 항목이 있으면 그것을 이어받는다(메모를 읽고 중단 지점부터). 고른 항목에 status=in_progress·started_at·session(세션 ID 를 모르면 `routine_<UTC 시작시각, 분 단위>`)을 적고 그 커밋을 먼저 push 한다. 시각은 짐작하지 말고 `date -u +%Y-%m-%dT%H:%M:%SZ` 출력을 그대로 쓴다 — 2026-10-27 잠금이 KST 를 Z 로 적어 실제보다 약 15시간 이른 시각이 기록됐다(36시간 이어받기 판정이 이 값을 쓴다).
 1. 사전 등록 — registry.json 에 `<id>_prereg_<날짜>`: 가설·셀·동결 파라미터·판정 기준·진단 셀·사전 확률과 근거·known_limits·DEPLOY_ON_PASS(backlog deploy_on_pass 와 같게). 결과를 보기 전에 쓴다.
 2. 구현 — validate_<id>.py + test_<id>.py + .github/workflows/<id>.yml. 기존 프레임(validate_revival·frame_v3·gate·method_x·validate_portfolio·validate_xsec_chars 등)을 import 해 같은 잣대를 쓴다. 로컬 스모크로 주 판정 셀 수치를 보지 않는다(봤으면 공개).
 3. 검증·PR·머지 — test_<id>.py 와 tests.yml 전 목록 로컬 그린 → tests.yml 에 등록 → 브랜치(하네스가 지정한 브랜치가 있으면 그것, 없으면 research/<id>) → draft PR → CI 그린 확인 → 머지.

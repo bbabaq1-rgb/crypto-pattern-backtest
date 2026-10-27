@@ -72,6 +72,8 @@ for phrase in ("손절 주문 없으면 실거래 없음", "사전 등록 전 �
                "재량 금지"):
     check(f"research_cycle_prompt.md: '{phrase}'", phrase in cp)
 check("RESEARCH_LOOP.md 가 세션 생성 경로(스포너·research_cycle_prompt.md)를 적는다", "research_cycle_prompt.md" in md and "스포너" in md)
+check("잠금 시각은 시계에서 읽는다(2026-10-27 KST 를 Z 로 적은 잠금)",
+      "date -u +%Y-%m-%dT%H:%M:%SZ" in cp and "date -u +%Y-%m-%dT%H:%M:%SZ" in md)
 sp = io.open("research_spawner_prompt.md", encoding="utf-8").read() if os.path.exists("research_spawner_prompt.md") else ""
 check("research_spawner_prompt.md 폴백이 원본 전문을 그대로 품는다", bool(cp) and cp.strip() in sp)
 check("스포너는 create_session(source_url) 경로를 쓴다", "create_session" in sp and "source_url" in sp)
