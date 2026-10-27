@@ -50,7 +50,8 @@ prompt=research_cycle_prompt.md 전문)` 으로 자식 세션을 띄운다(06:42
 0. **잠금·선택** — `git fetch origin master && git checkout master && git pull`. backlog 에서 `status=ready` 이고
    `blocked_until` 이 지났고 `prerequisites` 가 충족된 항목 중 `priority` 가 가장 낮은 숫자(1=최우선)를 고른다.
    다른 세션이 36시간 안에 `in_progress` 로 잠근 항목은 건너뛴다. 고른 항목에 `status=in_progress`,
-   `started_at`, `session` 을 적고 **그 커밋을 먼저 push** 한다(잠금이 곧 선언이다).
+   `started_at`, `session` 을 적고 **그 커밋을 먼저 push** 한다(잠금이 곧 선언이다). `started_at` 은
+   `date -u +%Y-%m-%dT%H:%M:%SZ` 출력을 그대로 쓴다 — 짐작한 시각은 36시간 이어받기 판정을 틀리게 만든다.
 1. **사전 등록** — 결과를 보기 전에 `registry.json` 에 `<id>_prereg_<날짜>` 항목을 쓴다: 가설·셀·동결 파라미터·
    판정 기준(C1 게이트 v2 + C2 국면 홀드아웃(frame_v3) + C2b + C3 자산곡선, 또는 그 시험에 맞는 J 기준)·
    진단 셀(판정 아님)·**사전 확률과 그 근거**·known_limits·DEPLOY_ON_PASS. 확인 프레임 기본값(CLAUDE.md 핵심 원칙)을 따른다.
