@@ -1,0 +1,42 @@
+name: portfolio gap decomposition (research, pre-registered R-063)
+
+# 연구 전용 — 매매/DB 접근 없음. 분류 규칙은 validate_gap.py 상단에 고정. DEPLOY_ON_PASS=False.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "research/R-063"
+    paths:
+      - "validate_gap.py"
+      - "validate_portfolio.py"
+      - ".github/workflows/gap.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_gap.py
+          python test_portfolio.py
+      - name: Pre-registered test
+        run: python validate_gap.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gap-${{ github.run_number }}
+          path: _gap.json
+          if-no-files-found: ignore

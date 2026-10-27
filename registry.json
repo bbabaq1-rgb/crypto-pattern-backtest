@@ -6289,5 +6289,28 @@
     "known_limits": "모집단이 이미 선별을 거친 목록(감사와 동일) · 홀드아웃이 bear 지배 국면 · TOP5_MAX 0.50·절사 10% 는 내가 정한 값(최적화 아님 — 격자는 진단) · 셀 다수가 같은 패턴의 레짐 분해라 독립 표본이 셀 수보다 적다.",
     "산출": "validate_lottery_gate.py / test_lottery_gate.py / .github/workflows/lottery_gate.yml / report_lottery_gate.md",
     "문턱_변경": "**게이트 문턱 자체의 변경은 사용자 결정** — 이 시험은 설계·재실행·보고까지. gate.py 는 건드리지 않는다(테스트로 고정)."
+  },
+  "gap_prereg_2026_10_27": {
+    "status": "REGISTERED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-063",
+    "registered": "2026-10-27 (결과 열람 전, 로컬 스모크는 합성 거래만 — 실데이터 수치 없음)",
+    "hypothesis": "R-060 이 드러낸 괴리(거래 평균 +2.78% 인데 current 자산곡선 전기간 CAGR -13.4%/MDD -97.7%)는 (a) 변동성 타겟팅 가중 (b) 4h vol_awakening 버스트 (c) 슬롯·증거금·총명목가 경합 중 하나가 지배한다.",
+    "cells": "validate_portfolio 거래 집합(1d 라우팅 복제 + 4h adopted 4종, 방식D+레짐청산) 고정. 시뮬레이터 설정을 한 번에 하나씩 해제: G0 current / G1 flat(변동성 배율 1) / G2 슬롯 무제한 / G3 슬롯+총명목가 상한+증거금 해제 / G4 vol_awakening_4h 제외 / G5 4h 전체 제외 / G6 risk 1.0% / G7 risk 0.5% / G8 같은 시각 우선순위 무작위 100회(중앙, 시드 63)",
+    "frozen": {
+      "rand_n": 100,
+      "seed": 63,
+      "risk_grid": [
+        0.01,
+        0.005
+      ],
+      "split": "2025-01-01 (holdout 열은 병기)",
+      "accounting": "vp.simulate(current) 와 동치(test_gap §1)"
+    },
+    "criteria": "G0 전기간 CAGR>0 이면 NO_GAP. 아니면 G1~G5 중 CAGR>0 으로 돌아선 단계가 원인: G1=a_vol_weight / G2·G3=c_slot_margin / G4·G5=b_4h_burst (복수면 CAGR 최대 단계가 primary). G1~G5 가 없고 G6·G7 만 돌아서면 RISK_LEVEL. 아무 단계도 안 돌아서면 PATH_DEPENDENT(손실 동시성·프레임). 판정이 아니라 진단 분류 — 통과/기각 없음",
+    "diagnostics": "체결 vs 미체결 거래 평균(슬롯 선택 편향), 패턴별 체결 평균, 독립 베팅 가정 로그성장 vs 실제, G0 주별 로그수익 최악/최고 5주 집중도 — 사후에 골라 살리지 않는다",
+    "prior": "원인 분류 확률(사전): (c) 슬롯·증거금 경합 약 0.35 / (b) 4h 버스트 약 0.25 / (a) 변동성 가중 약 0.10 / RISK_LEVEL 약 0.10 / PATH_DEPENDENT 약 0.20. 근거: 2026-09-10 포트폴리오 프레임이 holdout 병목을 증거금(2,750) vs 슬롯(440)으로 짚었고, 1d 신호가 밀린 순간 점유 1위가 늘 vol_awakening_4h 였다. 변동성 타겟팅은 명목가만 바꾸므로 (a) 가 부호를 뒤집을 가능성은 낮게 본다. 전기간 MDD -97.7% 는 어느 단일 해제로도 양수로 안 돌아서는 경로 의존일 수 있다",
+    "known_limits": "정적 end-of-data 코호트 / 4h 이력 약 2년 / 단일 해제만 보므로 상호작용(비가산)은 G0~G7 에서 안 보인다 / 위험 수준(G6·G7) 적용은 사용자 결정이라 시험·보고까지만 / 절대 수준을 실거래 예보로 읽지 말 것",
+    "live_change": "none"
   }
 }
