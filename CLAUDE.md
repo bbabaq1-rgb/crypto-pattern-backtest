@@ -2607,10 +2607,26 @@
     (하루 24회 — 토큰을 행마다 기록, 목표 월 $20~40). steward 범위 밖.
   · SDK: `anthropic>=2.3.0`(API 버전 2026-10-21 — 샘플링 파라미터를 보내지 않으므로 영향 없음). 실제 SDK 를 가짜 HTTP 전송으로 돌려 요청 본문
     (모델·fallbacks default·output_config effort+schema·베타 헤더)과 거절·429·400 매핑을 확인했다.
+  · **첫 7틱(05:08~11:08Z) 전부 대기** — 회당 입력 약 1.57만 · 출력 약 340토큰(effort medium 에서 생각이 거의 없었다), 약 $0.035/회.
+    대기 사유는 7번 모두 같았다 — 1h 박스(79,168~81,787) 안이라 방향 우위가 없고, 롱 손절을 박스 하단 79,168 에 두면 2~3% 라
+    손익비가 1.5 미만, 숏은 net 가드로 막힘, 그리고 '대기가 기본값'(v1 프롬프트 문구를 그대로 인용). 15m 는 입력에 없었다.
+  · **v2 — 15m~4h 다중 시간대 작은 차수 매매 (같은 날, 사용자 지시 "AI 를 쓰는 건 일봉상의 관점뿐 아니라 시간마다 15분봉~4시간봉 등 여러
+    봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매하라는 것")**: `PROMPT_VERSION=elliott_v2_2026_10_28`.
+    입력에 **BTC 15m 96봉(24시간)·15m 피벗(임계 0.3%)·15m ATR, ETH 15m 피벗** 추가. 프롬프트는 위에서 아래로 센다 — 4h·1d 로 큰 차수 위치와
+    방향 편향, 1h 로 현재 스윙, 15m 로 내부 파동 — 그리고 **작은 차수 셋업**(조정 완료·1-2 뒤 3파 진입·5파 완성 반전·삼각형 돌파)을 매매한다.
+    손절은 그 작은 차수 카운트의 무효화 지점(보통 0.3~2%), 익절은 같은 카운트의 피보나치 목표, 비용 0.2% 차감 후 손익비 1.5 이상.
+    v1 의 'Waiting is the default and most hours should be wait'(채점 장부가 무작위 보행보다 나쁘다는 근거) 문구는 **뺐다** — 과매매 억제는
+    이제 진입 기준이 맡는다. 응답에 **setup_tf**(판단을 이끈 시간대, 필수) 추가 → features 에 기록해 시간대별 성과를 나중에 가른다.
+    effort medium → **high**, max_tokens 8000 → 16000, 타임아웃 90 → 150초. **15m 는 매시 7일 창만 수집**(`ai_elliott.FETCH_DAYS`,
+    paper_executor 가 판단 직전에 받는다) — 기본 창(45일)은 OKX 호출이 약 35회라 매시간 낭비다. 실패하면 load_ohlcv 가 기본 창으로 받는다.
+    **한도·가드·주문 경로는 한 줄도 안 바뀌었다**(BTC 1포지션·포트 $100·3배·손절 0.3~8%·OCO·net 가드·킬스위치).
+    비용 추정: 입력 약 2만 토큰(실측 v1 문자 대비 토큰 비율로 환산) + 출력 effort high 수천 토큰 → **회당 약 $0.05~0.08, 월 약 $35~55**
+    (v1 실측 월 약 $25). 실제 값은 행마다 기록되는 토큰으로 첫 틱 뒤 확인한다.
 
 ## 다음 할 일
-- [ ] **AI 엘리엇 첫 실거래 틱 확인 (머지 직후)** — fast 틱 로그의 `[ai-elliott]` 줄, ai_judgments kind=elliott_btc 행(토큰·code_action),
-      진입 시 `[live 사이징] … live_cap ledger` · OCO(손절·익절) 등록. 오류면 원인 확인 후 고친다
+- [x] **AI 엘리엇 첫 실거래 틱 확인 (2026-10-28 완료)** — 05:08~11:08Z 7틱 전부 대기·오류 없음, 토큰 기록 정상
+- [ ] **AI 엘리엇 v2 첫 틱 확인 (머지 직후)** — `[ai-elliott]` 줄에 시간대 표기, features 의 setup_tf·bars_15m(약 96 이상)·pivots_15m,
+      tokens_in 약 2만·tokens_out·latency(150초 타임아웃 안), 15m 수집 실패 경고 없음. 첫 진입 시 OCO(손절·익절) 등록 확인
 - [ ] **AI 엘리엇 중간 보고 — 거래 20건 / 2주 / 포트 $50 미만 중 먼저** — 거래별 결과·포트·API 비용을 표로. 한도·중단은 사용자 결정
 - [x] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26 완료)** — fast 10:03Z·11:03Z·12:03Z, daily 12:00Z 전부 오류 없음 ·
       12:00Z 실거래 진입 2건(ADA·AAVE equal_lows_4h) `[live 사이징]` lev=3x 정상, positions 행에 qty·leverage 3·sl_order_id·entry_ts
@@ -3060,6 +3076,7 @@
   기계적으로 적용해 발동 목록을 낸다(읽기 전용, 판정은 check-run 주석으로도 낸다). 집행은 자율 연구 사이클 0단계가 PR 로. test_steward.py(59)
 - paper_executor.trading_halt_state / universe.json `trading_halt`: 전체 신규 진입 정지 스위치(킬스위치 경로 재사용, 기본 꺼짐)
 - ai_elliott.py / test_ai_elliott.py: AI 엘리엇 BTC 자율매매(2026-10-28 사용자 결정) — 매시 판단·응답 검증·기록 행.
+  v2(같은 날): 15m·1h·4h·1d 다중 시간대 입력(BTC_TFS/ETH_TFS), 작은 차수 셋업 매매, setup_tf 기록, 15m 짧은 창 FETCH_DAYS.
   주문은 paper_executor 의 live_cap 경로(signal_barrier OCO, ledger 포트 cap_pot, ai_close, net_opposite_live). 스위치 universe.json `ai_traders`
 - supabase_schema_patch_2026_10_28.sql: trades.entry_ts(같은 날 반복 매매 구분) — 2026-10-28 적용 완료
 - ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).

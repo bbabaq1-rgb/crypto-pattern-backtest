@@ -1547,6 +1547,16 @@ def run(stamp=None, slow=None):
             print("  [ai-elliott] 킬스위치/정지 중(또는 live_cap 없음) — 평탄 상태 판단 생략")
         else:
             el_block = {d for d in ("long", "short") if net_opposite_live(ai_elliott.SYMBOL, d, live_dir_keys)}
+            # 15m 는 AI 판단 전용 — 짧은 창(FETCH_DAYS)만 먼저 받는다. 기본 창(45일)은 OKX 호출이 약 35회다.
+            # 실패하면 load_ohlcv 가 기본 창으로 다시 받는다.
+            for _sym in (ai_elliott.SYMBOL, "ETH"):
+                for _tf, _days in ai_elliott.FETCH_DAYS.items():
+                    if (_sym, _tf) not in rows_cache:
+                        try:
+                            import fetch_data
+                            fetch_data.update_csv(f"{_sym}/USDT", _tf, detlib.CSV(_sym, _tf), window_days=_days)
+                        except Exception as e:
+                            print(f"  [ai-elliott] {_sym} {_tf} 짧은 창 수집 실패({str(e)[:60]}) — 기본 창으로")
             el_rec, el_sig, el_close = ai_elliott.tick(
                 position=el_pos, trades=trades, rows_of=rows_of, cap=el_cap,
                 pot=(cap_pot(el_cap, ai_elliott.PATTERN, trades) if el_cap else None),

@@ -1013,11 +1013,16 @@
       },
       "ai_trader": {
         "model": "ai_elliott.MODEL (사용자 지정)",
-        "effort": "medium",
-        "prompt_version": "elliott_v1_2026_10_28",
+        "effort": "high",
+        "prompt_version": "elliott_v2_2026_10_28",
         "cadence": "매시 fast 틱(:03, scheduler --fast)에서 1회 — daily(--slow) 틱에서는 부르지 않는다",
         "symbol": "BTC",
-        "inputs": "BTC 닫힌 봉 1h120·4h90·1d100 + 스윙 피벗, ETH 1h·4h 피벗, 동결 카운트 요약(elliott_count.json), 포지션·포트·최근 거래·직전 판단 3개",
+        "inputs": "BTC 닫힌 봉 15m96·1h120·4h90·1d100 + 시간대별 스윙 피벗, ETH 15m·1h·4h 피벗, 동결 카운트 요약(elliott_count.json), 포지션·포트·최근 거래·직전 판단 3개. 15m 은 매시 7일 창만 수집(ai_elliott.FETCH_DAYS)",
+        "method": "v2(2026-10-28 사용자 지시 '일봉상의 관점뿐 아니라 시간마다 15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매') — 4h·1d 로 큰 차수 위치·방향 편향, 1h 로 현재 스윙, 15m 로 내부 파동을 세어 작은 차수 셋업(조정 완료·1-2 뒤 3파 진입·5파 완성 반전·삼각형 돌파)을 매매. 손절은 그 작은 차수 카운트의 무효화 지점(보통 0.3~2%), 익절은 같은 카운트의 피보나치 목표, 비용 0.2% 차감 후 손익비 1.5 이상. 응답에 setup_tf(판단을 이끈 시간대) 필수",
+        "prompt_versions": [
+          {"version": "elliott_v1_2026_10_28", "effort": "medium", "from": "2026-10-28T05:03Z", "note": "1h·4h·1d + 동결 카운트, '대부분 대기' 기본값 — 첫 7틱 전부 대기(입력 약 1.57만·출력 약 340토큰/회)"},
+          {"version": "elliott_v2_2026_10_28", "effort": "high", "from": "머지 후 첫 fast 틱", "note": "15m~4h 다중 시간대 작은 차수 매매, '대부분 대기' 문구 제거, setup_tf 기록"}
+        ],
         "fallbacks": "default (server-side-fallback-2026-07-01)",
         "record": "ai_judgments kind=elliott_btc (code_action = 코드가 실제로 한 일)"
       },

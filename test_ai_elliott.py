@@ -8,7 +8,7 @@ test_ai_elliott.py — AI 엘리엇 BTC 자율매매(2026-10-28 사용자 결정
   1. 사양·등재 — registry exit_spec(signal_barrier)·live_cap(ledger 포트 $100·3배·1포지션), universe 스위치, 모델
   2. 격리 — ai_elliott 는 거래소·스케줄러·체결 엔진을 import 하지 않고 주문 함수를 부르지 않는다
   3. signal_barriers — 손절·익절 방향·거리 검증(0.3~8% / 0.3% 이상), 위반이면 None(진입 없음)
-  4. 입력 — 닫힌 봉만(형성 중 봉·미래 봉 무시), 스윙 피벗
+  4. 입력 — 닫힌 봉만(형성 중 봉·미래 봉 무시), 스윙 피벗, 15m~4h 다중 시간대(2026-10-28 v2)
   5. 응답 파싱·검증 — 허용 밖 행동·막힌 방향·잘못된 가격은 전부 '아무것도 안 함'으로
   6. API 호출 — 거절·토큰 초과·예외·키 없음이 모두 오류 기록으로 끝난다(거래 경로 무영향)
   7. tick — 평탄/보유/정지/포트 소진 상태별 결과
@@ -64,6 +64,23 @@ SPEC, CAP = rp["exit_spec"], rp["live_cap"]
 
 # ── 1. 사양·등재 ─────────────────────────────────────────────────────────────
 check("모델 = 사용자 선택값", ae.MODEL == "claude-sonnet-5-5")
+# v2(같은 날 사용자 지시 "15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매")
+check("v2 — 버전·effort high·토큰 상한(비스트리밍 10분 한도 안)",
+      ae.PROMPT_VERSION == "elliott_v2_2026_10_28" and ae.EFFORT == "high"
+      and 3600 * ae.MAX_TOKENS / 128000 < 600, (ae.PROMPT_VERSION, ae.EFFORT, ae.MAX_TOKENS))
+check("v2 — BTC 15m·1h·4h·1d, ETH 15m·1h·4h", ae.BTC_TFS == ("15m", "1h", "4h", "1d")
+      and ae.ETH_TFS == ("15m", "1h", "4h") and all(tf in ae.BARS and tf in ae.ZZ_PCT and tf in ae.TF_MS
+                                                    for tf in ae.BTC_TFS))
+check("v2 — 15m 96봉(24시간)·피벗 임계가 시간대와 함께 커진다", ae.BARS["15m"] == 96
+      and ae.ZZ_PCT["15m"] < ae.ZZ_PCT["1h"] < ae.ZZ_PCT["4h"] < ae.ZZ_PCT["1d"])
+check("v2 — 15m 수집 창은 짧게(OKX 일반 캔들 범위 15일 안)", 0 < ae.FETCH_DAYS["15m"] <= 14)
+check("v2 — 프롬프트가 15m·1h·4h 작은 차수 매매를 지시하고 '대부분 대기' 기본값이 없다",
+      all(k in ae.SYSTEM for k in ("15m", "1h and 4h", "lower-degree", "setup_tf"))
+      and "most hours should be wait" not in ae.SYSTEM and "Waiting is the default" not in ae.SYSTEM)
+check("v2 — 손익비 1.5·비용 차감·무효화 지점 손절은 그대로", all(k in ae.SYSTEM for k in
+      ("1.5 times the stop distance", "0.2% of round-trip cost", "invalidates the lower-degree count")))
+check("v2 — 응답 스키마에 setup_tf(필수, 시간대 열거)", ae.SCHEMA["properties"]["setup_tf"]["enum"]
+      == list(ae.SETUP_TFS) and "setup_tf" in ae.SCHEMA["required"])
 check("종목 BTC 하나 · 1h 판단", ae.SYMBOL == "BTC" and ae.TF == "1h")
 check("exit_spec = signal_barrier, 손절 0.3~8% · 익절 0.3%+ · 168봉 시간청산",
       SPEC == {"type": "signal_barrier", "horizon_bars": 168, "min_stop_pct": 0.003, "max_stop_pct": 0.08,
@@ -136,13 +153,27 @@ pv = ae.pivots(cl, 0.006)
 check("피벗이 고/저 교대", len(pv) > 4 and all(pv[i][0] != pv[i + 1][0] for i in range(len(pv) - 1)))
 check("피벗 가격이 봉 고저에서 나온다", all((k == "H" and p == cl[i]["h"]) or (k == "L" and p == cl[i]["l"])
                                         for k, p, i in pv))
-btc = {"1h": cl, "4h": ae.closed(mkrows(120, tf_ms=4 * H), "4h", now), "1d": []}
+Q = H // 4
+r15 = mkrows(300, t0=rows[-1]["ts"] - 297 * Q, tf_ms=Q)      # 마지막 두 봉이 형성 중/방금 닫힘
+cl15 = ae.closed(r15, "15m", now)
+check("15m 도 형성 중인 봉을 뺀다", cl15 and cl15[-1]["ts"] + Q <= now and len(cl15) < len(r15))
+btc = {"15m": cl15, "1h": cl, "4h": ae.closed(mkrows(120, tf_ms=4 * H), "4h", now), "1d": []}
 p1 = ae.build_payload(now, btc, {}, None, None, 100.0, 100.0, 3, ["wait"], [], SPEC, [], [])
 fut = rows + [dict(rows[-1], ts=rows[-1]["ts"] + H * k, c=1.0, h=1.0, l=1.0, o=1.0) for k in (1, 2, 3)]
 btc2 = dict(btc, **{"1h": ae.closed(fut, "1h", now)})
 p2 = ae.build_payload(now, btc2, {}, None, None, 100.0, 100.0, 3, ["wait"], [], SPEC, [], [])
 check("미래 봉을 붙여도 입력이 같다(인과)", json.dumps(p1) == json.dumps(p2))
 check("봉 수 상한(1h 120)", len(p1["btc"]["1h"]["bars_t_o_h_l_c_v"]) == ae.BARS["1h"])
+check("15m 봉 96·피벗·ATR 이 입력에 들어간다", len(p1["btc"]["15m"]["bars_t_o_h_l_c_v"]) == ae.BARS["15m"]
+      and len(p1["btc"]["15m"]["pivots"]) > 4 and p1["btc"]["atr14_15m_pct"] is not None)
+check("15m 피벗이 1h 보다 촘촘하다(같은 구간 기준)",
+      len(ae.pivots(cl15[-96:], ae.ZZ_PCT["15m"])) >= len(ae.pivots(cl15[-96:], ae.ZZ_PCT["1h"])))
+fut15 = r15 + [dict(r15[-1], ts=r15[-1]["ts"] + Q * k, c=1.0, h=1.0, l=1.0, o=1.0) for k in (1, 2, 3)]
+p3 = ae.build_payload(now, dict(btc, **{"15m": ae.closed(fut15, "15m", now)}), {}, None, None, 100.0, 100.0, 3,
+                      ["wait"], [], SPEC, [], [])
+check("15m 에 미래 봉을 붙여도 입력이 같다(인과)", json.dumps(p1) == json.dumps(p3))
+pe_eth = ae.build_payload(now, btc, {"15m": cl15, "1h": cl}, None, None, 100.0, 100.0, 3, ["wait"], [], SPEC, [], [])
+check("ETH 15m·1h 피벗(교차 확인)", set(pe_eth["eth"]) == {"15m", "1h"} and pe_eth["eth"]["15m"]["pivots"])
 cs = ae.count_summary(ae.load_count())
 check("카운트 요약 — 파동 6개·시나리오 4개·트리거·레벨", cs and len(cs["waves"]) == 6 and len(cs["scenarios"]) == 4
       and cs["triggers"] and cs["levels"])
@@ -156,6 +187,10 @@ check("파싱: 앞뒤 잡문 허용·confidence 클램프", ok and ok["action"] 
 check("파싱: 모르는 행동 → None", ae.parse('{"action":"buy","stop":1,"target":2}') is None)
 check("파싱: 가격 음수·NaN → 0", ae.parse('{"action":"wait","stop":-5,"target":"nan"}')["stop"] == 0.0)
 check("파싱: 빈 응답 → None", ae.parse("") is None and ae.parse("no json") is None)
+check("파싱: setup_tf 정규화(모르는 값·누락 → 빈 문자열)",
+      ae.parse('{"action":"wait","setup_tf":"15M"}')["setup_tf"] == "15m"
+      and ae.parse('{"action":"wait","setup_tf":"5m"}')["setup_tf"] == ""
+      and ae.parse('{"action":"wait"}')["setup_tf"] == "")
 flat_all = ae.allowed_actions(None, {"directions": ["long", "short"]}, set(), True)
 check("평탄 허용 = 롱·숏·대기", flat_all == ["open_long", "open_short", "wait"])
 check("보유 허용 = 유지·청산", ae.allowed_actions({"direction": "long"}, {}, set(), True) == ["hold", "close"])
@@ -216,15 +251,53 @@ check("예외 → err_* (밖으로 안 나감)", ae.call("x")[1].startswith("err
 ae._create = lambda s, u: fake_resp(J, model="claude-sonnet-5")
 check("서버 폴백이 다른 모델로 답하면 그 모델을 기록", ae.call("x")[4] == "claude-sonnet-5")
 
+# 요청 형태 — 가짜 SDK 모듈로 실제 _create 가 보내는 인자를 잡는다(설치된 SDK 와 무관)
+import sys
+cap_kw = {}
+
+
+class _FakeMessages:
+    def create(self, **kw):
+        cap_kw.update(kw)
+        return fake_resp(J)
+
+
+class _FakeClient:
+    def __init__(self, **kw):
+        cap_kw["_client"] = kw
+        self.beta = NS(messages=_FakeMessages())
+
+
+_real_sdk = sys.modules.get("anthropic")
+sys.modules["anthropic"] = types.SimpleNamespace(Anthropic=_FakeClient)
+try:
+    _orig_create(ae.SYSTEM, "u")
+finally:
+    if _real_sdk is not None:
+        sys.modules["anthropic"] = _real_sdk
+    else:
+        sys.modules.pop("anthropic", None)
+check("요청: 모델·effort·JSON 스키마·서버 폴백·타임아웃, 샘플링·thinking 미전송",
+      cap_kw.get("model") == ae.MODEL and cap_kw.get("max_tokens") == ae.MAX_TOKENS
+      and cap_kw.get("output_config") == {"effort": ae.EFFORT, "format": {"type": "json_schema", "schema": ae.SCHEMA}}
+      and cap_kw.get("fallbacks") == "default" and cap_kw.get("betas") == [ae.FALLBACK_BETA]
+      and cap_kw["_client"] == {"timeout": ae.TIMEOUT_S, "max_retries": 1}
+      and not any(k in cap_kw for k in ("temperature", "top_p", "top_k", "thinking")), cap_kw)
+
 # ── 7. tick ──────────────────────────────────────────────────────────────────
 R1 = mkrows(200)
 R4 = mkrows(120, tf_ms=4 * H)
 RD = mkrows(150, tf_ms=24 * H)
 NOW = R1[-1]["ts"] + H // 2
+R15 = mkrows(300, t0=R1[-1]["ts"] - 297 * (H // 4), tf_ms=H // 4)
+asked = []
 
 
 def ro(sym, tf):
-    return {"1h": R1, "4h": R4, "1d": RD}[tf] if sym == "BTC" else ({"1h": R1, "4h": R4}.get(tf) or [])
+    asked.append((sym, tf))
+    if sym == "BTC":
+        return {"15m": R15, "1h": R1, "4h": R4, "1d": RD}[tf]
+    return {"15m": R15, "1h": R1, "4h": R4}.get(tf) or []
 
 
 last_c = ae.closed(R1, "1h", NOW)[-1]["c"]
@@ -240,16 +313,23 @@ def answer(d):
 
 kw = dict(trades=[], rows_of=ro, cap=CAP, pot=100.0, margin_next=100.0, spec=SPEC, now_ms=NOW,
           cfg={"directions": ["long", "short"]}, count=ae.load_count(), history=[])
-ae._create = answer(dict(action="open_long", stop=round(last_c * 0.99), target=round(last_c * 1.03),
-                         wave_view="2파 끝 → 3파", invalidation="저점 이탈"))
+ae._create = answer(dict(action="open_long", setup_tf="15m", stop=round(last_c * 0.99), target=round(last_c * 1.03),
+                         wave_view="15m: (ii) 끝 → (iii)", invalidation="저점 이탈"))
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, **kw)
+check("tick 이 BTC 15m·1h·4h·1d, ETH 15m·1h·4h 를 읽는다", set(asked) == {("BTC", t) for t in ae.BTC_TFS}
+      | {("ETH", t) for t in ae.ETH_TFS}, sorted(set(asked)))
+_f = json.loads(rec["features"])
+check("기록 특성에 setup_tf·15m 봉 수·15m 피벗", _f["setup_tf"] == "15m" and _f["bars_15m"] > 90
+      and _f["pivots_15m"])
+check("입력에 15m 데이터", '"15m":{"bars_t_o_h_l_c_v"' in seen["user"])
+check("로그 한 줄에 시간대", ae.summary_line(rec).startswith("[ai-elliott] open_long 15m "))
 check("평탄 + 롱 → 진입 신호(손절·익절 가격 그대로)", sg and sg["direction"] == "long" and cp is None
       and sg["stop"] == round(last_c * 0.99) and sg["target"] == round(last_c * 1.03)
       and sg["pattern"] == ae.PATTERN and sg["ai_elliott"] is True and sg["_ai_rec"] is rec)
 check("신호봉 = 마지막 닫힌 봉", sg["ts"] == ae.closed(R1, "1h", NOW)[-1]["ts"])
 check("기록 행: kind·모델·버전·결정·크기 1.0·근거(JSON)", rec["kind"] == "elliott_btc" and rec["model"] == ae.MODEL
       and rec["prompt_version"] == ae.PROMPT_VERSION and rec["decision"] == "open_long" and rec["size_mult"] == 1.0
-      and json.loads(rec["reasons"])[0] == "2파 끝 → 3파" and rec["direction"] == "long")
+      and json.loads(rec["reasons"])[0] == "15m: (ii) 끝 → (iii)" and rec["direction"] == "long")
 check("기록 행의 키가 ai_judgments 컬럼에 전부 있다",
       all(k in io.open("supabase_schema_ai_judge.sql", encoding="utf-8").read() for k in rec),
       [k for k in rec if k not in io.open("supabase_schema_ai_judge.sql", encoding="utf-8").read()])
@@ -368,6 +448,11 @@ i_tick = es.find("ai_elliott.tick(")
 i_loop = es.find('for s in sig.get("signals", []):')
 check("AI 판단은 신호 파일 로드 뒤·진입 루프 앞", 0 < i_sig < i_tick < i_loop)
 check("매시 fast 틱에서만(--slow 틱 제외) · 스위치 확인", "if not slow and ai_elliott.enabled():" in es)
+i_pref = es.find("for _tf, _days in ai_elliott.FETCH_DAYS.items():")
+check("15m 짧은 창 수집이 판단 바로 앞(BTC·ETH, 캐시에 없을 때만, 실패는 기본 창으로)",
+      0 < i_sig < i_pref < i_tick and "for _sym in (ai_elliott.SYMBOL, \"ETH\"):" in es[i_pref - 200:i_pref]
+      and "if (_sym, _tf) not in rows_cache:" in es[i_pref:i_tick]
+      and "window_days=_days" in es[i_pref:i_tick] and "except Exception" in es[i_pref:i_tick])
 check("정지·킬스위치 중 평탄 판단 생략", "el_can_enter = bool(el_cap) and not (live_conn and kill_switch)" in es
       and "elif el_pos is None and not el_can_enter:" in es)
 check("진입 신호는 sig 에 덧붙여 같은 가드를 탄다", 'sig.setdefault("signals", []).append(el_sig)' in es)
