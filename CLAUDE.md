@@ -2587,6 +2587,12 @@
   · **체결 선택 편향**: 체결 거래 평균 +0.57% vs 미체결 +2.41%(vol_awakening 체결 -0.55% vs 전체 +0.86%). 독립 베팅 가정 로그성장 +26.9 vs 실제 -0.51.
   · 사전 확률: 최다 가설 (c) 슬롯 경합 .35 오답, 차선 (b) .25 적중, (a) 낮게 본 것 적중. 위험 수준 적용은 사용자 결정(시험·보고까지). 후속 R-072·R-073·R-074.
   · 정정: R-060 의 거래 평균 +2.78% 는 bull_btc 롱 부분집합이고 전체 평균은 +1.79%. validate_gap.py / test_gap.py(21) / gap.yml
+- **vol_awakening_4h 체결 선택 편향 — 동시성 가설 NO_SELECTION_BIAS (2026-10-28, 자율 연구 R-072, run 40729095231)**: registry `vol_burst_prereg_2026_10_28` / report_vol_burst.md.
+  **진단 전용, 실거래 무변경, DEPLOY_ON_PASS=False.** R-063 의 '체결 vol_awakening -0.55% vs 전체 +0.86%'가 진입 시점 동시성 때문인지 확인.
+  · 5,040건 Spearman rho(c_open, ret) **+0.075**(P(rho>=0) .953 — 방향 반대), train +0.019/holdout +0.103, 3분위 -0.29/-0.06/**+2.97%**.
+    월 내 demean rho -0.128(P .02) 만 가설 방향 — 월 간(+)과 월 내(-)가 상쇄되는 심슨형. S1~S4 전부 실패 → NO_SELECTION_BIAS.
+  · 사전 0.25 오답. 의미: 일일 진입 상한(R-074)은 최상위 3분위를 자르는 방향이라 prior 0.06·priority 4 로 내림. 후속 R-075(고립 신호 스킵, 사후 선택 셀이라 반증 3종)·R-076(일 내 σ 순위).
+  validate_vol_burst.py / test_vol_burst.py(19) / vol_burst.yml (validate_gap.simulate 에 open_at 선택 훅 — 기본 동작 불변)
 - **AI 엘리엇 BTC 자율매매 시작 (2026-10-28, 사용자 결정 "엘리엇 파동에 따라 비트만 100usdt이하로 ai가 자율매매하도록 변경 원칙 변경")**:
   registry `ai_elliott_btc` / ai_elliott.py / test_ai_elliott.py / 핵심 원칙 '매매 결정 — 2026-10-28 개정'. **검증된 전략이 아니다** —
   레포의 엘리엇 환원 패턴은 전부 기각, 엘리엇 채점 장부 누적 브리어 0.243(무작위 보행 0.205). 손실 상한은 포트 $100.

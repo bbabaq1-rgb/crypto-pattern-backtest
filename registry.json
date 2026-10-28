@@ -6392,7 +6392,7 @@
     "result": "판정 b_4h_burst: G0 -11.1% / G4 +22.4% / G5 +37.5% / G6 +12.7% / G7 +21.7% (G1 -36.1%, G2 -27.0%, G3 파산, G8 중앙 -13.0%). 체결 평균 +0.57% vs 미체결 +2.41%. 사전 최다 가설 (c) 오답, (b) 차선 적중, (a) 낮게 본 것 적중. report_gap.md"
   },
   "vol_burst_prereg_2026_10_28": {
-    "status": "REGISTERED",
+    "status": "DONE_NO_SELECTION_BIAS",
     "DEPLOY_ON_PASS": false,
     "backlog": "R-072",
     "registered": "2026-10-28 (결과 열람 전, 로컬 테스트는 합성 거래만 — 실데이터 수치 없음)",
@@ -6410,6 +6410,8 @@
     "diagnostics": "같은 날 vol_awakening 진입 순번별 평균 / G0 시뮬 체결 직전 오픈 포지션 수 구간별 평균 — 판정 아님, 사후에 골라 살리지 않는다",
     "prior": "SELECTION_BIAS_* 약 0.25(backlog). 근거: R-063 체결 -0.55% vs 미체결 +2.41%는 슬롯이 찬 시점의 신호가 나쁘다는 해석과 시장 전체 급락 때 버스트가 몰려 나쁘다는 해석(시간 효과) 둘 다 가능. 사전 기대: 통과해도 대부분 TIME_EFFECT(WITHIN_MONTH 약 0.08). 월 내 demean 이 약해지면 '진입 규칙'으로 쓸 수 없다",
     "known_limits": "정적 end-of-data 코호트 / 4h 이력 약 2년 / c_open 은 무제약 동시성이라 실제 슬롯 점유와 다르다(진단 2가 보완) / 상관이지 인과 아님 / 동시성 상한 규칙은 R-074(별도 사전 등록)",
-    "live_change": "none"
+    "live_change": "none",
+    "run": 40729095231,
+    "result": "판정 NO_SELECTION_BIAS: rho +0.075(P(rho>=0) .953, train +0.019/holdout +0.103), 월 내 demean rho -0.128(P .02), 3분위 -0.29/-0.06/+2.97%, S1~S4 전부 실패. 동시성↑ 수익↑(방향 반대). 사전 0.25 오답. report_vol_burst.md"
   }
 }
