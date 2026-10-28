@@ -489,6 +489,11 @@ def place_swap_entry(live_conn, symbol, direction, stop_px, size_usd=20.0,
         if (direction == "long" and sl_price >= price) or \
            (direction == "short" and sl_price <= price):
             return None, f"stop_px_wrong_side({direction} price={price} stop={sl_price})"
+        # 익절가도 같은 방식으로 — 시세가 이미 익절가를 지나쳤으면 진입 뒤 OCO 등록이 거부돼 왕복 수수료만
+        # 버린다(2026-10-28, AI 엘리엇 BTC 는 익절가를 절대 가격으로 낸다). 다른 패턴은 진입가 기준이라 영향 없음.
+        if tp_price is not None and ((direction == "long" and tp_price <= price) or
+                                     (direction == "short" and tp_price >= price)):
+            return None, f"target_px_wrong_side({direction} price={price} target={tp_price})"
 
     except Exception as e:
         return None, f"pre_check: {str(e)[:60]}"

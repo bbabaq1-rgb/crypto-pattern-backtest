@@ -149,8 +149,9 @@ chk("엔트리포인트가 플래그를 run_once 에 전달", "slow_tick=tick" i
 
 # ── 6. 체결가 기준 배리어 재정렬 ────────────────────────────────────────────
 pe_src = io.open("paper_executor.py", encoding="utf-8").read()
-chk("실체결가가 신호가와 다르면 배리어 재계산",
-    "if spec and abs(entry - sig_entry) > 1e-12:" in pe_src)
+# 2026-10-28: 신호 가격 배리어(AI 엘리엇 — 절대 가격)는 재정렬하지 않는다. 그 외(ATR·pct)는 종전대로 재계산.
+chk("실체결가가 신호가와 다르면 배리어 재계산(signal_barrier 제외)",
+    'if spec and abs(entry - sig_entry) > 1e-12 and xb.spec_type(spec) != "signal_barrier":' in pe_src)
 chk("재계산 후 OCO 재등록", "ensure_stop_orders(" in pe_src
     and "배리어를 체결가 기준으로 재정렬" in pe_src)
 

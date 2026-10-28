@@ -643,5 +643,19 @@
     "since": null,
     "reason": null,
     "note": "전체 신규 진입 정지 스위치(2026-10-26 사용자 위임 — registry steward_rules_2026_10_26 의 H). active=true 면 paper_executor.trading_halt_state() 가 킬스위치와 같은 경로로 신규 실거래 진입만 막는다(청산·손절 점검·페이퍼 기록 계속). 켜고 끄는 것은 운용 결함 확인·해소 시 에이전트가 PR 로 — since·reason 을 같이 적는다."
-  }
+  },
+  "ai_traders": [
+    {
+      "pattern": "ai_elliott_btc",
+      "symbol": "BTC",
+      "tf": "1h",
+      "directions": [
+        "long",
+        "short"
+      ],
+      "deployed_date": "2026-10-28",
+      "decided": "사용자 결정 2026-10-28 — 전용 포트 $100 · 3배 · 롱·숏 · 매시간 판단",
+      "note": "켜고 끄는 스위치. 이 목록에서 빼면 AI 엘리엇의 신규 판단·진입이 멈춘다(열린 포지션은 registry exit_spec·live_cap 로 계속 관리). 사양은 registry ai_elliott_btc."
+    }
+  ]
 }
