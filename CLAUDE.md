@@ -1059,6 +1059,10 @@
   `elliott_count.json`(동결 카운트) + `elliott_watch.py`(일일 판정) + 09:00 KST(00:00 UTC) 트리거.
   **관찰·브리핑 전용 — 매매 경로와 완전히 단절**(test_elliott_watch §1 이 양방향 import 0·주문 함수 부재·
   registry/universe 미등재를 고정). 레포의 엘리엇 환원 패턴은 전부 게이트에서 기각됐고 이 건도 신호가 아니다.
+  **2026-10-28 개정**: 동결 카운트 **파일**(elliott_count.json)은 AI 엘리엇 BTC 샌드박스(`ai_elliott_btc`, 사용자 결정)가
+  입력으로 읽는다. 브리핑 스크립트(elliott_watch.py)는 여전히 매매 모듈과 import 관계가 없고 브리핑은 매매 제안을 하지 않는다
+  (§1 은 이제 '엘리엇 계열 등재는 ai_elliott_btc 하나뿐 · ai_elliott 는 elliott_watch 를 import 하지 않음'을 고정). 대신 카운트·확률
+  변경이 매매 입력이 되므로 **트리거 발동 시에만 revisions 기록과 함께 바꾸는 규칙**이 더 중요해졌다.
   · **왜 동결하나** — 엘리엇의 고질병은 가격이 움직일 때마다 라벨을 조용히 바꿔 '항상 맞는' 카운트가 되는 것이다.
     라벨을 파일에 고정하면 재라벨이 커밋으로 남는다. `elliott_watch.py` 는 라벨을 못 바꾸고 판정만 한다
     (테스트가 '코드에 파동 가격·레벨 하드코딩 없음'을 고정 — 파일이 유일한 원천).
@@ -2583,8 +2587,31 @@
   · **체결 선택 편향**: 체결 거래 평균 +0.57% vs 미체결 +2.41%(vol_awakening 체결 -0.55% vs 전체 +0.86%). 독립 베팅 가정 로그성장 +26.9 vs 실제 -0.51.
   · 사전 확률: 최다 가설 (c) 슬롯 경합 .35 오답, 차선 (b) .25 적중, (a) 낮게 본 것 적중. 위험 수준 적용은 사용자 결정(시험·보고까지). 후속 R-072·R-073·R-074.
   · 정정: R-060 의 거래 평균 +2.78% 는 bull_btc 롱 부분집합이고 전체 평균은 +1.79%. validate_gap.py / test_gap.py(21) / gap.yml
+- **AI 엘리엇 BTC 자율매매 시작 (2026-10-28, 사용자 결정 "엘리엇 파동에 따라 비트만 100usdt이하로 ai가 자율매매하도록 변경 원칙 변경")**:
+  registry `ai_elliott_btc` / ai_elliott.py / test_ai_elliott.py / 핵심 원칙 '매매 결정 — 2026-10-28 개정'. **검증된 전략이 아니다** —
+  레포의 엘리엇 환원 패턴은 전부 기각, 엘리엇 채점 장부 누적 브리어 0.243(무작위 보행 0.205). 손실 상한은 포트 $100.
+  · **설정(사용자 선택, 같은 날)**: 전용 포트 $100 · 레버리지 3배 · 롱·숏 둘 다 · 매시간 판단(모델은 사용자 지정 — ai_elliott.MODEL, effort medium, 서버 폴백 default).
+  · **흐름**: 매시 fast 틱(:03)마다 paper_executor 가 `ai_elliott.tick` 1회(daily --slow 틱에서는 안 부른다). 평탄이면 진입 결정을 신호로 만들어
+    기존 진입 루프에 덧붙인다 — 킬스위치·캡 1포지션·중복·반대 방향·ledger 포트·signal_barrier 검증·거래소 OCO 를 전부 그대로 탄다. 보유면
+    hold/close — close 는 `ai_close` 가 자기 몫만 시장가로(OCO 가 이미 집행됐으면 재주문 없이 그 체결로 기록). 킬스위치·정지 중엔 평탄 판단 생략.
+  · **입력**: BTC 닫힌 봉 1h 120·4h 90·1d 100 + 고저 지그재그 피벗, ETH 1h·4h 피벗, 동결 카운트 요약, 포지션·포트·최근 거래·직전 판단 3개.
+    출력은 JSON 스키마(행동·손절·익절·확신·파동 해석·무효화·근거 — 한국어). 판단 전부 ai_judgments(kind=elliott_btc, code_action=코드가 한 일).
+  · **같이 바뀐 공통 경로**(전부 test_ai_elliott 고정): ① `net_opposite_live` — 같은 종목 반대 방향 실포지션이 있으면 **모든 신호** 진입 안 함
+    (OKX net 모드에선 반대 주문이 기존 포지션을 상쇄한다. 메인은 지금 롱만 내므로 AI 숏 보유 중에만 의미) ② 같은 날 반복 매매 구분 —
+    `trades.entry_ts` 컬럼 추가(apply_migration 적용·확인) + `_dedupe_delete`·`_ts_or_null`·복원 ts 대조(종전 날짜 키는 뒤 거래가 앞 행을
+    지우고, 같은 날 새 포지션을 '청산됨'으로 복원할 수 있었다) ③ 복원 페이지 읽기 `_select_all`(1000행 상한 회피, 지금 trades 500행)
+    ④ exchange 익절가 사전 검증(이미 지나간 익절가면 주문 전 거부) ⑤ 킬스위치 중 cap 패턴은 페이퍼 행을 안 만든다 ⑥ ledger 포트 `cap_pot`.
+    tp1 복리 경로·메인 사이징·슬롯·배포 집합은 불변.
+  · **제약**: 메인 marubozu BTC 롱(10/11 진입, 손절 76,313.7, 30봉 만기 ~11/10)이 열려 있는 동안 AI 는 BTC **숏을 열 수 없다**(net 가드).
+    같은 방향(롱)은 겹쳐 들 수 있고 청산은 자기 몫만. 계좌 총 명목가 상한(자산 x2.5)에 AI 노출($300)이 들어간다. API 비용은 OKX 포트와 별개
+    (하루 24회 — 토큰을 행마다 기록, 목표 월 $20~40). steward 범위 밖.
+  · SDK: `anthropic>=2.3.0`(API 버전 2026-10-21 — 샘플링 파라미터를 보내지 않으므로 영향 없음). 실제 SDK 를 가짜 HTTP 전송으로 돌려 요청 본문
+    (모델·fallbacks default·output_config effort+schema·베타 헤더)과 거절·429·400 매핑을 확인했다.
 
 ## 다음 할 일
+- [ ] **AI 엘리엇 첫 실거래 틱 확인 (머지 직후)** — fast 틱 로그의 `[ai-elliott]` 줄, ai_judgments kind=elliott_btc 행(토큰·code_action),
+      진입 시 `[live 사이징] … live_cap ledger` · OCO(손절·익절) 등록. 오류면 원인 확인 후 고친다
+- [ ] **AI 엘리엇 중간 보고 — 거래 20건 / 2주 / 포트 $50 미만 중 먼저** — 거래별 결과·포트·API 비용을 표로. 한도·중단은 사용자 결정
 - [x] **레버리지 수정 머지 뒤 첫 틱 확인 (2026-10-26 완료)** — fast 10:03Z·11:03Z·12:03Z, daily 12:00Z 전부 오류 없음 ·
       12:00Z 실거래 진입 2건(ADA·AAVE equal_lows_4h) `[live 사이징]` lev=3x 정상, positions 행에 qty·leverage 3·sl_order_id·entry_ts
       기록 → 12:03Z 복원 11건 정상 · ai_judgments 9행(진입 2·청산 7)이 kind·prompt_version 을 insert 로 직접 기록(제외 경고 없음) ·
@@ -2910,7 +2937,15 @@
   (2026-10-26 운용 위임 R3 — 종전 '사용자 결정'에서 변경, 아래 '운용 위임' 참조).
   ⑤ (2026-10-26) 청산 검토 `ai_judge.judge_exits` 는 **기록 전용** — ② 에 따라 어떤 모드에서도 주문·청산에 닿지 않는다. 실효를 주려면
   이 원칙 ② 를 먼저 개정해야 하고 그것은 사용자 결정이다(registry `ai_exit_prereg_2026_10_26`).
-  엘리엇 브리핑 등 '관찰 전용' 산출물을 매매에 쓰지 않는다는 규칙은 그대로다 — 매매에 쓰는 AI 판단은 이 레이어 하나뿐이다.
+  엘리엇 브리핑 등 '관찰 전용' 산출물을 매매에 쓰지 않는다는 규칙은 그대로다 — 예외는 아래 2026-10-28 개정의 AI 엘리엇 BTC 샌드박스 하나다.
+- **매매 결정 — 2026-10-28 개정, AI 엘리엇 BTC 샌드박스 (사용자 결정 "엘리엇 파동에 따라 비트만 100usdt이하로 ai가 자율매매하도록
+  변경 원칙 변경" + 설정 선택: 전용 포트 $100 · 3배 · 롱·숏 · 매시간 판단)**: 위 ①(AI 는 거르거나 줄일 수만)과 ②·⑤(청산 집행은
+  코드)의 **예외를 `ai_elliott_btc` 하나에만** 둔다. 이 샌드박스에서는 AI 가 BTC 진입 방향·손절·익절 가격과 조기 청산을 **스스로 결정**하고
+  동결 엘리엇 카운트(elliott_count.json)를 입력으로 읽는다. **한도는 계속 코드 몫이다**: BTC 하나 · 동시 1포지션 · 전용 포트 $100(건당 증거금
+  min(포트, $100), $10 미만이면 진입 없음) · 3배 격리 · 손절·익절 필수(거래소 OCO, 손절 거리 0.3~8%) · OKX net 반대 방향 가드 · 킬스위치/
+  trading_halt · 모든 판단 기록(ai_judgments kind=elliott_btc). '손절 주문 없으면 실거래 없음'은 이 샌드박스에도 그대로다. 한도(포트·레버리지·
+  종목)와 켜고 끄기(universe.json `ai_traders`)는 사용자 결정이고 steward(운용 위임) 범위 밖이다. 다른 AI 레이어(ai_judge 진입 shadow·청산
+  검토 기록)는 위 원칙 그대로 — 이 개정은 그쪽으로 넓어지지 않는다.
 - **탐구 자율권 — 자율 연구 루프 (2026-10-26, 사용자 지적 "내가 말하는 것만 테스트하고 스스로 조사·탐구하지 않는다, 규칙도
   코드 원칙이라는 핑계로 진화하지 않는다")**: 가설의 **선택·사전 등록·실행·기록은 에이전트의 일**이다. 절차는 `RESEARCH_LOOP.md`,
   큐는 `research_backlog.json`(매일 KST 01:36 스포너 예약 작업이 레포를 체크아웃한 자식 세션을 띄워 한 사이클 = 한 가설을 돌리고,
@@ -3024,6 +3059,9 @@
 - steward.py / .github/workflows/steward.yml: 운용 점검(2026-10-26 정지·시동 위임) — 실거래 장부에 사전 등록 정지 규칙(S1·S2)을
   기계적으로 적용해 발동 목록을 낸다(읽기 전용, 판정은 check-run 주석으로도 낸다). 집행은 자율 연구 사이클 0단계가 PR 로. test_steward.py(59)
 - paper_executor.trading_halt_state / universe.json `trading_halt`: 전체 신규 진입 정지 스위치(킬스위치 경로 재사용, 기본 꺼짐)
+- ai_elliott.py / test_ai_elliott.py: AI 엘리엇 BTC 자율매매(2026-10-28 사용자 결정) — 매시 판단·응답 검증·기록 행.
+  주문은 paper_executor 의 live_cap 경로(signal_barrier OCO, ledger 포트 cap_pot, ai_close, net_opposite_live). 스위치 universe.json `ai_traders`
+- supabase_schema_patch_2026_10_28.sql: trades.entry_ts(같은 날 반복 매매 구분) — 2026-10-28 적용 완료
 - ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).
   특성 v2(book_*/d1_*/stop_atr), prompt_version 집계 키, 토큰 기록. 주문·거래소·스케줄러 import 없음(test 고정)
 - ai_judge_report.py / .github/workflows/ai_judge_report.yml: 그림자 기록의 사전 등록 기준 집계(읽기 전용, 주간 + dispatch, 텔레그램 요약).

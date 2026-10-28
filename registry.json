@@ -983,6 +983,61 @@
       "suspended_2026_10_22": "2026-10-22 사용자 결정 'tp1 정지' — 1개월 실거래 관찰: 누적 38건 −$40.76, 실거래 승률 70~81% vs 손익분기 91.11% (tp_1h 검증 REJECTED 예측대로). 신규 진입만 정지, 열린 포지션은 registry exit_spec(OCO ±1%/−8%)·live_cap 로 계속 관리.",
       "resumed_2026_10_22": "2026-10-22 사용자 결정 'tp1 은 다시 켜줘' — 같은 날 정지(suspended_2026_10_22) 해제. adopted_1h_patterns 복귀, exit_spec·live_cap 무변경. 관찰 보고 대조(누적 38건 −$40.76)는 기록으로 유지.",
       "suspended_2026_10_26": "2026-10-26 사용자 결정 'tp1 정지해줘'(같은 메시지에서 정지·시동 권한을 에이전트에 위임 — registry steward_rules_2026_10_26). 근거: 실거래 누적 38건(9/10~10/21 청산, 방식D 실주문 다리) 중 수익 30건(79%)·평균 −0.505%·실현 −$39.54(레버리지 보정 후) — 손익분기 승률 91.11% 미달이고 백테스트 6판(tp_small·tp_1h·tp_regime·tp1_stop·tp1_grid·tp1_slots)의 음수 기대값과 같은 방향. 레짐별 bull_altseason n28 −0.28% / bull_btc n10 −1.14%. 10/22 재가동 뒤 청산 0건. 위임 규칙으로 읽어도 S1(미확인 전략·실거래 n≥10·평균<0)에 해당. **신규 진입만 정지** — universe.json adopted_1h_patterns → suspended_1h_patterns. exit_spec·live_cap 유지라 열린 SOL 1건(10/22 진입, OCO 손절 96.62/익절 106.07)은 그대로 관리된다. 재개는 R2(정지 이후 데이터를 포함한 사전 등록 재시험 통과)로만."
+    },
+    {
+      "id": "ai_elliott_btc",
+      "name": "AI Elliott BTC",
+      "category": "AI 자율매매",
+      "tf": "1h",
+      "direction": "both",
+      "status": "forced_live_user",
+      "validated": false,
+      "decided": "2026-10-28",
+      "decision": "사용자 결정 '엘리엇 파동에 따라 비트만 100usdt이하로 ai가 자율매매하도록 변경 원칙 변경' + 같은 날 설정 선택: 전용 포트 $100 · 레버리지 3배 · 롱·숏 둘 다 · 매시간 판단(모델 사용자 지정)",
+      "module": "ai_elliott.py",
+      "exit_spec": {
+        "type": "signal_barrier",
+        "horizon_bars": 168,
+        "min_stop_pct": 0.003,
+        "max_stop_pct": 0.08,
+        "min_target_pct": 0.003
+      },
+      "live_cap": {
+        "margin_usd": 100.0,
+        "start_margin": 100.0,
+        "max_margin": 100.0,
+        "leverage": 3,
+        "max_open": 1,
+        "pot_mode": "ledger",
+        "note": "전용 포트 $100(사용자 선택). 포트 = 100 + 이 패턴 방식D 실현 손익(pnl_live_usd) 합 — paper_executor.cap_pot. 건당 증거금 = min(포트, $100), 포트가 $10 미만이면 진입 없음(충전은 사용자 결정). 3배 격리, 동시 1포지션. 메인 전략과 독립(MAX_LIVE_POS 면제·자기 max_open) — 단 계좌 총 명목가 상한(자산 x2.5)에는 이 노출도 들어간다."
+      },
+      "ai_trader": {
+        "model": "ai_elliott.MODEL (사용자 지정)",
+        "effort": "medium",
+        "prompt_version": "elliott_v1_2026_10_28",
+        "cadence": "매시 fast 틱(:03, scheduler --fast)에서 1회 — daily(--slow) 틱에서는 부르지 않는다",
+        "symbol": "BTC",
+        "inputs": "BTC 닫힌 봉 1h120·4h90·1d100 + 스윙 피벗, ETH 1h·4h 피벗, 동결 카운트 요약(elliott_count.json), 포지션·포트·최근 거래·직전 판단 3개",
+        "fallbacks": "default (server-side-fallback-2026-07-01)",
+        "record": "ai_judgments kind=elliott_btc (code_action = 코드가 실제로 한 일)"
+      },
+      "guards": [
+        "손절·익절 필수 — 거래소 OCO. 손절 거리 0.3~8%, 익절 0.3% 이상(exit_barriers.signal_barriers). 위반 응답은 진입하지 않는다",
+        "OKX net 모드 — 같은 종목 반대 방향 실포지션이 있으면 진입하지 않는다(paper_executor.net_opposite_live, 모든 신호 공통)",
+        "킬스위치(equity < $100)·trading_halt 적용 — 그 동안 평탄 상태 판단을 부르지 않는다",
+        "AI 오류·거절·파싱 실패·허용 밖 응답 → 아무것도 하지 않는다(보유는 거래소 OCO 가 계속 지킨다)",
+        "조기 청산은 자기 몫만(close_qty_for), OCO 가 이미 집행됐으면 시장가를 또 내지 않는다(paper_executor.ai_close)",
+        "엘리엇 카운트는 읽기만 — 라벨 변경은 브리핑 규칙(트리거 발동 시 revisions 기록)으로만"
+      ],
+      "steward_scope": "운용 점검(steward_rules_2026_10_26) 대상 아님 — steward 는 universe adopted_* 목록만 읽는다. 손실 한도는 사용자가 정한 포트 $100($10 미만 자동 정지)",
+      "evidence": "검증되지 않은 전략. 레포의 엘리엇 환원 패턴은 전부 게이트에서 기각됐고, 엘리엇 채점 장부 누적 브리어 0.243(무작위 보행 0.205). 사용자가 한도를 정한 소액 실험",
+      "known_limits": [
+        "메인 marubozu BTC 롱(2026-10-11 진입, 손절 76,313.7)이 열려 있는 동안 AI 는 BTC 숏을 열 수 없다(net 모드 가드)",
+        "메인과 같은 방향 BTC 를 나눠 들 때 AI OCO 가 사라지면 ensure_stop_orders 는 메인 손절이 남아 있어 재등록하지 않는다(기존 잔여 과제) — 엔진 eval_I 가 매시 배리어를 백업 평가",
+        "계좌 총 명목가 상한(자산 x2.5)에 AI 노출($300)이 들어가 메인 진입 여유를 줄일 수 있다",
+        "같은 날 반복 매매 구분은 trades.entry_ts 컬럼(2026-10-28 추가)에 의존 — 컬럼이 없으면 날짜 키로 폴백해 앞 거래 행을 덮을 수 있다"
+      ],
+      "on_off": "universe.json ai_traders 목록에서 빼면 신규 판단·진입이 멈춘다. 열린 포지션은 exit_spec·live_cap 로 계속 관리"
     }
   ],
   "rejected_4h": [

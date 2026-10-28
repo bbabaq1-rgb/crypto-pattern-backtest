@@ -12,6 +12,7 @@ signals_today.json -> 진입 기록(paper_positions.json).
 """
 import sys
 import json
+import math
 import os
 import importlib
 from datetime import datetime, timezone
@@ -23,6 +24,7 @@ import sizing
 import regime_switch as rs
 import exchange as ex_mod
 import ai_judge
+import ai_elliott
 
 CAPITAL = 200.0    # 시뮬레이션 가상자본 $200
 POS_PCT = 0.20
@@ -115,6 +117,33 @@ def load_live_caps(path=EXIT_SPEC_FILE):
 LIVE_CAPS = load_live_caps()
 
 
+def cap_pot(cap, pattern, trades):
+    """
+    ledger 포트 잔액(2026-10-28 ai_elliott_btc — 사용자 선택 '전용 포트 $100').
+    포트 = 시작 증거금 + 이 패턴 방식D 거래의 실현 손익 합. 실현 손익은 pnl_live_usd(거래소·엔진 기록 USD)를
+    쓰고, 없으면 그 시점 증거금(min(포트, max_margin)) x 레버리지 x ret 로 대신한다.
+    복리(compound) 포트의 '포트 x (1+ret x lev)' 곱셈은 건당 증거금이 max_margin 으로 묶이면 맞지 않는다 —
+    포트가 $100 을 넘어도 건당 증거금은 $100 이라 손익은 $100 기준으로 쌓여야 한다.
+    """
+    start = float(cap.get("start_margin", cap["margin_usd"]))
+    lev = float(cap.get("leverage", 1))
+    mx = float(cap.get("max_margin") or start)
+    seq = [t for t in trades
+           if t.get("pattern") == pattern and t.get("method") == "D" and t.get("ret") is not None]
+    seq.sort(key=lambda t: (t.get("exit_date") or "", t.get("entry_date") or ""))
+    pot = start
+    for t in seq:
+        pnl = t.get("pnl_live_usd")
+        try:
+            pnl = float(pnl) if pnl is not None else None
+        except (TypeError, ValueError):
+            pnl = None
+        if pnl is None or not math.isfinite(pnl):
+            pnl = min(max(pot, 0.0), mx) * lev * float(t["ret"])
+        pot += pnl
+    return round(pot, 2)
+
+
 def cap_margin(cap, pattern, trades):
     """
     live_cap 패턴의 이번 주문 증거금. compound 가 아니면 margin_usd 고정.
@@ -126,6 +155,11 @@ def cap_margin(cap, pattern, trades):
     페이퍼 전용 행(주문 실패)은 애초에 안 만든다(진입 경로에서 continue) — DB 복원 trades 에는
     live_mode 컬럼이 없어 여기서 live 여부를 가릴 수 없기 때문.
     """
+    if cap.get("pot_mode") == "ledger":
+        # 증거금 = min(포트, max_margin). 포트가 MIN_MARGIN($10) 미만이면 None — 진입하지 않는다(충전은 사용자).
+        pot = cap_pot(cap, pattern, trades)
+        m = min(pot, float(cap.get("max_margin") or pot))
+        return round(m, 2) if m >= sizing.MIN_MARGIN else None
     if not cap.get("compound"):
         return float(cap["margin_usd"])
     start = float(cap.get("start_margin", cap["margin_usd"]))
@@ -274,12 +308,14 @@ def settle_by_algo(pos, live_conn, trades, today):
         return False
     gross = (px - base) / base if pos["direction"] == "long" else (base - px) / base
     stop_px, target_px = barriers_of(pos)
+    # 사유 접두어: 신호 가격 배리어(AI 엘리엇)는 ai_, 나머지(ATR·pct)는 종전 atr_
+    pfx = "ai" if xb.spec_type(EXIT_SPECS.get(pos.get("pattern"))) == "signal_barrier" else "atr"
     if st.get("actual_side") in ("tp", "sl"):
-        reason = "atr_target" if st["actual_side"] == "tp" else "atr_stop"
+        reason = f"{pfx}_target" if st["actual_side"] == "tp" else f"{pfx}_stop"
     elif stop_px is not None and target_px is not None:
-        reason = "atr_target" if abs(px - target_px) <= abs(px - stop_px) else "atr_stop"
+        reason = f"{pfx}_target" if abs(px - target_px) <= abs(px - stop_px) else f"{pfx}_stop"
     else:
-        reason = "atr_exchange"
+        reason = f"{pfx}_exchange"
     pos["entry_idx"] = pos.get("entry_idx", 0)
     notional = live_notional_of(pos)          # 2026-10-26: 종전 '모르면 1배' → 규격 레버리지
     _record_trade(trades, pos, "D", (pos["entry_idx"], px, gross - FEE, reason), exit_date=today,
@@ -288,6 +324,88 @@ def settle_by_algo(pos, live_conn, trades, today):
     pos["a_closed"] = True
     print(f"  [live] {pos['symbol']} {pos['pattern']} OCO 집행 확인({reason} @ {px}) → D 기록 "
           f"{(gross - FEE) * 100:+.2f}%")
+    return True
+
+
+
+def net_opposite_live(symbol, direction, live_dir_keys):
+    """
+    같은 종목 반대 방향 실포지션이 있는가(2026-10-28). OKX 계정은 종목당 한 방향(net 모드)이라 반대 방향
+    시장가 주문은 신규 진입이 아니라 **기존 포지션을 상쇄(청산)**한다 — 그 포지션의 손절·청산 규칙이 깨진다.
+    AI 엘리엇 BTC 가 숏을 들 수 있게 되면서 필요해졌다(메인 전략은 현재 롱만 낸다). live_dir_keys 는
+    거래소 실측 + 장부 실거래 행(d_closed 제외)의 (symbol, direction) 집합.
+    """
+    opp = "short" if direction == "long" else "long"
+    return (symbol, opp) in live_dir_keys
+
+
+def ai_close(pos, positions, live_conn, trades, rows_of, rec=None):
+    """
+    AI 조기 청산(ai_elliott_btc 전용, 2026-10-28 사용자 결정 '자율매매') — AI 가 close 를 결정한 포지션을 닫고
+    방식D 거래(사유 ai_close)로 기록한다.
+      · 자기 몫만 닫는다(close_qty_for) — 같은 BTC 같은 방향을 메인 전략이 함께 들면 메인 몫은 남긴다.
+      · 거래소 OCO 가 이미 집행됐으면 시장가를 또 내지 않고 그 체결로 기록한다(settle_by_algo).
+      · 상태를 모르거나(algo 조회 실패) 주문이 실패하면 보류 — 다음 틱에 다시 판단한다. OCO 는 계속 지킨다.
+    반환: True = 기록 완료(호출부가 장부에서 뺀다), False = 유지.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    rows = rows_of(pos["symbol"], pos.get("tf", ai_elliott.TF)) or []
+    cl = ai_elliott.closed(rows, pos.get("tf", ai_elliott.TF), int(datetime.now(timezone.utc).timestamp() * 1000))
+    j = len(cl) - 1 if cl else None
+    ei = _bar_idx(rows, pos.get("entry_ts"), pos.get("entry_date")) if rows else None
+    pos["entry_idx"] = ei if ei is not None else (pos.get("entry_idx") or (j or 0))
+    fill = None
+    if pos.get("live_mode"):
+        if live_conn is None:
+            print(f"  [ai-elliott] {pos['symbol']} close 결정 — OKX 미연결, 유지(다음 틱 재시도)")
+            _ai_action(rec, "close_no_conn")
+            return False
+        sl_id = (pos.get("live_order") or {}).get("sl_order_id")
+        if sl_id:
+            st = ex_mod.algo_state(live_conn, sl_id)
+            if st is None:
+                print(f"  [ai-elliott] {pos['symbol']} close 결정 — OCO 상태 조회 실패, 유지")
+                _ai_action(rec, "close_algo_unknown")
+                return False
+            if st.get("state") == "effective":
+                ok = settle_by_algo(pos, live_conn, trades, today)
+                _ai_action(rec, "close_oco_already" if ok else "close_oco_unresolved")
+                return ok
+        q_, frac_ = close_qty_for(pos, positions)
+        fill, why = ex_mod.close_swap_position(live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id,
+                                               qty=q_, qty_frac=frac_)
+        if why != "ok":
+            # no_position: 이미 거래소에서 닫힘 — 다음 실행 reconcile_closed_positions 가 OKX 청산 이력으로 기록한다
+            print(f"  [ai-elliott] {pos['symbol']} close 주문 {why} — 유지(재시도 또는 reconcile)")
+            _ai_action(rec, f"close_{why}")
+            return False
+    px = fill or (cl[-1]["c"] if cl else None)
+    base = float(pos.get("entry_price") or 0)
+    if not (px and base):
+        _ai_action(rec, "close_no_price")
+        return False
+    r = (px - base) / base if pos["direction"] == "long" else (base - px) / base
+    notional = live_notional_of(pos) if pos.get("live_mode") else 0.0
+    _record_trade(trades, pos, "D", (j if j is not None else pos["entry_idx"], px, r - FEE, "ai_close"),
+                  exit_date=today,
+                  extra={"pnl_live_usd": round((r - FEE) * notional, 2) if notional else None})
+    pos["d_closed"] = True
+    pos["a_closed"] = True
+    _ai_action(rec, "closed")
+    print(f"  [ai-elliott] {pos['symbol']} {pos['direction']} AI 조기 청산 @ {px} → {(r - FEE) * 100:+.2f}%")
+    try:
+        import notify
+        d_ko = "롱" if pos["direction"] == "long" else "숏"
+        why_ = ""
+        if rec and rec.get("reasons"):
+            try:
+                why_ = "\n" + " / ".join(json.loads(rec["reasons"])[:2])
+            except Exception:
+                why_ = ""
+        notify.send(f"🤖 <b>AI 엘리엇 조기 청산</b> {pos['symbol']} {d_ko}\n"
+                    f"진입 {base} → 청산 {px} | {(r - FEE) * 100:+.2f}%{why_}")
+    except Exception:
+        pass
     return True
 
 # 실거래 포지션 사이징 규칙
@@ -548,6 +666,9 @@ def barriers_of(pos):
     tgt = pos.get("target")
     entry = pos.get("entry_price")
     spec = EXIT_SPECS.get(pos.get("pattern"))
+    if xb.spec_type(spec) == "signal_barrier":
+        # 신호 가격(AI 엘리엇) — 저장된 값 그대로. 대칭 복원은 틀린 익절을 만든다(가격이 카운트의 목표라서).
+        return stop, tgt
     if xb.spec_type(spec) == "pct_barrier":
         # 비대칭 배리어(예: 익절 1% / 손절 8%) — 대칭 복원을 쓰면 익절이 +8% 로 잘못 되살아나
         # 엔진이 거래소 OCO(+1%)와 다른 규칙으로 평가한다. 규격에서 다시 만든다.
@@ -615,6 +736,50 @@ def _db():
         return None
 
 
+def _dedupe_delete(cli, table, keys, ts):
+    """
+    재삽입 방지 삭제(delete-then-insert 의 앞쪽). ts(봉 시각)가 있으면 **같은 ts 이거나 ts 가 없는(구) 행만** 지운다.
+    종전에는 (종목·패턴·방향·진입일[·방식]) 만 맞으면 지웠는데, 같은 날 같은 종목·패턴·방향을 여러 번 매매하면
+    (AI 엘리엇 BTC — 매시 판단) 뒤 거래가 앞 거래 행을 지웠다(2026-10-28). entry_ts 컬럼이 없는 DB 면 종전 키로 폴백.
+    """
+    def base():
+        q = cli.table(table).delete()
+        for k, v in keys.items():
+            q = q.eq(k, v)
+        return q
+    if ts:
+        try:
+            base().or_(f"entry_ts.eq.{int(ts)},entry_ts.is.null").execute()
+            return
+        except Exception as e:
+            print(f"  [DB] {table} entry_ts 키 삭제 실패 → 날짜 키 폴백: {str(e)[:60]}")
+    base().execute()
+
+
+def _ts_or_null(q, ts):
+    """update 필터용 — ts 가 있으면 같은 ts 또는 ts 없는(구) 행으로 좁힌다."""
+    return q.or_(f"entry_ts.eq.{int(ts)},entry_ts.is.null") if ts else q
+
+
+def _select_all(cli, table, status=None, page=1000, cap=20000):
+    """
+    PostgREST 기본 상한(1000행)을 넘는 테이블 전체 — created_at 순 range 페이지로 읽는다(2026-10-28).
+    종전 .limit(1000) 은 순서 없이 잘라 trades 가 1000행을 넘는 순간 **최근 청산 기록부터** 복원에서 빠질 수
+    있었다(중복 진입 방어·cap 포트 계산이 그 기록을 쓴다). 지금 500행이라 결과는 종전과 같다.
+    """
+    out, i = [], 0
+    while i < cap:
+        q = cli.table(table).select("*")
+        if status:
+            q = q.eq("status", status)
+        chunk = q.order("created_at").range(i, i + page - 1).execute().data or []
+        out.extend(chunk)
+        if len(chunk) < page:
+            break
+        i += page
+    return out
+
+
 def push_trades_db(new_trades):
     cli = _db()
     if not cli or not new_trades:
@@ -632,15 +797,16 @@ def push_trades_db(new_trades):
              "pnl_usd": t.get("pnl_usd"),
              "pnl_live_usd": t.get("pnl_live_usd"),
              "regime": t.get("regime"), "entry_regime": t.get("entry_regime"),
+             # 봉 시각(ms) — 같은 날 같은 종목·패턴·방향 거래를 구분한다(2026-10-28, trades.entry_ts 컬럼).
+             "entry_ts": t.get("entry_ts"),
              "live_mode": bool(t.get("live_mode", False))} for t in new_trades]
     try:
         import supabase_client as sc
-        # 재실행 중복 방어: 동일 키(method 포함) 기존 행 제거 후 삽입
+        # 재실행 중복 방어: 동일 키(method 포함, ts 있으면 ts 까지) 기존 행 제거 후 삽입
         for r in rows:
-            (cli.table("trades").delete()
-             .eq("symbol", r["symbol"]).eq("pattern", r["pattern"])
-             .eq("direction", r["direction"]).eq("entry_date", r["entry_date"])
-             .eq("method", r["method"]).execute())
+            _dedupe_delete(cli, "trades", {"symbol": r["symbol"], "pattern": r["pattern"],
+                                           "direction": r["direction"], "entry_date": r["entry_date"],
+                                           "method": r["method"]}, r.get("entry_ts"))
         _, dropped = sc.insert_tolerant(cli, "trades", rows)
         if dropped:
             print("  [DB] trades 스키마 미존재 컬럼 제외:", dropped)
@@ -677,11 +843,11 @@ def push_positions_db(new_positions):
              "method": "AD-LIVE" if p.get("live_mode") else "AD"} for p in new_positions]
     try:
         import supabase_client as sc
-        # 재실행 중복 방어: 동일 키 기존 행 제거 후 삽입 (ZIL×5 오염 재발 방지)
+        # 재실행 중복 방어: 동일 키 기존 행 제거 후 삽입 (ZIL×5 오염 재발 방지). ts 가 있으면 같은 ts 만(2026-10-28)
         for r in rows:
-            (cli.table("positions").delete()
-             .eq("symbol", r["symbol"]).eq("pattern", r["pattern"])
-             .eq("direction", r["direction"]).eq("entry_date", r["entry_date"]).execute())
+            _dedupe_delete(cli, "positions", {"symbol": r["symbol"], "pattern": r["pattern"],
+                                              "direction": r["direction"], "entry_date": r["entry_date"]},
+                           r.get("entry_ts"))
         _, dropped = sc.insert_tolerant(cli, "positions", rows)
         if dropped:
             print("  [DB] positions 스키마 미존재 컬럼 제외:", dropped)
@@ -699,9 +865,10 @@ def mark_closed_db(closed_positions):
     n = 0
     for p in closed_positions:
         try:
-            (cli.table("positions").update({"status": "closed"})
-             .eq("symbol", p["symbol"]).eq("pattern", p["pattern"])
-             .eq("direction", p["direction"]).eq("entry_date", p["entry_date"]).execute())
+            q = (cli.table("positions").update({"status": "closed"})
+                 .eq("symbol", p["symbol"]).eq("pattern", p["pattern"])
+                 .eq("direction", p["direction"]).eq("entry_date", p["entry_date"]))
+            _ts_or_null(q, p.get("entry_ts")).execute()
             n += 1
         except Exception as e:
             print("  [DB] positions close 갱신 실패(무시):", str(e)[:60])
@@ -733,7 +900,7 @@ def _pattern_tf(pattern, path="universe.json"):
             # suspended_* 도 본다 — 등재 정지된 패턴의 열린 포지션(예: triple_bottom UNI)은
             # 여전히 검증 tf(1w)로 청산 평가해야 한다.
             for key in ("adopted_patterns", "adopted_4h_patterns", "adopted_1h_patterns",
-                        "suspended_patterns", "suspended_1h_patterns"):
+                        "suspended_patterns", "suspended_1h_patterns", "ai_traders"):
                 for p in u.get(key, []) or []:
                     if p.get("pattern") and p.get("tf"):
                         m[p["pattern"]] = p["tf"]
@@ -816,7 +983,7 @@ def restore_state_db(positions, trades):
         return positions, trades
     try:
         if not trades:
-            tr = cli.table("trades").select("*").limit(1000).execute().data or []
+            tr = _select_all(cli, "trades")
             for t in tr:
                 ret = (t.get("return_pct") or 0) / 100.0
                 # pnl_usd: DB 값 우선. 컬럼 없으면 과거 트레이드 기준 size $200으로
@@ -833,20 +1000,31 @@ def restore_state_db(positions, trades):
                     pnl_usd=pnl, hold_bars=t.get("hold_bars"),
                     reason=t.get("exit_reason"), method_label=t.get("method"),
                     pnl_live_usd=t.get("pnl_live_usd"), entry_regime=t.get("entry_regime"),
+                    entry_ts=t.get("entry_ts"),
                     live_mode=bool(t.get("live_mode") or False)))
             if tr:
                 print(f"  [restore] Supabase trades {len(tr)}건 복원")
         if not positions:
-            pr = (cli.table("positions").select("*").eq("status", "open")
-                  .limit(500).execute().data) or []
+            pr = _select_all(cli, "positions", status="open")
+            # 청산 기록 대조 — 봉 시각(ts)이 있는 기록은 ts 로, 없는(구) 기록만 날짜로 맞춘다(2026-10-28).
+            # 날짜만 쓰면 같은 날 앞 거래가 청산된 뒤 새로 연 같은 종목·패턴·방향 포지션이 '이미 청산'(d_closed)
+            # 으로 복원돼 엔진이 관리를 놓는다(AI 엘리엇 BTC 처럼 하루 여러 번 매매하는 패턴).
+            closed_ts = {(t["symbol"], t["pattern"], t["direction"], int(t["entry_ts"]), t["method"])
+                         for t in trades if t.get("entry_ts")}
             closed_am = {(t["symbol"], t["pattern"], t["direction"],
-                          t["entry_date"], t["method"]) for t in trades}
+                          t["entry_date"], t["method"]) for t in trades if not t.get("entry_ts")}
+
+            def _was_closed(key, ts, method):
+                if ts and (key[0], key[1], key[2], int(ts), method) in closed_ts:
+                    return True
+                return key + (method,) in closed_am
             seen = set()
             for p in pr:
                 key = (p["symbol"], p["pattern"], p["direction"], p["entry_date"])
-                if key in seen:          # 과거 중복 오염 방어 — 첫 행만 채택
+                skey = key + ((int(p["entry_ts"]),) if p.get("entry_ts") else ())
+                if skey in seen:         # 과거 중복 오염 방어 — 첫 행만 채택
                     continue
-                seen.add(key)
+                seen.add(skey)
                 # live 판정: live_mode 컬럼(있으면) OR method의 LIVE 인코딩
                 is_live = bool(p.get("live_mode")) or \
                     str(p.get("method", "")).upper().endswith("LIVE")
@@ -865,8 +1043,8 @@ def restore_state_db(positions, trades):
                     # 컬럼이 있으면 live_order 를 되살린다. 없으면 None 이고 close_qty_for 는
                     # 지분 비율로, settle_by_algo 는 보류로 떨어진다(둘 다 안전 쪽).
                     live_order=_live_order_from_db(p),
-                    d_closed=key + ("D",) in closed_am,
-                    a_closed=key + ("A",) in closed_am))
+                    d_closed=_was_closed(key, p.get("entry_ts"), "D"),
+                    a_closed=_was_closed(key, p.get("entry_ts"), "A")))
             if pr:
                 print(f"  [restore] Supabase 오픈 포지션 {len(positions)}건 복원"
                       f" (원본 {len(pr)}행, 중복 {len(pr)-len(positions)}행 무시)")
@@ -1196,6 +1374,8 @@ def run(stamp=None, slow=None):
                 stop_px, target_px = barriers_of(pos)
                 ex = eval_I(rows, ei, pos["direction"], stop_px, target_px,
                             spec.get("horizon_bars", MAX_HOLD_A))
+                if ex and xb.spec_type(spec) == "signal_barrier":     # AI 엘리엇: 사유 접두어 ai_
+                    ex = (ex[0], ex[1], ex[2], ex[3].replace("atr_", "ai_", 1))
             else:
                 ex = eval_D(rows, ei, pos["direction"], opp_set, regmap,
                             entry_reg=pos.get("entry_regime"))
@@ -1350,6 +1530,40 @@ def run(stamp=None, slow=None):
              " ← 슬롯·중복방어에서 제외됨" if _bd["ghost"] else ""))
     # 슬롯 점유 패턴 분포(2026-09-10 사용자 승인) — 편중·경합 실측용. 출력만, 거래 동작 무변경.
     print(f"  [슬롯점유] {occupancy_txt(still_open)}")
+
+    # 1-d) AI 엘리엇 BTC 자율매매(2026-10-28 사용자 결정 — ai_elliott.py 상단 참조). 매시 fast 틱에서만 1회 판단.
+    #      평탄: 진입 결정이면 신호를 sig 에 덧붙여 아래 진입 루프의 가드를 그대로 탄다(킬스위치·캡 1포지션·
+    #            중복·반대 방향(net)·ledger 포트 증거금·signal_barrier 손절·익절 검증·거래소 OCO).
+    #      보유: hold / close — close 는 ai_close 가 자기 몫만 시장가로 닫는다(OCO 집행 여부 먼저 확인).
+    #      킬스위치·trading_halt 중에는 평탄 상태 판단을 부르지 않는다(진입이 불가능해 비용만 든다).
+    el_pos = next((p for p in still_open if p.get("pattern") == ai_elliott.PATTERN
+                   and not p.get("d_closed")), None)
+    if not slow and ai_elliott.enabled():
+        el_cap = LIVE_CAPS.get(ai_elliott.PATTERN)
+        el_can_enter = bool(el_cap) and not (live_conn and kill_switch)
+        if not ai_elliott.available():
+            print("  [ai-elliott] ANTHROPIC_API_KEY 없음 — 판단 생략")
+        elif el_pos is None and not el_can_enter:
+            print("  [ai-elliott] 킬스위치/정지 중(또는 live_cap 없음) — 평탄 상태 판단 생략")
+        else:
+            el_block = {d for d in ("long", "short") if net_opposite_live(ai_elliott.SYMBOL, d, live_dir_keys)}
+            el_rec, el_sig, el_close = ai_elliott.tick(
+                position=el_pos, trades=trades, rows_of=rows_of, cap=el_cap,
+                pot=(cap_pot(el_cap, ai_elliott.PATTERN, trades) if el_cap else None),
+                margin_next=(cap_margin(el_cap, ai_elliott.PATTERN, trades) if el_cap else None),
+                blocked_dirs=el_block, can_enter=el_can_enter, spec=EXIT_SPECS.get(ai_elliott.PATTERN))
+            ai_records.append(el_rec)
+            print(f"  {ai_elliott.summary_line(el_rec)}")
+            if el_close is not None:
+                if ai_close(el_close, still_open, live_conn, trades, rows_of, el_rec):
+                    still_open.remove(el_close)
+                    closed_now.append(el_close)
+            elif el_sig is not None:
+                el_rec["code_action"] = "not_entered"     # 진입 루프가 live/paper/스킵 사유로 덮어쓴다
+                sig.setdefault("signals", []).append(el_sig)
+            elif not el_rec.get("code_action"):
+                el_rec["code_action"] = el_rec.get("decision") or "none"     # wait / hold — 코드가 한 일 없음
+
     for s in sig.get("signals", []):
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:
@@ -1370,9 +1584,10 @@ def run(stamp=None, slow=None):
         if spec:
             # 배리어 패턴: 손절·익절을 exit_spec 규격(±k×ATR 또는 고정 %)으로 산출 — 스케줄러
             # 표기와 같은 함수(exit_barriers). 규칙을 정의할 수 없으면(ATR 미산출) 진입 안 함.
-            bar = xb.barriers(spec, rows, ei, entry, s["direction"])
+            bar = xb.barriers(spec, rows, ei, entry, s["direction"], sig=s)
             if bar is None:
                 print(f"  [skip] {s['symbol']} {s['pattern']} 배리어 산출 불가 — 진입 스킵")
+                _ai_action(s.get("_ai_rec"), "bad_barriers")
                 continue
             stop_px, target_px, _ = bar
         else:
@@ -1381,7 +1596,11 @@ def run(stamp=None, slow=None):
         # AI 판단(2026-10-23): 신호 수치만 보고 take/reduce/skip. shadow 에서는 기록뿐이고 아래 주문
         # 경로는 ai_mult=1.0 으로 종전과 같다. 신호 집합·손절·청산·슬롯·중복 방어는 AI 가 못 건드린다.
         aj = None
-        if ai_on:
+        if s.get("ai_elliott"):
+            # AI 엘리엇 신호 — 이미 AI 가 낸 결정이라 진입 AI 판단(ai_judge)을 또 붙이지 않는다. 그 결정 행이 aj 가 되어
+            # 아래 스킵 지점마다 code_action 이 기록된다(size_mult 1.0 이라 veto 모드에서도 크기를 바꾸지 않는다).
+            aj = s.get("_ai_rec")
+        elif ai_on:
             if len(ai_records) < ai_judge.MAX_CALLS_PER_RUN:
                 aj = ai_judge.judge(rows, ei, dict(s, stop=stop_px),
                                     ctx=dict(ai_ctx, regime=regmap.get(rows[ei]["date"])))
@@ -1424,6 +1643,8 @@ def run(stamp=None, slow=None):
         if live_conn and kill_switch:
             print(f"  [live] 킬스위치 발동 중 — {s['symbol']} 실거래 진입 스킵(페이퍼만)")
             _ai_action(aj, "kill_switch")
+            if cap:
+                continue        # cap 프로젝트(tp1·AI 엘리엇)는 실주문만 장부에 둔다 — 페이퍼 행이 포트 계산을 오염시킨다
 
         if live_conn and not kill_switch:
             # 동시 최대 포지션 체크 — live_cap 패턴은 자기 max_open 으로만 제한(메인 슬롯 면제)
@@ -1446,6 +1667,11 @@ def run(stamp=None, slow=None):
                       + (" (cap 프로젝트 자체 보유)" if cap else ""))
                 _ai_action(aj, "dup_live")
                 continue
+            if net_opposite_live(s["symbol"], s["direction"], live_dir_keys):
+                print(f"  [live] {s['symbol']} {s['direction']} 반대 방향 실포지션 존재 — OKX 계정은 종목당 한 방향(net)이라 "
+                      f"진입하면 그 포지션을 상쇄한다 → 스킵")
+                _ai_action(aj, "net_conflict")
+                continue
 
             # 포지션 사이징 — SIZING_MODE 참조
             bal_info  = ex_mod.get_balance(live_conn)
@@ -1461,7 +1687,9 @@ def run(stamp=None, slow=None):
                     _ai_action(aj, "cap_pot_empty")
                     continue
                 live_size_usd, live_lev = m_, int(cap.get("leverage", 1))
-                print(f"  [live 사이징] {s['symbol']} live_cap {'복리 포트' if cap.get('compound') else '고정'} "
+                _cap_kind = ("ledger 포트" if cap.get("pot_mode") == "ledger"
+                             else "복리 포트" if cap.get("compound") else "고정")
+                print(f"  [live 사이징] {s['symbol']} live_cap {_cap_kind} "
                       f"margin=${live_size_usd:.2f} lev={live_lev}x (notional ${live_size_usd * live_lev:.2f}, "
                       f"free ${usdt_free:.2f}) — {s['pattern']}")
             elif SIZING_MODE == "risk":
@@ -1565,7 +1793,7 @@ def run(stamp=None, slow=None):
                     print(f"  [live] {s['symbol']} 겹친 종목(메인 보유) — 배리어 재정렬 생략. "
                           f"진입 OCO(자기 계약 수) 유지, 메인 손절 보존 "
                           f"(신호 {sig_entry:.6f} → 체결 {entry:.6f})")
-                elif spec and abs(entry - sig_entry) > 1e-12:
+                elif spec and abs(entry - sig_entry) > 1e-12 and xb.spec_type(spec) != "signal_barrier":
                     bar_r = xb.barriers(spec, rows, ei, entry, s["direction"])
                     if bar_r is not None:
                         stop_px, target_px, _ = bar_r
@@ -1589,9 +1817,16 @@ def run(stamp=None, slow=None):
                       f"sl={result['stop_price']:.4f}")
                 import notify
                 d_ko = "롱" if s["direction"] == "long" else "숏"
+                ai_note = ""
+                if s.get("ai_elliott") and aj and aj.get("reasons"):
+                    try:
+                        _rs = json.loads(aj["reasons"])
+                        ai_note = (f"\n익절 {result.get('target_price')}\n🤖 {_rs[0]}\n무효화: {_rs[1]}")
+                    except Exception:
+                        ai_note = ""
                 notify.send(f"🟢 <b>실거래 진입</b> {s['symbol']} {d_ko}\n"
                             f"패턴: {s['pattern']} | ${size_for_pos:.2f}\n"
-                            f"진입 {result['entry_price']:.4f} / 손절 {result['stop_price']:.4f}")
+                            f"진입 {result['entry_price']:.4f} / 손절 {result['stop_price']:.4f}{ai_note}")
 
         rank      = s.get("priority_rank")
         cnt       = s.get("pattern_count", 1)

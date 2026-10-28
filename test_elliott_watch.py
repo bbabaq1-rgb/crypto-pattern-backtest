@@ -41,11 +41,27 @@ for mod in ("scheduler.py", "paper_executor.py", "exchange.py", "sizing.py"):
         check(f"{mod} 가 elliott_watch/elliott_count 를 읽지 않는다",
               "elliott_watch" not in body and "elliott_count" not in body)
 REG = json.load(open("registry.json"))
-check("registry 의 어떤 패턴도 elliott 계열이 아니다",
-      not any("elliott" in str(p.get("id", "")).lower()
-              for p in REG.get("patterns", [])))
-check("universe.json 에 elliott 항목이 없다",
-      "elliott" not in open("universe.json").read().lower())
+# 2026-10-28 사용자 결정 "엘리엇 파동에 따라 비트만 100usdt이하로 ai가 자율매매하도록 변경 원칙 변경":
+# 엘리엇 계열 등재는 AI 엘리엇 BTC 샌드박스(ai_elliott_btc) 하나뿐이고, 그것은 동결 카운트 파일(elliott_count.json)을
+# ai_elliott.py 에서 읽을 뿐 브리핑 스크립트(elliott_watch.py)와는 양방향 import 가 없다. 브리핑은 여전히 관찰 전용.
+_el = [p for p in REG.get("patterns", []) if "elliott" in str(p.get("id", "")).lower()]
+check("registry 의 elliott 계열 등재는 사용자 결정 ai_elliott_btc 하나뿐",
+      [p["id"] for p in _el] == ["ai_elliott_btc"] and _el[0].get("status") == "forced_live_user"
+      and _el[0].get("module") == "ai_elliott.py")
+_uni = json.load(open("universe.json"))
+check("universe.json 의 elliott 항목은 ai_traders 스위치 하나뿐",
+      "elliott" not in json.dumps({k: v for k, v in _uni.items() if k != "ai_traders"}).lower()
+      and [t.get("pattern") for t in _uni.get("ai_traders", [])] == ["ai_elliott_btc"])
+_ae = open("ai_elliott.py", encoding="utf-8").read()
+_ae_tree = ast.parse(_ae)
+_ae_imp = set()
+for node in ast.walk(_ae_tree):
+    if isinstance(node, ast.Import):
+        _ae_imp |= {a.name.split(".")[0] for a in node.names}
+    elif isinstance(node, ast.ImportFrom) and node.module:
+        _ae_imp.add(node.module.split(".")[0])
+check("ai_elliott 는 elliott_watch(브리핑)를 import 하지 않는다 — 카운트 파일만 읽는다",
+      "elliott_watch" not in _ae_imp and "elliott_count.json" in _ae)
 check("주문 함수를 부르지 않는다",
       not any(k in SRC for k in ("place_swap_entry", "close_swap_position",
                                  "place_stop_algo", "create_order")))

@@ -93,7 +93,8 @@ check("live_cap 사양 = $70 · 3x · 1포지션 (사용자 결정, 2026-09-10 $
       cap["margin_usd"] == 70.0 and cap["leverage"] == 3 and cap["max_open"] == 1, cap)
 check("exit_spec 사양 = 익절 1% / 손절 8% / 1h / 2000봉",
       spec["tp_pct"] == 0.01 and spec["sl_pct"] == 0.08 and spec["tf"] == "1h" and spec["horizon_bars"] == 2000, spec)
-check("LIVE_CAPS 에 tp1 만", set(pe.LIVE_CAPS) == {PAT}, set(pe.LIVE_CAPS))
+check("LIVE_CAPS = tp1 + ai_elliott_btc(2026-10-28 사용자 결정 — 전용 포트 $100)",
+      set(pe.LIVE_CAPS) == {PAT, "ai_elliott_btc"}, set(pe.LIVE_CAPS))
 tmp = io.StringIO()
 json.dump({"patterns": [{"id": "x", "live_cap": {"margin_usd": 5}}]}, tmp)
 open("_tmp_caps.json", "w").write(tmp.getvalue())
@@ -107,7 +108,10 @@ check("체결엔진: live_cap 패턴은 자기 max_open 으로 제한, MAX_LIVE_
       "if pat_open >= int(cap.get(\"max_open\", 1)):" in src and "elif live_open_count >= MAX_LIVE_POS:" in src)
 check("체결엔진: 중복 방어는 entry_blocked(메인/cap 분리)로, 슬롯 체크 뒤에",
       src.index("elif live_open_count >= MAX_LIVE_POS:") < src.index('if entry_blocked(s["symbol"], s["direction"], bool(cap), okx_dir_keys, main_keys, cap_keys):'))
-check("체결엔진: 배리어·재정렬이 exit_barriers 공용 함수", src.count("xb.barriers(spec, rows, ei, entry, s[\"direction\"])") == 2)
+# 2026-10-28: 진입 산출은 신호를 함께 넘긴다(sig=s — signal_barrier 용). 재정렬 호출은 종전 그대로.
+check("체결엔진: 배리어·재정렬이 exit_barriers 공용 함수",
+      src.count("xb.barriers(spec, rows, ei, entry, s[\"direction\"], sig=s)") == 1
+      and src.count("xb.barriers(spec, rows, ei, entry, s[\"direction\"])") == 1)
 check("체결엔진: ±k×ATR 인라인 산식 제거(한 곳만 정의)", "spec.get(\"k_atr\", ilab.K_ATR) * atr" not in src)
 
 # ── 4. 등재 정합 ─────────────────────────────────────────────────────────────
