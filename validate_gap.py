@@ -25,7 +25,7 @@ FACTOR = {"G1": "a_vol_weight", "G2": "c_slot_margin", "G3": "c_slot_margin",
 INF = 10 ** 9
 
 
-def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=None, path=None):
+def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=None, path=None, open_at=None):
     """vp.simulate(arm=current) 와 같은 회계 + 설정 해제 노브. 기본 인자면 vp.simulate 와 동일(test 고정).
     rng 를 주면 같은 시각 진입 후보의 우선순위를 무작위로(G8)."""
     max_pos = vp.MAX_POS if max_pos is None else max_pos
@@ -84,6 +84,8 @@ def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=
             if r is None:
                 skipped += 1
                 continue
+            if open_at is not None:
+                open_at[idx] = len(open_pos)
             free -= r["margin_usd"]
             open_pos[idx] = (r["margin_usd"], r["notional"])
             taken += 1
