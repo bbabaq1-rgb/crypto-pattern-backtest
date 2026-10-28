@@ -3,10 +3,13 @@ ai_elliott.py — AI 엘리엇 BTC 자율매매 (2026-10-28 사용자 결정)
 
   사용자 지시: "엘리엇 파동에 따라 비트만 100usdt이하로 ai가 자율매매하도록 변경 원칙 변경"
   사용자 선택(같은 날): 전용 포트 $100 · 레버리지 3배 · 롱·숏 둘 다 · 매시간 판단(모델 사용자 지정 — MODEL)
+  같은 날 개정(v2): "AI 를 쓰는 건 일봉상의 관점뿐 아니라 시간마다 15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은
+  사이즈의 신호를 찾아서 매매하라는 것" — 15m·1h·4h 를 매시간 같이 읽고 작은 차수 셋업으로 매매한다.
+  일봉과 동결 카운트는 배경(방향 편향)으로만 쓴다.
 
 무엇을 하나
-  매시 fast 틱(:03)마다 한 번, BTC 닫힌 봉(1h/4h/1d)·스윙 피벗·동결 엘리엇 카운트(elliott_count.json)·자기
-  포지션과 포트 상태를 LLM 에 넘겨 엘리엇 구조에 따른 결정을 JSON 으로 받는다.
+  매시 fast 틱(:03)마다 한 번, BTC 닫힌 봉(15m/1h/4h/1d)·시간대별 스윙 피벗·동결 엘리엇 카운트(elliott_count.json)·
+  자기 포지션과 포트 상태를 LLM 에 넘겨 엘리엇 구조에 따른 결정을 JSON 으로 받는다.
     평탄  → open_long / open_short (손절·익절 가격 포함) / wait
     보유  → hold / close
   주문은 체결 엔진(paper_executor)의 live_cap 경로가 낸다. 이 모듈은 거래소·스케줄러·체결 엔진을 import 하지
@@ -24,12 +27,15 @@ ai_elliott.py — AI 엘리엇 BTC 자율매매 (2026-10-28 사용자 결정)
   · 모든 판단을 ai_judgments(kind=elliott_btc)에 입력 요약·응답·모델·버전·토큰과 함께 기록한다
 
 엘리엇 카운트는 읽기만 한다. 라벨의 유일한 원천은 elliott_count.json(revisions 로만 바뀜)이고, AI 는 그 아래
-하위 차수 카운트를 스스로 세어 판단한다. 브리핑 스크립트(elliott_watch.py)와는 import 관계가 없다.
+작은 차수 카운트를 15m·1h·4h 에서 스스로 세어 판단한다. 브리핑 스크립트(elliott_watch.py)와는 import 관계가 없다.
 
 검증된 전략이 아니다 — 엘리엇 채점 장부는 무작위 보행보다 나빴다(누적 브리어 0.243 vs 0.205). 사용자가 소액 한도를
-정하고 돌리는 실험이고 손실 상한은 포트 $100 이다. 프롬프트도 그 사실을 모델에게 알린다(과매매 억제).
+정하고 돌리는 실험이고 손실 상한은 포트 $100 이다. v1 프롬프트는 이 사실을 들어 '대부분 대기'를 기본값으로 뒀는데
+첫 7틱이 전부 대기였고, 사용자가 작은 차수 매매를 지시해 v2 에서 뺐다. 과매매 억제는 이제 진입 기준(작은 차수 무효화
+지점에 붙인 손절 · 비용 차감 후 손익비 1.5 이상)이 맡는다.
 
-비용: 하루 24회, 회당 입력 약 1만 토큰 · 출력(생각 포함) 수천 토큰 — 토큰은 행마다 기록한다.
+비용: 하루 24회, 회당 입력 약 2만 토큰(v1 실측 약 1.57만 + 15m) · 출력(생각 포함, effort high) 수천 토큰 —
+토큰은 행마다 기록한다.
 프롬프트 캐시는 쓰지 않는다 — 호출 간격(1시간)이 기본 캐시 수명(5분)보다 길고, 1시간 캐시는 쓰기 비용이 2배라 이득이 없다.
 
 실행: python ai_elliott.py --dry   (로컬 데이터로 입력만 만들어 보여 준다. 키가 있으면 판단까지, 주문은 절대 없음)
@@ -47,55 +53,76 @@ KIND = "elliott_btc"                  # ai_judgments.kind — ai_judge_report �
 SYMBOL = "BTC"
 TF = "1h"
 MODEL = "claude-sonnet-5-5"           # 사용자 선택(2026-10-28)
-EFFORT = "medium"                     # 구조 판단이라 low 보다 한 단계 위. 생각은 이 모델에서 기본으로 켜져 있다
-PROMPT_VERSION = "elliott_v1_2026_10_28"
+EFFORT = "high"                       # v2: 세 시간대를 맞춰 읽는 판단이라 medium 에서 올렸다. 생각은 기본으로 켜져 있다
+PROMPT_VERSION = "elliott_v2_2026_10_28"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"   # 안전 분류기 거절 시 서버가 다른 모델로 재시도("default")
-MAX_TOKENS = 8000                     # 생각 토큰 포함 상한
-TIMEOUT_S = 90
+MAX_TOKENS = 16000                    # 생각 토큰 포함 상한(SDK 비스트리밍 한도 안 — 예상 7.5분 < 10분)
+TIMEOUT_S = 150
 COUNT_FILE = "elliott_count.json"
 UNIVERSE_FILE = "universe.json"
-BARS = {"1h": 120, "4h": 90, "1d": 100}          # 프롬프트에 넣는 닫힌 봉 수
-ZZ_PCT = {"1h": 0.006, "4h": 0.015, "1d": 0.05}  # 스윙 피벗(고저 지그재그) 임계
-TF_MS = {"1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
+BTC_TFS = ("15m", "1h", "4h", "1d")    # 작은 차수(15m~4h)를 읽고 1d 는 배경
+ETH_TFS = ("15m", "1h", "4h")          # 교차 확인용 피벗
+BARS = {"15m": 96, "1h": 120, "4h": 90, "1d": 100}              # 프롬프트에 넣는 닫힌 봉 수(15m 96 = 24시간)
+ZZ_PCT = {"15m": 0.003, "1h": 0.006, "4h": 0.015, "1d": 0.05}   # 스윙 피벗(고저 지그재그) 임계
+TF_MS = {"15m": 900_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
+FETCH_DAYS = {"15m": 7}                # 15m 는 7일만 받는다 — 기본 창(45일)은 OKX 호출이 약 35회라 매시간 낭비다
+SETUP_TFS = ("15m", "1h", "4h", "1d")
 FLAT_ACTIONS = ("open_long", "open_short", "wait")
 OPEN_ACTIONS = ("hold", "close")
 ACTIONS = FLAT_ACTIONS + OPEN_ACTIONS
 
 SYSTEM = (
-    "You run a small, separately funded BTC-USDT perpetual futures account on OKX for the desk owner, trading only "
-    "from Elliott Wave structure. You are called once per hour, just after a 1h candle closes, and you decide one "
-    "action.\n\n"
+    "You run a small, separately funded BTC-USDT perpetual futures account on OKX for the desk owner, trading from "
+    "Elliott Wave structure. You are called once per hour, just after a 1h candle closes, and you decide one action. "
+    "The owner wants this account to trade lower-degree structure: every hour, read the 15m, 1h and 4h charts "
+    "together and look for small-degree setups that can be traded now, rather than waiting for the daily picture to "
+    "resolve.\n\n"
     "What the code enforces (you cannot change it): one BTC position at a time; margin = min(pot, $100) at 3x "
     "isolated leverage; every entry carries a stop and a target that are placed on the exchange as an OCO bracket and "
     "fire between your hourly calls; the stop must be 0.3%-8% from the last close and the target at least 0.3% away, "
     "otherwise the entry is rejected; only the actions listed in allowed_actions are possible (a direction can be "
-    "blocked because the account nets BTC exposure with another strategy); if the pot falls below $10 trading stops. "
-    "Costs: about 0.1-0.2% of notional per round trip plus funding every 8 hours.\n\n"
-    "Method: elliott_count is the desk's frozen higher-degree count. Treat its labels as fixed context and do not "
-    "relabel them. Build your own lower-degree count from the 4h and 1h candles and the swing pivots provided "
-    "(pivots are high/low zigzags; the last pivot is still forming). Respect the rules: wave 2 never retraces beyond "
-    "the start of wave 1; wave 3 is never the shortest of waves 1, 3 and 5; wave 4 does not enter wave 1's territory "
-    "except in diagonals; zigzags are 5-3-5, flats 3-3-5, triangles 3-3-3-3-3 and occur only as wave 4, B, X or the "
-    "final wave of a combination; combinations are W-X-Y(-X-Z). Use common Fibonacci relationships (wave 2 at "
-    "50-61.8%, wave 3 at 1.618x wave 1, wave 4 at 23.6-38.2%, C equal to A or 1.618x A) as guides, not rules. ETH "
-    "pivots are there for cross-confirmation.\n\n"
-    "Entries: act only when one count is clearly favored and its invalidation price is close. Put the stop just "
-    "beyond the price that invalidates the count you are trading, never at an arbitrary percentage; if that price is "
-    "closer than 0.3% or farther than 8%, wait. Put the target at a Fibonacci projection that the same count implies, "
-    "and prefer reward/risk of at least 1.5. Waiting is the default and most hours should be wait: this desk's Elliott "
-    "forecasts have so far scored worse than a random walk, and trading ambiguous structure is the main way this "
-    "account loses money.\n\n"
-    "Open position: hold unless the count you entered on has been invalidated or its target structure is complete. "
-    "Small adverse moves are what the stop is for; close early only for a structural reason.\n\n"
-    "Output: one JSON object matching the schema. stop and target are absolute BTC prices for open_long and "
-    "open_short, and 0 for every other action. confidence is between 0 and 1. Write wave_view (the count you act on, "
-    "one line), invalidation (the price and why) and rationale (at most three short sentences) in Korean."
+    "blocked because the account nets BTC exposure with another strategy); if the pot falls below $10 trading stops; "
+    "a position still open after max_hold_1h_bars is closed by time. Costs: about 0.1-0.2% of notional per round trip "
+    "plus funding every 8 hours.\n\n"
+    "Data: btc holds closed candles and swing pivots for 15m (the last 24 hours), 1h, 4h and 1d. Pivots are high/low "
+    "zigzags whose threshold grows with the timeframe; the last pivot of each list is still forming. eth holds pivots "
+    "on 15m, 1h and 4h for cross-confirmation. elliott_count is the desk's frozen higher-degree count: treat its "
+    "labels as fixed context and do not relabel them.\n\n"
+    "Method: count top-down. Use 4h and 1d to place the current move inside the higher-degree count and to set your "
+    "directional bias. Count the current swing on 1h, then its internal waves on 15m. Respect the rules: wave 2 never "
+    "retraces beyond the start of wave 1; wave 3 is never the shortest of waves 1, 3 and 5; wave 4 does not enter "
+    "wave 1's territory except in diagonals; zigzags are 5-3-5, flats 3-3-5, triangles 3-3-3-3-3 and occur only as "
+    "wave 4, B, X or the final wave of a combination; combinations are W-X-Y(-X-Z). Use common Fibonacci "
+    "relationships (wave 2 at 50-61.8%, wave 3 at 1.618x wave 1, wave 4 at 23.6-38.2%, C equal to A or 1.618x A) as "
+    "guides, not rules.\n\n"
+    "Tradable lower-degree setups (examples, not a closed list): a correction (wave 2, 4, B or X; zigzag, flat, "
+    "triangle or W-X-Y) that looks complete on 15m/1h at a Fibonacci zone, entered as price starts to move away "
+    "from it; waves 1 and 2 done on 15m with the turn into wave 3 under way; a completed five-wave sequence on "
+    "15m/1h ending a C wave or a fifth wave, traded for the reversal; a finished triangle traded for its thrust. A "
+    "lower-degree setup does not need the daily picture to be resolved first, but setups that trade against the 4h "
+    "and higher-degree bias need a completed lower-degree pattern and should aim for the nearer target.\n\n"
+    "Entries: put the stop just beyond the price that invalidates the lower-degree count you are trading (for 15m/1h "
+    "setups that is usually 0.3-2% away), never at an arbitrary percentage. Put the target at a Fibonacci projection "
+    "or retracement that the same count implies. Take the trade only if the target distance, after about 0.2% of "
+    "round-trip cost, is at least 1.5 times the stop distance; if the invalidation is closer than 0.3% or farther "
+    "than 8%, or the timeframes conflict so that no count is clearly favored, wait and say what you are watching "
+    "for. Do not trade just to be active, but do not wait for certainty either: a clear lower-degree setup with a "
+    "close invalidation is exactly what this account is for.\n\n"
+    "Open position: each hour re-read 15m and 1h. Close early if the lower-degree count you entered on has been "
+    "invalidated (for example the move you expected as an impulse unfolded in three waves and is retracing) or its "
+    "target structure is complete; otherwise hold and let the stop and target work.\n\n"
+    "Output: one JSON object matching the schema. setup_tf is the timeframe whose structure drives the decision "
+    "(15m, 1h, 4h or 1d), including for wait, hold and close. stop and target are absolute BTC prices for open_long "
+    "and open_short, and 0 for every other action. confidence is between 0 and 1. Write wave_view (the count you act "
+    "on, naming the timeframe, one line), invalidation (the price and why) and rationale (at most three short "
+    "sentences) in Korean."
 )
 
 SCHEMA = {
     "type": "object",
     "properties": {
         "action": {"type": "string", "enum": list(ACTIONS)},
+        "setup_tf": {"type": "string", "enum": list(SETUP_TFS)},
         "stop": {"type": "number"},
         "target": {"type": "number"},
         "confidence": {"type": "number"},
@@ -103,7 +130,7 @@ SCHEMA = {
         "invalidation": {"type": "string"},
         "rationale": {"type": "string"},
     },
-    "required": ["action", "stop", "target", "confidence", "wave_view", "invalidation", "rationale"],
+    "required": ["action", "setup_tf", "stop", "target", "confidence", "wave_view", "invalidation", "rationale"],
     "additionalProperties": False,
 }
 
@@ -306,6 +333,7 @@ def build_payload(now_ms, btc, eth, count, pos_state, pot, margin_next, lev, all
                   trades_recent, decisions_recent):
     """모델 입력(JSON). btc/eth = {tf: 닫힌 봉 목록}. 전부 now_ms 이전에 닫힌 봉에서 나온다."""
     b1 = btc.get("1h") or []
+    b15 = btc.get("15m") or []
     payload = {
         "now_utc": time.strftime("%Y-%m-%d %H:%M", time.gmtime(now_ms / 1000)),
         "allowed_actions": allowed,
@@ -321,13 +349,13 @@ def build_payload(now_ms, btc, eth, count, pos_state, pot, margin_next, lev, all
         "elliott_count": count_summary(count),
         "btc": {"last_close": _px(b1[-1]["c"]) if b1 else None,
                 "last_bar_utc": _t(b1[-1]["ts"]) if b1 else None,
-                "atr14_1h_pct": atr_pct(b1)},
+                "atr14_15m_pct": atr_pct(b15), "atr14_1h_pct": atr_pct(b1)},
         "eth": {},
     }
-    for tf in ("1h", "4h", "1d"):
+    for tf in BTC_TFS:
         rs = btc.get(tf) or []
         payload["btc"][tf] = {"bars_t_o_h_l_c_v": bars_compact(rs, BARS[tf]), "pivots": pivots_compact(rs, ZZ_PCT[tf])}
-    for tf in ("1h", "4h"):
+    for tf in ETH_TFS:
         rs = eth.get(tf) or []
         if rs:
             payload["eth"][tf] = {"last_close": _px(rs[-1]["c"]), "pivots": pivots_compact(rs, ZZ_PCT[tf], 16)}
@@ -407,7 +435,9 @@ def parse(text):
     except (TypeError, ValueError):
         c = 0.0
     c = min(1.0, max(0.0, c)) if math.isfinite(c) else 0.0
-    return {"action": act, "stop": num("stop"), "target": num("target"), "confidence": round(c, 3),
+    stf = str(d.get("setup_tf") or "").strip().lower()
+    return {"action": act, "setup_tf": stf if stf in SETUP_TFS else "", "stop": num("stop"), "target": num("target"),
+            "confidence": round(c, 3),
             "wave_view": str(d.get("wave_view") or "")[:300],
             "invalidation": str(d.get("invalidation") or "")[:300],
             "rationale": str(d.get("rationale") or "")[:600]}
@@ -488,8 +518,8 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
         except Exception:
             return []
 
-    btc = {tf: _rows(SYMBOL, tf) for tf in ("1h", "4h", "1d")}
-    eth = {tf: _rows("ETH", tf) for tf in ("1h", "4h")}
+    btc = {tf: _rows(SYMBOL, tf) for tf in BTC_TFS}
+    eth = {tf: _rows("ETH", tf) for tf in ETH_TFS}
     b1 = btc["1h"]
     rec = {"judged_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now_ms / 1000)), "kind": KIND,
            "symbol": SYMBOL, "pattern": PATTERN, "direction": (position or {}).get("direction") or "none",
@@ -537,6 +567,8 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
             "position": pstate, "model_requested": MODEL, "raw_action": (parsed or {}).get("action"),
             "raw_stop": (parsed or {}).get("stop"), "raw_target": (parsed or {}).get("target"),
             "why": why, "plan": plan, "count_as_of": (count or {}).get("labeled_on"),
+            "setup_tf": (parsed or {}).get("setup_tf"), "bars_15m": len(btc["15m"]),
+            "pivots_15m": payload["btc"]["15m"]["pivots"][-10:],
             "pivots_1h": payload["btc"]["1h"]["pivots"][-10:], "pivots_4h": payload["btc"]["4h"]["pivots"][-8:],
             "raw": raw}
     rec["features"] = json.dumps(feat, ensure_ascii=False, sort_keys=True)
@@ -570,7 +602,8 @@ def summary_line(rec):
     except Exception:
         view = ""
     tag = f" [{f.get('why')}]" if f.get("why") else ""
-    return (f"[ai-elliott] {rec.get('decision')}{lv} (conf {rec.get('confidence')}, {rec.get('latency_ms')}ms, "
+    stf = f" {f['setup_tf']}" if f.get("setup_tf") else ""
+    return (f"[ai-elliott] {rec.get('decision')}{stf}{lv} (conf {rec.get('confidence')}, {rec.get('latency_ms')}ms, "
             f"tok {rec.get('tokens_in')}/{rec.get('tokens_out')}){tag} — {view} | {rec.get('model')}")
 
 
@@ -579,10 +612,13 @@ if __name__ == "__main__":
     if "--dry" not in sys.argv:
         raise SystemExit("python ai_elliott.py --dry  (주문 없음 — 입력·판단만 본다)")
     import detlib
+    import fetch_data
     cache = {}
 
     def _ro(sym, tf):
         if (sym, tf) not in cache:
+            if tf in FETCH_DAYS:              # 실거래 경로(paper_executor)와 같은 짧은 창
+                fetch_data.update_csv(f"{sym}/USDT", tf, detlib.CSV(sym, tf), window_days=FETCH_DAYS[tf])
             cache[(sym, tf)] = detlib.load_ohlcv(sym, tf)
         return cache[(sym, tf)]
 
