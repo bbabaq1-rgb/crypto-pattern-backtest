@@ -8,7 +8,8 @@ test_ai_elliott.py — AI 엘리엇 BTC 자율매매(2026-10-28 사용자 결정
   1. 사양·등재 — registry exit_spec(signal_barrier)·live_cap(ledger 포트 $100·3배·1포지션), universe 스위치, 모델
   2. 격리 — ai_elliott 는 거래소·스케줄러·체결 엔진을 import 하지 않고 주문 함수를 부르지 않는다
   3. signal_barriers — 손절·익절 방향·거리 검증(0.3~8% / 0.3% 이상), 위반이면 None(진입 없음)
-  4. 입력 — 닫힌 봉만(형성 중 봉·미래 봉 무시), 스윙 피벗, 15m~4h 다중 시간대(2026-10-28 v2)
+  4. 입력 — 닫힌 봉만(형성 중 봉·미래 봉 무시), 스윙 피벗, 15m~4h 다중 시간대(2026-10-28 v2),
+     RSI·EWO·다이버전스(v3 — 같은 날 "RSI 나 이중 지그재그 등 유사 패턴을 전부 보는 거겠지")
   5. 응답 파싱·검증 — 허용 밖 행동·막힌 방향·잘못된 가격은 전부 '아무것도 안 함'으로
   6. API 호출 — 거절·토큰 초과·예외·키 없음이 모두 오류 기록으로 끝난다(거래 경로 무영향)
   7. tick — 평탄/보유/정지/포트 소진 상태별 결과
@@ -65,8 +66,8 @@ SPEC, CAP = rp["exit_spec"], rp["live_cap"]
 # ── 1. 사양·등재 ─────────────────────────────────────────────────────────────
 check("모델 = 사용자 선택값", ae.MODEL == "claude-sonnet-5-5")
 # v2(같은 날 사용자 지시 "15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매")
-check("v2 — 버전·effort high·토큰 상한(비스트리밍 10분 한도 안)",
-      ae.PROMPT_VERSION == "elliott_v2_2026_10_28" and ae.EFFORT == "high"
+check("v3 — 버전·effort high·토큰 상한(비스트리밍 10분 한도 안)",
+      ae.PROMPT_VERSION == "elliott_v3_2026_10_28" and ae.EFFORT == "high"
       and 3600 * ae.MAX_TOKENS / 128000 < 600, (ae.PROMPT_VERSION, ae.EFFORT, ae.MAX_TOKENS))
 check("v2 — BTC 15m·1h·4h·1d, ETH 15m·1h·4h", ae.BTC_TFS == ("15m", "1h", "4h", "1d")
       and ae.ETH_TFS == ("15m", "1h", "4h") and all(tf in ae.BARS and tf in ae.ZZ_PCT and tf in ae.TF_MS
@@ -81,6 +82,19 @@ check("v2 — 손익비 1.5·비용 차감·무효화 지점 손절은 그대로
       ("1.5 times the stop distance", "0.2% of round-trip cost", "invalidates the lower-degree count")))
 check("v2 — 응답 스키마에 setup_tf(필수, 시간대 열거)", ae.SCHEMA["properties"]["setup_tf"]["enum"]
       == list(ae.SETUP_TFS) and "setup_tf" in ae.SCHEMA["required"])
+# v3(같은 날 사용자 질문 "RSI 나 이중 지그재그 등 유사 패턴을 전부 보는 거겠지")
+check("v3 — 응답 스키마에 structure(필수, 엘리엇 형태 열거 + unclear)",
+      ae.SCHEMA["properties"]["structure"]["enum"] == list(ae.STRUCTURES) and "structure" in ae.SCHEMA["required"]
+      and {"double_zigzag", "triple_zigzag", "expanded_flat", "running_flat", "ending_diagonal",
+           "leading_diagonal", "barrier_triangle", "expanding_triangle", "double_three", "unclear"} <= set(ae.STRUCTURES))
+check("v3 — 프롬프트: 형태 목록(이중·삼중 지그재그·확장·러닝 플랫·다이애고널·삼각형 종류·3중 결합)",
+      all(k in ae.SYSTEM for k in ("double (W-X-Y)", "triple", "expanded", "running flats", "ending diagonals",
+                                   "leading diagonals", "barrier and expanding triangles", "truncated fifths")))
+check("v3 — 프롬프트: 판별 지침(교대·채널·동등·거래량·모멘텀) + 지표 단독 매매 금지",
+      all(k in ae.SYSTEM for k in ("alternation", "channeling", "equality", "volume", "strongest RSI and EWO",
+                                   "divergence against wave 3 or A", "never trade a divergence or an oscillator")))
+check("v3 — 프롬프트가 피벗 형식[type, price, time, rsi14, ewo_pct]·다이버전스 요약을 설명",
+      "[type, price, time, rsi14, ewo_pct]" in ae.SYSTEM and "divergence summary computed by code" in ae.SYSTEM)
 check("종목 BTC 하나 · 1h 판단", ae.SYMBOL == "BTC" and ae.TF == "1h")
 check("exit_spec = signal_barrier, 손절 0.3~8% · 익절 0.3%+ · 168봉 시간청산",
       SPEC == {"type": "signal_barrier", "horizon_bars": 168, "min_stop_pct": 0.003, "max_stop_pct": 0.08,
@@ -153,6 +167,14 @@ pv = ae.pivots(cl, 0.006)
 check("피벗이 고/저 교대", len(pv) > 4 and all(pv[i][0] != pv[i + 1][0] for i in range(len(pv) - 1)))
 check("피벗 가격이 봉 고저에서 나온다", all((k == "H" and p == cl[i]["h"]) or (k == "L" and p == cl[i]["l"])
                                         for k, p, i in pv))
+# 봉 안 순서 — 신저점 봉 자신의 고가로 반등을 확정하지 않는다(2026-10-28 15m 실측 결함)
+_sb = [dict(ts=k, h=h, l=l, c=c) for k, (h, l, c) in enumerate([(100, 99, 99.5), (99.6, 98, 98.2), (98.4, 97, 97.1),
+                                                                 (98.0, 96.0, 96.2), (97.5, 96.5, 97.4)])]
+check("신저점 봉의 고가로 L·H 쌍을 만들지 않는다(마지막은 형성 중 저점)",
+      ae.pivots(_sb[:4], 0.006) == [("H", 100, 0), ("L", 96.0, 3)], ae.pivots(_sb[:4], 0.006))
+check("반등 확정은 다음 봉에서", ae.pivots(_sb, 0.006) == [("H", 100, 0), ("L", 96.0, 3), ("H", 97.5, 4)],
+      ae.pivots(_sb, 0.006))
+check("실데이터 형태 피벗에 같은 봉 연속 쌍이 없다", all(pv[k][2] != pv[k + 1][2] for k in range(len(pv) - 1)))
 Q = H // 4
 r15 = mkrows(300, t0=rows[-1]["ts"] - 297 * Q, tf_ms=Q)      # 마지막 두 봉이 형성 중/방금 닫힘
 cl15 = ae.closed(r15, "15m", now)
@@ -174,6 +196,49 @@ p3 = ae.build_payload(now, dict(btc, **{"15m": ae.closed(fut15, "15m", now)}), {
 check("15m 에 미래 봉을 붙여도 입력이 같다(인과)", json.dumps(p1) == json.dumps(p3))
 pe_eth = ae.build_payload(now, btc, {"15m": cl15, "1h": cl}, None, None, 100.0, 100.0, 3, ["wait"], [], SPEC, [], [])
 check("ETH 15m·1h 피벗(교차 확인)", set(pe_eth["eth"]) == {"15m", "1h"} and pe_eth["eth"]["15m"]["pivots"])
+
+# v3 지표 — RSI(Wilder)·EWO·다이버전스
+import detector_rsi_divergence as drd
+cls_ = [r["c"] for r in cl]
+check("RSI = 레포의 Wilder 구현(detector_rsi_divergence.rsi_series)과 일치",
+      all((a is None and b is None) or abs(a - b) < 1e-9 for a, b in zip(ae.rsi_series(cls_), drd.rsi_series(cls_, 14))))
+check("RSI 경계: 전부 상승 100 · 전부 하락 0 · 앞 14개 None",
+      ae.rsi_series([float(i) for i in range(30)])[-1] == 100.0
+      and ae.rsi_series([float(30 - i) for i in range(30)])[-1] == 0.0
+      and ae.rsi_series([float(i) for i in range(30)])[:14] == [None] * 14)
+flat = [dict(h=101.0, l=99.0, c=100.0) for _ in range(40)]
+check("EWO: 평평하면 0, 앞 34개 None", ae.ewo_series(flat)[-1] == 0.0 and ae.ewo_series(flat)[:34] == [None] * 34)
+rise = [dict(h=100.0 + i + 1, l=100.0 + i - 1, c=100.0 + i) for i in range(40)]
+_e = ae.ewo_series(rise)[-1]
+check("EWO: 꾸준한 상승이면 양수 — (SMA5−SMA35)/종가 = 15/139 %", _e > 0 and abs(_e - 15 / 139 * 100) < 1e-9, _e)
+check("피벗에 RSI·EWO 가 붙는다([종류, 가격, 시각, rsi, ewo])",
+      all(len(x) == 5 for x in p1["btc"]["1h"]["pivots"]) and p1["btc"]["1h"]["pivots"][-1][3] is not None
+      and p1["btc"]["1h"]["rsi14"] is not None and p1["btc"]["1h"]["ewo_pct"] is not None)
+
+
+def piv_rows(seq):
+    """(고, 저, 종) 수열로 봉 목록."""
+    return [dict(ts=1_761_000_000_000 + k * H, date="2026-10-01", o=c, h=h, l=l, c=c, v=1.0)
+            for k, (h, l, c) in enumerate(seq)]
+
+
+_rr = piv_rows([(1, 1, 1)] * 10)
+_piv = [("H", 110.0, 3), ("L", 100.0, 5), ("H", 112.0, 7), ("L", 98.0, 9)]
+_rsi = [None, None, None, 70.0, None, 30.0, None, 65.0, None, 35.0]
+dv = ae.divergence(_rr, _piv, _rsi)
+check("다이버전스: 가격 신고점·RSI 낮은 고점 = bearish / 가격 신저점·RSI 높은 저점 = bullish",
+      dv["highs"]["type"] == "bearish" and dv["lows"]["type"] == "bullish"
+      and dv["lows"]["last_forming"] is True and dv["highs"]["last_forming"] is False, dv)
+_piv2 = [("H", 112.0, 3), ("L", 98.0, 5), ("H", 110.0, 7), ("L", 100.0, 9)]
+dv2 = ae.divergence(_rr, _piv2, [None, None, None, 65.0, None, 35.0, None, 70.0, None, 30.0])
+check("숨은 다이버전스: 낮은 고점·RSI 높은 고점 = hidden_bearish / 높은 저점·RSI 낮은 저점 = hidden_bullish",
+      dv2["highs"]["type"] == "hidden_bearish" and dv2["lows"]["type"] == "hidden_bullish", dv2)
+dv3 = ae.divergence(_rr, [("H", 110.0, 3), ("L", 100.0, 5), ("H", 112.0, 7)], [None, None, None, 60.0, None, 30.0,
+                                                                              None, 70.0, None, None])
+check("다이버전스 없음·저점 하나뿐 → none / None", dv3["highs"]["type"] == "none" and dv3["lows"] is None, dv3)
+check("BTC 시간대마다 다이버전스 요약(highs·lows), ETH 는 피벗만",
+      all(set(p1["btc"][tf].get("divergence") or {}) == {"highs", "lows"} for tf in ("15m", "1h", "4h"))
+      and "divergence" not in pe_eth["eth"]["1h"] and len(pe_eth["eth"]["1h"]["pivots"][0]) == 5)
 cs = ae.count_summary(ae.load_count())
 check("카운트 요약 — 파동 6개·시나리오 4개·트리거·레벨", cs and len(cs["waves"]) == 6 and len(cs["scenarios"]) == 4
       and cs["triggers"] and cs["levels"])
@@ -187,6 +252,10 @@ check("파싱: 앞뒤 잡문 허용·confidence 클램프", ok and ok["action"] 
 check("파싱: 모르는 행동 → None", ae.parse('{"action":"buy","stop":1,"target":2}') is None)
 check("파싱: 가격 음수·NaN → 0", ae.parse('{"action":"wait","stop":-5,"target":"nan"}')["stop"] == 0.0)
 check("파싱: 빈 응답 → None", ae.parse("") is None and ae.parse("no json") is None)
+check("파싱: structure 정규화(모르는 값·누락 → 빈 문자열)",
+      ae.parse('{"action":"wait","structure":"Double_Zigzag"}')["structure"] == "double_zigzag"
+      and ae.parse('{"action":"wait","structure":"head_and_shoulders"}')["structure"] == ""
+      and ae.parse('{"action":"wait"}')["structure"] == "")
 check("파싱: setup_tf 정규화(모르는 값·누락 → 빈 문자열)",
       ae.parse('{"action":"wait","setup_tf":"15M"}')["setup_tf"] == "15m"
       and ae.parse('{"action":"wait","setup_tf":"5m"}')["setup_tf"] == ""
@@ -313,16 +382,19 @@ def answer(d):
 
 kw = dict(trades=[], rows_of=ro, cap=CAP, pot=100.0, margin_next=100.0, spec=SPEC, now_ms=NOW,
           cfg={"directions": ["long", "short"]}, count=ae.load_count(), history=[])
-ae._create = answer(dict(action="open_long", setup_tf="15m", stop=round(last_c * 0.99), target=round(last_c * 1.03),
-                         wave_view="15m: (ii) 끝 → (iii)", invalidation="저점 이탈"))
+ae._create = answer(dict(action="open_long", setup_tf="15m", structure="double_zigzag", stop=round(last_c * 0.99),
+                         target=round(last_c * 1.03), wave_view="15m: (ii) 끝 → (iii)", invalidation="저점 이탈"))
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, **kw)
 check("tick 이 BTC 15m·1h·4h·1d, ETH 15m·1h·4h 를 읽는다", set(asked) == {("BTC", t) for t in ae.BTC_TFS}
       | {("ETH", t) for t in ae.ETH_TFS}, sorted(set(asked)))
 _f = json.loads(rec["features"])
 check("기록 특성에 setup_tf·15m 봉 수·15m 피벗", _f["setup_tf"] == "15m" and _f["bars_15m"] > 90
       and _f["pivots_15m"])
+check("기록 특성에 structure·시간대별 RSI·다이버전스", _f["structure"] == "double_zigzag"
+      and set(_f["rsi14"]) == set(ae.BTC_TFS) and set(_f["divergence"]) == set(ae.BTC_TFS))
+check("입력에 RSI·EWO·다이버전스", all(k in seen["user"] for k in ('"rsi14"', '"ewo_pct"', '"divergence"')))
 check("입력에 15m 데이터", '"15m":{"bars_t_o_h_l_c_v"' in seen["user"])
-check("로그 한 줄에 시간대", ae.summary_line(rec).startswith("[ai-elliott] open_long 15m "))
+check("로그 한 줄에 시간대·형태", ae.summary_line(rec).startswith("[ai-elliott] open_long 15m/double_zigzag "))
 check("평탄 + 롱 → 진입 신호(손절·익절 가격 그대로)", sg and sg["direction"] == "long" and cp is None
       and sg["stop"] == round(last_c * 0.99) and sg["target"] == round(last_c * 1.03)
       and sg["pattern"] == ae.PATTERN and sg["ai_elliott"] is True and sg["_ai_rec"] is rec)
