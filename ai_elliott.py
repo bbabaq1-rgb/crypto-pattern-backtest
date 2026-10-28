@@ -6,6 +6,10 @@ ai_elliott.py — AI 엘리엇 BTC 자율매매 (2026-10-28 사용자 결정)
   같은 날 개정(v2): "AI 를 쓰는 건 일봉상의 관점뿐 아니라 시간마다 15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은
   사이즈의 신호를 찾아서 매매하라는 것" — 15m·1h·4h 를 매시간 같이 읽고 작은 차수 셋업으로 매매한다.
   일봉과 동결 카운트는 배경(방향 편향)으로만 쓴다.
+  같은 날 개정(v3): "엘리엇 파동 관점 매매라고는 했지만 RSI 나 이중 지그재그 등 유사 패턴을 전부 보는 거겠지" — v2 까지는
+  RSI 가 입력에 없었고 세부 형태(이중·삼중 지그재그, 확장·러닝 플랫, 다이애고널 등)는 지시문에 일반 언급뿐이었다.
+  v3 에서 시간대마다 RSI(14)·엘리엇 오실레이터(EWO 5/35)를 피벗에 붙이고, 고점끼리·저점끼리 다이버전스를 코드가 계산해
+  넘기며, 엘리엇 형태 전체 목록과 판별 지침(교대·채널·파동 동등·모멘텀)을 지시문에 넣고, 판단 근거 형태(structure)를 기록한다.
 
 무엇을 하나
   매시 fast 틱(:03)마다 한 번, BTC 닫힌 봉(15m/1h/4h/1d)·시간대별 스윙 피벗·동결 엘리엇 카운트(elliott_count.json)·
@@ -54,7 +58,7 @@ SYMBOL = "BTC"
 TF = "1h"
 MODEL = "claude-sonnet-5-5"           # 사용자 선택(2026-10-28)
 EFFORT = "high"                       # v2: 세 시간대를 맞춰 읽는 판단이라 medium 에서 올렸다. 생각은 기본으로 켜져 있다
-PROMPT_VERSION = "elliott_v2_2026_10_28"
+PROMPT_VERSION = "elliott_v3_2026_10_28"
 FALLBACK_BETA = "server-side-fallback-2026-07-01"   # 안전 분류기 거절 시 서버가 다른 모델로 재시도("default")
 MAX_TOKENS = 16000                    # 생각 토큰 포함 상한(SDK 비스트리밍 한도 안 — 예상 7.5분 < 10분)
 TIMEOUT_S = 150
@@ -67,6 +71,11 @@ ZZ_PCT = {"15m": 0.003, "1h": 0.006, "4h": 0.015, "1d": 0.05}   # 스윙 피벗(
 TF_MS = {"15m": 900_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
 FETCH_DAYS = {"15m": 7}                # 15m 는 7일만 받는다 — 기본 창(45일)은 OKX 호출이 약 35회라 매시간 낭비다
 SETUP_TFS = ("15m", "1h", "4h", "1d")
+RSI_N = 14                             # Wilder RSI — detector_rsi_divergence.rsi_series 와 같은 계산(테스트가 고정)
+EWO_FAST, EWO_SLOW = 5, 35             # 엘리엇 오실레이터 = 중간가 SMA5 − SMA35, 종가 대비 %
+STRUCTURES = ("impulse", "leading_diagonal", "ending_diagonal", "zigzag", "double_zigzag", "triple_zigzag",
+              "regular_flat", "expanded_flat", "running_flat", "contracting_triangle", "barrier_triangle",
+              "expanding_triangle", "double_three", "triple_three", "unclear")
 FLAT_ACTIONS = ("open_long", "open_short", "wait")
 OPEN_ACTIONS = ("hold", "close")
 ACTIONS = FLAT_ACTIONS + OPEN_ACTIONS
@@ -85,9 +94,14 @@ SYSTEM = (
     "a position still open after max_hold_1h_bars is closed by time. Costs: about 0.1-0.2% of notional per round trip "
     "plus funding every 8 hours.\n\n"
     "Data: btc holds closed candles and swing pivots for 15m (the last 24 hours), 1h, 4h and 1d. Pivots are high/low "
-    "zigzags whose threshold grows with the timeframe; the last pivot of each list is still forming. eth holds pivots "
-    "on 15m, 1h and 4h for cross-confirmation. elliott_count is the desk's frozen higher-degree count: treat its "
-    "labels as fixed context and do not relabel them.\n\n"
+    "zigzags whose threshold grows with the timeframe; the last pivot of each list is still forming. Each pivot is "
+    "[type, price, time, rsi14, ewo_pct]: rsi14 is Wilder RSI(14) at that pivot bar's close and ewo_pct is the Elliott "
+    "Wave Oscillator (5-period minus 35-period simple average of the median price, in % of price) at that bar. Each "
+    "timeframe also carries its latest rsi14 and ewo_pct and a divergence summary computed by code: it compares the "
+    "last two swing highs and the last two swing lows (regular divergence: price makes a new extreme and RSI does "
+    "not; hidden divergence: the reverse); last_forming marks a comparison whose later pivot is still forming. eth "
+    "holds pivots in the same format on 15m, 1h and 4h for cross-confirmation. elliott_count is the desk's frozen "
+    "higher-degree count: treat its labels as fixed context and do not relabel them.\n\n"
     "Method: count top-down. Use 4h and 1d to place the current move inside the higher-degree count and to set your "
     "directional bias. Count the current swing on 1h, then its internal waves on 15m. Respect the rules: wave 2 never "
     "retraces beyond the start of wave 1; wave 3 is never the shortest of waves 1, 3 and 5; wave 4 does not enter "
@@ -95,6 +109,17 @@ SYSTEM = (
     "wave 4, B, X or the final wave of a combination; combinations are W-X-Y(-X-Z). Use common Fibonacci "
     "relationships (wave 2 at 50-61.8%, wave 3 at 1.618x wave 1, wave 4 at 23.6-38.2%, C equal to A or 1.618x A) as "
     "guides, not rules.\n\n"
+    "Consider the whole Elliott catalog, not only the basic forms: impulses with an extended wave (1, 3 or 5) and "
+    "truncated fifths; leading diagonals (wave 1 or A) and ending diagonals (wave 5 or C: overlapping, wedge-shaped, "
+    "usually followed by a fast retracement to where the diagonal began); single, double (W-X-Y) and triple "
+    "(W-X-Y-X-Z) zigzags; regular, expanded (B beyond the start of A, C beyond the end of A) and running flats; "
+    "contracting, barrier and expanding triangles; double and triple threes. To choose between competing counts use "
+    "alternation between waves 2 and 4, channeling (the 2-4 line and its parallel through wave 3 for wave 5; the 0-2 "
+    "line and its parallel for wave 4), equality (wave 5 near wave 1 when wave 3 is extended; C near A), volume "
+    "(usually heaviest in wave 3 and lighter in wave 5 and in corrections) and momentum: wave 3 normally carries the "
+    "strongest RSI and EWO reading of its sequence, wave 5 and C often end with divergence against wave 3 or A, wave "
+    "4 pulls EWO back toward zero, and B and X waves usually show weak momentum. Use RSI, EWO and divergence to rank "
+    "counts and to confirm that a wave is ending; never trade a divergence or an oscillator level on its own.\n\n"
     "Tradable lower-degree setups (examples, not a closed list): a correction (wave 2, 4, B or X; zigzag, flat, "
     "triangle or W-X-Y) that looks complete on 15m/1h at a Fibonacci zone, entered as price starts to move away "
     "from it; waves 1 and 2 done on 15m with the turn into wave 3 under way; a completed five-wave sequence on "
@@ -112,7 +137,8 @@ SYSTEM = (
     "invalidated (for example the move you expected as an impulse unfolded in three waves and is retracing) or its "
     "target structure is complete; otherwise hold and let the stop and target work.\n\n"
     "Output: one JSON object matching the schema. setup_tf is the timeframe whose structure drives the decision "
-    "(15m, 1h, 4h or 1d), including for wait, hold and close. stop and target are absolute BTC prices for open_long "
+    "(15m, 1h, 4h or 1d), including for wait, hold and close; structure is the Elliott structure that decision rests "
+    "on (unclear when no structure is favored). stop and target are absolute BTC prices for open_long "
     "and open_short, and 0 for every other action. confidence is between 0 and 1. Write wave_view (the count you act "
     "on, naming the timeframe, one line), invalidation (the price and why) and rationale (at most three short "
     "sentences) in Korean."
@@ -123,6 +149,7 @@ SCHEMA = {
     "properties": {
         "action": {"type": "string", "enum": list(ACTIONS)},
         "setup_tf": {"type": "string", "enum": list(SETUP_TFS)},
+        "structure": {"type": "string", "enum": list(STRUCTURES)},
         "stop": {"type": "number"},
         "target": {"type": "number"},
         "confidence": {"type": "number"},
@@ -130,7 +157,8 @@ SCHEMA = {
         "invalidation": {"type": "string"},
         "rationale": {"type": "string"},
     },
-    "required": ["action", "setup_tf", "stop", "target", "confidence", "wave_view", "invalidation", "rationale"],
+    "required": ["action", "setup_tf", "structure", "stop", "target", "confidence", "wave_view", "invalidation",
+                 "rationale"],
     "additionalProperties": False,
 }
 
@@ -164,7 +192,12 @@ def closed(rows, tf, now_ms):
 
 
 def pivots(rows, pct):
-    """고저 기준 지그재그 스윙 [(kind 'H'/'L', price, index)]. 마지막 하나는 아직 진행 중(미확정)이다."""
+    """
+    고저 기준 지그재그 스윙 [(kind 'H'/'L', price, index)]. 마지막 하나는 아직 진행 중(미확정)이다.
+    신고점(신저점)을 낸 봉 자신의 저가(고가)로는 꺾임을 확정하지 않는다 — 봉 안에서 고가와 저가 중 무엇이 먼저였는지
+    모르기 때문이다. 종전에는 시가 근처 고점에서 신저점으로 떨어진 봉이 '저점 뒤 반등 중'(같은 봉의 L·H 쌍)으로
+    잘못 찍혔다(2026-10-28 15m 실측: 12:00 봉 고 81,225 → 저 80,774, 종가 80,798).
+    """
     if not rows:
         return []
     piv, trend = [], None
@@ -174,14 +207,14 @@ def pivots(rows, pct):
         if trend in (None, "up"):
             if r["h"] >= hi[0]:
                 hi = (r["h"], i)
-            if r["l"] <= hi[0] * (1 - pct):
+            elif r["l"] <= hi[0] * (1 - pct):
                 piv.append(("H",) + hi)
                 trend, lo = "down", (r["l"], i)
                 continue
         if trend in (None, "down"):
             if r["l"] <= lo[0]:
                 lo = (r["l"], i)
-            if r["h"] >= lo[0] * (1 + pct):
+            elif r["h"] >= lo[0] * (1 + pct):
                 piv.append(("L",) + lo)
                 trend, hi = "up", (r["h"], i)
     if trend == "up":
@@ -206,8 +239,86 @@ def bars_compact(rows, n):
             for r in rows[-n:]]
 
 
-def pivots_compact(rows, pct, n=24):
-    return [[k, _px(p), _t(rows[i]["ts"])] for k, p, i in pivots(rows, pct)[-n:]]
+def rsi_series(closes, n=RSI_N):
+    """Wilder RSI — 앞 n개는 None. detector_rsi_divergence.rsi_series 와 같은 계산(test_ai_elliott 가 일치를 고정)."""
+    out = [None] * len(closes)
+    if len(closes) <= n:
+        return out
+    gains = losses = 0.0
+    for i in range(1, n + 1):
+        ch = closes[i] - closes[i - 1]
+        gains += max(ch, 0.0)
+        losses += max(-ch, 0.0)
+    ag, al = gains / n, losses / n
+    out[n] = 100.0 if al == 0 else 100 - 100 / (1 + ag / al)
+    for i in range(n + 1, len(closes)):
+        ch = closes[i] - closes[i - 1]
+        ag = (ag * (n - 1) + max(ch, 0.0)) / n
+        al = (al * (n - 1) + max(-ch, 0.0)) / n
+        out[i] = 100.0 if al == 0 else 100 - 100 / (1 + ag / al)
+    return out
+
+
+def ewo_series(rows, fast=EWO_FAST, slow=EWO_SLOW):
+    """엘리엇 오실레이터 — 중간가((고+저)/2)의 SMA(fast) − SMA(slow), 그 봉 종가 대비 %. 앞 slow-1 개는 None."""
+    med = [(r["h"] + r["l"]) / 2 for r in rows]
+    out = [None] * len(rows)
+    for i in range(slow - 1, len(rows)):
+        c = rows[i]["c"]
+        if c:
+            out[i] = (sum(med[i - fast + 1:i + 1]) / fast - sum(med[i - slow + 1:i + 1]) / slow) / c * 100
+    return out
+
+
+def _r(x, nd):
+    return None if x is None else round(x, nd)
+
+
+def pivots_compact(rows, pct, n=24, rsi=None, ewo=None):
+    """[종류, 가격, 시각, RSI14, EWO%] — 지표는 그 피벗 봉 기준(인과: 그 봉까지의 종가만 쓴다)."""
+    rsi = rsi if rsi is not None else rsi_series([r["c"] for r in rows])
+    ewo = ewo if ewo is not None else ewo_series(rows)
+    return [[k, _px(p), _t(rows[i]["ts"]), _r(rsi[i], 1), _r(ewo[i], 2)] for k, p, i in pivots(rows, pct)[-n:]]
+
+
+def divergence(rows, piv, rsi):
+    """
+    마지막 두 고점·두 저점의 가격 대 RSI — 코드가 계산해 넘긴다(모델의 암산 오류 방지).
+      고점: 가격 신고점 + RSI 낮은 고점 = bearish(정규) / 가격 낮은 고점 + RSI 높은 고점 = hidden_bearish
+      저점: 가격 신저점 + RSI 높은 저점 = bullish(정규) / 가격 높은 저점 + RSI 낮은 저점 = hidden_bullish
+    piv = pivots() 결과 [(kind, price, idx)]. 마지막 피벗은 형성 중이라 그 비교는 last_forming=True 로 표시한다.
+    """
+    out = {}
+    last_idx = piv[-1][2] if piv else None
+    for kind, key in (("H", "highs"), ("L", "lows")):
+        ps = [p for p in piv if p[0] == kind and rsi[p[2]] is not None]
+        if len(ps) < 2:
+            out[key] = None
+            continue
+        (_, p1, i1), (_, p2, i2) = ps[-2], ps[-1]
+        r1, r2 = rsi[i1], rsi[i2]
+        if kind == "H":
+            typ = "bearish" if p2 > p1 and r2 < r1 else "hidden_bearish" if p2 < p1 and r2 > r1 else "none"
+        else:
+            typ = "bullish" if p2 < p1 and r2 > r1 else "hidden_bullish" if p2 > p1 and r2 < r1 else "none"
+        out[key] = {"type": typ, "prev": [_px(p1), round(r1, 1), _t(rows[i1]["ts"])],
+                    "last": [_px(p2), round(r2, 1), _t(rows[i2]["ts"])], "last_forming": i2 == last_idx}
+    return out
+
+
+def tf_block(rows, tf, n_piv=24, with_bars=True):
+    """시간대 하나의 입력 — 봉·피벗(RSI·EWO 포함)·최근 RSI/EWO·다이버전스."""
+    if not rows:
+        return {"bars_t_o_h_l_c_v": [], "pivots": []} if with_bars else {}
+    rsi = rsi_series([r["c"] for r in rows])
+    ewo = ewo_series(rows)
+    piv = pivots(rows, ZZ_PCT[tf])
+    blk = {"bars_t_o_h_l_c_v": bars_compact(rows, BARS[tf])} if with_bars else {"last_close": _px(rows[-1]["c"])}
+    blk.update(pivots=pivots_compact(rows, ZZ_PCT[tf], n_piv, rsi, ewo), rsi14=_r(rsi[-1], 1),
+               ewo_pct=_r(ewo[-1], 2))
+    if with_bars:
+        blk["divergence"] = divergence(rows, piv, rsi)
+    return blk
 
 
 def atr_pct(rows, n=14):
@@ -353,12 +464,11 @@ def build_payload(now_ms, btc, eth, count, pos_state, pot, margin_next, lev, all
         "eth": {},
     }
     for tf in BTC_TFS:
-        rs = btc.get(tf) or []
-        payload["btc"][tf] = {"bars_t_o_h_l_c_v": bars_compact(rs, BARS[tf]), "pivots": pivots_compact(rs, ZZ_PCT[tf])}
+        payload["btc"][tf] = tf_block(btc.get(tf) or [], tf)
     for tf in ETH_TFS:
         rs = eth.get(tf) or []
         if rs:
-            payload["eth"][tf] = {"last_close": _px(rs[-1]["c"]), "pivots": pivots_compact(rs, ZZ_PCT[tf], 16)}
+            payload["eth"][tf] = tf_block(rs, tf, n_piv=16, with_bars=False)
     return payload
 
 
@@ -436,8 +546,9 @@ def parse(text):
         c = 0.0
     c = min(1.0, max(0.0, c)) if math.isfinite(c) else 0.0
     stf = str(d.get("setup_tf") or "").strip().lower()
-    return {"action": act, "setup_tf": stf if stf in SETUP_TFS else "", "stop": num("stop"), "target": num("target"),
-            "confidence": round(c, 3),
+    st = str(d.get("structure") or "").strip().lower()
+    return {"action": act, "setup_tf": stf if stf in SETUP_TFS else "", "structure": st if st in STRUCTURES else "",
+            "stop": num("stop"), "target": num("target"), "confidence": round(c, 3),
             "wave_view": str(d.get("wave_view") or "")[:300],
             "invalidation": str(d.get("invalidation") or "")[:300],
             "rationale": str(d.get("rationale") or "")[:600]}
@@ -567,7 +678,10 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
             "position": pstate, "model_requested": MODEL, "raw_action": (parsed or {}).get("action"),
             "raw_stop": (parsed or {}).get("stop"), "raw_target": (parsed or {}).get("target"),
             "why": why, "plan": plan, "count_as_of": (count or {}).get("labeled_on"),
-            "setup_tf": (parsed or {}).get("setup_tf"), "bars_15m": len(btc["15m"]),
+            "setup_tf": (parsed or {}).get("setup_tf"), "structure": (parsed or {}).get("structure"),
+            "bars_15m": len(btc["15m"]),
+            "divergence": {tf: payload["btc"][tf].get("divergence") for tf in BTC_TFS},
+            "rsi14": {tf: payload["btc"][tf].get("rsi14") for tf in BTC_TFS},
             "pivots_15m": payload["btc"]["15m"]["pivots"][-10:],
             "pivots_1h": payload["btc"]["1h"]["pivots"][-10:], "pivots_4h": payload["btc"]["4h"]["pivots"][-8:],
             "raw": raw}
@@ -602,7 +716,7 @@ def summary_line(rec):
     except Exception:
         view = ""
     tag = f" [{f.get('why')}]" if f.get("why") else ""
-    stf = f" {f['setup_tf']}" if f.get("setup_tf") else ""
+    stf = (f" {f['setup_tf']}" if f.get("setup_tf") else "") + (f"/{f['structure']}" if f.get("structure") else "")
     return (f"[ai-elliott] {rec.get('decision')}{stf}{lv} (conf {rec.get('confidence')}, {rec.get('latency_ms')}ms, "
             f"tok {rec.get('tokens_in')}/{rec.get('tokens_out')}){tag} — {view} | {rec.get('model')}")
 
