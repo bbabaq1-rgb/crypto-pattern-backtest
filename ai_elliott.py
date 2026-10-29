@@ -10,6 +10,13 @@ ai_elliott.py — AI 엘리엇 BTC 자율매매 (2026-10-28 사용자 결정)
   RSI 가 입력에 없었고 세부 형태(이중·삼중 지그재그, 확장·러닝 플랫, 다이애고널 등)는 지시문에 일반 언급뿐이었다.
   v3 에서 시간대마다 RSI(14)·엘리엇 오실레이터(EWO 5/35)를 피벗에 붙이고, 고점끼리·저점끼리 다이버전스를 코드가 계산해
   넘기며, 엘리엇 형태 전체 목록과 판별 지침(교대·채널·파동 동등·모멘텀)을 지시문에 넣고, 판단 근거 형태(structure)를 기록한다.
+  15분 진입 판단 시험(2026-10-29 사용자 지시 "진입판단을 15분마다 변경하는걸로 1주일만 테스트해보자 1주일 후에 계속할지
+  중단할지 나한테 다시 물어봐줘"): 평탄일 때만 매시 :18/:33/:48 에도 진입 판단을 한다(ai_quarter.yml →
+  paper_executor.run(ai_only=True)). 보유 중 판단(hold/close)은 매시 :03 그대로다. 기간은 universe.json
+  ai_traders[].entry_check.until 까지이고 지나면 코드가 스스로 매시 판단만 남긴다(entry_check_active). 켜져 있는 동안은
+  지시문이 SYSTEM_Q15(호출 주기 문장만 다름)·버전 PROMPT_VERSION_Q15 이고, 기준 가격은 가장 최근에 닫힌 봉(15분 틱에선
+  15m)이며, 진입 신호는 그 봉이 속한 1h 봉을 가리킨다(signal_bar). 같은 1h 봉 안에서 같은 방향 재진입은 체결 엔진의 중복
+  방어(봉 시각 키)가 막으므로 그 방향을 미리 막고 이유를 알린다(entered).
 
 무엇을 하나
   매시 fast 틱(:03)마다 한 번, BTC 닫힌 봉(15m/1h/4h/1d)·시간대별 스윙 피벗·동결 엘리엇 카운트(elliott_count.json)·
@@ -39,7 +46,8 @@ ai_elliott.py — AI 엘리엇 BTC 자율매매 (2026-10-28 사용자 결정)
 지점에 붙인 손절 · 비용 차감 후 손익비 1.5 이상)이 맡는다.
 
 비용: 하루 24회, 회당 입력 약 2만 토큰(v1 실측 약 1.57만 + 15m) · 출력(생각 포함, effort high) 수천 토큰 —
-토큰은 행마다 기록한다.
+토큰은 행마다 기록한다. 15분 진입 판단 시험 중에는 평탄인 시간만큼 늘어 최대 하루 96회(v3 실측 회당 입력 약 2.24만 ·
+출력 0.6~1.7천 토큰).
 프롬프트 캐시는 쓰지 않는다 — 호출 간격(1시간)이 기본 캐시 수명(5분)보다 길고, 1시간 캐시는 쓰기 비용이 2배라 이득이 없다.
 
 실행: python ai_elliott.py --dry   (로컬 데이터로 입력만 만들어 보여 준다. 키가 있으면 판단까지, 주문은 절대 없음)
@@ -59,6 +67,8 @@ TF = "1h"
 MODEL = "claude-sonnet-5-5"           # 사용자 선택(2026-10-28)
 EFFORT = "high"                       # v2: 세 시간대를 맞춰 읽는 판단이라 medium 에서 올렸다. 생각은 기본으로 켜져 있다
 PROMPT_VERSION = "elliott_v3_2026_10_28"
+PROMPT_VERSION_Q15 = "elliott_v4q15_2026_10_29"   # 15분 진입 판단 시험 중(entry_check_active) — 지시문 SYSTEM_Q15
+ENTRY_CHECK_EVERY_MIN = 15            # universe.json ai_traders[].entry_check.every_min 이 이 값이어야 켜진다
 FALLBACK_BETA = "server-side-fallback-2026-07-01"   # 안전 분류기 거절 시 서버가 다른 모델로 재시도("default")
 MAX_TOKENS = 16000                    # 생각 토큰 포함 상한(SDK 비스트리밍 한도 안 — 예상 7.5분 < 10분)
 TIMEOUT_S = 150
@@ -144,6 +154,36 @@ SYSTEM = (
     "sentences) in Korean."
 )
 
+# 15분 진입 판단 시험(2026-10-29~) 동안의 지시문 — 호출 주기 문장만 바꾸고 나머지(규칙·형태 목록·진입 기준)는 그대로다.
+# 각 원문은 SYSTEM 에 정확히 한 번 있어야 한다(없으면 import 시 실패 — 지시문을 고치고 이 표를 안 고치면 바로 드러난다).
+_Q15_EDITS = (
+    ("You are called once per hour, just after a 1h candle closes, and you decide one action. ",
+     "While the account is flat you are called every 15 minutes, just after a 15m candle closes, to decide whether "
+     "to enter; while a position is open you are called once per hour, just after a 1h candle closes, to decide "
+     "hold or close. Each call decides one action. "),
+    ("every hour, read the 15m, 1h and 4h charts together",
+     "on every call, read the 15m, 1h and 4h charts together"),
+    ("fire between your hourly calls;", "fire between your calls;"),
+    ("btc holds closed candles and swing pivots for 15m (the last 24 hours), 1h, 4h and 1d.",
+     "btc holds closed candles and swing pivots for 15m (the last 24 hours), 1h, 4h and 1d; last_close and "
+     "last_bar_utc belong to the latest closed candle, on the timeframe named in ref_tf (15m when a 15m candle has "
+     "closed since the last 1h close)."),
+    ("Do not trade just to be active, but do not wait for certainty either:",
+     "Being called more often gives earlier looks at the same kinds of setups; it does not lower these entry "
+     "criteria. Do not trade just to be active, but do not wait for certainty either:"),
+)
+
+
+def _swap_once(text, old, new):
+    if text.count(old) != 1:
+        raise ValueError(f"SYSTEM 에 정확히 한 번 있어야 한다: {old[:60]!r} ({text.count(old)}회)")
+    return text.replace(old, new)
+
+
+SYSTEM_Q15 = SYSTEM
+for _old, _new in _Q15_EDITS:
+    SYSTEM_Q15 = _swap_once(SYSTEM_Q15, _old, _new)
+
 SCHEMA = {
     "type": "object",
     "properties": {
@@ -184,11 +224,71 @@ def available():
     return bool(os.environ.get("ANTHROPIC_API_KEY"))
 
 
+def _iso_ms(s):
+    """'2026-11-05T08:00:00Z' → epoch ms. 시간대가 없으면 UTC 로 본다. 읽을 수 없으면 None."""
+    from datetime import datetime, timezone
+    try:
+        dt = datetime.fromisoformat(str(s).strip().replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return int(dt.timestamp() * 1000)
+
+
+def entry_check_active(cfg=None, now_ms=None):
+    """
+    15분 진입 판단 시험이 지금 켜져 있나(2026-10-29 사용자 지시 '1주일만'). ai_traders 항목의 entry_check 가
+    every_min 15 이고 until(UTC) 전이면 True. 항목·until 이 없거나 읽을 수 없으면 False — 켜지 않는 쪽이다.
+    워크플로 게이트(ai_quarter.yml)가 의존성 설치 전에 부르므로 이 모듈은 표준 라이브러리만 쓴다.
+    """
+    cfg = cfg if cfg is not None else (config() or {})
+    ec = (cfg or {}).get("entry_check") or {}
+    try:
+        every = int(ec.get("every_min") or 0)
+    except (TypeError, ValueError):
+        return False
+    until = _iso_ms(ec.get("until"))
+    now_ms = now_ms or int(time.time() * 1000)
+    return every == ENTRY_CHECK_EVERY_MIN and until is not None and now_ms < until
+
+
 # ── 입력(인과: 닫힌 봉만) ──────────────────────────────────────────────────────
 def closed(rows, tf, now_ms):
     """닫힌 봉만. CSV 마지막 행은 거래소가 주는 형성 중인 봉이다(scheduler._closed_idx 와 같은 이유)."""
     bar = TF_MS[tf]
     return [r for r in (rows or []) if r.get("ts") is not None and r["ts"] + bar <= now_ms]
+
+
+def ref_bar(btc):
+    """
+    판단 기준 봉 = 가장 최근에 닫힌 봉과 그 시간대. 15m 봉이 마지막 1h 봉보다 늦게 닫혔으면 15m, 아니면 1h.
+    매시 :03 틱에서는 둘이 같은 순간(정시)에 닫히므로 1h 그대로다(종전과 같은 값). 15분 진입 판단 시험 중에만 쓴다.
+    """
+    b1, b15 = btc.get("1h") or [], btc.get("15m") or []
+    if b15 and b1 and b15[-1]["ts"] + TF_MS["15m"] > b1[-1]["ts"] + TF_MS["1h"]:
+        return b15[-1], "15m"
+    return (b1[-1], "1h") if b1 else (None, None)
+
+
+def signal_bar(rows_1h, ref, ref_tf):
+    """
+    진입 신호가 가리킬 1h 봉 = 기준 봉이 속한 1h 봉. 기준이 1h 면 그 봉(종전과 같다), 15m 면 그 15m 봉이 들어 있는
+    1h 봉(15분 틱에선 아직 형성 중인 봉)이다. 체결 엔진은 이 봉을 진입봉으로 적고(포지션 tf 는 1h 그대로 — 시간청산·
+    보유 판단이 1h 봉 기준이다) 중복 방어 키도 이 봉 시각이다. rows_1h 는 형성 중인 봉까지 포함한 목록이어야 한다.
+    그 봉이 없으면 None — 진입하지 않는다(체결 엔진의 날짜 폴백이 그날 첫 봉을 잡지 않게).
+    """
+    if ref is None:
+        return None
+    if ref_tf == "1h":
+        return ref
+    ts = int(ref["ts"]) // TF_MS["1h"] * TF_MS["1h"]
+    for r in reversed(rows_1h or []):
+        if r.get("ts") == ts:
+            return r
+        if r.get("ts") is not None and r["ts"] < ts:
+            break
+    return None
 
 
 def pivots(rows, pct):
@@ -441,8 +541,12 @@ def allowed_actions(pos, cfg, blocked_dirs, can_enter):
 
 
 def build_payload(now_ms, btc, eth, count, pos_state, pot, margin_next, lev, allowed, notes, spec,
-                  trades_recent, decisions_recent):
-    """모델 입력(JSON). btc/eth = {tf: 닫힌 봉 목록}. 전부 now_ms 이전에 닫힌 봉에서 나온다."""
+                  trades_recent, decisions_recent, ref=None, ref_tf=None):
+    """
+    모델 입력(JSON). btc/eth = {tf: 닫힌 봉 목록}. 전부 now_ms 이전에 닫힌 봉에서 나온다.
+    ref/ref_tf 는 15분 진입 판단 시험 중에만 준다 — last_close·last_bar_utc 를 그 봉에서 잡고 ref_tf 를 적는다.
+    안 주면 종전과 같다(마지막 닫힌 1h 봉, ref_tf 키 없음).
+    """
     b1 = btc.get("1h") or []
     b15 = btc.get("15m") or []
     payload = {
@@ -463,6 +567,10 @@ def build_payload(now_ms, btc, eth, count, pos_state, pot, margin_next, lev, all
                 "atr14_15m_pct": atr_pct(b15), "atr14_1h_pct": atr_pct(b1)},
         "eth": {},
     }
+    if ref is not None:
+        payload["btc"]["last_close"] = _px(ref["c"])
+        payload["btc"]["last_bar_utc"] = _t(ref["ts"])
+        payload["btc"]["ref_tf"] = ref_tf
     for tf in BTC_TFS:
         payload["btc"][tf] = tf_block(btc.get(tf) or [], tf)
     for tf in ETH_TFS:
@@ -561,13 +669,13 @@ def _usage(resp):
     return {"in": getattr(u, "input_tokens", None), "out": getattr(u, "output_tokens", None)}
 
 
-def call(user_text):
-    """(parsed, error, latency_ms, usage, served_model, raw_text). 예외를 밖으로 내지 않는다."""
+def call(user_text, system=None):
+    """(parsed, error, latency_ms, usage, served_model, raw_text). 예외를 밖으로 내지 않는다. system 기본은 SYSTEM."""
     if not available():
         return None, "no_key", 0, {}, None, None
     t0 = time.time()
     try:
-        resp = _create(SYSTEM, user_text)
+        resp = _create(system or SYSTEM, user_text)
     except Exception as e:
         return None, _err(e), int((time.time() - t0) * 1000), {}, None, None
     ms = int((time.time() - t0) * 1000)
@@ -610,18 +718,22 @@ def validate(parsed, pos, allowed, price, spec):
 
 # ── 한 틱 ─────────────────────────────────────────────────────────────────────
 def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_enter, spec,
-         now_ms=None, cfg=None, count=None, history=None):
+         now_ms=None, cfg=None, count=None, history=None, entered=None, tick_kind=None):
     """
     결정 1회. 반환 (rec, signal | None, close_pos | None).
       rec       — ai_judgments 기록 행. code_action 은 체결 엔진이 채운다(실제로 한 일).
       signal    — 평탄에서 진입이면 체결 엔진 진입 루프에 덧붙일 신호(가드는 거기서 전부 다시 탄다).
       close_pos — 보유 중 close 면 그 포지션(실행은 paper_executor.ai_close).
     rows_of(sym, tf) 는 체결 엔진의 캐시 로더(형성 중인 봉 포함) — 여기서 닫힌 봉만 고른다.
+    entered   — 이 프로젝트가 이미 낸 진입의 {(방향, 진입봉 시각)}. 신호 1h 봉에 같은 방향 진입이 있으면 그 방향을 막는다
+                (체결 엔진 중복 방어가 어차피 막는다 — 모델에게 미리 알려 헛판단을 줄인다).
+    tick_kind — 기록용("hourly" 매시 :03 / "quarter" 15분 진입 판단 틱).
     """
     now_ms = now_ms or int(time.time() * 1000)
     cfg = cfg if cfg is not None else (config() or {})
     spec = spec or {}
     lev = int((cap or {}).get("leverage") or 3)
+    q15 = entry_check_active(cfg, now_ms)       # 15분 진입 판단 시험 중이면 지시문·기준 봉이 달라진다
 
     def _rows(sym, tf):
         try:
@@ -640,20 +752,44 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
            "latency_ms": None, "tokens_in": None, "tokens_out": None, "error": None, "features": None,
            "code_action": None, "mark_ts": None, "mark_px": None, "unreal_ret": None, "bars_held": None,
            "live_mode": bool((position or {}).get("live_mode"))}
+    if q15:
+        rec["prompt_version"] = PROMPT_VERSION_Q15
     if len(b1) < 30:
         rec["error"] = "no_data"
         return rec, None, None
     last = b1[-1]
-    price = float(last["c"])
-    rec.update(entry_date=last["date"], entry_ts=last["ts"], entry_px=price, mark_ts=last["ts"], mark_px=price)
+    if q15:
+        # 기준 = 가장 최근에 닫힌 봉(15분 틱에선 15m). 신호는 그 봉이 속한 1h 봉(형성 중일 수 있다)을 가리킨다.
+        ref, ref_tf = ref_bar(btc)
+        try:
+            raw1h = rows_of(SYMBOL, "1h") or []
+        except Exception:
+            raw1h = []
+        sbar = signal_bar(raw1h, ref, ref_tf)
+    else:
+        ref, ref_tf, sbar = last, "1h", last          # 종전과 같다 — 마지막 닫힌 1h 봉
+    price = float(ref["c"])
+    ebar = sbar or last
+    rec.update(entry_date=ebar["date"], entry_ts=ebar["ts"], entry_px=price, mark_ts=ref["ts"], mark_px=price)
+    if sbar is None and not position:
+        # 신호를 가리킬 1h 봉이 데이터에 없다 — 진입할 수 없으니 호출하지 않는다(비용 0, 다음 틱 재시도)
+        rec["error"] = "no_entry_bar"
+        return rec, None, None
     pstate = position_state(position, last)
     if pstate:
         rec["unreal_ret"] = round(pstate["unrealized_pct"] / 100, 6) if pstate["unrealized_pct"] is not None else None
         rec["bars_held"] = pstate["bars_held_1h"]
-    allowed = allowed_actions(position, cfg, blocked_dirs or set(), can_enter and margin_next is not None)
+    blocked0 = set(blocked_dirs or ())
+    dup = set()
+    if not position and sbar is not None:
+        dup = {d for d in ("long", "short") if (d, int(sbar["ts"])) in (entered or set())}
+    allowed = allowed_actions(position, cfg, blocked0 | dup, can_enter and margin_next is not None)
     notes = []
-    for d in sorted(blocked_dirs or ()):
+    for d in sorted(blocked0):
         notes.append(f"open_{d} blocked: another strategy holds the opposite BTC direction (account nets by symbol)")
+    for d in sorted(dup - blocked0):
+        notes.append(f"open_{d} blocked: an AI {d} was already opened in the current 1h bar "
+                     f"(one entry per direction per 1h bar)")
     if not position and margin_next is None:
         notes.append("pot below $10 — entries disabled")
     if not position and not can_enter:
@@ -661,10 +797,12 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
     count = count if count is not None else load_count()
     history = history if history is not None else recent_decisions()
     payload = build_payload(now_ms, btc, eth, count, pstate, pot, margin_next, lev, allowed, notes, spec,
-                            recent_trades(trades), history)
+                            recent_trades(trades), history,
+                            ref=(ref if q15 else None), ref_tf=(ref_tf if q15 else None))
     text = prompt_text(payload)
-    rec["prompt_hash"] = hashlib.sha256((SYSTEM + "\n" + text).encode("utf-8")).hexdigest()[:16]
-    parsed, err, ms, usage, served, raw = call(text)
+    system = SYSTEM_Q15 if q15 else SYSTEM
+    rec["prompt_hash"] = hashlib.sha256((system + "\n" + text).encode("utf-8")).hexdigest()[:16]
+    parsed, err, ms, usage, served, raw = call(text, system)
     rec.update(latency_ms=ms, tokens_in=usage.get("in"), tokens_out=usage.get("out"), error=err)
     if served:
         rec["model"] = served
@@ -684,14 +822,17 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
             "rsi14": {tf: payload["btc"][tf].get("rsi14") for tf in BTC_TFS},
             "pivots_15m": payload["btc"]["15m"]["pivots"][-10:],
             "pivots_1h": payload["btc"]["1h"]["pivots"][-10:], "pivots_4h": payload["btc"]["4h"]["pivots"][-8:],
-            "raw": raw}
+            "raw": raw, "tick": tick_kind}
+    if q15:
+        feat.update(q15=True, ref_tf=ref_tf, ref_ts=ref["ts"], signal_bar_ts=sbar["ts"] if sbar else None,
+                    dup_dirs=sorted(dup))
     rec["features"] = json.dumps(feat, ensure_ascii=False, sort_keys=True)
     if why:
         rec["code_action"] = f"ignored:{why}"
     if plan:
         rec["direction"] = plan["direction"]
         sig = {"symbol": SYMBOL, "pattern": PATTERN, "direction": plan["direction"], "tf": TF,
-               "date": last["date"], "ts": last["ts"], "stop": plan["stop"], "target": plan["target"],
+               "date": sbar["date"], "ts": sbar["ts"], "stop": plan["stop"], "target": plan["target"],
                "regime": None, "ai_elliott": True, "_ai_rec": rec}
         return rec, sig, None
     if action == "close" and position:

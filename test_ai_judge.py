@@ -328,8 +328,9 @@ aj._post = _orig_post
 
 # ── 10. 통합 (2026-10-26) ─────────────────────────────────────────────────────
 src = open("paper_executor.py", encoding="utf-8").read()
-check("run(stamp=None, slow=None) — 느린 틱 플래그를 받는다", "def run(stamp=None, slow=None):" in src)
-i_shadow_r = src.find("r_added = shadow_r_records(trades, rows_of, regmap)")
+check("run(stamp=None, slow=None, ai_only=False) — 느린 틱 플래그를 받는다(ai_only 는 2026-10-29 AI 엘리엇 15분 틱)",
+      "def run(stamp=None, slow=None, ai_only=False):" in src)
+i_shadow_r = src.find("shadow_r_records(trades, rows_of, regmap)")    # 호출부(15분 틱은 건너뛴다)
 i_exit = src.find("ai_judge.judge_exits(")
 i_sig = src.find('sig = _load("signals_today.json"')
 check("1-c 청산 검토는 shadow-R 뒤·신규 진입 앞", 0 < i_shadow_r < i_exit < i_sig)

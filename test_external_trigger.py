@@ -10,6 +10,9 @@ supabase_external_trigger.sql 은 레포 밖(Supabase)에서 실행되는 SQL �
   · 두 워크플로 모두 GitHub schedule 이 없다 — 발화는 이 SQL 전용(2026-09-06 폴백 제거).
     이 SQL 이 멈추면 아무것도 돌지 않는다
   · 토큰 리터럴이 파일에 없다
+  · (2026-10-29) AI 엘리엇 15분 진입 판단 ai_quarter.yml — 매시 :18/:33/:48, fast(:03)와 합쳐 15분 간격.
+    메인 스케줄러와 **다른 concurrency 그룹**(같은 그룹이면 큐 진입 순간 대기 중인 메인 실행이 취소된다)이고,
+    게이트가 시각 창·시험 기간·메인 실행 중·대기를 보고 스스로 건너뛴다. :48 실행도 다음 메인 실행 전에 끝난다
 
 실행: python test_external_trigger.py
 """
@@ -41,8 +44,11 @@ jobs = {}
 for m in re.finditer(
         r"cron\.schedule\('([^']+)',\s*'([^']+)',\s*\$job\$(.*?)\$job\$\)", SQL, re.S):
     jobs[m.group(1)] = (m.group(2), m.group(3).strip())
-chk("크론 4개 등록", set(jobs) == {"gh_fast_scheduler", "gh_daily_oncefull",
-                                   "gh_daily_oncequick", "gh_dispatch_collect"}, sorted(jobs))
+chk("크론 5개 등록", set(jobs) == {"gh_fast_scheduler", "gh_daily_oncefull",
+                                   "gh_daily_oncequick", "gh_dispatch_collect", "gh_ai_quarter"}, sorted(jobs))
+_uns = re.search(r"foreach j in array array\[(.*?)\] loop", SQL, re.S)
+chk("재등록 전 정리 목록에 5개 모두", _uns is not None and all(f"'{j}'" in _uns.group(1) for j in jobs),
+    _uns and _uns.group(1))
 
 
 def cron_fields(expr):
@@ -113,6 +119,44 @@ chk("로그 테이블 RLS", "alter table public.gh_dispatch_log enable row level
 col_cron, col_cmd = jobs["gh_dispatch_collect"]
 chk("응답 수집은 10분 주기(pg_net 응답 보존 6h 내)", col_cron.startswith("*/10 "), col_cron)
 chk("수집 함수 호출", "gh_dispatch_collect()" in col_cmd)
+
+# ── 7. AI 엘리엇 15분 진입 판단 (2026-10-29 사용자 지시 "진입판단을 15분마다 … 1주일만 테스트") ─────────────
+q_cron, q_cmd = jobs["gh_ai_quarter"]
+qf = cron_fields(q_cron)
+q_minutes = sorted(int(m) for m in qf[0].split(","))
+chk("15분 틱: 매시 :18/:33/:48", q_minutes == [18, 33, 48] and qf[1:] == ["*", "*", "*", "*"], q_cron)
+chk("15분 틱 + fast(:03) = 15분 간격", sorted(q_minutes + [int(f[0])]) == [3, 18, 33, 48], (q_minutes, f[0]))
+chk("15분 틱은 ai_quarter.yml 을 inputs 없이 호출", q_cmd == "select public.gh_dispatch('ai_quarter.yml')", q_cmd)
+aq = wf("ai_quarter.yml")
+chk("ai_quarter.yml 존재·workflow_dispatch 수신·inputs 없음", "workflow_dispatch:" in aq and "inputs:" not in aq)
+chk("ai_quarter.yml 에 GitHub schedule 없음(외부 트리거 전용)", re.search(r"^\s*schedule:", aq, re.M) is None)
+
+
+def group_of(text):
+    m = re.search(r"concurrency:\s*\n\s*group:\s*(\S+)", text)
+    return m.group(1) if m else None
+
+
+chk("ai_quarter 는 메인 스케줄러와 다른 concurrency 그룹(메인 대기 실행을 취소시키지 않게)",
+    group_of(aq) and group_of(aq) != group_of(wf("fast_scheduler.yml"))
+    and group_of(wf("fast_scheduler.yml")) == group_of(wf("daily_scheduler.yml")),
+    (group_of(aq), group_of(wf("fast_scheduler.yml"))))
+gate = aq.split("- name: Gate", 1)[1].split("- name: Setup Python", 1)[0] if "- name: Gate" in aq else ""
+lo, hi = (int(x) for x in re.search(r'\[ "\$m" -lt (\d+) \] \|\| \[ "\$m" -gt (\d+) \]', gate).groups())
+chk("게이트 시각 창이 15분 틱 분을 모두 덮고 메인 틱(:00·:03)은 밖", all(lo <= m <= hi for m in q_minutes)
+    and not (lo <= 0 <= hi) and not (lo <= int(f[0]) <= hi), (lo, hi))
+chk("게이트: 시험 기간(entry_check_active) 확인", "entry_check_active()" in gate)
+chk("게이트: daily·fast 실행 중·대기면 건너뜀", "daily_scheduler.yml fast_scheduler.yml" in gate
+    and 'select(.status != "completed")' in gate)
+chk("게이트: 조회 실패면 건너뜀(fail-closed)", "fail-closed" in gate and gate.count('echo "go=no"') >= 4)
+chk("게이트 통과일 때만 설치·실행", aq.count("if: steps.gate.outputs.go == 'yes'") >= 4
+    and "python paper_executor.py aitick" in aq)
+chk("게이트는 Actions 읽기 권한만", re.search(r"permissions:\s*\n\s*contents: read\s*\n\s*actions: read", aq) is not None)
+tmo = int(re.search(r"^    timeout-minutes: (\d+)", aq, re.M).group(1))
+chk("마지막 15분 틱(:48)도 다음 메인 실행(:00) 전에 끝난다", max(q_minutes) + tmo < 60, (max(q_minutes), tmo))
+chk("시험 기간 판정이 표준 라이브러리만으로(게이트는 의존성 설치 전)",
+    "import requests" not in open(os.path.join(HERE, "ai_elliott.py"), encoding="utf-8").read()
+    and "import exit_barriers as xb" in open(os.path.join(HERE, "ai_elliott.py"), encoding="utf-8").read())
 
 print()
 print(f"{'ALL PASS' if not fails else 'FAILED: ' + ', '.join(fails)}")
