@@ -318,11 +318,13 @@ def settle_by_algo(pos, live_conn, trades, today):
         reason = f"{pfx}_exchange"
     pos["entry_idx"] = pos.get("entry_idx", 0)
     notional = live_notional_of(pos)          # 2026-10-26: 종전 '모르면 1배' → 규격 레버리지
+    # 실손익은 수수료 차감 수익률(ret 과 같은 값)로 — ai_close·엔진 D 청산과 같은 식. 종전 gross 는 같은 행의 ret 과 어긋났다
+    # (이 경로는 2026-10-29 까지 한 번도 기록하지 못해 과거 행은 없다 — algo_state 의 시장가 OCO 체결가 수정 참조).
     _record_trade(trades, pos, "D", (pos["entry_idx"], px, gross - FEE, reason), exit_date=today,
-                  extra={"pnl_live_usd": round(gross * notional, 4) if notional else None})
+                  extra={"pnl_live_usd": round((gross - FEE) * notional, 4) if notional else None})
     pos["d_closed"] = True
     pos["a_closed"] = True
-    print(f"  [live] {pos['symbol']} {pos['pattern']} OCO 집행 확인({reason} @ {px}) → D 기록 "
+    print(f"  [live] {pos['symbol']} {pos['pattern']} OCO 집행 확인({reason} @ {px}, {st.get('px_source')}) → D 기록 "
           f"{(gross - FEE) * 100:+.2f}%")
     return True
 
@@ -1255,7 +1257,10 @@ def run(stamp=None, slow=None, ai_only=False):
     ai_only: AI 엘리엇 15분 진입 판단 틱(2026-10-29 사용자 지시 "진입판단을 15분마다 … 1주일만 테스트" —
           ai_quarter.yml, 매시 :18/:33/:48). AI 엘리엇이 평탄일 때 진입 판단 1회만 한다. 메인 전략의 신호·청산 평가·
           정합성 보정·손절 점검·레짐 계산은 하지 않는다(매시 :03 fast 와 4시간 daily 가 그대로 맡는다). AI 가 보유
-          중이면 자기 OCO 집행 여부만 확인하고(settle_by_algo) 판단은 부르지 않는다(보유 판단은 매시 :03). 진입은 아래
+          중이면 자기 OCO 집행 여부만 확인하고(settle_by_algo — 집행됐으면 그 체결로 기록하고 같은 틱에서 평탄 판단)
+          판단은 부르지 않는다(보유 판단은 매시 :03). 청산 이력 대조(reconcile_closed_positions)는 여기서 하지 않는다 —
+          이력은 체결 뒤 몇 초 늦게 반영되고 포지션 조회 실패가 빈 목록으로 돌아와, 키(종목·방향)로 맞추는 그 대조를 매시보다
+          4배 자주 돌리면 직전 거래의 청산가를 지금 포지션에 붙일 위험만 늘어난다. 진입은 아래
           같은 진입 루프·가드를 그대로 탄다(킬스위치·정지·캡 1포지션·중복·반대 방향·ledger 포트·OCO). 시험 기간
           (universe.json entry_check.until)이 지났거나 키가 없으면 아무것도 하지 않고 끝난다.
     """

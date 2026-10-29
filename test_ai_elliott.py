@@ -818,6 +818,9 @@ _i_ai = _r.find("if ai_only:\n            # 15분 틱은 메인 전략 장부·�
 check("ai_only: 정합성 보정·청산 감지·손절 점검 생략(그 블록 앞에서 갈린다)",
       0 < _i_ai < _r.find("reconcile_live_flag(positions, live_conn)")
       < _r.find("reconcile_closed_positions(positions, trades, live_conn)") < _r.find("ensure_stop_orders(live_conn, stop_map=stop_map)"))
+_b_ai = _r[_i_ai:_r.find("reconcile_live_flag(positions, live_conn)")]
+check("ai_only: 청산 이력 대조(키로 맞추는 reconcile)는 15분 틱에서 부르지 않는다 — OCO 집행은 settle_by_algo 가 그 algo 로 본다"
+      "(2026-10-29 — 이력 지연·포지션 조회 실패 시 직전 거래 청산가를 붙일 위험)", "reconcile" not in _b_ai.split("else:")[0], _b_ai)
 check("ai_only: 킬스위치·정지 판정은 그대로(갈림 블록 밖)", "\n        bal = ex_mod.get_balance(live_conn)\n" in _r
       and "\n        halt_on, halt_why = trading_halt_state()\n" in _r)
 check("ai_only: 청산 루프는 AI 행만 자기 OCO 확인(settle_by_algo)", "if ai_only:\n            # 15분 틱: AI 엘리엇 행만" in _r
@@ -958,6 +961,174 @@ check("e2e ③ 같은 1h 봉에 낸 롱이 있으면 롱을 막고 알린다 →
       and not [p for p in g["pos3"] if p.get("pattern") == P])
 check("e2e ④ 시험 기간이 끝나면 아무것도 안 한다", g["out"][3].get("skipped") == "inactive"
       and len(g["calls"]) == g["n_before_off"])
+
+# ── 15. 15분 틱 — AI OCO 청산 감지(2026-10-29 실측) ─────────────────────────
+# OCO 익절(14:33:47Z 체결) 6초 뒤 14:33 틱이 AI 를 '보유 중'으로 보고 진입 판단을 건너뛰었다. 15분 틱은 settle_by_algo 로
+# 자기 OCO 집행을 보는데, 시장가 OCO 의 OKX 이력은 actualPx 가 "" 라 algo_state 가 체결가를 못 읽어 settle_by_algo 가 늘
+# False 였다(배포 이래). algo_state 가 집행으로 생긴 시장가 주문(ordIdList)의 avgPx 를 읽게 고쳤다 — 여기서는 **실제
+# algo_state** 를 진단 실행에서 받은 OKX 응답 모양 그대로의 스텁 거래소에 물려 끝까지 돌린다.
+class OkxStub:
+    def __init__(self, history=None, pending=None, orders=None, order_raises=False):
+        self.history, self.pending = history or {}, pending or {}
+        self.orders, self.order_raises, self.order_calls = orders or {}, order_raises, []
+
+    def _lookup(self, table, p):
+        o = table.get(p["algoId"])
+        if o is None or o["ordType"] != p["ordType"]:
+            raise Exception('okx {"code":"51603","data":[],"msg":"Order does not exist"}')
+        return {"code": "0", "data": [o]}
+
+    def privateGetTradeOrdersAlgoPending(self, p):
+        return self._lookup(self.pending, p)
+
+    def privateGetTradeOrdersAlgoHistory(self, p):
+        return self._lookup(self.history, p)
+
+    def privateGetTradeOrder(self, p):
+        self.order_calls.append(p)
+        if self.order_raises:
+            raise Exception("network")
+        return {"code": "0", "data": [self.orders[p["ordId"]]]}
+
+
+ALGO15 = "4051395198249181184"
+OCO15 = {"algoId": ALGO15, "instId": "BTC-USDT-SWAP", "ordType": "oco", "state": "effective", "actualPx": "",
+         "actualSide": "tp", "actualSz": "0.37", "tpTriggerPx": "80743", "tpOrdPx": "-1", "slTriggerPx": "79590",
+         "slOrdPx": "-1", "ordId": "4052772330579890181", "ordIdList": ["4052772330579890181"], "sz": "0.37"}
+FILL15 = {"4052772330579890181": {"ordId": "4052772330579890181", "state": "filled", "ordType": "market",
+                                  "side": "sell", "avgPx": "80752.2", "accFillSz": "0.37"}}
+AI15 = dict(symbol="BTC", pattern=P, direction="long", tf="1h", entry_price=79865.0, stop=79590.0, target=80743.0,
+            entry_ts=TA - 12 * H, entry_date="2026-10-28", live_mode=True, size_usd=100.0, d_closed=False,
+            a_closed=False, live_order={"qty": 0.37, "leverage": 3, "sl_order_id": ALGO15})
+ADA15 = dict(symbol="ADA", pattern="equal_lows_4h", direction="long", tf="4h", entry_price=0.5, stop=0.46,
+             entry_date="2026-10-28", entry_ts=None, live_mode=True, size_usd=50.0, d_closed=False, a_closed=False)
+MARU15 = dict(ADA15, symbol="BTC", pattern="marubozu", tf="1d", entry_price=82953.6, stop=76313.7)
+
+
+def _q_live(open_keys, okx, rows_pos):
+    """15분 틱 실거래 경로 오프라인 e2e — OKX 는 스텁 거래소(algo_state 는 실제 함수), 주문 함수는 호출되면 기록, DB 없음."""
+    import csv as _csv, shutil, tempfile, time as _rt
+    import detlib, fetch_data
+    repo, tmp = os.getcwd(), tempfile.mkdtemp()
+    qnow = TA + 20 * 60_000
+    env_keep = {k: os.environ.pop(k) for k in ("SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_KEY")
+                if k in os.environ}
+    keep = dict(time=ae.time, create=ae._create, rd=ae.recent_decisions, af=detlib._auto_fetch,
+                uc=fetch_data.update_csv, rg=pe.rs.build_regime_map, il=ex_mod.is_live, cl=ex_mod.connect_live,
+                gb=ex_mod.get_balance, gp=ex_mod.get_okx_positions, gh=ex_mod.get_okx_closed_positions,
+                pse=ex_mod.place_swap_entry, csp=ex_mod.close_swap_position, ns=notify.send)
+    got = {"calls": [], "orders": []}
+
+    def wcsv(path, rows):
+        with open(path, "w", newline="") as f:
+            w = _csv.writer(f)
+            w.writerow(["timestamp", "open", "high", "low", "close", "volume"])
+            for x in rows:
+                w.writerow([x["ts"], x["o"], x["h"], x["l"], x["c"], x["v"]])
+
+    def no_auto_fetch(sym, tf):
+        raise FileNotFoundError(f"{sym} {tf}")
+
+    def regime_forbidden(*a, **k):
+        raise AssertionError("15분 틱에서 레짐 계산을 부르면 안 된다")
+
+    def history_forbidden(*a, **k):
+        raise AssertionError("15분 틱에서 청산 이력 대조를 부르면 안 된다")
+
+    def order_forbidden(*a, **k):
+        got["orders"].append((a, k))
+        return None, "test_forbidden"
+
+    def create(s, u):
+        got["calls"].append((s, u))
+        return fake_resp(json.dumps(dict(base, action="wait", setup_tf="15m", structure="unclear")))
+
+    try:
+        for fn in ("registry.json", "elliott_count.json"):
+            shutil.copy(fn, os.path.join(tmp, fn))
+        os.chdir(tmp)
+        os.makedirs("data", exist_ok=True)
+        u = json.load(io.open(os.path.join(repo, "universe.json"), encoding="utf-8"))
+        for t in u["ai_traders"]:
+            if t["pattern"] == P:
+                t["entry_check"] = {"every_min": 15, "until": "2026-10-30T00:00:00Z"}
+        json.dump(u, open("universe.json", "w", encoding="utf-8"), ensure_ascii=False)
+        for sym, start in (("BTC", 80000.0), ("ETH", 2700.0)):
+            r15 = mkrows(10 * 96 + 2, start=start, t0=TA - (10 * 96) * (H // 4), tf_ms=H // 4)
+            wcsv(f"data/{sym.lower()}_15m.csv", r15)
+            wcsv(f"data/{sym.lower()}_1h.csv", _agg(r15, H))
+            wcsv(f"data/{sym.lower()}_4h.csv", _agg(r15, 4 * H))
+        wcsv("data/btc_1d.csv", mkrows(150, t0=TA - 149 * 24 * H, tf_ms=24 * H))
+        json.dump(rows_pos, open("paper_positions.json", "w"))
+        json.dump([], open("paper_trades.json", "w"))
+        json.dump({"signals": []}, open("signals_today.json", "w"))
+        ex_mod.is_live = lambda: True
+        ex_mod.connect_live = lambda: {"exchange": okx, "usdt_free": 203.47}
+        ex_mod.get_balance = lambda lc: {"equity": 525.37, "free": 203.47, "total": 500.0}
+        ex_mod.get_okx_positions = lambda lc: [dict(symbol=s, direction=d) for s, d in open_keys]
+        ex_mod.get_okx_closed_positions = history_forbidden
+        ex_mod.place_swap_entry = order_forbidden
+        ex_mod.close_swap_position = order_forbidden
+        notify.send = lambda *a, **k: False
+        ae.time = types.SimpleNamespace(time=lambda: qnow / 1000, strftime=_rt.strftime, gmtime=_rt.gmtime)
+        ae.recent_decisions = lambda n=3: []
+        ae._create = create
+        detlib._auto_fetch = no_auto_fetch
+        fetch_data.update_csv = lambda *a, **k: (0, 0)
+        pe.rs.build_regime_map = regime_forbidden
+        got["out"] = pe.run(ai_only=True)
+        got["pos"] = json.load(open("paper_positions.json"))
+        got["trades"] = json.load(open("paper_trades.json"))
+    finally:
+        ae.time, ae._create, ae.recent_decisions = keep["time"], keep["create"], keep["rd"]
+        detlib._auto_fetch, fetch_data.update_csv, pe.rs.build_regime_map = keep["af"], keep["uc"], keep["rg"]
+        (ex_mod.is_live, ex_mod.connect_live, ex_mod.get_balance, ex_mod.get_okx_positions,
+         ex_mod.get_okx_closed_positions, ex_mod.place_swap_entry, ex_mod.close_swap_position) = (
+            keep["il"], keep["cl"], keep["gb"], keep["gp"], keep["gh"], keep["pse"], keep["csp"])
+        notify.send = keep["ns"]
+        os.environ.update(env_keep)
+        os.chdir(repo)
+        shutil.rmtree(tmp, ignore_errors=True)
+    return got
+
+
+_gross15 = 80752.2 / 79865.0 - 1
+# ⑤ 실측 그대로: AI 단독 BTC 롱의 시장가 OCO 익절 집행(이력 actualPx "") → 15분 틱이 주문 체결가로 기록하고 평탄 판단
+o5 = OkxStub(history={ALGO15: OCO15}, orders=FILL15)
+q5 = _q_live([("ADA", "long")], o5, [AI15, ADA15])
+_t5 = [t for t in q5["trades"] if t.get("pattern") == P]
+check("e2e ⑤ 시장가 OCO 익절(actualPx \"\") → 15분 틱이 시장가 주문 체결가 80,752.2 로 기록 · 사유 ai_target — 종전엔 '보유 중'",
+      len(_t5) == 1 and _t5[0]["exit_price"] == 80752.2 and _t5[0]["reason"] == "ai_target"
+      and _t5[0]["method"] == "D" and _t5[0]["live_mode"] is True, q5["trades"])
+check("e2e ⑤ 손익 = 수수료 차감 수익률 · 실손익 = 그 수익률 x 증거금 100 x 3배",
+      _t5 and abs(_t5[0]["ret"] - round(_gross15 - pe.FEE, 5)) < 1e-9
+      and abs(_t5[0]["pnl_live_usd"] - round((_gross15 - pe.FEE) * 300, 4)) < 1e-9, _t5)
+check("e2e ⑤ 체결 주문 조회는 그 algo 의 ordIdList 로 한 번", o5.order_calls == [
+      {"instId": "BTC-USDT-SWAP", "ordId": "4052772330579890181"}], o5.order_calls)
+check("e2e ⑤ 장부에서 AI 행이 빠지고 메인 행은 그대로",
+      [p["symbol"] for p in q5["pos"]] == ["ADA"] and q5["pos"][0]["d_closed"] is False, q5["pos"])
+check("e2e ⑤ 같은 틱에서 평탄 판단 1회(Q15 지시문 · 기준 15m) · 주문 함수 호출 0(관망) · 청산 이력 대조 호출 0",
+      len(q5["calls"]) == 1 and q5["calls"][0][0] == ae.SYSTEM_Q15 and '"ref_tf":"15m"' in q5["calls"][0][1]
+      and q5["orders"] == [] and q5["out"].get("new") == 0, (len(q5["calls"]), q5["orders"], q5["out"]))
+# ⑥ 메인 BTC 롱과 함께 든 경우(포지션이 거래소에 남는다) — 같은 경로로 AI 몫만 기록, 메인 행 불변
+o6 = OkxStub(history={ALGO15: OCO15}, orders=FILL15)
+q6 = _q_live([("BTC", "long"), ("ADA", "long")], o6, [AI15, MARU15])
+_t6 = [t for t in q6["trades"] if t.get("pattern") == P]
+check("e2e ⑥ 함께 든 BTC 롱 — OCO 집행 체결가로 AI 몫만 기록 · 메인 행 불변 · 평탄 판단 1회 · 주문 0",
+      len(_t6) == 1 and _t6[0]["exit_price"] == 80752.2 and [p["pattern"] for p in q6["pos"]] == ["marubozu"]
+      and q6["pos"][0]["d_closed"] is False and len(q6["calls"]) == 1 and q6["orders"] == [],
+      (q6["trades"], q6["pos"], len(q6["calls"])))
+# ⑦ 체결 주문 조회 실패 → 기록하지 않고 '보유 중'(다음 틱에 다시) — 트리거 가격 같은 근사치를 장부에 남기지 않는다
+q7 = _q_live([("ADA", "long")], OkxStub(history={ALGO15: OCO15}, order_raises=True), [AI15, ADA15])
+check("e2e ⑦ 체결가를 모르면 보류 — 거래 기록 0 · AI 행 유지 · 판단 호출 0 · 주문 0",
+      not [t for t in q7["trades"] if t.get("pattern") == P] and len(q7["pos"]) == 2
+      and q7["calls"] == [] and q7["orders"] == [], (q7["trades"], q7["pos"], len(q7["calls"])))
+# ⑧ OCO 가 아직 대기(live) — 보유 유지, 체결 주문 조회 없음
+o8 = OkxStub(pending={ALGO15: dict(OCO15, state="live", actualSide="", ordId="", ordIdList=[])})
+q8 = _q_live([("BTC", "long"), ("ADA", "long")], o8, [AI15, ADA15])
+check("e2e ⑧ OCO 대기 중 → 보유 유지 · 판단 호출 0 · 주문 조회 0",
+      not q8["trades"] and len(q8["pos"]) == 2 and q8["calls"] == [] and o8.order_calls == [],
+      (q8["trades"], len(q8["pos"]), len(q8["calls"])))
 os.environ.pop("ANTHROPIC_API_KEY", None)
 
 print(f"\n{len(fails)} failed")

@@ -656,11 +656,18 @@ def algo_state(live_conn, algo_id, inst_id=None):
     """
     algo(손절/OCO) 주문의 현재 상태 — 배리어가 거래소에서 이미 집행됐는지 확인용(2026-09-09).
 
-    반환 dict(state, actual_px, actual_side) | None(조회 실패 = 알 수 없음).
+    반환 dict(state, actual_px, actual_side, px_source) | None(조회 실패 = 알 수 없음).
       state: "live"(대기) / "effective"(집행됨) / "canceled" / "order_failed" 등 OKX 값 그대로.
-      actual_px: 집행 체결가(effective 일 때), actual_side: "tp" / "sl".
+      actual_px: 집행 체결가(effective 일 때, 모르면 None), actual_side: "tp" / "sl".
+      px_source: "actual"(algo 의 actualPx) / "order"(집행으로 생긴 시장가 주문의 평균 체결가) / None.
     같은 종목·방향을 두 장부 행이 나눠 들면 포지션이 사라지지 않아 '청산 이력'으로는 한쪽의
     배리어 집행을 알 수 없다 — 그 행의 algo 상태가 유일한 원천이다.
+
+    **시장가 OCO 는 actualPx 가 빈 문자열이다(2026-10-29 실측)** — 우리 OCO 는 tpOrdPx·slOrdPx 가 -1(시장가)이라
+    OKX 이력이 state=effective · actualSide=tp/sl 은 주지만 actualPx 는 "" 로 둔다. 체결가는 집행으로 생긴 시장가
+    주문(ordIdList)에만 있다. 종전엔 그걸 안 봐서 actual_px 가 늘 None 이었고 settle_by_algo 가 한 번도 기록하지
+    못했다(AI 엘리엇 OCO 3건 실측: 이력 actualPx "" / 주문 avgPx 81,570.7 · 80,940 · 80,752.2 = OKX 청산 이력과 일치).
+    주문 조회가 실패하면 actual_px 는 None 으로 둔다 — 트리거 가격으로 대신 적으면 장부에 근사치가 영구히 남는다.
     """
     if not algo_id:
         return None
@@ -671,20 +678,54 @@ def algo_state(live_conn, algo_id, inst_id=None):
                 try:
                     resp = getattr(ex, path)({"ordType": ord_type, "algoId": str(algo_id)})
                 except Exception:
-                    continue
+                    continue          # 대기 목록에 없으면 OKX 가 51603(Order does not exist) 예외를 던진다
                 for o in (resp.get("data") or []):
                     if str(o.get("algoId")) != str(algo_id):
                         continue
-                    px = o.get("actualPx")
-                    try:
-                        px = float(px) if px not in (None, "") else None
-                    except (TypeError, ValueError):
-                        px = None
-                    return dict(state=str(o.get("state", "")), actual_px=px,
-                                actual_side=str(o.get("actualSide", "")).lower())
+                    state = str(o.get("state", ""))
+                    px, src = _pos_float(o.get("actualPx")), "actual"
+                    if px is None and state == "effective":
+                        px, src = _triggered_fill_px(ex, o), "order"
+                    return dict(state=state, actual_px=px,
+                                actual_side=str(o.get("actualSide", "")).lower(),
+                                px_source=src if px is not None else None)
         return None
     except Exception:
         return None
+
+
+def _pos_float(x):
+    """양수 실수로 읽히면 그 값, 아니면 None — OKX 의 빈 문자열("")·시장가 표시(-1)를 체결가로 읽지 않는다."""
+    try:
+        v = float(x)
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 else None
+
+
+def _triggered_fill_px(ex, algo):
+    """
+    집행된 algo(OCO·조건부)가 낸 시장가 주문들의 체결 수량 가중 평균가 — 모르면 None.
+    ordIdList 가 기준이고(부분 체결로 여러 건일 수 있다), 없으면 ordId 한 건. 주문 조회는 GET 만 한다.
+    """
+    inst = algo.get("instId")
+    oids = [str(x) for x in (algo.get("ordIdList") or []) if x]
+    if not oids and algo.get("ordId"):
+        oids = [str(algo["ordId"])]
+    if not (inst and oids):
+        return None
+    tot_sz = tot_val = 0.0
+    for oid in oids:
+        try:
+            resp = ex.privateGetTradeOrder({"instId": inst, "ordId": oid})
+        except Exception:
+            return None               # 하나라도 모르면 평균을 못 낸다 — 다음 틱에 다시
+        for d in (resp.get("data") or []):
+            px, sz = _pos_float(d.get("avgPx")), _pos_float(d.get("accFillSz"))
+            if px and sz:
+                tot_sz += sz
+                tot_val += px * sz
+    return tot_val / tot_sz if tot_sz else None
 
 
 if __name__ == "__main__":

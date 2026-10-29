@@ -305,7 +305,8 @@ try:
     ok_ = pe.settle_by_algo(pos_, dict(exchange=None), trs, "2026-09-09")
     check("settle_by_algo: effective → D 기록(+1% − 수수료), d_closed", ok_ and pos_["d_closed"] and len(trs) == 1
           and abs(trs[0]["ret"] - (0.01 - pe.FEE)) < 1e-9 and trs[0]["reason"] == "atr_target" and trs[0]["live_mode"], trs)
-    check("settle_by_algo: pnl_live_usd ≈ 1% × 명목 $210", abs(trs[0]["pnl_live_usd"] - 2.1) < 1e-6, trs[0]["pnl_live_usd"])
+    check("settle_by_algo: pnl_live_usd ≈ (1% − 수수료) × 명목 $210 — ret 과 같은 식(2026-10-29)",
+          abs(trs[0]["pnl_live_usd"] - (0.01 - pe.FEE) * 210) < 1e-6, trs[0]["pnl_live_usd"])
     check("복리 포트가 그 기록을 읽는다 → $71.68", abs(pe.cap_margin(cap, PAT, trs) - 71.68) < 1e-9)
     ex_mod.algo_state = lambda lc, aid, inst_id=None: dict(state="live", actual_px=None, actual_side="")
     pos2 = dict(pos_, d_closed=False); trs2 = []

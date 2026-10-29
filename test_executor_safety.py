@@ -356,8 +356,10 @@ _pos = dict(symbol="SOL", pattern="tp1_engulfing_1h", direction="long", entry_pr
 _ok = pe.settle_by_algo(_pos, object(), _tr, "2026-10-26")
 ex_mod.algo_state = _orig_algo
 _pnl = (_tr[-1].get("pnl_live_usd") if _tr else None)
-check("레버리지 동작: OCO 집행 확인 손익 = 총수익 x 증거금 x 규격 레버리지(종전 1배)",
-      _ok and _pnl is not None and abs(_pnl - 0.01 * 70.0 * _lev_cap) < 1e-6, (_ok, _pnl))
+check("레버리지 동작: OCO 집행 확인 손익 = 수수료 차감 수익 x 증거금 x 규격 레버리지(종전 1배)",
+      _ok and _pnl is not None and abs(_pnl - (0.01 - pe.FEE) * 70.0 * _lev_cap) < 1e-6, (_ok, _pnl))
+check("OCO 집행 확인 손익은 같은 행의 ret(수수료 차감)과 같은 식 — ai_close·엔진 D 청산과 일치(2026-10-29)",
+      _ok and abs(_pnl - _tr[-1]["ret"] * 70.0 * _lev_cap) < 1e-6, (_pnl, _tr[-1]["ret"] if _tr else None))
 
 # ── 전체 신규 진입 정지 스위치(2026-10-26 운용 위임 H, registry steward_rules_2026_10_26) ──────────────
 import os
