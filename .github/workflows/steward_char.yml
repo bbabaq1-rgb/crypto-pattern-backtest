@@ -1,0 +1,43 @@
+name: steward rule operating characteristics (research, pre-registered R-062)
+
+# 연구 전용 — 매매/DB 접근 없음. 분류 규칙은 validate_steward_char.py 상단에 고정. DEPLOY_ON_PASS=False.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "research/steward_char"
+    paths:
+      - "validate_steward_char.py"
+      - "validate_portfolio.py"
+      - "steward.py"
+      - ".github/workflows/steward_char.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Create data directory
+        run: mkdir -p data
+      - name: Logic tests (no network)
+        run: |
+          python test_steward_char.py
+          python test_portfolio.py
+      - name: Pre-registered test
+        run: python validate_steward_char.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-char-${{ github.run_number }}
+          path: _steward_char.json
+          if-no-files-found: ignore

@@ -6431,5 +6431,27 @@
     "live_change": "none",
     "run": 40729095231,
     "result": "판정 NO_SELECTION_BIAS: rho +0.075(P(rho>=0) .953, train +0.019/holdout +0.103), 월 내 demean rho -0.128(P .02), 3분위 -0.29/-0.06/+2.97%, S1~S4 전부 실패. 동시성↑ 수익↑(방향 반대). 사전 0.25 오답. report_vol_burst.md"
+  },
+  "steward_char_prereg_2026_10_29": {
+    "status": "REGISTERED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-062",
+    "registered": "2026-10-29 (결과 열람 전, 로컬 테스트는 합성 거래만 — 실데이터 수치 없음)",
+    "hypothesis": "steward_rules_2026_10_26 의 S1(U 등급, n>=10, 평균<0)·S2(n>=20, 평균<0, 28일, 주 클러스터 부트 P<.05)는 통계 관행으로 정했고 작동 특성을 잰 적이 없다. 오정지율(진짜 양수 전략을 끄는 비율)과 탐지 속도를 잰다.",
+    "cells": "파트 A: validate_portfolio 거래 집합(1d 라우팅 복제+4h adopted)을 패턴별 시간순(t_out)으로 steward.judge 에 순차 적용(주 1회 평가, S2 부트 B=2000). 등급 V=triple_bottom_4h·vol_awakening_4h(steward.CONFIRMED 와 동일), 나머지 U. 파트 B: 합성 몬테카를로 — 실거래 풀 분포(전 거래 수익률을 평균 mu 로 평행이동), mu in {-2,-1,-0.5,0,+0.5,+1,+2}% x 주당 거래 lam in {1,3} x 52주 x 400 sim, S2 부트 B=300",
+    "frozen": {
+      "seed": 62,
+      "horizon_weeks": 52,
+      "sims": 400,
+      "boot_a": 2000,
+      "boot_b": 300,
+      "eval": "주 1회",
+      "rule_constants": "steward 모듈 상수 그대로 import(S1_MIN_N 10, S2_MIN_N 20, S2_MIN_SPAN_DAYS 28, S2_ALPHA .05)"
+    },
+    "criteria": "Q1 V 단위(2개) 중 S2 로 정지되는 것 0개 / Q2 MC mu=+1% lam=3 에서 S1 오정지(52주 내 정지) 확률 <=0.25 / Q3 MC mu=-2% lam=3 에서 정지(S1 또는 S2) 확률 >=0.80 이고 정지 시점 거래 수 중앙값 <=40 / Q4 MC mu=+1% lam=3 에서 S2 오정지 확률 <=0.05. 전부 충족이면 RULES_OK, 아니면 실패한 항목을 V_FALSE_STOP|S1_OVERTRIGGER|SLOW_DETECTION|S2_MISCALIBRATED 로 열거",
+    "diagnostics": "파트 A 단위별 첫 정지 시점·정지 이후 잔여 평균(오정지 여부)·전체/홀드아웃 평균 / 파트 B 전 mu x lam 표 / mu=0 에서의 S1·S2 정지 확률",
+    "prior": "RULES_OK 0.05. 항목별: Q2 실패 0.85(n>=10 부호 검사는 sd 8% 에서 mu=+1% 도 표본 10개에서 약 35% 음수, 반복 평가로 더 커짐), Q4 실패 0.60(주간 반복 평가가 알파를 부풀림), Q3 통과 0.70, Q1 통과 0.75",
+    "known_limits": "몬테카를로는 수익률을 독립 동분포로 가정(실거래는 레짐·버스트로 상관) — 오정지는 하한. 파트 A 는 백테스트 거래이며 실거래 장부와 다름. 등급 U/V 는 현 시점 기준 소급 적용. 평가 주기를 주 1회로 단순화(실제는 매일).",
+    "followup": "결과가 S1_OVERTRIGGER 등이면 새 판 steward_rules_<날짜> 를 이후 데이터에만 적용하도록 제안(특정 전략 겨냥 금지). 규칙 변경은 이 시험에서 자동 반영하지 않는다."
   }
 }
