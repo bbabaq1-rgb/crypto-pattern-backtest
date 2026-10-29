@@ -7,7 +7,8 @@ name: AI Elliott entry check (15m)
 # 매시 :03 판단은 fast_scheduler.yml 이 그대로 맡는다. 합치면 15분마다 한 번씩이다.
 #
 # 하는 일: AI 엘리엇이 평탄일 때만 진입 판단 1회(paper_executor.py aitick = run(ai_only=True)). 보유 중이면 자기 OCO 가
-# 집행됐는지만 확인한다(보유 판단 hold/close 는 매시 :03). 메인 전략의 탐지·청산 평가·손절 점검은 여기서 돌지 않는다.
+# 집행됐는지만 확인한다 — 집행됐으면 그 체결로 기록하고 같은 틱에서 평탄 판단(2026-10-29 체결가 조회 수정 뒤부터 작동).
+# 보유 판단 hold/close 는 매시 :03. 메인 전략의 탐지·청산 평가·손절 점검은 여기서 돌지 않는다.
 # 시험 기간(universe.json ai_traders[].entry_check.until)이 지나면 게이트에서 바로 끝난다 — 크론을 지우지 않아도 멈춘다.
 on:
   workflow_dispatch:

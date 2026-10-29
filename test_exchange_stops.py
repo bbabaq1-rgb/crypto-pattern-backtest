@@ -141,9 +141,121 @@ def main():
     _, cancelled5 = ex_mod.ensure_stop_orders({"exchange": stub5})
     check("비활성 주문은 취소 대상 아님", cancelled5 == [], cancelled5)
 
+    algo_state_checks()
+
     print()
     print(f"실패 {len(fails)}건" if fails else "전체 통과")
     return 1 if fails else 0
+
+
+class AlgoStateEx:
+    """
+    exchange.algo_state 가 부르는 OKX 엔드포인트 스텁 — 2026-10-29 진단 실행(읽기 전용)에서 받은 응답 모양 그대로:
+      · 대기 조회(orders-algo-pending)는 대기 목록에 없으면 51603 'Order does not exist' 예외
+      · 이력 조회(orders-algo-history)는 ordType 이 맞아야 1건, 아니면 51603 예외
+      · 시장가 OCO 의 이력은 state=effective · actualPx="" · actualSide=tp/sl · ordIdList=[시장가 주문 id]
+      · 체결가는 그 주문(trade/order)의 avgPx · accFillSz
+    """
+
+    def __init__(self, pending=None, history=None, orders=None, order_raises=False):
+        self.pending, self.history = pending or {}, history or {}
+        self.orders, self.order_raises = orders or {}, order_raises
+        self.order_calls = []
+
+    @staticmethod
+    def _not_found():
+        return Exception('okx {"code":"51603","data":[],"msg":"Order does not exist"}')
+
+    def _lookup(self, table, p):
+        o = table.get(p["algoId"])
+        if o is None or o["ordType"] != p["ordType"]:
+            raise self._not_found()
+        return {"code": "0", "data": [o]}
+
+    def privateGetTradeOrdersAlgoPending(self, p):
+        return self._lookup(self.pending, p)
+
+    def privateGetTradeOrdersAlgoHistory(self, p):
+        return self._lookup(self.history, p)
+
+    def privateGetTradeOrder(self, p):
+        self.order_calls.append(p)
+        if self.order_raises:
+            raise Exception("network")
+        return {"code": "0", "data": [self.orders[p["ordId"]]]}
+
+
+def _oco_hist(aid, side, oids, actual_px=""):
+    """실측 응답(2026-10-29 algoId 4051395198249181184)과 같은 필드 모양."""
+    return {"algoId": aid, "instId": "BTC-USDT-SWAP", "ordType": "oco", "state": "effective",
+            "actualPx": actual_px, "actualSide": side, "actualSz": "0.37", "tpTriggerPx": "80743",
+            "tpOrdPx": "-1", "slTriggerPx": "79590", "slOrdPx": "-1",
+            "ordId": oids[0] if oids else "", "ordIdList": oids, "sz": "0.37", "failCode": "0"}
+
+
+def algo_state_checks():
+    # 6) 시장가 OCO 익절 — actualPx "" 여도 체결가를 시장가 주문의 avgPx 에서 읽는다(실측 80,752.2)
+    st = AlgoStateEx(history={"A1": _oco_hist("A1", "tp", ["O1"])},
+                     orders={"O1": {"ordId": "O1", "state": "filled", "avgPx": "80752.2", "accFillSz": "0.37"}})
+    r = ex_mod.algo_state({"exchange": st}, "A1")
+    check("시장가 OCO 익절: state effective · actual_px = 주문 avgPx · side tp · 출처 order",
+          r == {"state": "effective", "actual_px": 80752.2, "actual_side": "tp", "px_source": "order"}, r)
+    check("주문 조회는 instId·ordId 로 한 번", st.order_calls == [{"instId": "BTC-USDT-SWAP", "ordId": "O1"}],
+          st.order_calls)
+
+    # 7) 시장가 OCO 손절 — 같은 경로(실측 80,940)
+    st = AlgoStateEx(history={"A2": _oco_hist("A2", "sl", ["O2"])},
+                     orders={"O2": {"ordId": "O2", "state": "filled", "avgPx": "80940", "accFillSz": "0.36"}})
+    r = ex_mod.algo_state({"exchange": st}, "A2")
+    check("시장가 OCO 손절: actual_px 80940 · side sl", r and r["actual_px"] == 80940.0 and r["actual_side"] == "sl", r)
+
+    # 8) 부분 체결로 주문이 여러 건 — 체결 수량 가중 평균
+    st = AlgoStateEx(history={"A3": _oco_hist("A3", "sl", ["O3", "O4"])},
+                     orders={"O3": {"avgPx": "100", "accFillSz": "1"}, "O4": {"avgPx": "103", "accFillSz": "2"}})
+    r = ex_mod.algo_state({"exchange": st}, "A3")
+    check("주문 여러 건 → 수량 가중 평균(100×1 + 103×2)/3 = 102", r and abs(r["actual_px"] - 102.0) < 1e-9, r)
+
+    # 9) 주문 조회 실패 — 체결가를 모르면 None(트리거 가격으로 대신 적지 않는다), 상태는 그대로
+    st = AlgoStateEx(history={"A1": _oco_hist("A1", "tp", ["O1"])}, order_raises=True)
+    r = ex_mod.algo_state({"exchange": st}, "A1")
+    check("주문 조회 실패 → state effective · actual_px None · 출처 None",
+          r == {"state": "effective", "actual_px": None, "actual_side": "tp", "px_source": None}, r)
+
+    # 10) ordIdList 가 비면 ordId 한 건으로
+    h = _oco_hist("A5", "tp", [])
+    h["ordId"] = "O5"
+    st = AlgoStateEx(history={"A5": h}, orders={"O5": {"avgPx": "50", "accFillSz": "1"}})
+    r = ex_mod.algo_state({"exchange": st}, "A5")
+    check("ordIdList 없으면 ordId 로", r and r["actual_px"] == 50.0, r)
+
+    # 11) actualPx 가 실제 값이면 그대로(주문 조회 안 함) — 지정가 OCO 대비
+    st = AlgoStateEx(history={"A6": _oco_hist("A6", "tp", ["O6"], actual_px="101.5")})
+    r = ex_mod.algo_state({"exchange": st}, "A6")
+    check("actualPx 있으면 그 값 · 출처 actual · 주문 조회 0", r and r["actual_px"] == 101.5
+          and r["px_source"] == "actual" and st.order_calls == [], r)
+
+    # 12) actualPx "-1"(시장가 표시) 은 체결가가 아니다 → 주문에서 읽는다
+    st = AlgoStateEx(history={"A7": _oco_hist("A7", "tp", ["O7"], actual_px="-1")},
+                     orders={"O7": {"avgPx": "99", "accFillSz": "1"}})
+    r = ex_mod.algo_state({"exchange": st}, "A7")
+    check("actualPx -1 은 무시하고 주문 avgPx", r and r["actual_px"] == 99.0 and r["px_source"] == "order", r)
+
+    # 13) 아직 대기 중(live) — 주문 조회 없이 상태만
+    live = dict(_oco_hist("A8", "", []), state="live", actualSide="")
+    st = AlgoStateEx(pending={"A8": live})
+    r = ex_mod.algo_state({"exchange": st}, "A8")
+    check("대기(live) → actual_px None · 주문 조회 0", r and r["state"] == "live" and r["actual_px"] is None
+          and st.order_calls == [], r)
+
+    # 14) 어디에도 없으면 None(알 수 없음 — 호출부가 보류)
+    r = ex_mod.algo_state({"exchange": AlgoStateEx()}, "ZZ")
+    check("대기·이력 어디에도 없음 → None", r is None, r)
+
+    # 15) 취소된 algo 는 체결가를 찾지 않는다
+    st = AlgoStateEx(history={"A9": dict(_oco_hist("A9", "", ["O9"]), state="canceled")})
+    r = ex_mod.algo_state({"exchange": st}, "A9")
+    check("canceled → actual_px None · 주문 조회 0", r and r["state"] == "canceled" and r["actual_px"] is None
+          and st.order_calls == [], r)
 
 
 if __name__ == "__main__":
