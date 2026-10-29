@@ -99,6 +99,36 @@ jobs:
                   if d.get("ordType") == "market" and len(probe_ids) < 3:
                       probe_ids.append((sym, d.get("ordId")))
 
+          # 현재 실포지션·대기 algo(장부 대조용) — ETH/SOL/XRP/BTC
+          for sym in ("ETH", "SOL", "XRP", "BTC"):
+              try:
+                  ps = ex.fetch_positions([f"{sym}/USDT:USDT"])
+                  for p in ps:
+                      print(f"position {sym} side={p.get('side')} contracts={p.get('contracts')} "
+                            f"entry={p.get('entryPrice')} notional={p.get('notional')}")
+                  if not ps:
+                      print(f"position {sym} 없음")
+              except Exception as e:
+                  print(f"position {sym} ERR {type(e).__name__}: {str(e)[:200]}")
+              for ot in ("oco", "conditional"):
+                  try:
+                      d = ex.privateGetTradeOrdersAlgoPending({"ordType": ot, "instId": f"{sym}-USDT-SWAP"}).get("data") or []
+                      for o in d:
+                          print(f"  pending {ot} {sym} algoId={o.get('algoId')} sz={o.get('sz')} side={o.get('side')} "
+                                f"sl={o.get('slTriggerPx')} tp={o.get('tpTriggerPx')} cTime={utc(o.get('cTime'))}")
+                  except Exception as e:
+                      print(f"  pending {ot} {sym} ERR {type(e).__name__}: {str(e)[:160]}")
+          # 10-21 SOL: tp1 OCO 집행 시각(19:08 시장가 앞) — 그날 SOL reduceOnly 주문 전부
+          try:
+              t0, t1 = ms("2026-10-21T00:00:00"), ms("2026-10-22T00:00:00")
+              d = ex.privateGetTradeOrdersHistoryArchive({"instType": "SWAP", "instId": "SOL-USDT-SWAP",
+                                                          "begin": str(t0), "end": str(t1), "limit": "100"}).get("data") or []
+              for o in d:
+                  print("  SOL 10-21", json.dumps({k: (utc(o.get(k)) if k in ("cTime", "fillTime") else o.get(k))
+                                                    for k in keep}, ensure_ascii=False))
+          except Exception as e:
+              print(f"  SOL 10-21 ERR {type(e).__name__}: {str(e)[:200]}")
+
           # 수정에 쓸 호출: ccxt fetch_order 가 average·filled 를 채우는지
           for sym, oid in probe_ids:
               try:
