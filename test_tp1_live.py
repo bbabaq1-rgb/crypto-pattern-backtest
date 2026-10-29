@@ -295,6 +295,108 @@ check("close_swap_position(qty_frac) 은 실포지션 × 비율만 닫는다", w
 fx = _Ex(); fill, why = ex_mod.close_swap_position(dict(exchange=fx), "X", "long", qty_frac=0.0)
 check("close_swap_position(qty_frac=0) 은 주문을 아예 안 낸다 — 전량 청산 금지", why == "share_unknown" and not fx.orders, (why, fx.orders))
 
+# ── 엔진 D 청산 시장가 판단 — 자기 손절·OCO 가 이미 집행됐으면 시장가를 내지 않는다(2026-10-29) ────────────
+# 실측 3건(OKX 주문 이력으로 확인, 진단 실행 2026-10-29): 자기 손절·OCO 가 먼저 집행된 뒤 엔진이 지분 비율로 시장가를 내
+# 같은 종목의 다른 행을 닫았다 — 10-21 ETH 15:09:11 매도 0.31계약(inverted_hammer 몫) / 10-21 SOL 19:08:41 매도 0.58계약
+# (triple_bottom_4h 몫) / 10-24 SOL 15:08:58 매도 0.45계약(tp1 몫). 셋 다 손절 주문 번호가 DB 왕복에서 유실된 행
+# (positions.sl_order_id 는 10-26 추가). 아래 재현은 각 수량을 실제 숫자 그대로 되낸다.
+_lose = lambda sym, pat, usd, **kw: dict(symbol=sym, direction="long", pattern=pat, live_mode=True, d_closed=False,
+                                         size_usd=usd, **kw)
+_tp1_sol, _tb_sol = _lose("SOL", PAT, 76.98), _lose("SOL", "triple_bottom_4h", 29.58)
+_tp1_eth, _ih_eth = _lose("ETH", PAT, 75.18), _lose("ETH", "inverted_hammer", 39.37)
+_q, _f = pe.close_qty_for(_tp1_sol, [_tp1_sol, _tb_sol])
+_fx = _Ex(); _fx.fetch_positions = lambda syms: [dict(side="long", contracts=0.81)]
+_fx.amount_to_precision = lambda s, q: str(int(float(q) * 100 + 1e-9) / 100)   # ccxt 수량 정밀도는 내림(TRUNCATE)
+ex_mod.close_swap_position(dict(exchange=_fx), "SOL", "long", qty_frac=_f)
+check("재현: 종전 경로(지분 비율 시장가)는 10-21 SOL 의 0.58계약 매도를 그대로 낸다 — tp1 OCO 집행 뒤 남은 0.81(triple_bottom 몫) x 0.72",
+      _q is None and abs(_f - 76.98 / (76.98 + 29.58)) < 1e-9 and _fx.orders and _fx.orders[0][1] == 0.58, (_f, _fx.orders))
+_q, _f = pe.close_qty_for(_tp1_eth, [_tp1_eth, _ih_eth])
+_fx = _Ex(); _fx.fetch_positions = lambda syms: [dict(side="long", contracts=0.48)]
+_fx.amount_to_precision = lambda s, q: str(int(float(q) * 100 + 1e-9) / 100)   # ccxt 수량 정밀도는 내림(TRUNCATE)
+ex_mod.close_swap_position(dict(exchange=_fx), "ETH", "long", qty_frac=_f)
+check("재현: 같은 경로가 10-21 ETH 의 0.31계약 매도(inverted_hammer 0.48 x 0.66)를 낸다",
+      _fx.orders and _fx.orders[0][1] == 0.31, _fx.orders)
+
+_orig_st, _orig_csp = ex_mod.algo_state, ex_mod.close_swap_position
+_calls = {"st": [], "csp": []}
+
+
+def _elc(pos_, rows_, spec_, reason, state=None):
+    """engine_live_close 를 algo_state·close_swap_position 스텁으로 — (결과, algo 조회, 시장가 호출)."""
+    _calls["st"], _calls["csp"] = [], []
+    ex_mod.algo_state = lambda lc, aid, inst_id=None: (_calls["st"].append(aid), state)[1]
+    ex_mod.close_swap_position = lambda lc, sym, d, **kw: (_calls["csp"].append((sym, d, kw)), (101.0, "ok"))[1]
+    try:
+        return pe.engine_live_close(pos_, rows_, dict(exchange=None), spec_, reason), list(_calls["st"]), list(_calls["csp"])
+    finally:
+        ex_mod.algo_state, ex_mod.close_swap_position = _orig_st, _orig_csp
+
+
+_spec = pe.EXIT_SPECS[PAT]
+for _sym, _a, _b in (("SOL", _tp1_sol, _tb_sol), ("ETH", _tp1_eth, _ih_eth)):
+    for _rsn in ("atr_target", "atr_stop"):
+        r_, st_, csp_ = _elc(_a, [_a, _b], _spec, _rsn)
+        check(f"10-21 {_sym} 재현 — 손절 번호 없는 배리어 행·종목 공유·{_rsn} → 시장가 없음 · 기록만(no_position)",
+              r_ == (None, "no_position") and csp_ == [] and st_ == [], (r_, csp_))
+r_, st_, csp_ = _elc(_tp1_sol, [_tp1_sol, _tb_sol], _spec, "atr_timestop")
+check("손절 번호 없는 공유 배리어 행이라도 시간 청산은 종전대로 자기 지분만 시장가",
+      r_ == (101.0, "ok") and len(csp_) == 1 and csp_[0][2]["qty"] is None
+      and abs(csp_[0][2]["qty_frac"] - 76.98 / (76.98 + 29.58)) < 1e-9, csp_)
+r_, st_, csp_ = _elc(_tp1_sol, [_tp1_sol], _spec, "atr_target")
+check("손절 번호 없는 단독 배리어 행은 종전대로 시장가(OCO 가 집행됐으면 거래소가 no_position 을 준다)",
+      r_ == (101.0, "ok") and csp_ == [("SOL", "long", dict(sl_algo_id=None, qty=None, qty_frac=None))], csp_)
+_share0 = [_lose("Z", PAT, 0), _lose("Z", "fvg", 0)]
+r_, st_, csp_ = _elc(_share0[0], _share0, _spec, "atr_target")
+check("지분을 모르면(0.0) 종전대로 share_unknown 경로로 넘긴다 — 새 분기를 타지 않는다",
+      len(csp_) == 1 and csp_[0][2]["qty_frac"] == 0.0, csp_)
+
+_lo = dict(sl_order_id="A1", qty=0.36, leverage=3)
+_bar = _lose("BTC", "ai_elliott_btc", 100.0, live_order=dict(_lo))
+_eff = dict(state="effective", actual_px=80000.0, actual_side="sl")
+_live = dict(state="live", actual_px=None, actual_side="")
+r_, st_, csp_ = _elc(_bar, [_bar], {"type": "signal_barrier"}, "ai_stop", state=_eff)
+check("배리어 행·자기 OCO 집행됨 → 시장가 없음(종전과 같음)", r_ == (None, "no_position") and csp_ == [] and st_ == ["A1"], (r_, csp_))
+r_, st_, csp_ = _elc(_bar, [_bar], {"type": "signal_barrier"}, "ai_stop", state=None)
+check("배리어 행·OCO 상태 모름 → 보류 algo_unknown(종전과 같음)", r_ == (None, "algo_unknown") and csp_ == [], r_)
+r_, st_, csp_ = _elc(_bar, [_bar], {"type": "signal_barrier"}, "ai_stop", state=_live)
+check("배리어 행·OCO 대기 → 자기 계약 수 시장가(종전과 같음)",
+      r_ == (101.0, "ok") and csp_ == [("BTC", "long", dict(sl_algo_id="A1", qty=None, qty_frac=None))], csp_)
+
+# 메인 행(exit_spec 없음) — 새로 막는 경우는 '자기 손절이 이미 집행됨' 하나뿐
+_maru = _lose("BTC", "marubozu", 46.0, live_order=dict(_lo, sl_order_id="M1", qty=0.5))
+_ai = _lose("BTC", "ai_elliott_btc", 100.0, live_order=dict(_lo))
+r_, st_, csp_ = _elc(_maru, [_maru, _ai], None, "stop", state=_eff)
+check("메인 BTC 행의 손절이 이미 집행 + AI 가 BTC 롱 보유 → 시장가 없음(종전엔 0.5계약 시장가가 AI 몫을 닫았다)",
+      r_ == (None, "no_position") and csp_ == [] and st_ == ["M1"], (r_, csp_))
+r_, st_, csp_ = _elc(_maru, [_maru, _ai], None, "stop", state=None)
+check("메인 행·손절 상태 모름 → 종전대로 자기 계약 수 시장가(보류하지 않는다)",
+      r_ == (101.0, "ok") and csp_ == [("BTC", "long", dict(sl_algo_id="M1", qty=0.5, qty_frac=None))], csp_)
+r_, st_, csp_ = _elc(_maru, [_maru, _ai], None, "maxhold", state=_live)
+check("메인 행·손절 대기 중 만기 → 종전대로 시장가", r_ == (101.0, "ok") and len(csp_) == 1, csp_)
+_old = _lose("ADA", "equal_lows_4h", 50.0)
+r_, st_, csp_ = _elc(_old, [_old], None, "stop", state=_eff)
+check("손절 번호 없는 단독 메인 행 → algo 조회 없이 종전 경로 그대로",
+      r_ == (101.0, "ok") and st_ == [] and csp_ == [("ADA", "long", dict(sl_algo_id=None, qty=None, qty_frac=None))], (st_, csp_))
+# 10-24 15:08 SOL 실측: triple_bottom_4h(10-21 진입, 손절 번호 유실) 손절 집행 뒤 엔진이 'stop' 으로 지분 비율 시장가를 내
+# tp1(10-22 진입) 0.45계약을 닫았다 — 남은 1.68 x 29.58/(29.58+79.2) = 0.457 → 0.45
+_tb21, _tp22 = _lose("SOL", "triple_bottom_4h", 29.58), _lose("SOL", PAT, 79.2)
+_q, _f = pe.close_qty_for(_tb21, [_tb21, _tp22])
+_fx = _Ex(); _fx.fetch_positions = lambda syms: [dict(side="long", contracts=1.68)]
+_fx.amount_to_precision = lambda s, q: str(int(float(q) * 100 + 1e-9) / 100)
+ex_mod.close_swap_position(dict(exchange=_fx), "SOL", "long", qty_frac=_f)
+check("재현: 종전 경로가 10-24 SOL 의 0.45계약 매도(tp1 몫)를 그대로 낸다", _fx.orders and _fx.orders[0][1] == 0.45, _fx.orders)
+r_, st_, csp_ = _elc(_tb21, [_tb21, _tp22], None, "stop")
+check("10-24 SOL 재현 — 손절 번호 없는 메인 행·종목 공유·stop → 시장가 없음 · 기록만",
+      r_ == (None, "no_position") and csp_ == [] and st_ == [], (r_, csp_))
+for _rsn in ("maxhold", "regime_switch", "opp_signal"):
+    r_, st_, csp_ = _elc(_tb21, [_tb21, _tp22], None, _rsn)
+    check(f"손절 번호 없는 공유 메인 행이라도 {_rsn} 은 종전대로 자기 지분만 시장가",
+          r_ == (101.0, "ok") and len(csp_) == 1 and abs(csp_[0][2]["qty_frac"] - 29.58 / (29.58 + 79.2)) < 1e-9, csp_)
+_src = open("paper_executor.py", encoding="utf-8").read()
+check("체결 엔진의 시장가 청산은 engine_live_close · ai_close 두 곳뿐 — D 청산 루프는 그 함수를 쓴다",
+      _src.count("ex_mod.close_swap_position(") == 2
+      and "fill, why = engine_live_close(pos, positions, live_conn, spec, ex[3])" in _src)
+
 # settle_by_algo — 거래소가 OCO 를 집행한 경우 봉 없이 기록
 _orig_state = ex_mod.algo_state
 try:
@@ -316,7 +418,9 @@ try:
 finally:
     ex_mod.algo_state = _orig_state
 src2 = open("paper_executor.py", encoding="utf-8").read()
-check("청산 루프: 배리어 행은 OCO 상태를 먼저 보고 집행됐으면 시장가를 안 낸다", 'elif st_.get("state") == "effective":' in src2 and "qty=q_, qty_frac=frac_" in src2)
+check("청산 루프: 배리어 행은 OCO 상태를 먼저 보고 집행됐으면 시장가를 안 낸다 — 2026-10-29 부터 engine_live_close 한 곳(동작은 위 '엔진 D 청산 시장가 판단' 시험)",
+      'elif st.get("state") == "effective":' in src2 and "qty=q_, qty_frac=frac_" in src2
+      and "fill, why = engine_live_close(pos, positions, live_conn, spec, ex[3])" in src2)
 check("청산 루프: settle_by_algo 가 entry_ts 유실 보류보다 먼저", src2.index("if settle_by_algo(pos, live_conn, trades") < src2.index("entry_ts 유실 — "))
 check("진입: cap 주문 실패 시 페이퍼 행을 만들지 않는다(포트 계산 오염 방지)", "if cap:\n                    continue        # cap 프로젝트는 실주문만" in src2)
 

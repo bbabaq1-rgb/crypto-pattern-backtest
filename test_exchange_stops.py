@@ -142,6 +142,7 @@ def main():
     check("비활성 주문은 취소 대상 아님", cancelled5 == [], cancelled5)
 
     algo_state_checks()
+    close_fill_checks()
 
     print()
     print(f"실패 {len(fails)}건" if fails else "전체 통과")
@@ -256,6 +257,80 @@ def algo_state_checks():
     r = ex_mod.algo_state({"exchange": st}, "A9")
     check("canceled → actual_px None · 주문 조회 0", r and r["state"] == "canceled" and r["actual_px"] is None
           and st.order_calls == [], r)
+
+
+# ── 시장가 청산 체결가 재조회(2026-10-29 실측) ───────────────────────────────
+# OKX 주문 응답에는 체결가가 없다(주문 번호만). close_swap_position 이 응답의 average 만 봐서 늘 None → 호출부가 봉 가격으로
+# 적었다(AI 조기 청산 장부 81,240 vs 실제 81,012.8). 진단 실행에서 fetch_order 가 average 를 준다는 것을 확인했다
+# (BTC 4053085632774213632 → average 81012.8 / LTC 58.27 / TRX 0.33043 — OKX 주문 이력 avgPx 와 일치).
+class CloseEx:
+    """close_swap_position 용 스텁 — 실포지션 1건, 시장가 응답은 OKX 처럼 주문 번호만."""
+    def __init__(self, have=0.36, resp=None, fetched=None, fetch_raises=False):
+        self.have, self.resp, self.fetched, self.fetch_raises = have, resp, fetched, fetch_raises
+        self.orders, self.fetch_calls, self.cancels = [], [], []
+
+    def fetch_positions(self, syms):
+        return [dict(side="long", contracts=self.have)]
+
+    def amount_to_precision(self, sym, q):
+        return str(int(float(q) * 100 + 1e-9) / 100)      # ccxt 수량 정밀도는 내림(TRUNCATE)
+
+    def create_market_order(self, sym, side, qty, params=None):
+        self.orders.append((sym, side, qty, dict(params or {})))
+        return dict(self.resp if self.resp is not None else {"id": "4053085632774213632", "average": None,
+                                                              "price": None, "filled": None})
+
+    def fetch_order(self, oid, sym):
+        self.fetch_calls.append((oid, sym))
+        if self.fetch_raises:
+            raise Exception("network")
+        return dict(self.fetched if self.fetched is not None else {"id": oid, "average": 81012.8, "filled": 0.36,
+                                                                    "status": "closed", "price": 81012.8})
+
+    def market_id(self, sym):
+        return sym.split("/")[0] + "-USDT-SWAP"
+
+    def privatePostTradeCancelAlgos(self, arr):
+        self.cancels.append(arr)
+
+
+def close_fill_checks():
+    lc = lambda e: {"exchange": e}
+    e = CloseEx()
+    fill, why = ex_mod.close_swap_position(lc(e), "BTC", "long", sl_algo_id="A1", qty=0.36)
+    check("청산 응답에 체결가 없음 → 주문 재조회 체결가 81,012.8 (종전엔 None → 봉 가격)",
+          why == "ok" and fill == 81012.8 and e.fetch_calls == [("4053085632774213632", "BTC/USDT:USDT")],
+          (fill, why, e.fetch_calls))
+    check("주문은 종전 그대로 — 시장가 매도 1건 · reduceOnly · 격리 · 그 계약 수 · 잔여 algo 취소",
+          e.orders == [("BTC/USDT:USDT", "sell", 0.36, {"tdMode": ex_mod.OKX_MARGIN_MODE, "reduceOnly": True})]
+          and e.cancels == [[{"algoId": "A1", "instId": "BTC-USDT-SWAP"}]], (e.orders, e.cancels))
+
+    e = CloseEx(fetch_raises=True)
+    fill, why = ex_mod.close_swap_position(lc(e), "BTC", "long", qty=0.36)
+    check("재조회 실패 → fill None(호출부 종전 폴백) · 청산 자체는 ok · 주문 1건",
+          fill is None and why == "ok" and len(e.orders) == 1, (fill, why, e.orders))
+
+    e = CloseEx(resp={"id": "X1", "average": 100.5})
+    fill, why = ex_mod.close_swap_position(lc(e), "BTC", "long")
+    check("응답에 average 가 있으면 그대로 · 재조회 안 함", fill == 100.5 and e.fetch_calls == [], (fill, e.fetch_calls))
+
+    e = CloseEx(resp={"id": "X2", "average": None, "price": 99.0}, fetched={"average": None})
+    fill, _ = ex_mod.close_swap_position(lc(e), "BTC", "long")
+    check("재조회에도 체결가 없음 → 응답의 price(종전 폴백)", fill == 99.0, fill)
+
+    e = CloseEx(resp={"id": "X3", "average": "", "price": ""}, fetched={"average": ""})
+    fill, _ = ex_mod.close_swap_position(lc(e), "BTC", "long")
+    check("빈 문자열은 체결가로 읽지 않는다 → None", fill is None, fill)
+
+    e = CloseEx(have=0.0)
+    fill, why = ex_mod.close_swap_position(lc(e), "BTC", "long", qty=0.36)
+    check("포지션 없음 → no_position · 주문·재조회 0(종전)", (fill, why) == (None, "no_position")
+          and e.orders == [] and e.fetch_calls == [], (fill, why))
+
+    e = CloseEx(have=1.07)
+    fill, why = ex_mod.close_swap_position(lc(e), "SOL", "long", qty_frac=0.682)
+    check("지분 비율 경로도 종전 그대로(1.07 x 0.682 → 0.72, 내림) + 체결가 재조회",
+          why == "ok" and e.orders and e.orders[0][2] == 0.72 and fill == 81012.8, (e.orders, fill))
 
 
 if __name__ == "__main__":

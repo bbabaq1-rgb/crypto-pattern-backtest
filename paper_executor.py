@@ -289,6 +289,49 @@ def close_qty_for(pos, positions):
     return None, min(1.0, mine / total)
 
 
+# 거래소 주문(손절·OCO)이 지키는 가격에 닿은 청산 사유 — eval_D 손절 + eval_I 배리어(시간 청산·만기·레짐 전환 제외).
+# 엔진이 봉으로 이 사유를 판정했다면 같은 가격의 거래소 주문은 이미 집행됐다고 본다.
+EXCHANGE_GUARDED = ("stop", "atr_stop", "atr_target", "ai_stop", "ai_target")
+
+
+def engine_live_close(pos, positions, live_conn, spec, reason):
+    """
+    엔진 D 청산의 실거래 시장가 주문 — (fill, why). why: "ok" | "no_position" | "algo_unknown" | 주문 실패 사유.
+    호출부는 종전과 같다: ok → 체결가로 기록 / no_position → 시장가 없이 기록만 / 그 밖 → 유지·재시도.
+
+    **자기 손절·OCO 가 이미 거래소에서 집행됐으면 시장가를 내지 않는다.** 같은 종목·방향을 다른 장부 행이 함께 들면
+    거래소 포지션이 남아 있어, 그 시장가(자기 계약 수 또는 지분 비율)가 **남의 몫을 닫는다.**
+    실측 3건(2026-10-29 OKX 주문 이력으로 확인 — 셋 다 손절 주문 번호가 DB 왕복에서 유실된 행, positions.sl_order_id 는
+    2026-10-26 추가):
+      10-21 15:09 ETH — tp1 OCO 집행 뒤 엔진이 tp1 몫이라며 지분 비율 시장가 → inverted_hammer 0.31계약을 닫음
+      10-21 19:08 SOL — 같은 경로 → triple_bottom_4h 0.58계약을 닫음
+      10-24 15:08 SOL — triple_bottom_4h 손절 집행 뒤 엔진이 'stop' 으로 지분 비율 시장가 → tp1 0.45계약을 닫음
+    규칙:
+      · 손절 번호를 아는 행: algo 상태를 본다. 집행됨 → 시장가 없이 기록("no_position").
+        모름(조회 실패) → 배리어 행은 보류(종전), 메인 행은 종전대로 시장가(손절이 거래소에 있어 위험이 늘지 않는다).
+      · 손절 번호를 모르는 행이 종목을 나눠 들고 거래소 주문이 지키는 가격(EXCHANGE_GUARDED)에 닿았다 → 시장가 없이
+        그 가격으로 기록. 거래소 주문이 아직 안 걸렸다면 그 몫은 자기 손절·OCO 가 계속 지킨다(장부만 먼저 닫힌다 —
+        남의 몫을 닫는 것보다 안전).
+      · 그 밖(단독 보유·시간 청산·만기·레짐 전환·반대 신호 등)은 종전과 같다 — 자기 몫(close_qty_for)만 시장가.
+    """
+    sl_id = (pos.get("live_order") or {}).get("sl_order_id")
+    q_, frac_ = close_qty_for(pos, positions)
+    if sl_id:
+        st = ex_mod.algo_state(live_conn, sl_id)
+        if st is None:
+            if spec:
+                return None, "algo_unknown"
+        elif st.get("state") == "effective":
+            print(f"  [live] {pos['symbol']} {pos['pattern']} 자기 손절·OCO 가 이미 집행됨 — 시장가 없이 기록")
+            return None, "no_position"
+    elif frac_ and reason in EXCHANGE_GUARDED:
+        print(f"  [live] {pos['symbol']} {pos['pattern']} 손절 번호 없음·종목 공유·거래소 주문 가격 도달({reason}) — "
+              f"시장가 없이 기록(다른 행의 몫 보호)")
+        return None, "no_position"
+    return ex_mod.close_swap_position(live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id,
+                                      qty=q_, qty_frac=frac_)
+
+
 def settle_by_algo(pos, live_conn, trades, today):
     """
     배리어(exit_spec) 실거래 행의 OCO 가 거래소에서 이미 집행됐으면 그 체결가로 D 거래를 기록하고
@@ -381,7 +424,10 @@ def ai_close(pos, positions, live_conn, trades, rows_of, rec=None):
             print(f"  [ai-elliott] {pos['symbol']} close 주문 {why} — 유지(재시도 또는 reconcile)")
             _ai_action(rec, f"close_{why}")
             return False
+    # 체결가는 close_swap_position 이 주문을 다시 조회해 준다(2026-10-29 — 종전엔 늘 None 이라 직전 봉 종가로 적혔다:
+    # 10-29 17:09Z 장부 81,240 vs 실제 81,012.8). 조회까지 실패했을 때만 직전 닫힌 봉 종가로 근사한다.
     px = fill or (cl[-1]["c"] if cl else None)
+    px_note = "" if fill or not pos.get("live_mode") else " (체결가 미확인 — 직전 봉 종가로 근사)"
     base = float(pos.get("entry_price") or 0)
     if not (px and base):
         _ai_action(rec, "close_no_price")
@@ -394,7 +440,7 @@ def ai_close(pos, positions, live_conn, trades, rows_of, rec=None):
     pos["d_closed"] = True
     pos["a_closed"] = True
     _ai_action(rec, "closed")
-    print(f"  [ai-elliott] {pos['symbol']} {pos['direction']} AI 조기 청산 @ {px} → {(r - FEE) * 100:+.2f}%")
+    print(f"  [ai-elliott] {pos['symbol']} {pos['direction']} AI 조기 청산 @ {px} → {(r - FEE) * 100:+.2f}%{px_note}")
     try:
         import notify
         d_ko = "롱" if pos["direction"] == "long" else "숏"
@@ -1420,21 +1466,9 @@ def run(stamp=None, slow=None, ai_only=False):
                         do_record = False    # 연결 없으면 유지 → 다음 실행 재시도
                         print(f"  [live] {pos['symbol']} D청산 조건 충족했으나 OKX 미연결 — 유지")
                     else:
-                        sl_id = (pos.get("live_order") or {}).get("sl_order_id")
-                        fill, why = None, None
-                        if spec and sl_id:
-                            # 배리어 행: OCO 상태를 먼저 본다. 집행됐으면 시장가를 또 내면 안 된다
-                            # (같은 종목을 메인 행과 나눠 들면 메인 몫까지 닫힌다). 알 수 없으면 보류.
-                            st_ = ex_mod.algo_state(live_conn, sl_id)
-                            if st_ is None:
-                                fill, why = None, "algo_unknown"
-                            elif st_.get("state") == "effective":
-                                fill, why = None, "no_position"
-                        if why is None:
-                            q_, frac_ = close_qty_for(pos, positions)
-                            fill, why = ex_mod.close_swap_position(
-                                live_conn, pos["symbol"], pos["direction"], sl_algo_id=sl_id,
-                                qty=q_, qty_frac=frac_)
+                        # 자기 손절·OCO 가 이미 집행됐으면 시장가를 내지 않는다 — 종목을 나눠 든 다른 행의 몫을
+                        # 닫는다(2026-10-21 실측 2건). 판단은 engine_live_close 한 곳에서.
+                        fill, why = engine_live_close(pos, positions, live_conn, spec, ex[3])
                         if why == "ok":
                             if fill and pos["entry_price"]:   # 실체결가로 D 기록 교체
                                 base = pos["entry_price"]
