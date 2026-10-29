@@ -1166,7 +1166,8 @@
     2파 형태 5/60/35 → **5/35/60**. 79,342 트리거 제거, 레벨·트리거 **84,856↑**(10/21 반등 고점) 추가. 채점 장부 **Q10**(84,856 먼저 vs
     76,059 — 35% / 무작위 보행 52.7%) 추가, Q1~Q9 무변경. ETH 도 같은 봉에서 B 이후 저점 2,313 을 깨 2,275.94(교차 확인 유지).
 - **자동화**: `daily_scheduler.yml` (--slow, oncefull@UTC00:00) + `fast_scheduler.yml`
-  (--fast, exit_spec 패턴만). 2026-09-02 분리. **발화는 Supabase pg_cron → workflow_dispatch
+  (--fast, exit_spec 패턴만). 2026-10-29~11-05 시험으로 `ai_quarter.yml`(매시 :18/:33/:48, AI 엘리엇 진입 판단만 —
+  별도 concurrency 그룹·게이트, AI 엘리엇 항목 참조). 2026-09-02 분리. **발화는 Supabase pg_cron → workflow_dispatch
   전용**(daily UTC 00/04/08/12/16/20 정각 / fast 매시 :03) — **두 워크플로 다 GitHub schedule 없음
   (2026-09-06 사용자 결정 "폴백 제거해줘")**. daily 폴백은 9/05~9/06 에 5회 연속 지각(최대 2시간
   19분)하며 이미 돈 느린틱을 재실행했고, 지각한 폴백은 같은 concurrency 그룹의 pending 을
@@ -2658,13 +2659,38 @@
     qty·sl_order_id 컬럼 추가로 이후엔 작동). 마루보주 실제 결과 추정 약 −0.5% · 약 −$0.7 (+$1.19 는 tp1 이익 +$1.875 를
     이중 계상). 정확한 값은 OKX 체결 내역(fills-history)이 있어야 나온다. **같은 결함이 AI 롱 + 메인 BTC 롱 겹침에서도 재발한다** —
     reconcile 이 (종목, 방향) 의 최신 수명주기 하나를 그 키의 남은 행에 그대로 붙이기 때문.
+  · **15분 진입 판단 1주 시험 (2026-10-29 ~ 11-05, 사용자 지시 "진입판단을 15분마다 변경하는걸로 1주일만 테스트해보자 1주일 후에
+    계속할지 중단할지 나한테 다시 물어봐줘")**: registry `ai_elliott_btc.entry_check_test_2026_10_29`. 계기는 같은 날 질문 "8만 중반에서
+    급락이 나왔는데 왜 숏을 못 걸었나" — 매시 판단이라 판단 사이에 생긴 급락을 볼 기회가 없었던 것이 원인 중 하나였다.
+    · **평탄일 때만 15분마다 진입 판단** — 매시 :03(fast 그대로) + :18/:33/:48(신설 `ai_quarter.yml`, Supabase pg_cron `gh_ai_quarter`).
+      보유 판단(hold/close)은 매시 :03 그대로. 15분 틱 = `paper_executor.run(ai_only=True)`(`python paper_executor.py aitick`) —
+      메인 전략의 신호·청산 평가·정합성 보정·손절 점검·레짐 계산은 **하지 않고**, AI 보유 중이면 자기 OCO 집행 여부만 본다
+      (settle_by_algo). 진입은 같은 진입 루프·가드(킬스위치·정지·캡 1포지션·중복·반대 방향·ledger 포트·OCO)를 탄다.
+    · **메인 실행을 취소시키지 않는 구조** — 메인 스케줄러와 같은 concurrency 그룹이면 큐에 들어오는 순간 대기 중인 메인 실행이
+      취소된다(2026-09-02 실측). 그래서 **다른 그룹** + 게이트(UTC 분 14~52 밖 · 시험 기간 밖 · daily/fast 실행 중·대기 · 조회 실패면
+      건너뜀) + timeout 9분(:48 실행도 :57 전 종료). 근거 실측: fast 100회 최대 종료 :12.7, daily 최대 7.6분.
+    · **기준 가격·진입봉** — 기준 = 가장 최근에 닫힌 봉(15분 틱에선 15m 종가)이고 신호는 그 봉이 속한 1h 봉(형성 중)을 진입봉으로
+      가리킨다. 포지션 tf 는 1h 그대로(시간청산 168봉·보유 판단 불변), 매시 :03 틱은 종전과 같은 값. AI 신호는 봉 시각이 정확히
+      맞아야 진입한다 — 날짜 폴백(그날 첫 봉 가격)으로 들어가지 않게.
+    · **같은 1h 봉 안 같은 방향 재진입은 막힌다**(중복 방어 키가 봉 시각) — 모델에게 그 방향을 미리 막고 이유를 알린다. 반대 방향은 가능.
+    · **지시문** — 시험 중 모든 틱이 SYSTEM_Q15·버전 `elliott_v4q15_2026_10_29`(v3 에서 호출 주기 문장만 바꾸고 '자주 불린다고 진입
+      기준이 낮아지지 않는다' 한 문장 추가). `universe.json ai_traders[].entry_check.until`(2026-11-05T06:30Z)이 지나면 코드가 스스로
+      v3·매시 판단으로 돌아간다 — 크론이 남아 있어도 게이트가 건너뛴다.
+    · **비용** — 평탄인 시간만큼 호출이 최대 4배(하루 최대 96회). v3 실측 회당 입력 약 2.24만·출력 0.6~1.7천 토큰.
+    · **11-05 보고 → 계속·중단은 사용자 결정** — 판단 수(매시/15분 — features.tick), 진입 수와 15분 틱 진입 비중, 거래별 결과·승률·
+      실현 손익·포트, API 비용(토큰), 중복 방어로 막힌 횟수(dup_dirs·dup_bar). 1주 표본으로 주기 우열을 통계로 가를 수는 없다.
 
 ## 다음 할 일
 - [x] **AI 엘리엇 첫 실거래 틱 확인 (2026-10-28 완료)** — 05:08~11:08Z 7틱 전부 대기·오류 없음, 토큰 기록 정상
 - [x] **AI 엘리엇 v2 첫 틱 확인 (2026-10-28 12:10Z 완료)** — wait 15m, 입력 19,470·출력 979 토큰·12.5초(약 $0.049/회),
       15m 671봉, 수집 실패 없음. 같은 틱에 숏 허용 확인(마루보주 BTC 롱 수동 청산 후)
-- [ ] **AI 엘리엇 v3 첫 틱 확인 (머지 직후)** — 로그 줄 `시간대/형태`, features 의 structure·rsi14·divergence, tokens_in 약 2.2만
-- [ ] **AI 엘리엇 첫 진입 확인** — 진입 시 `[live 사이징] … live_cap ledger` · OCO(손절·익절) 등록 · 텔레그램 알림의 파동 해석 줄
+- [x] **AI 엘리엇 v3 첫 틱 확인 (2026-10-28 완료)** — ai_judgments 에 structure·setup_tf 기록, tokens_in 약 2.24만
+- [x] **AI 엘리엇 첫 진입 확인 (2026-10-28 완료)** — 13:00 봉 롱 익절 +0.91%(+$3.01) / 23:00 봉 롱 손절 −0.64%(−$1.59) /
+      10-29 03:09Z 롱 진입(79,865, 손절 79,590 · 익절 80,743) 보유 중. 세 건 모두 positions 에 qty·leverage 3·sl_order_id 기록
+- [ ] **15분 진입 판단 첫 틱 확인 (머지·크론 등록 직후)** — ai_quarter.yml 첫 :18/:33/:48 실행: 게이트 통과·`[ai-quarter]` 로그 ·
+      평탄이면 `[ai-elliott]` 판단 한 줄(features.tick quarter), 보유 중이면 '보유 중 — 15분 틱은 진입 판단만' 한 줄
+- [ ] **2026-11-05 15분 진입 판단 1주 시험 보고 → 계속·중단 여쭙기(예약 알림)** — 위 '11-05 보고' 항목의 표. 답이 없어도
+      11-05T06:30Z 에 코드가 스스로 매시 판단으로 돌아간다. 계속이면 until 연장, 중단이면 cron.unschedule('gh_ai_quarter')
 - [ ] **reconcile 수명주기 평균 결함 (사용자 결정 대기)** — ① 마루보주 BTC 10/11~10/28 기록 보정(+$1.19 → 실제 추정 약 −$0.7)
       ② 같은 종목·방향을 두 장부 행이 나눠 든 수명주기에서 청산가·손익을 행별로 가르기(행 자기 손절 algo 체결가 우선,
       수동 청산은 OKX fills-history). AI 롱 + 메인 BTC 롱 겹침에서 재발 가능
@@ -3120,6 +3146,9 @@
   v2(같은 날): 15m·1h·4h·1d 다중 시간대 입력(BTC_TFS/ETH_TFS), 작은 차수 셋업 매매, setup_tf 기록, 15m 짧은 창 FETCH_DAYS.
   v3(같은 날): rsi_series·ewo_series·divergence·tf_block(피벗에 RSI·EWO, 다이버전스 코드 계산), STRUCTURES·structure 기록.
   주문은 paper_executor 의 live_cap 경로(signal_barrier OCO, ledger 포트 cap_pot, ai_close, net_opposite_live). 스위치 universe.json `ai_traders`
+  15분 진입 판단 시험(2026-10-29~11-05): entry_check_active·SYSTEM_Q15·ref_bar·signal_bar·entered(같은 봉 같은 방향 안내)
+- .github/workflows/ai_quarter.yml: AI 엘리엇 15분 진입 판단(:18/:33/:48, pg_cron gh_ai_quarter) — 메인 스케줄러와 다른 concurrency
+  그룹 + 게이트(시각 창·시험 기간·메인 실행 중·조회 실패). `python paper_executor.py aitick` = run(ai_only=True)
 - supabase_schema_patch_2026_10_28.sql: trades.entry_ts(같은 날 반복 매매 구분) — 2026-10-28 적용 완료
 - ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).
   특성 v2(book_*/d1_*/stop_atr), prompt_version 집계 키, 토큰 기록. 주문·거래소·스케줄러 import 없음(test 고정)

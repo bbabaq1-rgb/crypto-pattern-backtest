@@ -1015,7 +1015,7 @@
         "model": "ai_elliott.MODEL (사용자 지정)",
         "effort": "high",
         "prompt_version": "elliott_v3_2026_10_28",
-        "cadence": "매시 fast 틱(:03, scheduler --fast)에서 1회 — daily(--slow) 틱에서는 부르지 않는다",
+        "cadence": "매시 fast 틱(:03, scheduler --fast)에서 1회 — daily(--slow) 틱에서는 부르지 않는다. 2026-10-29~11-05 시험: 평탄일 때 :18/:33/:48 에도 진입 판단(entry_check_test_2026_10_29)",
         "symbol": "BTC",
         "inputs": "BTC 닫힌 봉 15m96·1h120·4h90·1d100 + 시간대별 스윙 피벗(피벗마다 RSI14·EWO 5/35) + 시간대별 최근 RSI·EWO·다이버전스 요약(코드 계산), ETH 15m·1h·4h 피벗(RSI·EWO 포함), 동결 카운트 요약(elliott_count.json), 포지션·포트·최근 거래·직전 판단 3개. 15m 은 매시 7일 창만 수집(ai_elliott.FETCH_DAYS)",
         "method": "v2(2026-10-28 사용자 지시 '일봉상의 관점뿐 아니라 시간마다 15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매') — 4h·1d 로 큰 차수 위치·방향 편향, 1h 로 현재 스윙, 15m 로 내부 파동을 세어 작은 차수 셋업(조정 완료·1-2 뒤 3파 진입·5파 완성 반전·삼각형 돌파)을 매매. 손절은 그 작은 차수 카운트의 무효화 지점(보통 0.3~2%), 익절은 같은 카운트의 피보나치 목표, 비용 0.2% 차감 후 손익비 1.5 이상. 응답에 setup_tf(판단을 이끈 시간대) 필수. v3(같은 날 사용자 질문 'RSI 나 이중 지그재그 등 유사 패턴을 전부 보는 거겠지'): 엘리엇 형태 전체 목록(연장·5파 미달 임펄스, 리딩·엔딩 다이애고널, 단일·이중·삼중 지그재그, 정규·확장·러닝 플랫, 수렴·배리어·확산 삼각형, 이중·삼중 결합)과 판별 지침(교대·채널·동등·거래량·모멘텀 — 3파 최강 RSI/EWO, 5파·C파 다이버전스, 4파 EWO 0 근처 복귀) 추가, 지표·다이버전스 단독 매매 금지, 응답에 structure(근거 형태) 필수",
@@ -1058,7 +1058,22 @@
         "계좌 총 명목가 상한(자산 x2.5)에 AI 노출($300)이 들어가 메인 진입 여유를 줄일 수 있다",
         "같은 날 반복 매매 구분은 trades.entry_ts 컬럼(2026-10-28 추가)에 의존 — 컬럼이 없으면 날짜 키로 폴백해 앞 거래 행을 덮을 수 있다"
       ],
-      "on_off": "universe.json ai_traders 목록에서 빼면 신규 판단·진입이 멈춘다. 열린 포지션은 exit_spec·live_cap 로 계속 관리"
+      "on_off": "universe.json ai_traders 목록에서 빼면 신규 판단·진입이 멈춘다. 열린 포지션은 exit_spec·live_cap 로 계속 관리. 15분 진입 판단만 끄려면 universe.json ai_traders[].entry_check 를 지우거나 until 을 과거로 — Supabase 크론(gh_ai_quarter)은 남아 있어도 게이트가 건너뛴다(완전히 지우려면 cron.unschedule('gh_ai_quarter')).",
+      "entry_check_test_2026_10_29": {
+        "decided": "사용자 지시 2026-10-29 — \"진입판단을 15분마다 변경하는걸로 1주일만 테스트해보자 1주일 후에 계속할지 중단할지 나한테 다시 물어봐줘\"",
+        "trigger": "같은 날 사용자 질문 '8만 중반에서 급락이 나왔는데 왜 숏을 못 걸었나' — 매시 판단이라 판단 사이에 생긴 급락을 놓친 것이 원인 중 하나였다",
+        "period": "2026-10-29 ~ 2026-11-05T06:30Z (universe.json ai_traders[].entry_check.until). 지나면 코드(ai_elliott.entry_check_active)가 스스로 매시 판단만 남긴다",
+        "cadence": "평탄일 때 15분마다 진입 판단 — 매시 :03(fast_scheduler) + :18/:33/:48(ai_quarter.yml, Supabase pg_cron gh_ai_quarter). 보유 판단(hold/close)은 매시 :03 그대로",
+        "quarter_run": "paper_executor.run(ai_only=True) — 메인 전략의 신호·청산 평가·정합성 보정·손절 점검·레짐 계산은 하지 않는다. AI 보유 중이면 자기 OCO 집행 여부만 확인(settle_by_algo). 진입은 같은 진입 루프·가드(킬스위치·정지·캡 1포지션·중복·반대 방향·ledger 포트·OCO)",
+        "prompt": "시험 중 모든 틱(매시 포함) 지시문 SYSTEM_Q15 · 버전 elliott_v4q15_2026_10_29 — v3 에서 호출 주기 문장만 바뀌고, '자주 불린다고 진입 기준이 낮아지지 않는다' 한 문장을 더했다. 끝나면 v3 그대로",
+        "reference_bar": "기준 가격 = 가장 최근에 닫힌 봉(15분 틱에선 15m 종가). 신호는 그 봉이 속한 1h 봉(대개 형성 중)을 진입봉으로 가리킨다 — 포지션 tf 는 1h 그대로(시간청산 168봉·보유 판단 기준 불변). 매시 :03 틱은 종전과 같은 값",
+        "throttle": "같은 1h 봉 안에서 같은 방향 재진입은 체결 엔진 중복 방어(봉 시각 키)가 막는다 — 그 방향을 미리 막고 이유를 모델에 알린다. 반대 방향은 가능",
+        "concurrency": "ai_quarter.yml 은 메인 스케줄러와 다른 concurrency 그룹(같은 그룹이면 큐 진입 순간 대기 중인 메인 실행이 취소될 수 있다). 게이트: UTC 분 14~52 밖 · 시험 기간 밖 · daily/fast 실행 중·대기 · 조회 실패면 건너뜀. timeout 9분(:48 실행도 :57 전 종료). 실측 근거: fast 100회 최대 종료 :12.7, daily 최대 7.6분",
+        "cost_estimate": "v3 실측 회당 입력 약 2.24만 · 출력 0.6~1.7천 토큰. 평탄 시간만큼 호출이 최대 4배(하루 최대 96회)",
+        "report_after_week": "AI 엘리엇 판단 수(매시/15분 틱 구분 — features.tick), 진입 수와 그중 15분 틱 진입 비중, 거래별 결과·승률·실현 손익(pnl_live_usd)·포트, 같은 기간 API 비용(토큰), 중복 방어로 막힌 횟수(features.dup_dirs·code_action dup_bar)",
+        "deploy_on_pass": false,
+        "note": "성과 판정 시험이 아니라 운용 설정 시험이다 — 1주 표본으로 진입 주기의 우열을 통계적으로 가를 수 없다. 계속·중단은 사용자 결정"
+      }
     }
   ],
   "rejected_4h": [

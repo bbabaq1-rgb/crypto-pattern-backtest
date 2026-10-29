@@ -19,6 +19,9 @@ test_ai_elliott.py — AI 엘리엇 BTC 자율매매(2026-10-28 사용자 결정
  11. 체결 엔진 배선(소스 순서)
  12. DB — 같은 날 반복 매매가 서로를 지우지 않는다(entry_ts 키), 복원이 새 포지션을 '청산됨'으로 오인하지 않는다
  13. exchange — 익절가가 이미 지나간 진입은 주문 전에 거부
+ 14. 15분 진입 판단 시험(2026-10-29 사용자 지시 "진입판단을 15분마다 … 1주일만 테스트") — 기간 판정, 지시문 변형은
+     호출 주기 문장뿐, 기준 봉(15m)·신호 1h 봉(형성 중)·같은 봉 같은 방향 안내, 꺼져 있으면 종전과 같음,
+     체결 엔진 ai_only 경로(메인 전략 무접촉·보유 중 판단 없음·메인 신호 무시) 오프라인 e2e
 
 실행: python test_ai_elliott.py
 """
@@ -666,6 +669,296 @@ check("롱 익절가가 이미 시세 아래 → 주문 전 거부", res is None
 fx = FX(79000.0)
 res, why = ex_mod.place_swap_entry({"exchange": fx}, "BTC", "short", 81000.0, size_usd=100.0, target_px=79500.0, leverage=3)
 check("숏 익절가가 이미 시세 위 → 주문 전 거부", res is None and why.startswith("target_px_wrong_side") and not fx.orders)
+
+# ── 14. 15분 진입 판단 시험 ──────────────────────────────────────────────────
+# 2026-10-29 사용자 지시 "진입판단을 15분마다 변경하는걸로 1주일만 테스트해보자 1주일 후에 계속할지 중단할지 나한테
+# 다시 물어봐줘". 평탄일 때 :18/:33/:48 에도 진입 판단, 보유 판단은 매시 그대로, until 이 지나면 스스로 꺼진다.
+import hashlib
+check("지시문 v3(SYSTEM) 불변 — 고치면 PROMPT_VERSION 을 올리고 이 값을 갱신",
+      hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16] == "09d056ab239e6219",
+      hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16])
+_s = ae.SYSTEM_Q15
+for _o, _n in reversed(ae._Q15_EDITS):
+    _s = _s.replace(_n, _o)
+check("SYSTEM_Q15 는 호출 주기 문장만 다르다(편집을 되돌리면 SYSTEM 과 같다)", _s == ae.SYSTEM and ae.SYSTEM_Q15 != ae.SYSTEM)
+check("SYSTEM_Q15: 평탄이면 15분마다·보유면 매시", "every 15 minutes, just after a 15m candle closes" in ae.SYSTEM_Q15
+      and "while a position is open you are called once per hour" in ae.SYSTEM_Q15
+      and "Open position: each hour re-read 15m and 1h." in ae.SYSTEM_Q15)
+check("SYSTEM_Q15: 자주 불러도 진입 기준은 그대로", "it does not lower these entry criteria" in ae.SYSTEM_Q15)
+check("SYSTEM_Q15: ref_tf 설명(v3 에는 없다)", "ref_tf" in ae.SYSTEM_Q15 and "ref_tf" not in ae.SYSTEM)
+check("버전: 시험 중 v4q15 · 아니면 v3", ae.PROMPT_VERSION == "elliott_v3_2026_10_28"
+      and ae.PROMPT_VERSION_Q15 == "elliott_v4q15_2026_10_29")
+try:
+    ae._swap_once("abc", "x", "y")
+    _sw = False
+except ValueError:
+    _sw = True
+check("편집 원문이 지시문에 없으면 import 단계에서 실패한다", _sw)
+
+_T = ae._iso_ms("2026-11-05T06:30:00Z")
+
+
+def EC(**k):
+    return {"entry_check": dict({"every_min": 15, "until": "2026-11-05T06:30:00Z"}, **k)}
+
+
+check("entry_check: 기간 안 → 켜짐", ae.entry_check_active(EC(), _T - 1))
+check("entry_check: until 정각부터 꺼짐", not ae.entry_check_active(EC(), _T) and not ae.entry_check_active(EC(), _T + 60_000))
+check("entry_check: 항목 없음·until 없음·읽기 실패 → 꺼짐", not ae.entry_check_active({}, _T - 1)
+      and not ae.entry_check_active(EC(until=None), _T - 1) and not ae.entry_check_active(EC(until="내일"), _T - 1))
+check("entry_check: every_min 이 15 가 아니면 꺼짐", not ae.entry_check_active(EC(every_min=60), _T - 1)
+      and not ae.entry_check_active(EC(every_min="x"), _T - 1))
+check("entry_check: 시간대 없는 until 은 UTC", ae._iso_ms("2026-11-05T06:30:00") == _T)
+_uec = next(t for t in uni["ai_traders"] if t["pattern"] == P).get("entry_check") or {}
+check("universe: 시험 설정(15분 · 2026-10-29 시작 · 11-05 종료 · 사용자 지시 기록)", _uec.get("every_min") == 15
+      and _uec.get("started") == "2026-10-29" and str(_uec.get("until", "")).startswith("2026-11-05")
+      and ae._iso_ms(_uec.get("until")) and "1주일" in _uec.get("decided", ""), _uec)
+check("registry: 시험 기록(deploy_on_pass false)", rp.get("entry_check_test_2026_10_29", {}).get("deploy_on_pass") is False)
+
+# 정렬된 합성 봉 — TA = 2026-10-29 00:00Z. 00:20 = 15분 틱(15m 00:00 봉이 막 닫힘, 1h 00:00 봉 형성 중), 00:03 = 매시 틱.
+TA = ae._iso_ms("2026-10-29T00:00:00Z")
+Q1 = mkrows(200, t0=TA - 199 * H)
+Q15 = mkrows(102, start=90000.0, t0=TA - 100 * (H // 4), tf_ms=H // 4)    # 가격대가 1h 와 다르다 — 기준 가격 판별용
+Q4 = mkrows(120, t0=TA - 119 * 4 * H, tf_ms=4 * H)
+QD = mkrows(150, t0=TA - 149 * 24 * H, tf_ms=24 * H)
+NOWQ, NOWH = TA + 20 * 60_000, TA + 3 * 60_000
+
+
+def roq_f(drop_forming=False):
+    def roq(sym, tf):
+        if tf == "15m":
+            return Q15
+        if tf == "1h":
+            return Q1[:-1] if drop_forming else Q1
+        if tf == "4h":
+            return Q4
+        return QD if sym == "BTC" else []
+    return roq
+
+
+_ref, _rtf = ae.ref_bar({"1h": ae.closed(Q1, "1h", NOWQ), "15m": ae.closed(Q15, "15m", NOWQ)})
+check("기준 봉: 15분 틱이면 막 닫힌 15m 봉", _rtf == "15m" and _ref["ts"] == TA, (_rtf, _ref and _ref["ts"]))
+_refh, _rtfh = ae.ref_bar({"1h": ae.closed(Q1, "1h", NOWH), "15m": ae.closed(Q15, "15m", NOWH)})
+check("기준 봉: 매시 :03 틱이면 1h 봉 그대로(15m 와 같은 순간에 닫힘)", _rtfh == "1h" and _refh is ae.closed(Q1, "1h", NOWH)[-1])
+check("신호 1h 봉: 15m 기준이면 그 봉이 속한 1h 봉(형성 중)", ae.signal_bar(Q1, _ref, "15m") is Q1[-1])
+check("신호 1h 봉: 1h 기준이면 그 봉", ae.signal_bar(Q1, _refh, "1h") is _refh)
+check("신호 1h 봉: 데이터에 없으면 None(날짜 폴백 금지)", ae.signal_bar(Q1[:-1], _ref, "15m") is None)
+
+os.environ["ANTHROPIC_API_KEY"] = "test"
+calls = []
+REFC = _ref["c"]
+
+
+def answer_q(d):
+    def f(s, u):
+        calls.append((s, u))
+        return fake_resp(json.dumps(dict(base, **d)))
+    return f
+
+
+CFG_Q = dict({"directions": ["long", "short"]}, **EC())
+kwq = dict(trades=[], rows_of=roq_f(), cap=CAP, pot=100.0, margin_next=100.0, spec=SPEC, now_ms=NOWQ, cfg=CFG_Q,
+           count=ae.load_count(), history=[])
+OPEN_L = dict(action="open_long", setup_tf="15m", structure="zigzag", stop=round(REFC * 0.99), target=round(REFC * 1.03),
+              wave_view="15m: c 끝", invalidation="저점 이탈")
+ae._create = answer_q(OPEN_L)
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="quarter", **kwq)
+_f = json.loads(rec["features"])
+check("15분 틱 진입: 신호가 형성 중인 1h 봉을 가리킨다", sg and sg["ts"] == Q1[-1]["ts"] and sg["date"] == Q1[-1]["date"]
+      and sg["direction"] == "long" and sg["tf"] == "1h", sg and {k: sg[k] for k in ("ts", "date", "tf")})
+check("15분 틱 진입: 손절·익절 = 기준(15m) 가격 기준 — 1h 종가 기준이면 롱 손절이 시세 위라 거부됐을 값",
+      sg and sg["stop"] == OPEN_L["stop"] and OPEN_L["stop"] > ae.closed(Q1, "1h", NOWQ)[-1]["c"])
+check("15분 틱: 지시문 SYSTEM_Q15 · 버전 v4q15", calls[-1][0] == ae.SYSTEM_Q15 and rec["prompt_version"] == ae.PROMPT_VERSION_Q15)
+check("15분 틱: 입력의 기준 가격·시각이 15m 봉(ref_tf)", '"ref_tf":"15m"' in calls[-1][1]
+      and f'"last_close":{ae._px(REFC)}' in calls[-1][1])
+check("15분 틱: 기록 — tick·ref_tf·신호 봉·진입봉 시각·마크 시각", _f.get("tick") == "quarter" and _f.get("ref_tf") == "15m"
+      and _f.get("q15") is True and _f.get("signal_bar_ts") == Q1[-1]["ts"] and rec["entry_ts"] == Q1[-1]["ts"]
+      and rec["mark_ts"] == TA and rec["mark_px"] == REFC, (_f.get("tick"), _f.get("ref_tf"), rec["entry_ts"], rec["mark_ts"]))
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="quarter",
+                      entered={("long", Q1[-1]["ts"])}, **kwq)
+check("같은 1h 봉에 AI 롱이 이미 있으면 롱을 막고 이유를 알린다(숏은 가능)", sg is None
+      and rec["code_action"] == "ignored:not_allowed:open_long"
+      and "already opened in the current 1h bar" in calls[-1][1]
+      and '"allowed_actions":["open_short","wait"]' in calls[-1][1])
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="quarter",
+                      entered={("long", Q1[-2]["ts"]), ("short", Q1[-1]["ts"])}, **kwq)
+check("다른 봉의 진입·다른 방향은 막지 않는다", sg is not None and sg["direction"] == "long"
+      and json.loads(rec["features"]).get("dup_dirs") == ["short"])
+_n = len(calls)
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="quarter",
+                      **dict(kwq, rows_of=roq_f(drop_forming=True)))
+check("신호를 가리킬 1h 봉이 없으면 호출하지 않는다(no_entry_bar)", rec["error"] == "no_entry_bar" and sg is None
+      and len(calls) == _n)
+C1H = ae.closed(Q1, "1h", NOWH)[-1]["c"]                 # 매시 틱의 기준 가격 = 마지막 닫힌 1h 종가
+ae._create = answer_q(dict(OPEN_L, stop=round(C1H * 0.99), target=round(C1H * 1.03)))
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="hourly", **dict(kwq, now_ms=NOWH))
+check("시험 중 매시 :03 틱: 신호 = 마지막 닫힌 1h 봉(종전과 같다) · 지시문은 Q15", sg is not None
+      and sg["ts"] == ae.closed(Q1, "1h", NOWH)[-1]["ts"] and calls[-1][0] == ae.SYSTEM_Q15
+      and '"ref_tf":"1h"' in calls[-1][1] and json.loads(rec["features"]).get("tick") == "hourly")
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="hourly",
+                      **dict(kwq, cfg={"directions": ["long", "short"]}))
+check("시험이 꺼져 있으면 종전과 같다 — v3 지시문·버전, ref_tf 없음, 15분 시각이어도 신호 = 마지막 닫힌 1h 봉",
+      calls[-1][0] == ae.SYSTEM and rec["prompt_version"] == ae.PROMPT_VERSION and '"ref_tf"' not in calls[-1][1]
+      and rec["mark_ts"] == ae.closed(Q1, "1h", NOWQ)[-1]["ts"]
+      and sg is not None and sg["ts"] == ae.closed(Q1, "1h", NOWQ)[-1]["ts"])
+_posq = dict(symbol="BTC", pattern=P, direction="long", entry_price=Q1[-30]["c"], stop=Q1[-30]["c"] * 0.97,
+             target=Q1[-30]["c"] * 1.05, entry_ts=Q1[-30]["ts"], entry_date=Q1[-30]["date"], live_mode=True, size_usd=100.0)
+ae._create = answer_q(dict(action="hold"))
+rec, sg, cp = ae.tick(position=_posq, blocked_dirs=set(), can_enter=True, tick_kind="hourly", **dict(kwq, now_ms=NOWH))
+check("시험 중 보유 판단(매시): hold 그대로·보유 봉 수는 1h 기준", sg is None and cp is None and rec["decision"] == "hold"
+      and rec["bars_held"] == 28)
+
+# 체결 엔진 배선(소스) — ai_only
+_r = es.split("def run(", 1)[1]
+check("run(..., ai_only=False)", "def run(stamp=None, slow=None, ai_only=False):" in es)
+check("ai_only: 시험 기간 밖·키 없음이면 아무것도 안 하고 끝", "if not (ai_elliott.enabled() and ai_elliott.entry_check_active()):" in _r
+      and 'skipped="inactive"' in _r and 'skipped="no_key"' in _r)
+check("ai_only: 레짐 계산 안 함", "regmap = {} if ai_only else rs.build_regime_map()" in _r)
+_i_ai = _r.find("if ai_only:\n            # 15분 틱은 메인 전략 장부·주문을 건드리지 않는다")
+check("ai_only: 정합성 보정·청산 감지·손절 점검 생략(그 블록 앞에서 갈린다)",
+      0 < _i_ai < _r.find("reconcile_live_flag(positions, live_conn)")
+      < _r.find("reconcile_closed_positions(positions, trades, live_conn)") < _r.find("ensure_stop_orders(live_conn, stop_map=stop_map)"))
+check("ai_only: 킬스위치·정지 판정은 그대로(갈림 블록 밖)", "\n        bal = ex_mod.get_balance(live_conn)\n" in _r
+      and "\n        halt_on, halt_why = trading_halt_state()\n" in _r)
+check("ai_only: 청산 루프는 AI 행만 자기 OCO 확인(settle_by_algo)", "if ai_only:\n            # 15분 틱: AI 엘리엇 행만" in _r
+      and "and settle_by_algo(pos, live_conn, trades, datetime.now(timezone.utc).strftime(\"%Y-%m-%d\"))):" in _r)
+check("ai_only: 방식R 그림자 생략", "r_added = 0 if ai_only else shadow_r_records(trades, rows_of, regmap)" in _r)
+check("ai_only: 메인 신호 무시", 'if ai_only:\n        sig = {"signals": []}' in _r)
+check("ai_only: 보유 중이면 판단을 부르지 않는다(보유 판단은 매시)",
+      0 < _r.find("elif ai_only and el_pos is not None:") < _r.find("elif el_pos is None and not el_can_enter:"))
+check("AI 판단에 이미 낸 진입(entered)·틱 종류 전달", 'entered=el_entered, tick_kind=("quarter" if ai_only else "hourly"))' in _r)
+check("AI 신호는 봉 시각이 정확히 맞아야 진입(날짜 폴백 금지)",
+      'if ei is None or (s.get("ai_elliott") and rows[ei].get("ts") != s.get("ts")):' in _r)
+check("스킵 사유를 AI 판단 행에(no_rows·no_bar·dup_bar)",
+      all(f'_ai_action(s.get("_ai_rec"), "{k}")' in _r for k in ("no_rows", "no_bar", "dup_bar")))
+check("python paper_executor.py aitick → run(slow=False, ai_only=True)", 'elif arg == "aitick":' in es
+      and "run(slow=False, ai_only=True)" in es)
+
+
+# 오프라인 e2e — 거래소·DB 없음(페이퍼). 15m 를 1h·4h 로 합쳐 형성 중인 봉까지 실제처럼 만든다.
+def _agg(rows15, span):
+    out, order = {}, []
+    for r in rows15:
+        k = r["ts"] // span * span
+        if k not in out:
+            out[k] = dict(ts=k, o=r["o"], h=r["h"], l=r["l"], c=r["c"], v=r["v"])
+            order.append(k)
+        else:
+            b = out[k]
+            b["h"], b["l"], b["c"], b["v"] = max(b["h"], r["h"]), min(b["l"], r["l"]), r["c"], b["v"] + r["v"]
+    return [out[k] for k in order]
+
+
+def _q_e2e():
+    import csv as _csv, shutil, tempfile, time as _rt
+    import detlib, fetch_data
+    repo, tmp = os.getcwd(), tempfile.mkdtemp()
+    qnow = TA + 20 * 60_000
+    env_keep = {k: os.environ.pop(k) for k in ("OKX_KEY", "OKX_SECRET", "OKX_PASSPHRASE", "SUPABASE_URL",
+                                               "SUPABASE_ANON_KEY", "SUPABASE_SERVICE_KEY") if k in os.environ}
+    keep = dict(time=ae.time, create=ae._create, rd=ae.recent_decisions, af=detlib._auto_fetch,
+                uc=fetch_data.update_csv, rg=pe.rs.build_regime_map)
+    got = {"calls": [], "af": [], "out": []}
+
+    def wcsv(path, rows):
+        with open(path, "w", newline="") as f:
+            w = _csv.writer(f)
+            w.writerow(["timestamp", "open", "high", "low", "close", "volume"])
+            for x in rows:
+                w.writerow([x["ts"], x["o"], x["h"], x["l"], x["c"], x["v"]])
+
+    def uni_with(until):
+        u = json.load(io.open(os.path.join(repo, "universe.json"), encoding="utf-8"))
+        for t in u["ai_traders"]:
+            if t["pattern"] == P:
+                t["entry_check"] = {"every_min": 15, "until": until}
+        json.dump(u, open("universe.json", "w", encoding="utf-8"), ensure_ascii=False)
+
+    def auto_fetch(sym, tf):
+        got["af"].append((sym, tf))
+        raise FileNotFoundError(f"{sym} {tf}")
+
+    def regime_forbidden(*a, **k):
+        raise AssertionError("15분 틱에서 레짐 계산을 부르면 안 된다")
+
+    try:
+        for fn in ("registry.json", "elliott_count.json"):
+            shutil.copy(fn, os.path.join(tmp, fn))
+        os.chdir(tmp)
+        os.makedirs("data", exist_ok=True)
+        uni_with("2026-10-30T00:00:00Z")
+        for sym, start in (("BTC", 80000.0), ("ETH", 2700.0)):
+            r15 = mkrows(10 * 96 + 2, start=start, t0=TA - (10 * 96) * (H // 4), tf_ms=H // 4)   # 마지막 = 00:15(형성 중)
+            wcsv(f"data/{sym.lower()}_15m.csv", r15)
+            wcsv(f"data/{sym.lower()}_1h.csv", _agg(r15, H))
+            wcsv(f"data/{sym.lower()}_4h.csv", _agg(r15, 4 * H))
+        wcsv("data/btc_1d.csv", mkrows(150, t0=TA - 149 * 24 * H, tf_ms=24 * H))
+        main_pos = dict(symbol="SOL", direction="long", pattern="marubozu", tf="1d", entry_date="2026-10-20",
+                        entry_ts=None, entry_price=150.0, stop=138.0, size_usd=40.0, d_closed=False, a_closed=False)
+        json.dump([main_pos], open("paper_positions.json", "w"))
+        json.dump([], open("paper_trades.json", "w"))
+        json.dump({"signals": [dict(symbol="SOL", pattern="marubozu", direction="long", tf="1d", date="2026-10-28",
+                                    ts=None, regime="bull_btc")]}, open("signals_today.json", "w"))
+        ae.time = types.SimpleNamespace(time=lambda: qnow / 1000, strftime=_rt.strftime, gmtime=_rt.gmtime)
+        ae.recent_decisions = lambda n=3: []
+        detlib._auto_fetch = auto_fetch
+        fetch_data.update_csv = lambda *a, **k: (0, 0)
+        pe.rs.build_regime_map = regime_forbidden
+        r15b = detlib.load_ohlcv("BTC", "15m")
+        ref_c = [r for r in r15b if r["ts"] == TA][0]["c"]
+        h1 = detlib.load_ohlcv("BTC", "1h")
+
+        def create(s, u):
+            got["calls"].append((s, u))
+            return fake_resp(json.dumps(dict(base, action="open_long", setup_tf="15m", structure="zigzag",
+                                             stop=round(ref_c * 0.99), target=round(ref_c * 1.03))))
+        ae._create = create
+        got["out"].append(pe.run(ai_only=True))                       # ① 평탄 → 판단 → 진입(페이퍼)
+        got["pos1"] = json.load(open("paper_positions.json"))
+        got["out"].append(pe.run(ai_only=True))                       # ② 보유 → 판단 안 부름
+        got["n_after_hold"] = len(got["calls"])
+        json.dump([main_pos], open("paper_positions.json", "w"))      # ③ AI 거래 청산 뒤, 같은 1h 봉
+        json.dump([dict(method="D", symbol="BTC", direction="long", pattern=P, entry_date=h1[-1]["date"],
+                        entry_ts=TA, entry_price=ref_c, exit_date="2026-10-29", exit_price=ref_c * 0.99,
+                        ret=-0.012, pnl_live_usd=None, reason="ai_stop", hold_bars=0)], open("paper_trades.json", "w"))
+        got["out"].append(pe.run(ai_only=True))
+        got["pos3"] = json.load(open("paper_positions.json"))
+        uni_with("2026-10-29T00:00:00Z")                              # ④ 시험 기간 종료
+        got["n_before_off"] = len(got["calls"])
+        got["out"].append(pe.run(ai_only=True))
+        got["h1_last"], got["ref_c"] = h1[-1], ref_c
+    finally:
+        ae.time, ae._create, ae.recent_decisions = keep["time"], keep["create"], keep["rd"]
+        detlib._auto_fetch, fetch_data.update_csv, pe.rs.build_regime_map = keep["af"], keep["uc"], keep["rg"]
+        os.environ.update(env_keep)
+        os.chdir(repo)
+        shutil.rmtree(tmp, ignore_errors=True)
+    return got
+
+
+g = _q_e2e()
+_ai_pos = [p for p in g["pos1"] if p.get("pattern") == P]
+_sol = [p for p in g["pos1"] if p.get("symbol") == "SOL"]
+check("e2e ① 평탄 → 15분 틱 진입 1건(페이퍼)", g["out"][0].get("new") == 1 and len(_ai_pos) == 1, g["out"][0])
+check("e2e ① 진입봉 = 형성 중인 1h 봉(정확한 ts) · tf 1h · 진입가 = 그 봉 종가(최신 가격)",
+      _ai_pos and _ai_pos[0]["entry_ts"] == TA and _ai_pos[0]["tf"] == "1h"
+      and abs(_ai_pos[0]["entry_price"] - round(g["h1_last"]["c"], 8)) < 1e-9 and g["h1_last"]["ts"] == TA,
+      _ai_pos and {k: _ai_pos[0][k] for k in ("entry_ts", "tf", "entry_price")})
+check("e2e ① 손절·익절 = AI 가격 그대로(OCO 대상)", _ai_pos and _ai_pos[0]["stop"] == round(g["ref_c"] * 0.99)
+      and _ai_pos[0]["target"] == round(g["ref_c"] * 1.03))
+check("e2e ① 메인 신호(signals_today)는 무시, 메인 포지션은 손대지 않는다", len(g["pos1"]) == 2 and len(_sol) == 1
+      and _sol[0]["d_closed"] is False and _sol[0]["a_closed"] is False)
+check("e2e ① 메인 종목 봉 데이터를 읽지 않는다(자동 수집 0) · 레짐 계산 안 함", g["af"] == [], g["af"])
+check("e2e ① 지시문 Q15 · 입력 기준 15m", g["calls"] and g["calls"][0][0] == ae.SYSTEM_Q15
+      and '"ref_tf":"15m"' in g["calls"][0][1])
+check("e2e ② 보유 중 → 판단을 부르지 않는다", g["out"][1].get("new") == 0 and g["n_after_hold"] == 1, g["n_after_hold"])
+check("e2e ③ 같은 1h 봉에 낸 롱이 있으면 롱을 막고 알린다 → 진입 없음",
+      g["out"][2].get("new") == 0 and len(g["calls"]) == 2
+      and "already opened in the current 1h bar" in g["calls"][1][1]
+      and not [p for p in g["pos3"] if p.get("pattern") == P])
+check("e2e ④ 시험 기간이 끝나면 아무것도 안 한다", g["out"][3].get("skipped") == "inactive"
+      and len(g["calls"]) == g["n_before_off"])
+os.environ.pop("ANTHROPIC_API_KEY", None)
 
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)

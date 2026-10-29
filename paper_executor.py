@@ -1247,14 +1247,29 @@ def reconcile_closed_positions(positions, trades, live_conn):
     return kept, closed_syms
 
 
-def run(stamp=None, slow=None):
+def run(stamp=None, slow=None, ai_only=False):
     """
     slow: 느린 틱(1d/4h 탐지 틱) 여부 — scheduler 가 --slow/--fast 플래그로 넘긴다. AI 청산 검토(그림자)는
           느린 틱에서만 돈다(1d/4h 포지션 상태가 그때만 바뀌고, 매시 돌리면 같은 상태를 24번 묻는다).
           None 이면 UTC 시각 폴백(AI_EXIT_REVIEW_HOURS). 주문·청산 동작에는 어떤 영향도 없다.
+    ai_only: AI 엘리엇 15분 진입 판단 틱(2026-10-29 사용자 지시 "진입판단을 15분마다 … 1주일만 테스트" —
+          ai_quarter.yml, 매시 :18/:33/:48). AI 엘리엇이 평탄일 때 진입 판단 1회만 한다. 메인 전략의 신호·청산 평가·
+          정합성 보정·손절 점검·레짐 계산은 하지 않는다(매시 :03 fast 와 4시간 daily 가 그대로 맡는다). AI 가 보유
+          중이면 자기 OCO 집행 여부만 확인하고(settle_by_algo) 판단은 부르지 않는다(보유 판단은 매시 :03). 진입은 아래
+          같은 진입 루프·가드를 그대로 탄다(킬스위치·정지·캡 1포지션·중복·반대 방향·ledger 포트·OCO). 시험 기간
+          (universe.json entry_check.until)이 지났거나 키가 없으면 아무것도 하지 않고 끝난다.
     """
     stamp = stamp or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
-    regmap = rs.build_regime_map()
+    if ai_only:
+        if not (ai_elliott.enabled() and ai_elliott.entry_check_active()):
+            print("[ai-quarter] 15분 진입 판단 꺼짐(설정 없음 또는 시험 기간 종료) — 아무것도 안 함")
+            return dict(new=0, open=None, trades=None, skipped="inactive")
+        if not ai_elliott.available():
+            print("[ai-quarter] ANTHROPIC_API_KEY 없음 — 아무것도 안 함")
+            return dict(new=0, open=None, trades=None, skipped="no_key")
+        slow = False
+    # 15분 틱은 레짐을 쓰지 않는다 — AI 엘리엇 진입·배리어 청산은 레짐 무관이고, 레짐 맵은 전 종목 일봉이 필요하다.
+    regmap = {} if ai_only else rs.build_regime_map()
     positions = _load(POS_FILE, [])
     trades = _load(TRD_FILE, [])
     # 러너 파일시스템은 매 실행 초기화 → Supabase에서 상태 복원
@@ -1279,31 +1294,35 @@ def run(stamp=None, slow=None):
     kill_switch = False       # True면 신규 실거래 진입 중지(청산 모니터링은 계속)
     if live_conn:
         print(f"[live] OKX 선물 실거래 모드 | USDT free={live_conn['usdt_free']:.2f}")
-        # 실거래 정합성 보정: OKX에 실재하는 포지션인데 DB엔 페이퍼(live_mode=False)로
-        # 남은 것들을 실거래로 승격 → 방식D 청산 모니터가 실제 OKX 주문을 내도록.
-        # (과거 진입경로/복원에서 live 표기가 유실돼 실거래인데 자동청산 사각지대이던 문제)
-        positions = reconcile_live_flag(positions, live_conn)
+        if ai_only:
+            # 15분 틱은 메인 전략 장부·주문을 건드리지 않는다 — 정합성 보정·청산 감지·손절 점검은 매시 실행이 맡는다.
+            print("  [ai-quarter] 메인 전략 정합성 보정·손절 점검 생략(매시 :03 실행이 맡는다)")
+        else:
+            # 실거래 정합성 보정: OKX에 실재하는 포지션인데 DB엔 페이퍼(live_mode=False)로
+            # 남은 것들을 실거래로 승격 → 방식D 청산 모니터가 실제 OKX 주문을 내도록.
+            # (과거 진입경로/복원에서 live 표기가 유실돼 실거래인데 자동청산 사각지대이던 문제)
+            positions = reconcile_live_flag(positions, live_conn)
 
-        # 안전망 0: 엔진 몰래 OKX에서 청산된 포지션(장중 algo 손절·앱 수동청산) 감지→기록
-        # (일봉 eval_D가 못 잡는 인트라바 손절 정합성 갭 — GLM 사례)
-        positions, okx_closed = reconcile_closed_positions(positions, trades, live_conn)
+            # 안전망 0: 엔진 몰래 OKX에서 청산된 포지션(장중 algo 손절·앱 수동청산) 감지→기록
+            # (일봉 eval_D가 못 잡는 인트라바 손절 정합성 갭 — GLM 사례)
+            positions, okx_closed = reconcile_closed_positions(positions, trades, live_conn)
 
-        # 안전망 1: 손절(algo) 주문 상시 점검 — 누락 포지션에 재등록
-        # 재등록 시 '포지션에 기록된 손절가'를 쓰도록 전달. 없으면 종전대로 ±8%.
-        # (ATR 배리어 패턴은 손절이 0.75~1.5%라 ±8% 재등록이 검증치와 5~10배 어긋난다)
-        # target 은 ATR 배리어 패턴에만, d_closed(유령) 행은 제외 — stop_map_of 참조.
-        stop_map = stop_map_of(positions)
-        fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn, stop_map=stop_map)
-        if fixed_sl:
-            import notify
-            notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
-                        "\n".join(f"  {s}: SL @ {px}" for s, px in fixed_sl))
-            ops_annotation("stop_reregistered", ", ".join(f"{s} SL@{px}" for s, px in fixed_sl))
-        # 안전망 1-b: 포지션 없는 고아 손절 주문 취소(트리거 시 신규 진입 방지)
-        if orphan_sl:
-            import notify
-            notify.send("🧹 <b>고아 손절 주문 취소</b>(대응 포지션 없음)\n" +
-                        "\n".join(f"  {inst}" for inst, _ in orphan_sl))
+            # 안전망 1: 손절(algo) 주문 상시 점검 — 누락 포지션에 재등록
+            # 재등록 시 '포지션에 기록된 손절가'를 쓰도록 전달. 없으면 종전대로 ±8%.
+            # (ATR 배리어 패턴은 손절이 0.75~1.5%라 ±8% 재등록이 검증치와 5~10배 어긋난다)
+            # target 은 ATR 배리어 패턴에만, d_closed(유령) 행은 제외 — stop_map_of 참조.
+            stop_map = stop_map_of(positions)
+            fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn, stop_map=stop_map)
+            if fixed_sl:
+                import notify
+                notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
+                            "\n".join(f"  {s}: SL @ {px}" for s, px in fixed_sl))
+                ops_annotation("stop_reregistered", ", ".join(f"{s} SL@{px}" for s, px in fixed_sl))
+            # 안전망 1-b: 포지션 없는 고아 손절 주문 취소(트리거 시 신규 진입 방지)
+            if orphan_sl:
+                import notify
+                notify.send("🧹 <b>고아 손절 주문 취소</b>(대응 포지션 없음)\n" +
+                            "\n".join(f"  {inst}" for inst, _ in orphan_sl))
 
         # 안전망 2: 계좌 킬스위치 — equity가 하한선(EQUITY_FLOOR) 미만이면 신규 중지
         bal = ex_mod.get_balance(live_conn)
@@ -1335,6 +1354,15 @@ def run(stamp=None, slow=None):
     still_open = []
     closed_now = []                   # 이번 실행에서 A·D 모두 청산 완료된 포지션
     for pos in positions:
+        if ai_only:
+            # 15분 틱: AI 엘리엇 행만 자기 OCO 가 집행됐는지 본다(집행됐으면 그 체결로 기록 → 평탄이 되어 아래에서 진입
+            # 판단). 나머지 행은 손대지 않고 봉 데이터도 읽지 않는다 — 청산 평가는 매시 :03 실행이 맡는다.
+            if (pos.get("pattern") == ai_elliott.PATTERN and not pos.get("d_closed")
+                    and settle_by_algo(pos, live_conn, trades, datetime.now(timezone.utc).strftime("%Y-%m-%d"))):
+                closed_now.append(pos)
+            else:
+                still_open.append(pos)
+            continue
         rows = rows_of(pos["symbol"], pos.get("tf", "1d"))
         if rows is None:          # 데이터 미수집 종목(OKX 미상장 등) -> 포지션 유지
             still_open.append(pos); continue
@@ -1435,7 +1463,7 @@ def run(stamp=None, slow=None):
             closed_now.append(pos)
 
     # 1-b) 방식R(롱 한정) 그림자 장부 — 기록 전용, 주문·포지션 무관 (상단 주석 참조)
-    r_added = shadow_r_records(trades, rows_of, regmap)
+    r_added = 0 if ai_only else shadow_r_records(trades, rows_of, regmap)
     if r_added:
         print(f"  [shadow-R] 방식R 행 {r_added}건 추가(기록 전용)")
 
@@ -1481,6 +1509,8 @@ def run(stamp=None, slow=None):
     live_filled_count = live_open_count + sum(1 for t in trades if t.get("live_mode"))
 
     sig = _load("signals_today.json", {"signals": []})
+    if ai_only:
+        sig = {"signals": []}       # 15분 틱은 메인 신호를 받지 않는다 — AI 엘리엇 신호만 아래에서 덧붙는다
     # 레짐 사이징 오버레이(보수적): 시장 avg_cap>0(알트 complacent 국면)이면 신규 롱
     # 사이즈 축소. 백테스트(backtest_regime_capture.py) — 집단 bleed 국면 롱 승률
     # 59% vs complacent 26%. 축소만(공포 국면 upsize 안 함), 타이밍 과적합 방어.
@@ -1536,6 +1566,7 @@ def run(stamp=None, slow=None):
     #            중복·반대 방향(net)·ledger 포트 증거금·signal_barrier 손절·익절 검증·거래소 OCO).
     #      보유: hold / close — close 는 ai_close 가 자기 몫만 시장가로 닫는다(OCO 집행 여부 먼저 확인).
     #      킬스위치·trading_halt 중에는 평탄 상태 판단을 부르지 않는다(진입이 불가능해 비용만 든다).
+    #      15분 틱(ai_only)은 평탄일 때만 부른다 — 보유 판단(hold/close)은 매시 :03 에서만(2026-10-29 시험 범위).
     el_pos = next((p for p in still_open if p.get("pattern") == ai_elliott.PATTERN
                    and not p.get("d_closed")), None)
     if not slow and ai_elliott.enabled():
@@ -1543,6 +1574,9 @@ def run(stamp=None, slow=None):
         el_can_enter = bool(el_cap) and not (live_conn and kill_switch)
         if not ai_elliott.available():
             print("  [ai-elliott] ANTHROPIC_API_KEY 없음 — 판단 생략")
+        elif ai_only and el_pos is not None:
+            print(f"  [ai-elliott] 보유 중({el_pos.get('direction')}) — 15분 틱은 진입 판단만 한다. "
+                  f"보유 판단은 매시 :03")
         elif el_pos is None and not el_can_enter:
             print("  [ai-elliott] 킬스위치/정지 중(또는 live_cap 없음) — 평탄 상태 판단 생략")
         else:
@@ -1557,11 +1591,15 @@ def run(stamp=None, slow=None):
                             fetch_data.update_csv(f"{_sym}/USDT", _tf, detlib.CSV(_sym, _tf), window_days=_days)
                         except Exception as e:
                             print(f"  [ai-elliott] {_sym} {_tf} 짧은 창 수집 실패({str(e)[:60]}) — 기본 창으로")
+            # 이미 낸 진입의 (방향, 진입봉 시각) — 같은 1h 봉에 같은 방향은 중복 방어가 막으므로 미리 알린다(15분 틱에서 생긴다)
+            el_entered = {(r.get("direction"), _norm_ts(r.get("entry_ts"))) for r in list(still_open) + list(trades)
+                          if r.get("pattern") == ai_elliott.PATTERN and _norm_ts(r.get("entry_ts"))}
             el_rec, el_sig, el_close = ai_elliott.tick(
                 position=el_pos, trades=trades, rows_of=rows_of, cap=el_cap,
                 pot=(cap_pot(el_cap, ai_elliott.PATTERN, trades) if el_cap else None),
                 margin_next=(cap_margin(el_cap, ai_elliott.PATTERN, trades) if el_cap else None),
-                blocked_dirs=el_block, can_enter=el_can_enter, spec=EXIT_SPECS.get(ai_elliott.PATTERN))
+                blocked_dirs=el_block, can_enter=el_can_enter, spec=EXIT_SPECS.get(ai_elliott.PATTERN),
+                entered=el_entered, tick_kind=("quarter" if ai_only else "hourly"))
             ai_records.append(el_rec)
             print(f"  {ai_elliott.summary_line(el_rec)}")
             if el_close is not None:
@@ -1575,15 +1613,20 @@ def run(stamp=None, slow=None):
                 el_rec["code_action"] = el_rec.get("decision") or "none"     # wait / hold — 코드가 한 일 없음
 
     for s in sig.get("signals", []):
+        # AI 엘리엇 신호면 스킵 사유를 그 판단 행에 남긴다(_ai_rec 없는 메인 신호는 아무 일도 없다)
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:
+            _ai_action(s.get("_ai_rec"), "no_rows")
             continue
         ei = _bar_idx(rows, s.get("ts"), s["date"])
-        if ei is None:
+        if ei is None or (s.get("ai_elliott") and rows[ei].get("ts") != s.get("ts")):
+            # AI 신호는 봉 시각이 정확히 맞아야 한다 — 날짜 폴백(그날 첫 봉)으로 엉뚱한 가격에 진입하지 않게
+            _ai_action(s.get("_ai_rec"), "no_bar")
             continue
         # 중복 진입 방어 — 봉 ts 기준(2026-09-05 사용자 결정). 같은 봉에 두 번 들어가지 않되,
         # 같은 날 다른 봉의 신호는 검증과 같이 별개 거래로 본다.
         if _is_dup_entry(s, dup_ts, dup_dt, dup_all):
+            _ai_action(s.get("_ai_rec"), "dup_bar")
             continue
 
         entry   = rows[ei]["c"]
@@ -1963,5 +2006,9 @@ if __name__ == "__main__":
         seed()
     elif arg == "migrate":
         migrate()
+    elif arg == "aitick":
+        # AI 엘리엇 15분 진입 판단 틱(ai_quarter.yml, 매시 :18/:33/:48) — run() 의 ai_only 설명 참조
+        print(f"[ai-quarter] AI 엘리엇 15분 진입 판단 (UTC {datetime.now(timezone.utc):%H:%M})")
+        run(slow=False, ai_only=True)
     else:
         run()

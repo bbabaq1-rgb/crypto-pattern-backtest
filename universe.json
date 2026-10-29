@@ -655,7 +655,14 @@
       ],
       "deployed_date": "2026-10-28",
       "decided": "사용자 결정 2026-10-28 — 전용 포트 $100 · 3배 · 롱·숏 · 매시간 판단",
-      "note": "켜고 끄는 스위치. 이 목록에서 빼면 AI 엘리엇의 신규 판단·진입이 멈춘다(열린 포지션은 registry exit_spec·live_cap 로 계속 관리). 사양은 registry ai_elliott_btc."
+      "note": "켜고 끄는 스위치. 이 목록에서 빼면 AI 엘리엇의 신규 판단·진입이 멈춘다(열린 포지션은 registry exit_spec·live_cap 로 계속 관리). 사양은 registry ai_elliott_btc.",
+      "entry_check": {
+        "every_min": 15,
+        "started": "2026-10-29",
+        "until": "2026-11-05T06:30:00Z",
+        "decided": "사용자 지시 2026-10-29 — \"진입판단을 15분마다 변경하는걸로 1주일만 테스트해보자 1주일 후에 계속할지 중단할지 나한테 다시 물어봐줘\"",
+        "note": "평탄일 때만 15분마다 진입 판단(매시 :03 fast + :18/:33/:48 ai_quarter.yml). 보유 판단(hold/close)은 매시 :03 그대로. until(UTC)이 지나면 코드(ai_elliott.entry_check_active)가 스스로 매시 판단만 남긴다 — 이 항목을 지우거나 every_min 을 15 가 아니게 해도 꺼진다. 연장·중단은 사용자 결정."
+      }
     }
   ]
 }

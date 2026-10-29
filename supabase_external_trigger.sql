@@ -173,6 +173,10 @@ revoke execute on function public.gh_dispatch_collect() from public, anon, authe
 -- 이게 어긋나면 배포된 패턴의 탐지 분포가 검증 당시와 달라진다.
 --   fast  : 매시 :03            (닫힌 1h 봉 확정 직후)
 --   daily : 00:00 oncefull + 04·08·12·16·20:00 oncequick  (= scheduler.SLOW_TICK_HOURS)
+--   ai_quarter : 매시 :18/:33/:48 — AI 엘리엇 BTC 15분 진입 판단(2026-10-29 사용자 지시 "진입판단을 15분마다 …
+--                1주일만 테스트"). 매시 :03 판단(fast)과 합쳐 15분 간격. ai_quarter.yml 은 메인 스케줄러와 다른
+--                concurrency 그룹이라 메인 실행을 취소시키지 않고, 게이트가 메인 실행 중·대기·시각 밖·시험 기간
+--                종료면 스스로 건너뛴다. 시험이 끝나면(entry_check.until) 이 크론이 남아 있어도 아무것도 안 한다.
 -- daily_scheduler.yml 의 workflow_dispatch 입력 mode 기본값이 oncefull 이므로 반드시 명시.
 --
 -- 같은 이름으로 다시 부르면 갱신된다(pg_cron 1.4+). 구버전 대비로 먼저 정리한다.
@@ -181,7 +185,7 @@ declare
   j text;
 begin
   foreach j in array array['gh_fast_scheduler', 'gh_daily_oncefull',
-                           'gh_daily_oncequick', 'gh_dispatch_collect'] loop
+                           'gh_daily_oncequick', 'gh_dispatch_collect', 'gh_ai_quarter'] loop
     begin
       perform cron.unschedule(j);
     exception when others then
@@ -202,6 +206,9 @@ select cron.schedule('gh_daily_oncequick', '0 4,8,12,16,20 * * *',
 
 select cron.schedule('gh_dispatch_collect', '*/10 * * * *',
   $job$select public.gh_dispatch_collect()$job$);
+
+select cron.schedule('gh_ai_quarter',      '18,33,48 * * * *',
+  $job$select public.gh_dispatch('ai_quarter.yml')$job$);
 
 
 -- ── [7단계] 등록 결과 확인 ───────────────────────────────────────────────────
@@ -230,4 +237,7 @@ select jobname, schedule, active
 --
 -- ④ 전체 해제
 --      select cron.unschedule(jobname) from cron.job where jobname like 'gh\_%';
+--
+-- ⑤ 15분 진입 판단만 해제(시험 중단 — 메인 실행은 그대로)
+--      select cron.unschedule('gh_ai_quarter');
 -- ============================================================================
