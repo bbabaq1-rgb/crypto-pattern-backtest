@@ -608,7 +608,7 @@ def close_swap_position(live_conn, symbol, direction, sl_algo_id=None, qty=None,
     비율에서 상쇄된다. **qty_frac<=0 이면 주문을 아예 내지 않는다**("share_unknown") — 몫을
     모른 채 전량을 닫는 것이 2026-09-16 ONDO 사고의 원인이었다.
 
-    반환: (fill_price | None, "ok")  성공
+    반환: (fill_price | None, "ok")  성공 — fill_price 는 주문을 다시 조회한 평균 체결가(_market_fill_px)
           (None, reason)             실패 — 호출부는 포지션 유지 후 재시도
     """
     try:
@@ -639,7 +639,7 @@ def close_swap_position(live_conn, symbol, direction, sl_algo_id=None, qty=None,
         order = ex.create_market_order(
             ccxt_sym, close_side, qty,
             params={"tdMode": OKX_MARGIN_MODE, "reduceOnly": True})
-        fill = float(order.get("average") or order.get("price") or 0) or None
+        fill = _market_fill_px(ex, order, ccxt_sym)
         # 잔여 손절 algo 취소(실패해도 무시 — 포지션 없으면 자동 무효)
         if sl_algo_id:
             try:
@@ -650,6 +650,23 @@ def close_swap_position(live_conn, symbol, direction, sl_algo_id=None, qty=None,
         return fill, "ok"
     except Exception as e:
         return None, str(e)[:80]
+
+
+def _market_fill_px(ex, order, ccxt_sym):
+    """
+    시장가 주문의 평균 체결가. **OKX 주문 응답에는 체결가가 없다**(주문 번호만 온다) — 종전 청산 경로는 응답의
+    average 만 봐서 늘 None 이었고, 호출부가 봉 가격으로 대신 적었다(2026-10-29 실측: AI 조기 청산 장부 81,240 =
+    직전 1시간봉 종가 vs 실제 체결 81,012.8 / 엔진 만기 청산 7건 중 5건이 0.14~0.59% 어긋남, 2건 일치). 진입 경로
+    (place_swap_entry)는 2026-09-03 에 같은 이유로 주문 재조회로 고쳤고, 청산 경로만 빠져 있었다.
+    응답에 average 가 있으면 그것, 없으면 fetch_order 의 average, 그래도 없으면 응답의 price(종전 폴백), 다 없으면 None.
+    """
+    px = _pos_float(order.get("average"))
+    if px is None and order.get("id"):
+        try:
+            px = _pos_float(ex.fetch_order(order["id"], ccxt_sym).get("average"))
+        except Exception:
+            px = None              # 조회 실패 — 호출부가 종전대로 봉 가격으로 적는다
+    return px if px is not None else _pos_float(order.get("price"))
 
 
 def algo_state(live_conn, algo_id, inst_id=None):
