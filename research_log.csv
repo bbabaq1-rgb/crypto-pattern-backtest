@@ -357,3 +357,4 @@
 2026-10-26T17:30:00+00:00,lottery_gate_R001,승률→복권형 게이트,"{""run"": 40361969714, ""core"": 17, ""L_pass"": 1, ""v2_pass"": 11, ""new_cells"": 0, ""live_change"": ""none""}",17,,,,INCONCLUSIVE,
 2026-10-27T17:30:00+00:00,gap_R063,포트폴리오 괴리 분해,"{""run"": 40543690847, ""G0_cagr"": -0.111, ""G4"": 0.224, ""G5"": 0.375, ""G6"": 0.127, ""G7"": 0.217, ""G1"": -0.361, ""G2"": -0.270, ""G3"": ""ruin"", ""taken_mean"": 0.0057, ""skipped_mean"": 0.0241, ""live_change"": ""none""}",7602,,,,b_4h_burst,
 2026-10-28T17:20:00+00:00,vol_burst_R072,vol_awakening_4h 선택 편향,"{""run"": 40729095231, ""rho"": 0.075, ""p_boot"": 0.953, ""rho_dm"": -0.128, ""ter"": [-0.0029, -0.0006, 0.0297], ""live_change"": ""none""}",5040,,,,NO_SELECTION_BIAS,
+2026-10-29T17:00:00+00:00,steward_char_R062,운용 규칙 S1·S2 작동 특성,"{""run"": 40914678603, ""p_s1_mu+1"": 0.79, ""p_s2_mu+1"": 0.29, ""p_s1_mu-2"": 0.99, ""med_n"": 12, ""live_change"": ""none""}",,,,,S1_OVERTRIGGER|S2_MISCALIBRATED,

@@ -6433,7 +6433,7 @@
     "result": "판정 NO_SELECTION_BIAS: rho +0.075(P(rho>=0) .953, train +0.019/holdout +0.103), 월 내 demean rho -0.128(P .02), 3분위 -0.29/-0.06/+2.97%, S1~S4 전부 실패. 동시성↑ 수익↑(방향 반대). 사전 0.25 오답. report_vol_burst.md"
   },
   "steward_char_prereg_2026_10_29": {
-    "status": "REGISTERED",
+    "status": "DONE_S1_OVERTRIGGER|S2_MISCALIBRATED",
     "DEPLOY_ON_PASS": false,
     "backlog": "R-062",
     "registered": "2026-10-29 (결과 열람 전, 로컬 테스트는 합성 거래만 — 실데이터 수치 없음)",
@@ -6452,6 +6452,15 @@
     "diagnostics": "파트 A 단위별 첫 정지 시점·정지 이후 잔여 평균(오정지 여부)·전체/홀드아웃 평균 / 파트 B 전 mu x lam 표 / mu=0 에서의 S1·S2 정지 확률",
     "prior": "RULES_OK 0.05. 항목별: Q2 실패 0.85(n>=10 부호 검사는 sd 8% 에서 mu=+1% 도 표본 10개에서 약 35% 음수, 반복 평가로 더 커짐), Q4 실패 0.60(주간 반복 평가가 알파를 부풀림), Q3 통과 0.70, Q1 통과 0.75",
     "known_limits": "몬테카를로는 수익률을 독립 동분포로 가정(실거래는 레짐·버스트로 상관) — 오정지는 하한. 파트 A 는 백테스트 거래이며 실거래 장부와 다름. 등급 U/V 는 현 시점 기준 소급 적용. 평가 주기를 주 1회로 단순화(실제는 매일).",
-    "followup": "결과가 S1_OVERTRIGGER 등이면 새 판 steward_rules_<날짜> 를 이후 데이터에만 적용하도록 제안(특정 전략 겨냥 금지). 규칙 변경은 이 시험에서 자동 반영하지 않는다."
+    "followup": "결과가 S1_OVERTRIGGER 등이면 새 판 steward_rules_<날짜> 를 이후 데이터에만 적용하도록 제안(특정 전략 겨냥 금지). 규칙 변경은 이 시험에서 자동 반영하지 않는다.",
+    "result": {
+      "run": 40914678603,
+      "verdict": "S1_OVERTRIGGER|S2_MISCALIBRATED",
+      "pool_sd": 17.0,
+      "part_a": "V 단위 2개 정지 0(Q1 통과). U: fvg S1 n=19 정지(평균 -7.8%) 뒤 잔여 n=758 +9.0% / equal_lows_4h S1 n=105 정지 뒤 잔여 n=1050 +1.0% — 둘 다 FALSE_STOP. engulfing·three_soldiers 정지 없음",
+      "part_b": "lam=3: mu=+1% 에서 P(S1 52주내)=0.79 P(S2)=0.29 / mu=0 에서 0.91·0.50 / mu=-2% 에서 0.99·0.85 정지시 거래수 중앙 12(Q3 통과). lam=1 mu=+1% P(S1)=0.77 P(S2)=0.24",
+      "prior_grade": "Q2 실패 0.85 적중 / Q4 실패 0.60 적중 / Q3 통과 0.70 적중 / Q1 통과 0.75 적중. 크기는 예상보다 훨씬 나쁨(S2 mu=+1% 29% vs 기대 5% 이하)",
+      "live_change": "none"
+    }
   }
 }
