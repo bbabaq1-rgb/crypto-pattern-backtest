@@ -118,16 +118,17 @@ jobs:
                                 f"sl={o.get('slTriggerPx')} tp={o.get('tpTriggerPx')} cTime={utc(o.get('cTime'))}")
                   except Exception as e:
                       print(f"  pending {ot} {sym} ERR {type(e).__name__}: {str(e)[:160]}")
-          # 10-21 SOL: tp1 OCO 집행 시각(19:08 시장가 앞) — 그날 SOL reduceOnly 주문 전부
-          try:
-              t0, t1 = ms("2026-10-21T00:00:00"), ms("2026-10-22T00:00:00")
-              d = ex.privateGetTradeOrdersHistoryArchive({"instType": "SWAP", "instId": "SOL-USDT-SWAP",
-                                                          "begin": str(t0), "end": str(t1), "limit": "100"}).get("data") or []
-              for o in d:
-                  print("  SOL 10-21", json.dumps({k: (utc(o.get(k)) if k in ("cTime", "fillTime") else o.get(k))
-                                                    for k in keep}, ensure_ascii=False))
-          except Exception as e:
-              print(f"  SOL 10-21 ERR {type(e).__name__}: {str(e)[:200]}")
+          # SOL 10-21 ~ 지금 주문 이력 전부(장부 3.33 vs 실포지션 2.3 차이 추적)
+          for path, t0, t1 in (("privateGetTradeOrdersHistoryArchive", "2026-10-21T00:00:00", "2026-10-23T00:00:00"),
+                               ("privateGetTradeOrdersHistory", "2026-10-23T00:00:00", "2026-10-29T23:59:00")):
+              try:
+                  d = getattr(ex, path)({"instType": "SWAP", "instId": "SOL-USDT-SWAP", "begin": str(ms(t0)),
+                                         "end": str(ms(t1)), "limit": "100"}).get("data") or []
+                  for o in sorted(d, key=lambda x: int(x.get("cTime") or 0)):
+                      print("  SOL", json.dumps({k: (utc(o.get(k)) if k in ("cTime", "fillTime") else o.get(k))
+                                                 for k in keep}, ensure_ascii=False))
+              except Exception as e:
+                  print(f"  SOL {path} ERR {type(e).__name__}: {str(e)[:200]}")
 
           # 수정에 쓸 호출: ccxt fetch_order 가 average·filled 를 채우는지
           for sym, oid in probe_ids:
