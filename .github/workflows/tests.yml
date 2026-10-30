@@ -57,6 +57,7 @@ jobs:
                    test_gap.py \
                    test_vol_burst.py \
                    test_steward_char.py \
+                   test_steward_v2.py \
                    test_dclose_vol.py \
                    test_dclose_port.py \
                    test_ma_breakout.py \

@@ -6470,5 +6470,33 @@
       "prior_grade": "Q2 실패 0.85 적중 / Q4 실패 0.60 적중 / Q3 통과 0.70 적중 / Q1 통과 0.75 적중. 크기는 예상보다 훨씬 나쁨(S2 mu=+1% 29% vs 기대 5% 이하)",
       "live_change": "none"
     }
+  },
+  "steward_v2_prereg_2026_10_30": {
+    "status": "PREREGISTERED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-080",
+    "registered": "2026-10-30 (결과 열람 전, 로컬 테스트는 합성 풀만 — 실데이터 수치 없음)",
+    "hypothesis": "R-062 가 steward S1(n>=10 부호검사)·S2(주간 반복 평가 α .05)의 과다 발동을 보였다(mu=+1% 에서 S1 79%·S2 29%). 반복 평가 보정 후보 문턱이 mu=+1% 오정지를 낮추면서 mu=-2% 탐지를 유지하는가.",
+    "cells": "합성 몬테카를로 — R-062 와 같은 풀(validate_portfolio 거래 전체를 평균 0 으로 이동)·같은 경로 생성. 후보 4개(현행 C0 + C1/C2/C3)를 같은 거래열에 동시 적용. mu in {-2,-1,0,+0.5,+1,+2}% x 주당 거래 lam in {1,3} x 52주 x 400 sim, 부트 B=300(주 클러스터)",
+    "frozen": {
+      "seed": 80,
+      "candidates": {
+        "C0_current": "S1 n>=10 부호 / S2 n>=20 α.05 span28",
+        "C1": "S1 n>=20 부트P<.20 / S2 n>=20 α.005 span28",
+        "C2": "S1 n>=30 P<.10 / S2 n>=30 α.002 span28",
+        "C3": "S1 n>=40 P<.20 / S2 n>=40 α.01 span56"
+      },
+      "adoption_order": [
+        "C1",
+        "C2",
+        "C3"
+      ],
+      "s1_bootstrap": "주 클러스터 부트 P(재표집 평균>=0)<α, 표본 평균<0 일 때만"
+    },
+    "criteria": "후보별: Q1 lam=3 mu=+1% U 정지(S1 또는 S2) 확률 <=0.15 / Q2a lam=3 mu=-2% 정지 확률 >=0.80 / Q2b 그 정지 시점 거래 수 중앙값 <=40 / Q3 lam=3 mu=+1% V 정지(S2만) <=0.05 / Q4 lam=1 mu=+1% U 정지 <=0.20. 전부 충족한 후보 중 C1,C2,C3 순서로 첫 번째 = V2_ADOPTABLE. 없고 Q1·Q3·Q4 는 통과하나 Q2 만 실패하는 후보가 있으면 TRADEOFF_FALSE_STOP_FIXED_DETECTION_SLOW, 그 외 NO_CANDIDATE",
+    "diagnostics": "전 mu x lam x 후보 표, mu=0·+0.5 정지 확률, 이론 하한(아래 prior 근거)과의 비교",
+    "prior": "V2_ADOPTABLE 0.10. 근거: mu=+1 과 mu=-2 의 간격 3%p 를 풀 sd 17% 로 가르려면 단측 α 15%·검정력 80% 기준 고정 표본으로 약 140거래, 순차 설계로도 100거래 안팎이 필요해 Q2b(40건 이내)는 어떤 문턱으로도 충족이 어렵다. 후보별: Q1 통과 C1 0.3 / C2 0.5 / C3 0.5, Q2b 통과 C1 0.15 / C2 0.05 / C3 0.02, TRADEOFF 0.55, NO_CANDIDATE 0.35",
+    "known_limits": "수익률 독립 동분포 가정(실거래는 레짐·버스트로 상관 — 오정지는 하한). 현행 R-062 와 달리 S1 도 클러스터 부트를 쓰는 후보를 포함하므로 mu 분포 가정이 같은 풀에 의존. 평가 주기 주 1회(실제 매일). 통과해도 steward.py 상수 교체는 새 판 steward_rules_<날짜> 로 이후 데이터에만 적용",
+    "followup": "V2_ADOPTABLE 이면 새 판 registry + steward.py 상수 교체 PR(동작 불변 테스트 포함, 이후 데이터에만). TRADEOFF 면 느린 탐지를 받아들일지는 위험 선호 문제라 backlog notes 에 기록하고 상수는 바꾸지 않는다"
   }
 }
