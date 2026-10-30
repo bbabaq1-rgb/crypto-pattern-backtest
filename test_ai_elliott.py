@@ -70,7 +70,7 @@ SPEC, CAP = rp["exit_spec"], rp["live_cap"]
 check("모델 = 사용자 선택값", ae.MODEL == "claude-sonnet-5-5")
 # v2(같은 날 사용자 지시 "15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매")
 check("v3 — 버전·effort high·토큰 상한(비스트리밍 10분 한도 안)",
-      ae.PROMPT_VERSION == "elliott_v3_2026_10_28" and ae.EFFORT == "high"
+      ae.PROMPT_VERSION == "elliott_v5_2026_10_30" and ae.EFFORT == "high"
       and 3600 * ae.MAX_TOKENS / 128000 < 600, (ae.PROMPT_VERSION, ae.EFFORT, ae.MAX_TOKENS))
 check("v2 — BTC 15m·1h·4h·1d, ETH 15m·1h·4h", ae.BTC_TFS == ("15m", "1h", "4h", "1d")
       and ae.ETH_TFS == ("15m", "1h", "4h") and all(tf in ae.BARS and tf in ae.ZZ_PCT and tf in ae.TF_MS
@@ -413,7 +413,11 @@ check("입력에 허용 행동·포트·카운트 요약·BTC/ETH 데이터", al
 ae._create = answer(dict(action="open_short", stop=round(last_c * 1.01), target=round(last_c * 0.97)))
 rec, sg, cp = ae.tick(position=None, blocked_dirs={"short"}, can_enter=True, **kw)
 check("숏이 막혔는데 숏 응답 → 아무것도 안 함", sg is None and cp is None and rec["code_action"] == "ignored:not_allowed:open_short")
-check("막힌 이유를 모델에게 알린다", "open_short blocked" in seen["user"])
+_nt = json.loads(rec["features"]).get("notes") or []
+check("막힌 이유를 모델에게 알린다 — 이번 호출에 한정, 평소엔 양방향 허용(2026-10-30)",
+      "open_short unavailable on this call only" in seen["user"] and len(_nt) == 1
+      and _nt[0].startswith("open_short unavailable on this call only: another strategy currently holds a BTC long")
+      and _nt[0].endswith("Both directions are otherwise allowed."), _nt)
 pos = dict(symbol="BTC", pattern=ae.PATTERN, direction="long", entry_price=last_c * 0.98, stop=last_c * 0.97,
            target=last_c * 1.05, entry_ts=R1[-30]["ts"], entry_date=R1[-30]["date"], live_mode=True, size_usd=100.0)
 ae._create = answer(dict(action="close", rationale="카운트 무효"))
@@ -423,6 +427,18 @@ check("보유 + close → 청산 대상 포지션 반환", cp is pos and sg is N
 ae._create = answer(dict(action="hold"))
 rec, sg, cp = ae.tick(position=pos, blocked_dirs=set(), can_enter=True, **kw)
 check("보유 + hold → 아무것도 안 함", sg is None and cp is None and rec["decision"] == "hold")
+# 2026-10-30 사용자 지시 "AI 엘리엇 숏도 허용이야 숏 허용되지 않는다는 문장 있으면 삭제해".
+# 보유 중엔 거래소 실측에 AI 자신의 포지션이 들어 있어 반대 방향이 blocked_dirs 로 들어온다(paper_executor el_block).
+# 종전엔 그때 "open_short blocked: another strategy …" 라는 거짓 안내가 붙었다(10-29 06:08 실측) — 이제 안 붙는다.
+ae._create = answer(dict(action="hold"))
+rec, sg, cp = ae.tick(position=pos, blocked_dirs={"short"}, can_enter=True, **kw)
+check("보유 중(자기 롱이 blocked_dirs 로 들어와도) 방향 안내를 붙이지 않는다",
+      json.loads(rec["features"]).get("notes") == [] and '"notes":[]' in seen["user"]
+      and "another strategy" not in seen["user"]
+      and '"allowed_actions":["hold","close"]' in seen["user"], json.loads(rec["features"]).get("notes"))
+check("지시문: 양방향 허용을 적고, '방향이 막힐 수 있다'는 일반 문장은 없다(v5)",
+      all("long and short entries are both allowed" in t for t in (ae.SYSTEM, ae.SYSTEM_Q15))
+      and not any(k in t for t in (ae.SYSTEM, ae.SYSTEM_Q15) for k in ("can be blocked", "blocked because")))
 ae._create = boom
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, **kw)
 check("API 오류 → 진입 없음 + 오류 기록", sg is None and cp is None and rec["error"].startswith("err_")
@@ -674,8 +690,8 @@ check("숏 익절가가 이미 시세 위 → 주문 전 거부", res is None an
 # 2026-10-29 사용자 지시 "진입판단을 15분마다 변경하는걸로 1주일만 테스트해보자 1주일 후에 계속할지 중단할지 나한테
 # 다시 물어봐줘". 평탄일 때 :18/:33/:48 에도 진입 판단, 보유 판단은 매시 그대로, until 이 지나면 스스로 꺼진다.
 import hashlib
-check("지시문 v3(SYSTEM) 불변 — 고치면 PROMPT_VERSION 을 올리고 이 값을 갱신",
-      hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16] == "09d056ab239e6219",
+check("지시문 v5(SYSTEM) 불변 — 고치면 PROMPT_VERSION 을 올리고 이 값을 갱신",
+      hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16] == "823245e0f306763c",
       hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16])
 _s = ae.SYSTEM_Q15
 for _o, _n in reversed(ae._Q15_EDITS):
@@ -686,8 +702,8 @@ check("SYSTEM_Q15: 평탄이면 15분마다·보유면 매시", "every 15 minute
       and "Open position: each hour re-read 15m and 1h." in ae.SYSTEM_Q15)
 check("SYSTEM_Q15: 자주 불러도 진입 기준은 그대로", "it does not lower these entry criteria" in ae.SYSTEM_Q15)
 check("SYSTEM_Q15: ref_tf 설명(v3 에는 없다)", "ref_tf" in ae.SYSTEM_Q15 and "ref_tf" not in ae.SYSTEM)
-check("버전: 시험 중 v4q15 · 아니면 v3", ae.PROMPT_VERSION == "elliott_v3_2026_10_28"
-      and ae.PROMPT_VERSION_Q15 == "elliott_v4q15_2026_10_29")
+check("버전: 시험 중 v5q15 · 아니면 v5", ae.PROMPT_VERSION == "elliott_v5_2026_10_30"
+      and ae.PROMPT_VERSION_Q15 == "elliott_v5q15_2026_10_30")
 try:
     ae._swap_once("abc", "x", "y")
     _sw = False
@@ -768,7 +784,7 @@ check("15분 틱 진입: 신호가 형성 중인 1h 봉을 가리킨다", sg and
       and sg["direction"] == "long" and sg["tf"] == "1h", sg and {k: sg[k] for k in ("ts", "date", "tf")})
 check("15분 틱 진입: 손절·익절 = 기준(15m) 가격 기준 — 1h 종가 기준이면 롱 손절이 시세 위라 거부됐을 값",
       sg and sg["stop"] == OPEN_L["stop"] and OPEN_L["stop"] > ae.closed(Q1, "1h", NOWQ)[-1]["c"])
-check("15분 틱: 지시문 SYSTEM_Q15 · 버전 v4q15", calls[-1][0] == ae.SYSTEM_Q15 and rec["prompt_version"] == ae.PROMPT_VERSION_Q15)
+check("15분 틱: 지시문 SYSTEM_Q15 · 버전 v5q15", calls[-1][0] == ae.SYSTEM_Q15 and rec["prompt_version"] == ae.PROMPT_VERSION_Q15)
 check("15분 틱: 입력의 기준 가격·시각이 15m 봉(ref_tf)", '"ref_tf":"15m"' in calls[-1][1]
       and f'"last_close":{ae._px(REFC)}' in calls[-1][1])
 check("15분 틱: 기록 — tick·ref_tf·신호 봉·진입봉 시각·마크 시각", _f.get("tick") == "quarter" and _f.get("ref_tf") == "15m"
@@ -779,6 +795,7 @@ rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_ki
 check("같은 1h 봉에 AI 롱이 이미 있으면 롱을 막고 이유를 알린다(숏은 가능)", sg is None
       and rec["code_action"] == "ignored:not_allowed:open_long"
       and "already opened in the current 1h bar" in calls[-1][1]
+      and "open_long unavailable until the next 1h bar" in calls[-1][1]
       and '"allowed_actions":["open_short","wait"]' in calls[-1][1])
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="quarter",
                       entered={("long", Q1[-2]["ts"]), ("short", Q1[-1]["ts"])}, **kwq)
@@ -797,7 +814,7 @@ check("시험 중 매시 :03 틱: 신호 = 마지막 닫힌 1h 봉(종전과 같
       and '"ref_tf":"1h"' in calls[-1][1] and json.loads(rec["features"]).get("tick") == "hourly")
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="hourly",
                       **dict(kwq, cfg={"directions": ["long", "short"]}))
-check("시험이 꺼져 있으면 종전과 같다 — v3 지시문·버전, ref_tf 없음, 15분 시각이어도 신호 = 마지막 닫힌 1h 봉",
+check("시험이 꺼져 있으면 종전과 같다 — v5 지시문·버전, ref_tf 없음, 15분 시각이어도 신호 = 마지막 닫힌 1h 봉",
       calls[-1][0] == ae.SYSTEM and rec["prompt_version"] == ae.PROMPT_VERSION and '"ref_tf"' not in calls[-1][1]
       and rec["mark_ts"] == ae.closed(Q1, "1h", NOWQ)[-1]["ts"]
       and sg is not None and sg["ts"] == ae.closed(Q1, "1h", NOWQ)[-1]["ts"])
