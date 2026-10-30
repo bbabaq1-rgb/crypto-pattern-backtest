@@ -6472,7 +6472,7 @@
     }
   },
   "steward_v2_prereg_2026_10_30": {
-    "status": "PREREGISTERED",
+    "status": "DONE_NO_CANDIDATE",
     "DEPLOY_ON_PASS": false,
     "backlog": "R-080",
     "registered": "2026-10-30 (결과 열람 전, 로컬 테스트는 합성 풀만 — 실데이터 수치 없음)",
@@ -6497,6 +6497,45 @@
     "diagnostics": "전 mu x lam x 후보 표, mu=0·+0.5 정지 확률, 이론 하한(아래 prior 근거)과의 비교",
     "prior": "V2_ADOPTABLE 0.10. 근거: mu=+1 과 mu=-2 의 간격 3%p 를 풀 sd 17% 로 가르려면 단측 α 15%·검정력 80% 기준 고정 표본으로 약 140거래, 순차 설계로도 100거래 안팎이 필요해 Q2b(40건 이내)는 어떤 문턱으로도 충족이 어렵다. 후보별: Q1 통과 C1 0.3 / C2 0.5 / C3 0.5, Q2b 통과 C1 0.15 / C2 0.05 / C3 0.02, TRADEOFF 0.55, NO_CANDIDATE 0.35",
     "known_limits": "수익률 독립 동분포 가정(실거래는 레짐·버스트로 상관 — 오정지는 하한). 현행 R-062 와 달리 S1 도 클러스터 부트를 쓰는 후보를 포함하므로 mu 분포 가정이 같은 풀에 의존. 평가 주기 주 1회(실제 매일). 통과해도 steward.py 상수 교체는 새 판 steward_rules_<날짜> 로 이후 데이터에만 적용",
-    "followup": "V2_ADOPTABLE 이면 새 판 registry + steward.py 상수 교체 PR(동작 불변 테스트 포함, 이후 데이터에만). TRADEOFF 면 느린 탐지를 받아들일지는 위험 선호 문제라 backlog notes 에 기록하고 상수는 바꾸지 않는다"
+    "followup": "V2_ADOPTABLE 이면 새 판 registry + steward.py 상수 교체 PR(동작 불변 테스트 포함, 이후 데이터에만). TRADEOFF 면 느린 탐지를 받아들일지는 위험 선호 문제라 backlog notes 에 기록하고 상수는 바꾸지 않는다",
+    "result": {
+      "run": 41092253340,
+      "verdict": "NO_CANDIDATE",
+      "pool_n": 8237,
+      "pool_sd": 16.99,
+      "lam3_mu+1_p_u": {
+        "C0": 0.787,
+        "C1": 0.517,
+        "C2": 0.318,
+        "C3": 0.403
+      },
+      "lam3_mu+1_p_v": {
+        "C0": 0.278,
+        "C1": 0.135,
+        "C2": 0.083,
+        "C3": 0.09
+      },
+      "lam3_mu-2_p_u": {
+        "C0": 0.985,
+        "C1": 0.938,
+        "C2": 0.86,
+        "C3": 0.92
+      },
+      "lam3_mu-2_med_n": {
+        "C0": 12,
+        "C1": 23,
+        "C2": 32,
+        "C3": 42
+      },
+      "lam1_mu+1_p_u": {
+        "C0": 0.74,
+        "C1": 0.422,
+        "C2": 0.233,
+        "C3": 0.253
+      },
+      "fails": "C0·C1·C2: Q1,Q3,Q4 / C3: Q1,Q2b,Q3,Q4",
+      "prior_grade": "V2_ADOPTABLE 0.10 적중(통과 없음). NO_CANDIDATE 0.35 적중, TRADEOFF 0.55 오답 — 가장 보수적 C2 도 Q1 에서 .318 로 크게 실패해 'Q2 만 실패' 후보가 없었다. Q2b 는 C1·C2 가 통과(23·32)해 'C1 0.15·C2 0.05' 예상보다 쉬웠다(검출 대상 mu=-2% 에서 거래당 부호가 충분)",
+      "live_change": "none"
+    }
   }
 }
