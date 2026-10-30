@@ -66,8 +66,8 @@ SYMBOL = "BTC"
 TF = "1h"
 MODEL = "claude-sonnet-5-5"           # 사용자 선택(2026-10-28)
 EFFORT = "high"                       # v2: 세 시간대를 맞춰 읽는 판단이라 medium 에서 올렸다. 생각은 기본으로 켜져 있다
-PROMPT_VERSION = "elliott_v3_2026_10_28"
-PROMPT_VERSION_Q15 = "elliott_v4q15_2026_10_29"   # 15분 진입 판단 시험 중(entry_check_active) — 지시문 SYSTEM_Q15
+PROMPT_VERSION = "elliott_v5_2026_10_30"           # v5: 숏 금지로 읽히는 문장 정리(2026-10-30 사용자 지시)
+PROMPT_VERSION_Q15 = "elliott_v5q15_2026_10_30"   # 15분 진입 판단 시험 중(entry_check_active) — 지시문 SYSTEM_Q15
 ENTRY_CHECK_EVERY_MIN = 15            # universe.json ai_traders[].entry_check.every_min 이 이 값이어야 켜진다
 FALLBACK_BETA = "server-side-fallback-2026-07-01"   # 안전 분류기 거절 시 서버가 다른 모델로 재시도("default")
 MAX_TOKENS = 16000                    # 생각 토큰 포함 상한(SDK 비스트리밍 한도 안 — 예상 7.5분 < 10분)
@@ -99,8 +99,8 @@ SYSTEM = (
     "What the code enforces (you cannot change it): one BTC position at a time; margin = min(pot, $100) at 3x "
     "isolated leverage; every entry carries a stop and a target that are placed on the exchange as an OCO bracket and "
     "fire between your hourly calls; the stop must be 0.3%-8% from the last close and the target at least 0.3% away, "
-    "otherwise the entry is rejected; only the actions listed in allowed_actions are possible (a direction can be "
-    "blocked because the account nets BTC exposure with another strategy); if the pot falls below $10 trading stops; "
+    "otherwise the entry is rejected; long and short entries are both allowed, and only the actions listed in "
+    "allowed_actions are possible on each call; if the pot falls below $10 trading stops; "
     "a position still open after max_hold_1h_bars is closed by time. Costs: about 0.1-0.2% of notional per round trip "
     "plus funding every 8 hours.\n\n"
     "Data: btc holds closed candles and swing pivots for 15m (the last 24 hours), 1h, 4h and 1d. Pivots are high/low "
@@ -785,11 +785,18 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
         dup = {d for d in ("long", "short") if (d, int(sbar["ts"])) in (entered or set())}
     allowed = allowed_actions(position, cfg, blocked0 | dup, can_enter and margin_next is not None)
     notes = []
-    for d in sorted(blocked0):
-        notes.append(f"open_{d} blocked: another strategy holds the opposite BTC direction (account nets by symbol)")
-    for d in sorted(dup - blocked0):
-        notes.append(f"open_{d} blocked: an AI {d} was already opened in the current 1h bar "
-                     f"(one entry per direction per 1h bar)")
+    # 방향 안내는 평탄일 때만 — 보유 중엔 진입 행동이 없고, 거래소 실측에 AI 자신의 포지션이 들어 있어 '다른 전략'
+    # 이라는 말이 거짓이 된다(2026-10-29 실측: 자기 롱 보유 중 'open_short blocked: another strategy …').
+    # 숏은 허용이다(2026-10-30 사용자 지시) — 막히는 경우는 이번 호출에 한정된 사정으로만 적는다.
+    if not position:
+        for d in sorted(blocked0):
+            opp = "long" if d == "short" else "short"
+            notes.append(f"open_{d} unavailable on this call only: another strategy currently holds a BTC {opp} "
+                         f"on this account, and the account nets BTC by symbol, so a {d} order would close that "
+                         f"position instead of opening one. Both directions are otherwise allowed.")
+        for d in sorted(dup - blocked0):
+            notes.append(f"open_{d} unavailable until the next 1h bar: an AI {d} was already opened in the current "
+                         f"1h bar (one entry per direction per 1h bar).")
     if not position and margin_next is None:
         notes.append("pot below $10 — entries disabled")
     if not position and not can_enter:
