@@ -6537,5 +6537,27 @@
       "prior_grade": "V2_ADOPTABLE 0.10 적중(통과 없음). NO_CANDIDATE 0.35 적중, TRADEOFF 0.55 오답 — 가장 보수적 C2 도 Q1 에서 .318 로 크게 실패해 'Q2 만 실패' 후보가 없었다. Q2b 는 C1·C2 가 통과(23·32)해 'C1 0.15·C2 0.05' 예상보다 쉬웠다(검출 대상 mu=-2% 에서 거래당 부호가 충분)",
       "live_change": "none"
     }
+  },
+  "risk_grid_prereg_2026_10_31": {
+    "status": "REGISTERED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-073",
+    "registered": "2026-10-31 (결과 열람 전, 로컬 스모크는 합성 거래만 — 실데이터 수치 없음)",
+    "hypothesis": "R-063 의 'risk 1.5->0.5% 만으로 전기간 CAGR -11%->+21.7%' 는 단일 경로 아티팩트가 아니다 — 배포 집합 포트폴리오 프레임에서 0.5~1.0% 가 현행 1.5% 를 Calmar·부트 우위에서 이긴다.",
+    "cells": "risk {0.5,1.0,1.5}% x MAX_POS {8,13} 6셀, 기준=현행(1.5%,13). 거래열(validate_portfolio 배포 집합, 방식D+레짐청산)·변동성 배율·총명목가 상한 2.5·LEV_CAP 3 고정. validate_gap.simulate(vp.simulate current 와 회계 동치, test §1) 에 risk·max_pos 만 변경. 주 판정 셀 (0.5%,13),(1.0%,13); MAX_POS 8 셀은 진단.",
+    "frozen": {
+      "boot_n": 300,
+      "seed": 73,
+      "block": "vp.block_bootstrap(BLOCK 20)",
+      "split": "2025-01-01",
+      "j3_tol": 0.9,
+      "j4_win": 0.6,
+      "ruin_proxy": "부트 최종<시작x0.25(진단)"
+    },
+    "criteria": "주 판정 셀이 J1 전기간 Calmar>현행 / J2 holdout Calmar>현행 / J3 train Calmar>=0.9x현행(현행 음수면 >) / J4 짝지음 블록 재표집 Calmar 우위>=0.60 전부 통과하면 PASS; 둘 중 하나라도 PASS 면 SUPPORTED, 없으면 REJECTED. J3 이 정보가 있는 기준: holdout(2025~ bear 지배)은 엣지가 음수라 작게 거는 쪽이 기계적으로 유리하다.",
+    "diagnostics": "부트 Calmar/MDD/CAGR 중앙·파산근사, 셀별 체결·스킵, MAX_POS 8 셀 — 사후에 골라 살리지 않는다",
+    "prior": "SUPPORTED 약 0.30 (backlog 0.20 에서 상향). 근거: J1·J2 는 R-063 에서 전기간 CAGR 이 이미 갈렸고 holdout 은 음수 엣지라 거의 자동 통과. 판정은 J3(train 에서 이득 포기)과 J4(부트 우위 0.60)에 달렸다 — 2026-09-04 격자는 'Calmar 가 위험 6배 범위에서 0.99~1.14 로 평평'이라 train 에서는 현행과 구분이 안 될 것으로 보나, 0.9x 허용폭이 그 평평함을 흡수한다. 위험 수준 변경 자체는 사용자 결정이라 SUPPORTED 여도 적용 없음.",
+    "known_limits": "정적 end-of-data 코호트 / 4h 이력 약 2년 / 단일 거래열 경로(부트는 블록 재표집으로 완화) / holdout 이 2025~ bear 단일 국면이라 J2 는 약한 증거 / Calmar 는 CAGR 연율화 길이에 민감(전기간 vs 분할 span 상이) / 절대 수준을 실거래 예보로 읽지 말 것",
+    "live_change": "none"
   }
 }
