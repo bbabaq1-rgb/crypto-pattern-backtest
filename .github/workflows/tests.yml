@@ -55,6 +55,7 @@ jobs:
                    test_lottery_gate.py \
                    test_bull_btc.py \
                    test_gap.py \
+                   test_risk_grid.py \
                    test_vol_burst.py \
                    test_steward_char.py \
                    test_steward_v2.py \
