@@ -21,7 +21,7 @@
     "deploy_on_pass": "true 면 사전 등록 기준 전부 통과 시 자율 반영 규칙(2026-09-05) 적용 대상",
     "lock": "in_progress + started_at + session — 36시간 지나면 다른 세션이 이어받을 수 있다"
   },
-  "updated": "2026-10-28",
+  "updated": "2026-10-31",
   "procedure": "RESEARCH_LOOP.md",
   "items": [
     {
@@ -828,8 +828,8 @@
       "added_on": "2026-10-27",
       "started_at": "2026-10-31T16:39:31Z",
       "session": "session_012Mz1gtpkUrTWJbtpjYYE9b",
-      "result": null,
-      "status": "in_progress",
+      "result": "REJECTED (run 41220968340): 주 판정 두 셀 J1·J2·J3 통과, J4(짝지음 부트 Calmar 우위>=0.60) 실패 — (0.5%,13) 16%, (1.0%,13) 35%. 실현 경로에서는 위험을 낮출수록 좋지만(전기간 CAGR 현행 -0.2% vs 1.0% +22.4% vs 0.5% +25.3%, MDD -93/-82/-53%) 블록 재표집 중앙값에서는 현행이 Calmar 최고(4.75 vs 4.29 vs 3.41). 사전 0.30 중 REJECTED 쪽 적중.",
+      "status": "done",
       "id": "R-073",
       "kind": "prereg_test",
       "priority": 2,
@@ -994,6 +994,50 @@
       "hypothesis": "패턴 단위 평균을 풀 평균 쪽으로 수축(분산성분 추정)하면 mu 가 풀 평균 근처인 대다수 단위의 오정지가 줄고, 진짜 이탈 단위(mu=-2%)의 탐지는 유지된다",
       "expected_gain": "고정 문턱 대신 정보량 가중 판정 — 표본이 작은 셀의 소음 정지 방지",
       "notes": "R-062 파트 A 단위 거래열로 분산성분(단위 간 vs 단위 내) 추정, 시뮬레이션 mu 는 그 추정 분포에서 추출. 진단 전용, 반영하려면 R-082 와 합쳐 별도 사전 등록"
+    },
+    {
+      "id": "R-084",
+      "kind": "diag",
+      "priority": 2,
+      "status": "ready",
+      "deploy_on_pass": false,
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-10-31",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "est_cost_h": 2,
+      "prior": 0.35,
+      "title": "실현 경로의 꼬리 위치 — 배포 거래열의 실제 순서가 블록 재표집 분포의 하위 몇 백분위인가",
+      "source": "R-073: 실현 경로 현행 Calmar -0.00 vs 부트 중앙 4.75 — 같은 거래를 섞으면 좋아지고 실제 순서는 나쁘다. 20거래 블록이 못 담는 손실 군집(시계열 의존)이 있다는 신호",
+      "hypothesis": "실현 전기간 CAGR 이 현행 설정 부트 CAGR 분포의 하위 5% 안에 있고, 블록 길이를 20→60→시간(7일) 블록으로 늘리면 부트 중앙이 실현 쪽으로 내려온다(= 손실 군집이 20거래보다 길다)",
+      "expected_gain": "위험 수준(사용자 결정)에 쓸 부트가 낙관적인지 판정 — 사전 기준(MDD중앙) 해석 보정, R-010 낙폭 서킷 근거",
+      "notes": "계산 전용. 블록 {20,60,시간 7일} x 현행/1.0%/0.5%. 판정: 실현 CAGR 의 부트 백분위와 블록 길이 민감도. 위험 수준 적용은 사용자 결정"
+    },
+    {
+      "id": "R-085",
+      "kind": "diag",
+      "priority": 3,
+      "status": "ready",
+      "deploy_on_pass": false,
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-10-31",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "est_cost_h": 2,
+      "prior": 0.2,
+      "title": "총 명목가 상한(MAX_TOTAL_NOTIONAL_FRAC 2.5) 격자 — 상한이 동시 노출의 실질 조절 노브인가",
+      "source": "R-063: 상한 해제(G3)에서 파산, R-073: 위험·슬롯 외 노출 노브는 상한뿐. 위험 수준과 같은 사용자 결정 영역의 미측정 축",
+      "hypothesis": "상한 {1.5,2.0,2.5} 에서 현행 위험 1.5% 의 전기간·train Calmar 와 짝지음 부트 우위가 상한 1.5~2.0 에서 더 높다(노출 상한이 손실 군집을 자른다)",
+      "expected_gain": "위험 수준 결정의 대안 노브 — 건당 위험을 바꾸지 않고 동시 노출만 제한",
+      "notes": "validate_risk_grid 프레임 재사용(max_total_frac 인자). 적용은 사용자 결정, deploy_on_pass=false. 반증: J4 우위 <0.60 이면 노브 아님"
     }
   ]
 }
