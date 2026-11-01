@@ -97,6 +97,7 @@ jobs:
                    test_ai_judge.py \
                    test_ai_judge_report.py \
                    test_ai_elliott.py \
+                   test_program_exclude.py \
                    test_research_loop.py \
                    test_steward.py \
                    test_upbit_shoot.py \
