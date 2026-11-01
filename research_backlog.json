@@ -21,7 +21,7 @@
     "deploy_on_pass": "true 면 사전 등록 기준 전부 통과 시 자율 반영 규칙(2026-09-05) 적용 대상",
     "lock": "in_progress + started_at + session — 36시간 지나면 다른 세션이 이어받을 수 있다"
   },
-  "updated": "2026-10-31",
+  "updated": "2026-11-01",
   "procedure": "RESEARCH_LOOP.md",
   "items": [
     {
@@ -999,7 +999,7 @@
       "id": "R-084",
       "kind": "diag",
       "priority": 2,
-      "status": "in_progress",
+      "status": "done",
       "deploy_on_pass": false,
       "prerequisites": [],
       "blocked_until": null,
@@ -1008,7 +1008,7 @@
       "added_on": "2026-10-31",
       "started_at": "2026-11-01T16:40:26Z",
       "session": "routine_2026-11-01T16:40",
-      "result": null,
+      "result": "PATH_CLUSTER (run 41327602171): 현행(1.5%,13) 실현 CAGR -0.9% 의 분위 B20 0.3% / B60 2.7% / T7 10.0% (MDD 분위 0.7/6.3/17.0%). 부트 중앙 Calmar B20 4.22 -> T7 1.84(0.43x). 20거래 블록 부트는 낙관, 7일 창 블록이면 실현이 꼬리 밖(10%). 같은 모양이 1.0%·0.5% 에도. 사전 PATH_CLUSTER 0.35(최다) 적중.",
       "est_cost_h": 2,
       "prior": 0.35,
       "title": "실현 경로의 꼬리 위치 — 배포 거래열의 실제 순서가 블록 재표집 분포의 하위 몇 백분위인가",
@@ -1038,6 +1038,50 @@
       "hypothesis": "상한 {1.5,2.0,2.5} 에서 현행 위험 1.5% 의 전기간·train Calmar 와 짝지음 부트 우위가 상한 1.5~2.0 에서 더 높다(노출 상한이 손실 군집을 자른다)",
       "expected_gain": "위험 수준 결정의 대안 노브 — 건당 위험을 바꾸지 않고 동시 노출만 제한",
       "notes": "validate_risk_grid 프레임 재사용(max_total_frac 인자). 적용은 사용자 결정, deploy_on_pass=false. 반증: J4 우위 <0.60 이면 노브 아님"
+    },
+    {
+      "deploy_on_pass": false,
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-11-01",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "status": "ready",
+      "id": "R-086",
+      "kind": "prereg_test",
+      "priority": 2,
+      "est_cost_h": 2,
+      "prior": 0.2,
+      "title": "위험 수준 격자 J4 를 7일 창 블록 부트로 재판정 — R-073 의 부트 낙관 보정",
+      "source": "R-084: B20 부트가 낙관(실현 분위 0.3%), T7 로 보면 10%. R-073 J4(B20 짝지음 우위)는 낙관 부트 위에서 잰 것",
+      "hypothesis": "T7 블록 짝지음 재표집에서 (0.5%,13) 또는 (1.0%,13) 의 전기간 Calmar 우위 비율이 0.60 이상이다 (R-073 은 B20 에서 16%/35%).",
+      "expected_gain": "위험 수준(사용자 결정)에 쓰는 부트 근거의 보정. R-084 T7 중앙 Calmar 는 현행 1.84 > 1.0% 1.79 > 0.5% 1.59 로 현행이 여전히 최고라 prior 낮음",
+      "notes": "R-073 프레임·판정 J1~J4 그대로, 블록만 T7. 위험 수준 적용은 사용자 결정(보고까지). 사후 기준 변경 금지"
+    },
+    {
+      "deploy_on_pass": false,
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-11-01",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "status": "ready",
+      "id": "R-087",
+      "kind": "diag",
+      "priority": 3,
+      "est_cost_h": 3,
+      "prior": 0.4,
+      "title": "손실 군집 부검 — 실현 MDD 구간(전기간 -93%)에 몰린 패턴·레짐·종목·진입 버스트",
+      "source": "R-084: 손실 군집이 7일보다 길다(PATH_CLUSTER). 군집이 무엇으로 이뤄졌는지 모름",
+      "hypothesis": "실현 MDD 구간의 손실 거래는 소수 패턴(vol_awakening_4h)·특정 레짐(bull_btc)·같은 날 버스트에 집중되고, 그 구성은 구간 밖과 유의하게 다르다.",
+      "expected_gain": "R-010 낙폭 서킷·R-074/R-075 진입 상한 설계의 근거(군집을 사전에 식별 가능한가)",
+      "notes": "계산 전용. 구간 정의는 실현 자산곡선 고점->저점으로 결과 전 고정, 구간 안/밖 패턴·레짐·동시 진입수 비교(월 블록 부트). 사후 선택 금지"
     }
   ]
 }
