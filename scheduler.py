@@ -228,6 +228,29 @@ def _cohort_symbols(rule, base, exclude=None):
     return out
 
 
+def drop_program_excluded(signals, excluded=None, ai_patterns=None):
+    """
+    프로그램 매매 제외 종목의 신호를 뺀다 (2026-11-01 사용자 결정 "btc는 앞으로 ai매매에만 활용하고 프로그램 매매에서는
+    대상에서 제외"). 판정은 paper_executor.program_excluded 하나 — 체결 엔진의 마지막 관문과 같은 함수다.
+    탐지 자체는 그대로 돈다: 코호트 순위(_volume_ranked)·레짐·RS 계산에 그 종목이 계속 들어가므로 다른 종목의 신호
+    집합은 한 건도 안 바뀐다(2026-09-22 tp1 exclude 와 같은 원칙 — 순위는 두고 결과에서만 뺀다).
+    excluded/ai_patterns 를 주지 않으면 universe.json 을 읽는다. 목록이 비면 입력을 그대로 돌려준다 = 종전 동작.
+    """
+    import paper_executor as _pe            # 늦은 import — 모듈 로드 시 체결 엔진 의존성을 끌어오지 않는다
+    ex = _pe.program_exclude_set() if excluded is None else excluded
+    if not ex:
+        return signals
+    aip = _pe.ai_trader_patterns() if ai_patterns is None else ai_patterns
+    kept = []
+    for s in signals:
+        if _pe.program_excluded(s.get("symbol", ""), s.get("pattern"), ex, aip):
+            print(f"    [프로그램 제외] {s.get('symbol')} {s.get('pattern')} {s.get('direction')} "
+                  f"— AI 전용 종목, 신호 제외")
+            continue
+        kept.append(s)
+    return kept
+
+
 def _syms_for_pattern(pattern):
     """패턴별 탐지 대상 심볼 목록. 미지정 패턴은 전체 유니버스."""
     rule = PATTERN_UNIVERSE.get(pattern, "all")
@@ -876,6 +899,9 @@ def run_once(do_fetch=True, quick=False, slow_tick=None):
                     take_profit="레짐전환 or 최대30봉 시가청산"))
     elif slow_tick:
         print(f"    [하모닉] 레짐={regime} → 롱 조건 미충족, 하모닉 스킵", flush=True)
+
+    # 프로그램 매매 제외 종목(2026-11-01 사용자 결정 — BTC 는 AI 엘리엇 전용). 모든 탐지 블록 뒤, 기록·알림·앙상블 앞.
+    signals = drop_program_excluded(signals)
 
     # RS(BTC 대비 상대강도) 부착 → 앙상블 스코어링(RS 보조 정렬 포함)
     signals = _attach_rs(signals)

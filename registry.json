@@ -6561,5 +6561,22 @@
     "live_change": "none",
     "run": 41220968340,
     "result": "REJECTED (run 41220968340): 주 판정 두 셀 J1·J2·J3 통과, J4(짝지음 부트 Calmar 우위>=0.60) 실패 — (0.5%,13) 16%, (1.0%,13) 35%. 실현 경로에서는 위험을 낮출수록 좋지만(전기간 CAGR 현행 -0.2% vs 1.0% +22.4% vs 0.5% +25.3%, MDD -93/-82/-53%) 블록 재표집 중앙값에서는 현행이 Calmar 최고(4.75 vs 4.29 vs 3.41). 사전 0.30 중 REJECTED 쪽 적중. report_risk_grid.md"
+  },
+  "btc_ai_only_2026_11_01": {
+    "status": "APPLIED_USER_DECISION",
+    "date": "2026-11-01",
+    "decided": "사용자 결정 2026-11-01 — \"btc는 앞으로 ai매매에만 활용하고 프로그램 매매에서는 대상에서 제외처리해\"",
+    "trigger": "메인 전략의 BTC 롱(vol_awakening_4h, 2026-10-30 00:00Z 진입 77,911 · 0.07계약 3배 · 손절 71,944.1)이 열려 있는 동안 OKX net 모드 가드(paper_executor.net_opposite_live)가 AI 엘리엇 BTC 숏을 막았다 — 10-30 05:18Z 평탄 이후 대기 189회 중 188회가 숏 불가 상태. 같은 기간 AI 관점은 4h·1d 하락 편향.",
+    "mechanism": "universe.json program_exclude = [\"BTC\"]. 판정 함수는 paper_executor.program_excluded 하나 — scheduler.drop_program_excluded 가 모든 탐지 블록 뒤·RS/앙상블/signals_today.json 저장 앞에서 신호를 빼고, 체결 엔진 진입 루프 맨 앞(봉 조회·중복 방어·AI 판단·사이징 앞)이 같은 함수로 한 번 더 막는다. universe.json ai_traders 패턴(AI 엘리엇)은 항상 해당 없음.",
+    "unchanged": [
+      "탐지·코호트 순위(_volume_ranked top20/top30)·레짐·RS 계산에는 BTC 가 계속 들어간다 — 순위는 두고 결과에서만 뺀다(2026-09-22 tp1 exclude 와 같은 원칙). top30 코호트는 BTC 를 뺀 29종목이 거래된다",
+      "이미 열린 포지션은 각자의 청산 규칙대로 끝까지 간다 — 신규 진입만 막는다(청산·손절 점검·정합성 보정 경로는 제외 목록을 보지 않는다)",
+      "목록이 비거나 키가 없으면 종전과 동작이 완전히 같다(test_program_exclude e2e 고정)",
+      "위험 상수·슬롯·사이징·라우팅·배포 패턴 집합 불변"
+    ],
+    "forgone": "프로그램 매매의 BTC 실거래 누적 7건 +$4.70 (tp1_engulfing_1h 3 +$5.99 · marubozu 1 +$1.19(장부값, 수명주기 평균 결함 대상) · equal_lows_4h 2 −$1.43 · vol_awakening_4h 1 −$1.05). 검증 프레임(validate_portfolio 등)은 BTC 를 포함한 배포 집합 그대로라 실거래와 1종목 차이가 생긴다 — 사용자 결정에 따른 의도적 차이.",
+    "open_position": "메인 BTC 롱(vol_awakening_4h 10-30)은 그대로 관리된다. 처리(수동 청산 / 30봉 만기 대기)는 사용자 결정. 청산하면 다음 매시 :03 틱의 정합성 보정이 'OKX청산'으로 기록하고 그 틱부터 AI 숏이 가능해진다(15분 틱은 정합성 보정을 하지 않아 그 전까지 장부 행이 숏을 계속 막는다). 남은 손절 algo 는 ensure_stop_orders 가 고아로 취소한다(reduceOnly).",
+    "revert": "universe.json program_exclude 에서 BTC 를 빼면 종전 동작 — 사용자 결정",
+    "tests": "test_program_exclude.py"
   }
 }

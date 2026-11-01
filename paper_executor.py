@@ -507,6 +507,48 @@ def trading_halt_state(path="universe.json"):
         return False, ""
     return True, str(h.get("reason") or "사유 미기재")
 
+
+def program_exclude_set(path="universe.json"):
+    """
+    프로그램 매매 신규 진입 제외 종목 (2026-11-01 사용자 결정 "btc는 앞으로 ai매매에만 활용하고 프로그램 매매에서는
+    대상에서 제외"). universe.json["program_exclude"] = ["BTC", ...] — 대문자 심볼 집합으로 돌려준다.
+    키가 없거나 비면 빈 집합 = 종전 동작. 파일이 없거나 읽기 실패면 빈 집합 — 같은 실행의 trading_halt_state 가
+    읽기 실패를 fail-closed(신규 실거래 진입 보류)로 처리하므로 여기서 따로 막지 않는다.
+    """
+    if not os.path.exists(path):
+        return set()
+    try:
+        u = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return set()
+    return {str(x).strip().upper() for x in (u.get("program_exclude") or []) if str(x).strip()}
+
+
+def ai_trader_patterns(path="universe.json"):
+    """universe.json ai_traders 의 pattern 집합 + AI 엘리엇 패턴(스위치가 꺼져도 그 패턴은 프로그램 매매가 아니다)."""
+    pats = {ai_elliott.PATTERN}
+    if os.path.exists(path):
+        try:
+            for p in json.load(open(path, encoding="utf-8")).get("ai_traders") or []:
+                if isinstance(p, dict) and p.get("pattern"):
+                    pats.add(p["pattern"])
+        except Exception:
+            pass
+    return pats
+
+
+def program_excluded(symbol, pattern, excluded=None, ai_patterns=None, path="universe.json"):
+    """
+    True 면 이 신호는 프로그램 매매 신규 진입 대상이 아니다(program_exclude_set 참조). AI 트레이더 패턴은 항상 False —
+    제외의 목적이 그 종목을 AI 전용으로 남기는 것이기 때문이다. 신규 진입만 막는다: 이미 열린 포지션의 청산·손절 점검은
+    이 함수를 거치지 않는다.
+    """
+    ex = program_exclude_set(path) if excluded is None else excluded
+    if not ex or str(symbol).strip().upper() not in ex:
+        return False
+    aip = ai_trader_patterns(path) if ai_patterns is None else ai_patterns
+    return pattern not in aip
+
 def ops_annotation(kind, msg):
     """
     운용 결함 신호를 GitHub Actions 주석으로 내보낸다(2026-10-26 운용 위임 H). 자율 사이클 세션은 잡 로그를
@@ -1651,7 +1693,16 @@ def run(stamp=None, slow=None, ai_only=False):
             elif not el_rec.get("code_action"):
                 el_rec["code_action"] = el_rec.get("decision") or "none"     # wait / hold — 코드가 한 일 없음
 
+    # 프로그램 매매 제외 종목(2026-11-01 사용자 결정 — program_exclude_set 참조). 실행당 1회 읽는다.
+    prog_ex, ai_pats = program_exclude_set(), ai_trader_patterns()
+    if prog_ex:
+        print(f"  [프로그램 제외] {sorted(prog_ex)} — 프로그램 매매 신규 진입 대상 아님(AI 트레이더 전용)")
     for s in sig.get("signals", []):
+        # 주문 직전 마지막 관문 — scheduler 가 신호 단계에서 이미 빼지만, signals_today.json 을 다른 경로로 받았을 때도
+        # 막는다. AI 트레이더 신호는 해당 없음. 중복 방어·AI 판단·사이징보다 앞이라 페이퍼 행도 만들지 않는다.
+        if program_excluded(s["symbol"], s["pattern"], prog_ex, ai_pats):
+            print(f"  [skip] {s['symbol']} {s['pattern']} {s['direction']} — 프로그램 매매 제외 종목, 진입 안 함")
+            continue
         # AI 엘리엇 신호면 스킵 사유를 그 판단 행에 남긴다(_ai_rec 없는 메인 신호는 아무 일도 없다)
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
         if rows is None:
