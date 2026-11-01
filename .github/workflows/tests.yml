@@ -56,6 +56,7 @@ jobs:
                    test_bull_btc.py \
                    test_gap.py \
                    test_risk_grid.py \
+                   test_path_tail.py \
                    test_vol_burst.py \
                    test_steward_char.py \
                    test_steward_v2.py \

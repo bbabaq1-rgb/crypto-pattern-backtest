@@ -6578,5 +6578,18 @@
     "open_position": "메인 BTC 롱(vol_awakening_4h 10-30)은 그대로 관리된다. 처리(수동 청산 / 30봉 만기 대기)는 사용자 결정. 청산하면 다음 매시 :03 틱의 정합성 보정이 'OKX청산'으로 기록하고 그 틱부터 AI 숏이 가능해진다(15분 틱은 정합성 보정을 하지 않아 그 전까지 장부 행이 숏을 계속 막는다). 남은 손절 algo 는 ensure_stop_orders 가 고아로 취소한다(reduceOnly).",
     "revert": "universe.json program_exclude 에서 BTC 를 빼면 종전 동작 — 사용자 결정",
     "tests": "test_program_exclude.py"
+  },
+  "path_tail_prereg_2026_11_01": {
+    "status": "REGISTERED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-084",
+    "registered": "2026-11-01 (결과 열람 전; 로컬 테스트는 합성 거래만, 실데이터 수치 없음)",
+    "hypothesis": "R-073 의 '실현 Calmar -0.00 vs 20거래 블록 부트 중앙 4.75' 는 손실이 20거래보다 길게 군집하기 때문이다 — 블록을 키우면(60거래, 진입 7일 창) 부트 중앙이 실현 쪽으로 내려온다.",
+    "cells": "risk {1.5%(현행, 주 판정),1.0%,0.5%} x MAX_POS 13 x 블록 {B20,B60,T7}. R-073 과 같은 거래열·validate_gap.simulate. 날짜 골격 유지 재표집 300회, seed 84.",
+    "classify": "현행 셀 전기간 CAGR 분위 q=P(부트<=실현). NO_TAIL(q20>0.05) / BLOCK_INSENSITIVE(q20<=0.05 이고 T7 중앙 Calmar>0.75x B20 중앙) / PATH_CLUSTER(위 아니고 T7 분위>0.05) / UNLUCKY_TAIL(T7 분위<=0.05).",
+    "diagnostics": "1.0%·0.5% 셀 분위, MDD 분위, 블록별 중앙 CAGR/MDD/Calmar — 판정 아님",
+    "prior": "PATH_CLUSTER 0.35, UNLUCKY_TAIL 0.25, NO_TAIL 0.25, BLOCK_INSENSITIVE 0.15. 근거: R-073 의 실현-부트 격차가 매우 큼(Calmar 0 vs 4.75)이라 NO_TAIL 은 낮게 보나, 4h 고빈도 패턴이 같은 날 몰려 손실이 동시 발생하므로 T7 블록이 일부 설명할 것. 7일보다 긴 레짐 군집이면 UNLUCKY_TAIL.",
+    "known_limits": "단일 실현 경로(n=1) — 분위는 부트 모형 하에서만 해석 / 정적 코호트 / 4h 이력 약 2년 / 블록 길이 3종 외 민감도는 안 봄 / 위험 수준은 사용자 결정이라 적용 없음.",
+    "on_result": "계산 전용 진단. 위험 수준(RISK_FRAC)·MAX_POS 변경 없음."
   }
 }
