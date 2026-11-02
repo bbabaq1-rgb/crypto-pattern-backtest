@@ -6591,5 +6591,18 @@
     "prior": "PATH_CLUSTER 0.35, UNLUCKY_TAIL 0.25, NO_TAIL 0.25, BLOCK_INSENSITIVE 0.15. 근거: R-073 의 실현-부트 격차가 매우 큼(Calmar 0 vs 4.75)이라 NO_TAIL 은 낮게 보나, 4h 고빈도 패턴이 같은 날 몰려 손실이 동시 발생하므로 T7 블록이 일부 설명할 것. 7일보다 긴 레짐 군집이면 UNLUCKY_TAIL.",
     "known_limits": "단일 실현 경로(n=1) — 분위는 부트 모형 하에서만 해석 / 정적 코호트 / 4h 이력 약 2년 / 블록 길이 3종 외 민감도는 안 봄 / 위험 수준은 사용자 결정이라 적용 없음.",
     "on_result": "계산 전용 진단. 위험 수준(RISK_FRAC)·MAX_POS 변경 없음."
+  },
+  "risk_grid_t7_prereg_2026_11_02": {
+    "status": "REGISTERED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-086",
+    "registered": "2026-11-02 (결과 열람 전; 로컬 테스트는 합성 거래만, 실데이터 수치 없음)",
+    "hypothesis": "R-073 의 J4(블록 20거래 부트 짝지음 Calmar 우위 16%/35%)는 R-084 가 낙관이라 밝힌 부트 위에서 쟀다. 진입 7일 창 단위 블록(T7)으로 바꾸면 (0.5%,13) 또는 (1.0%,13) 의 전기간 Calmar 우위 비율이 0.60 이상이다.",
+    "cells": "R-073 과 동일: risk{0.5,1.0,1.5}% x MAX_POS{8,13}, 현행 (1.5%,13), 주 판정 (0.5%,13)·(1.0%,13), MAX_POS 8 진단. 같은 거래열·validate_gap.simulate. 바뀌는 것은 J4 의 블록(B20 -> T7)과 재표집 seed 86 뿐, 300회 짝지음.",
+    "criteria": "J1 전기간 Calmar>현행 / J2 holdout Calmar>현행 / J3 train Calmar>=0.9x현행 / J4' T7 짝지음 Calmar 우위>=0.60 — R-073 J1~J3 판정은 변경 없음(결정론적이라 같은 값이 재현되어야 한다). 주 판정 셀 둘 중 하나가 전부 통과하면 SUPPORTED, 아니면 REJECTED.",
+    "diagnostics": "B20 우위(R-073 재현 확인용), T7 Calmar 중앙·MDD 중앙·파산근사 — 판정 아님.",
+    "prior": "SUPPORTED 0.12 / REJECTED 0.88. 근거: R-084 T7 중앙 Calmar 가 현행 1.84 > 1.0% 1.79 > 0.5% 1.59 로 현행이 최고였다 — 같은 블록에서 짝지음 우위가 0.60 을 넘으려면 순위가 뒤집혀야 한다. 다만 0.5% 의 MDD 중앙은 훨씬 얕아(-49% vs -87%) Calmar 우위 비율은 중앙 격차보다 클 수 있어 0.12 로 둔다.",
+    "known_limits": "단일 실현 경로 / 정적 코호트 / 4h 이력 약 2년 / T7 블록 길이는 R-084 에서 정한 값 하나 / J1~J3 은 R-073 과 같은 데이터 위에서 재계산하므로 새 정보는 J4' 하나뿐 / 위험 수준은 사용자 결정이라 적용 없음.",
+    "on_result": "계산 전용. RISK_FRAC·MAX_POS 변경 없음, 사용자 결정 보고까지."
   }
 }
