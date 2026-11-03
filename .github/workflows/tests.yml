@@ -59,6 +59,7 @@ jobs:
                    test_path_tail.py \
                    test_risk_grid_t7.py \
                    test_vol_burst.py \
+                   test_va_drop.py \
                    test_steward_char.py \
                    test_steward_v2.py \
                    test_dclose_vol.py \
