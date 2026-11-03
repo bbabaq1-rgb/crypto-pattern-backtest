@@ -6604,5 +6604,27 @@
     "prior": "SUPPORTED 0.12 / REJECTED 0.88. 근거: R-084 T7 중앙 Calmar 가 현행 1.84 > 1.0% 1.79 > 0.5% 1.59 로 현행이 최고였다 — 같은 블록에서 짝지음 우위가 0.60 을 넘으려면 순위가 뒤집혀야 한다. 다만 0.5% 의 MDD 중앙은 훨씬 얕아(-49% vs -87%) Calmar 우위 비율은 중앙 격차보다 클 수 있어 0.12 로 둔다.",
     "known_limits": "단일 실현 경로 / 정적 코호트 / 4h 이력 약 2년 / T7 블록 길이는 R-084 에서 정한 값 하나 / J1~J3 은 R-073 과 같은 데이터 위에서 재계산하므로 새 정보는 J4' 하나뿐 / 위험 수준은 사용자 결정이라 적용 없음.",
     "on_result": "계산 전용. RISK_FRAC·MAX_POS 변경 없음, 사용자 결정 보고까지."
+  },
+  "va_drop_prereg_2026_11_03": {
+    "status": "DONE_REJECTED",
+    "DEPLOY_ON_PASS": false,
+    "backlog": "R-089",
+    "registered": "2026-11-03 (결과 열람 전, 로컬 테스트는 합성 거래만 — 실데이터 수치 없음)",
+    "hypothesis": "R-063 사후 선택 셀: vol_awakening_4h 를 빼면 전기간 CAGR -11%→+22.4%. 포트폴리오 프레임에서 제거 arm 이 train/holdout 양쪽 Calmar 에서 current 를 이기고, 같은 수의 무작위 타 패턴 거래 제거 대조 95백분위를 넘고, 제거 거래 평균이 0 이하다.",
+    "cells": "validate_portfolio 거래 집합(1d 라우팅 복제 + 4h adopted 4종, 방식D+레짐청산), validate_gap.simulate(current 회계). arm current / no_va. 분할 2025-01-01, 분할별 공통 span 연율화",
+    "frozen": {
+      "seed": 89,
+      "rand_n": 200,
+      "p_boot": 0.1,
+      "mdd_tol": 0.05,
+      "split": "2025-01-01"
+    },
+    "criteria": "K1 train·holdout Calmar(no_va)>current / K2 분할별 같은 수의 타 패턴 거래 무작위 제거 Calmar 95백분위를 두 분할 모두 초과 / K3 제거 거래 월 블록 부트 P(mean>=0)<.10 이고 holdout 평균<=0 / K4 두 분할 CAGR 우위이고 MDD 5%p 초과 악화 없음. 전부 충족해야 PASSED_NOT_DEPLOYED",
+    "diagnostics": "분할별 체결·MDD·CAGR, 제거 거래 분할별 평균, 대조 분포 중앙 — 판정 아님",
+    "prior": "PASSED 약 0.15(backlog). 근거: R-072 가 체결 선택 편향을 부정, R-073 이 위험 하향이 부트 우위를 못 얻음을 보임 — 개선이 경로 순서 운일 가능성. 가장 약한 고리 K3(제거 거래 전체 평균이 양수일 가능성 높음 — R-063 전체 vol_awakening 평균 +0.86%)과 K2(무작위 제거도 슬롯·증거금을 풀어 개선) 예상",
+    "known_limits": "정적 end-of-data 코호트 / 4h 이력 약 2년 / 슬롯 범람 프레임 절대 수준은 예보 아님 / holdout 이 bear 지배 / 통과해도 V 등급 셀이라 steward S 규칙 우회 불가, 사용자 보고",
+    "live_change": "none",
+    "run": 41676722329,
+    "result": "판정 REJECTED {K1 True, K2 False(무효), K3 False, K4 True}. train current CAGR +91.7% MDD -81.1% Calmar 1.13 → no_va +140.6%/-74.6%/1.89; holdout -70.6%/-92.5%/-0.76 → -57.6%/-86.8%/-0.66. 제거 거래 n=5295 평균 +1.05% 월부트 P(mean>=0)=.866, train +2.58% holdout -0.07%. K2 결함(내 설계 오류): vol_awakening 이 거래의 62%(train 2238/3593)라 '같은 수의 타 패턴 거래 제거'가 불가능 — 코드가 min(k,len(others)) 로 타 패턴 전부를 제거해 대조 분포가 단일값(중앙=p95)이 됐다. 판정 기준은 사후 변경하지 않고 K2 는 무효로 기록; REJECTED 는 K3 단독으로도 성립. 사전 확률 PASSED .15 → 방향 적중(가장 약한 고리 K3 예측 적중, K2 예측은 이유가 틀림). 실거래 무변경. report_va_drop.md"
   }
 }
