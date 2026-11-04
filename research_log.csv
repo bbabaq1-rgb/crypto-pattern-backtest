@@ -363,3 +363,4 @@
 2026-11-01T17:30:00+00:00,path_tail_R084,경로 꼬리 위치,"{""run"": 41327602171, ""q_cagr_B20"": 0.003, ""q_cagr_B60"": 0.027, ""q_cagr_T7"": 0.1, ""live_change"": ""none""}",8287,,,,PATH_CLUSTER,
 2026-11-02T18:50:00+00:00,risk_grid_t7_R086,위험 수준 격자 T7,"{""run"": 41491835415, ""win_t7_0.5_13"": 0.46, ""win_t7_1.0_13"": 0.57, ""win_b20_0.5"": 0.18, ""win_b20_1.0"": 0.42, ""live_change"": ""none""}",8285,,,,REJECTED,
 2026-11-03T17:20:00+00:00,va_drop_R089,vol_awakening_4h 제거 반증,"{""run"": 41676722329, ""K1"": true, ""K2"": ""invalid"", ""K3"": false, ""K4"": true, ""live_change"": ""none""}",8285,,,,REJECTED,
+2026-11-04T18:30:00+00:00,steward_loss_R082,steward 정지 규칙 손실함수,"{""run"": 41869994761, ""best"": ""L3"", ""J_L3"": -11.23, ""J_C0"": -71.54, ""never_best"": true, ""live_change"": ""none""}",8285,,,,CURRENT_RETAINED,

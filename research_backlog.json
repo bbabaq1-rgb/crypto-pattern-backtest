@@ -21,7 +21,7 @@
     "deploy_on_pass": "true 면 사전 등록 기준 전부 통과 시 자율 반영 규칙(2026-09-05) 적용 대상",
     "lock": "in_progress + started_at + session — 36시간 지나면 다른 세션이 이어받을 수 있다"
   },
-  "updated": "2026-11-01",
+  "updated": "2026-11-04",
   "procedure": "RESEARCH_LOOP.md",
   "items": [
     {
@@ -955,7 +955,7 @@
       "id": "R-082",
       "kind": "prereg_test",
       "priority": 2,
-      "status": "in_progress",
+      "status": "done",
       "deploy_on_pass": true,
       "prerequisites": [],
       "blocked_until": null,
@@ -964,7 +964,7 @@
       "added_on": "2026-10-30",
       "started_at": "2026-11-04T16:40:00Z",
       "session": "routine_20261104T1638",
-      "result": null,
+      "result": "CURRENT_RETAINED (run 41869994761): 최선 L3 가 현행보다 J +60.3 CI[57.7,62.9], c1~c4 통과, c5(NEVER 보다 낫다) 실패 — 백테스트 prior 하 모든 정지 규칙 J<0. steward 상수·실거래 무변경",
       "est_cost_h": 4,
       "prior": 0.3,
       "title": "steward 정지 규칙을 손실함수로 재설계 — 오정지 기회비용 vs 지연 손실의 기대값 최소 문턱",
@@ -1168,6 +1168,48 @@
       "source": "R-089: 제거 거래 train +2.58% / holdout -0.07% (부호 역전), 제거 arm Calmar 는 양 분할 개선 → 전부 제거 대신 감축이 중간해일 가능성",
       "hypothesis": "vol_awakening_4h 만 size_mult 0.5(vp.simulate size_mult 훅)로 줄인 arm 이 train·holdout 양쪽 Calmar 에서 current 를 이기고 노출 정합(J6) 가드를 통과한다.",
       "notes": "위험 수준 계열이라 적용은 사용자 결정. R-089 의 사후 셀 후속이므로 반증(전후반·무작위 패턴 감축 대조) 필수. 사이징 변경은 실거래 코드이므로 시험·보고까지."
+    },
+    {
+      "kind": "prereg_test",
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-11-04",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "status": "ready",
+      "id": "R-092",
+      "priority": 2,
+      "deploy_on_pass": true,
+      "est_cost_h": 4,
+      "prior": 0.3,
+      "title": "steward 규칙 격자를 실거래 장부 prior 로 재평가 — 정지가 NEVER 보다 낫기 위한 음수 mu 질량",
+      "source": "R-082: 백테스트 prior 하 모든 정지 규칙이 NEVER 보다 나쁨(c5 실패). 정지의 가치는 prior 에 음수 mu 질량이 얼마나 있느냐에 달려 있고 그것은 실거래 장부(배포 후 단위 평균)가 말한다",
+      "hypothesis": "배포 후 실거래 단위(패턴 x 방식D)의 평균을 경험적 베이즈로 수축한 prior 로 R-082 규칙 8개를 다시 평가하면 최선 규칙의 J 가 NEVER(0) 를 CI 로 넘는다(정지가 가치 있는 영역이 존재).",
+      "notes": "steward.fetch_trades 로 Actions 에서 장부 읽기(steward.yml 선례). prior 단위 n>=20, 수축 동일. 규칙 격자는 R-082 와 동일(사전 고정) — 새 규칙 추가 금지. 통과 시 새 판 registry + steward 상수 교체 PR. 장부는 R-082 판정 이후 데이터라 사후 선택 아님이나 단위 n 이 작아 불안정 — 부트 CI 필수."
+    },
+    {
+      "kind": "prereg_test",
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-11-04",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "status": "ready",
+      "id": "R-093",
+      "priority": 3,
+      "deploy_on_pass": false,
+      "est_cost_h": 4,
+      "prior": 0.15,
+      "title": "단위 누적 손실 한도형 정지 — 평균 부호 검정 대신 누적 달러 손실(CUSUM) 문턱",
+      "source": "R-082·R-080: 평균 부호·부트 검정은 sd 17% 때문에 반복 평가에서 양의 mu 단위를 대량 오정지. 손실 한도형은 표본 크기가 아니라 누적 손실 크기로 발동",
+      "hypothesis": "단위 누적 손익이 -K x pool_sd(K in 사전 고정 {3,5,8}) 아래로 내려가면 정지하는 규칙이 R-082 의 사전분포 J 에서 현행·L3 보다 높다(양의 mu 단위는 거의 안 걸리고 mu<=-1% 단위만 걸린다).",
+      "notes": "R-082 와 같은 풀·prior·J·판정 기준 재사용, 규칙 3개만 추가. 새 규칙 가족이라 deploy_on_pass=false. c5(NEVER 보다 낫다) 를 같은 방식으로 요구."
     }
   ]
 }
