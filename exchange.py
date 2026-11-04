@@ -286,7 +286,7 @@ def place_stop_algo(ex, inst_id, close_side, qty, sl_px, tp_px=None):
     return resp
 
 
-def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
+def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None, skip=None):
     """
     안전망: 오픈 포지션의 손절(algo) 주문 점검·재등록 + 고아 손절 주문 취소.
 
@@ -300,6 +300,9 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
        reduceOnly 없이 등록된 과거 주문은 트리거 시 신규 진입이 되므로,
        잔고가 들어오는 순간 의도치 않은 포지션이 열린다(2026-08-29 7건 발견).
        포지션 조회가 실패하면 전부 고아로 오판할 수 있어 취소를 통째로 스킵한다.
+    3) skip — 대표님 수동 포지션 종목(2026-11-04 "ont 15배 롱 내가 수동 매매했어 이건 너가 건드리지 마").
+       이 심볼들은 손절 재등록·재정렬 취소·고아 취소를 **전부 하지 않는다** — 그 종목의 포지션과 algo 는
+       대표님 몫이다. None/빈 집합이면 종전 동작과 완전히 같다.
     반환: (fixed, cancelled)
       fixed     = [(symbol, stop_px), ...]  재등록 목록
       cancelled = [(instId, algoId), ...]   취소한 고아 주문
@@ -307,6 +310,7 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
     """
     fixed, cancelled = [], []
     stop_map = stop_map or {}
+    skip_inst = {f"{str(x).strip().upper()}-USDT-SWAP" for x in (skip or ()) if str(x).strip()}
     try:
         ex = live_conn["exchange"]
         poss = get_okx_positions(live_conn)
@@ -330,7 +334,7 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
         # replace: 이 심볼들은 살아있는 algo 를 먼저 취소하고 stop_map 값으로 다시 건다
         # (체결가 기준 배리어 재정렬용 — 없으면 '손절 있음'으로 건너뛰어 재정렬이 무효).
         if replace:
-            rep_inst = {f"{s}-USDT-SWAP" for s in replace}
+            rep_inst = {f"{s}-USDT-SWAP" for s in replace} - skip_inst
             keep = []
             for o in pending:
                 if o.get("instId") in rep_inst:
@@ -351,6 +355,10 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
         # 1) 포지션에 손절 누락 → 재등록
         for p in poss:
             inst = f"{p['symbol']}-USDT-SWAP"
+            if inst in skip_inst:
+                if inst not in covered:
+                    print(f"  [SL점검] {p['symbol']} 수동 포지션 — 손절 재등록 안 함(대표님 관리)")
+                continue
             if inst in covered:
                 continue
             entry, d = p["entry_price"], p["direction"]
@@ -386,7 +394,7 @@ def ensure_stop_orders(live_conn, stop_pct=0.08, stop_map=None, replace=None):
             if live_inst is not None:
                 for o in pending:
                     inst, algo_id = o.get("instId"), o.get("algoId")
-                    if inst in live_inst:
+                    if inst in live_inst or inst in skip_inst:
                         continue
                     try:
                         r = ex.privatePostTradeCancelAlgos(

@@ -524,6 +524,23 @@ def program_exclude_set(path="universe.json"):
     return {str(x).strip().upper() for x in (u.get("program_exclude") or []) if str(x).strip()}
 
 
+def manual_symbols(path="universe.json"):
+    """
+    대표님 수동 포지션 종목 (2026-11-04 "지금 okx에 ont 15배 롱 내가 수동 매매했어 이건 너가 건드리지 마 내가
+    수동으로 처리하게"). universe.json["manual_positions"] = ["ONT", ...] — 대문자 심볼 집합.
+    이 종목은 프로그램이 **아무것도 하지 않는다**: 손절 재등록·algo 취소(ensure_stop_orders skip) ·
+    장부 행의 실거래 승격(reconcile_live_flag) · 신규 진입(메인·AI 모두). 키가 없거나 비면 빈 집합 = 종전 동작.
+    읽기 실패면 빈 집합 — 같은 실행의 trading_halt_state 가 읽기 실패를 fail-closed 로 막는다.
+    """
+    if not os.path.exists(path):
+        return set()
+    try:
+        u = json.load(open(path, encoding="utf-8"))
+    except Exception:
+        return set()
+    return {str(x).strip().upper() for x in (u.get("manual_positions") or []) if str(x).strip()}
+
+
 def ai_trader_patterns(path="universe.json"):
     """universe.json ai_traders 의 pattern 집합 + AI 엘리엇 패턴(스위치가 꺼져도 그 패턴은 프로그램 매매가 아니다)."""
     pats = {ai_elliott.PATTERN}
@@ -1210,9 +1227,11 @@ def stop_map_of(positions):
     return out
 
 
-def reconcile_live_flag(positions, live_conn):
+def reconcile_live_flag(positions, live_conn, skip=None):
     """
     OKX 실측을 기준으로 DB 복원 포지션의 live_mode를 보정.
+    skip(기본 manual_symbols()) 종목은 승격하지 않는다 — 그 종목의 거래소 포지션은 대표님 수동 매매라
+    장부 행을 실거래로 올리면 방식D 청산이 그 포지션에 시장가를 낸다(2026-11-04).
 
     OKX에 (symbol, direction)이 실재하면 해당 DB 포지션을 live_mode=True로 승격한다.
     이렇게 해야 방식D 청산 모니터가 그 포지션을 '실거래'로 보고 조건 충족 시
@@ -1225,8 +1244,11 @@ def reconcile_live_flag(positions, live_conn):
         print("  [reconcile] OKX 포지션 조회 실패(무시):", str(e)[:60])
         return positions
     okx_keys = {(p["symbol"], p["direction"]) for p in okx}
+    skip = manual_symbols() if skip is None else {str(x).strip().upper() for x in skip}
     promoted = []
     for pos in positions:
+        if str(pos["symbol"]).strip().upper() in skip:
+            continue
         if (pos["symbol"], pos["direction"]) in okx_keys and not pos.get("live_mode"):
             pos["live_mode"] = True
             promoted.append(pos["symbol"])
@@ -1405,7 +1427,9 @@ def run(stamp=None, slow=None, ai_only=False):
             # (ATR 배리어 패턴은 손절이 0.75~1.5%라 ±8% 재등록이 검증치와 5~10배 어긋난다)
             # target 은 ATR 배리어 패턴에만, d_closed(유령) 행은 제외 — stop_map_of 참조.
             stop_map = stop_map_of(positions)
-            fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn, stop_map=stop_map)
+            # 대표님 수동 포지션 종목은 손절 재등록·algo 취소를 하지 않는다(manual_symbols, 2026-11-04)
+            fixed_sl, orphan_sl = ex_mod.ensure_stop_orders(live_conn, stop_map=stop_map,
+                                                            skip=manual_symbols())
             if fixed_sl:
                 import notify
                 notify.send("⚠️ <b>손절 주문 누락 감지 → 재등록</b>\n" +
@@ -1697,11 +1721,19 @@ def run(stamp=None, slow=None, ai_only=False):
     prog_ex, ai_pats = program_exclude_set(), ai_trader_patterns()
     if prog_ex:
         print(f"  [프로그램 제외] {sorted(prog_ex)} — 프로그램 매매 신규 진입 대상 아님(AI 트레이더 전용)")
+    # 대표님 수동 포지션 종목(2026-11-04, manual_symbols) — 메인·AI 구분 없이 진입하지 않는다
+    manual = manual_symbols()
+    if manual:
+        print(f"  [수동 포지션] {sorted(manual)} — 대표님 수동 매매, 진입·손절 등록·algo 취소 안 함")
     for s in sig.get("signals", []):
         # 주문 직전 마지막 관문 — scheduler 가 신호 단계에서 이미 빼지만, signals_today.json 을 다른 경로로 받았을 때도
         # 막는다. AI 트레이더 신호는 해당 없음. 중복 방어·AI 판단·사이징보다 앞이라 페이퍼 행도 만들지 않는다.
         if program_excluded(s["symbol"], s["pattern"], prog_ex, ai_pats):
             print(f"  [skip] {s['symbol']} {s['pattern']} {s['direction']} — 프로그램 매매 제외 종목, 진입 안 함")
+            continue
+        if str(s["symbol"]).strip().upper() in manual:
+            print(f"  [skip] {s['symbol']} {s['pattern']} {s['direction']} — 대표님 수동 포지션 종목, 진입 안 함")
+            _ai_action(s.get("_ai_rec"), "manual_position")
             continue
         # AI 엘리엇 신호면 스킵 사유를 그 판단 행에 남긴다(_ai_rec 없는 메인 신호는 아무 일도 없다)
         rows = rows_of(s["symbol"], s.get("tf", "1d"))
@@ -1943,7 +1975,7 @@ def run(stamp=None, slow=None, ai_only=False):
                     # replace= 필수: 진입과 함께 건 OCO 가 이미 살아 있어, 그냥 부르면
                     # '손절 있음'으로 건너뛰어 재정렬이 무효였다(2026-09-03 점검).
                     ok_r = ex_mod.ensure_stop_orders(
-                        live_conn,
+                        live_conn, skip=manual,
                         stop_map={s["symbol"]: {"stop": stop_px, "target": target_px}},
                         replace={s["symbol"]})
                     print(f"  [live] {s['symbol']} 배리어를 체결가 기준으로 재정렬 "
