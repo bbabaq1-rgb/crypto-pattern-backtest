@@ -62,6 +62,7 @@ jobs:
                    test_va_drop.py \
                    test_steward_char.py \
                    test_steward_v2.py \
+                   test_steward_loss.py \
                    test_dclose_vol.py \
                    test_dclose_port.py \
                    test_ma_breakout.py \
