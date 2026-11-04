@@ -834,7 +834,7 @@ check("ai_only: 레짐 계산 안 함", "regmap = {} if ai_only else rs.build_re
 _i_ai = _r.find("if ai_only:\n            # 15분 틱은 메인 전략 장부·주문을 건드리지 않는다")
 check("ai_only: 정합성 보정·청산 감지·손절 점검 생략(그 블록 앞에서 갈린다)",
       0 < _i_ai < _r.find("reconcile_live_flag(positions, live_conn)")
-      < _r.find("reconcile_closed_positions(positions, trades, live_conn)") < _r.find("ensure_stop_orders(live_conn, stop_map=stop_map)"))
+      < _r.find("reconcile_closed_positions(positions, trades, live_conn)") < _r.find("ensure_stop_orders(live_conn, stop_map=stop_map,"))
 _b_ai = _r[_i_ai:_r.find("reconcile_live_flag(positions, live_conn)")]
 check("ai_only: 청산 이력 대조(키로 맞추는 reconcile)는 15분 틱에서 부르지 않는다 — OCO 집행은 settle_by_algo 가 그 algo 로 본다"
       "(2026-10-29 — 이력 지연·포지션 조회 실패 시 직전 거래 청산가를 붙일 위험)", "reconcile" not in _b_ai.split("else:")[0], _b_ai)

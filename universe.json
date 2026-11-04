@@ -668,5 +668,9 @@
   "program_exclude": [
     "BTC"
   ],
-  "program_exclude_note": "2026-11-01 사용자 결정 \"btc는 앞으로 ai매매에만 활용하고 프로그램 매매에서는 대상에서 제외처리해\". 여기 적힌 종목은 프로그램 매매(1d FOCUS·adopted 1d/4h/1h·cascade·tp1 등 디텍터 신호)의 신규 진입 대상이 아니다 — scheduler.drop_program_excluded 가 신호 단계에서, paper_executor.program_excluded 가 주문 직전에 뺀다. ai_traders 패턴(AI 엘리엇 BTC)은 해당 없음. 탐지·코호트 순위(top20/top30)·레짐 계산에는 계속 들어간다(순위는 두고 결과에서만 제외). 이미 열린 포지션은 각자의 청산 규칙대로 끝까지 간다(신규 진입만 막음). 되돌리기: 이 목록에서 빼기 — 사용자 결정."
+  "program_exclude_note": "2026-11-01 사용자 결정 \"btc는 앞으로 ai매매에만 활용하고 프로그램 매매에서는 대상에서 제외처리해\". 여기 적힌 종목은 프로그램 매매(1d FOCUS·adopted 1d/4h/1h·cascade·tp1 등 디텍터 신호)의 신규 진입 대상이 아니다 — scheduler.drop_program_excluded 가 신호 단계에서, paper_executor.program_excluded 가 주문 직전에 뺀다. ai_traders 패턴(AI 엘리엇 BTC)은 해당 없음. 탐지·코호트 순위(top20/top30)·레짐 계산에는 계속 들어간다(순위는 두고 결과에서만 제외). 이미 열린 포지션은 각자의 청산 규칙대로 끝까지 간다(신규 진입만 막음). 되돌리기: 이 목록에서 빼기 — 사용자 결정.",
+  "manual_positions": [
+    "ONT"
+  ],
+  "manual_positions_note": "2026-11-04 대표님 수동 매매 'ONT 15배 롱 — 이건 너가 건드리지 마 내가 수동으로 처리하게'. 이 목록의 종목은 프로그램이 손절 재등록·algo 취소·장부 승격·신규 진입(메인·AI)을 하지 않는다 — paper_executor.manual_symbols. 대표님이 정리했다고 하시면 목록에서 뺀다."
 }
