@@ -482,11 +482,30 @@ q10 = next(q for q in sb["questions"] if q["id"] == "Q10")
 check("Q10 무작위 보행 = 거리 비율", abs(q10["baselines"]["random_walk"] - (q10["basis_px"] - q10["rule"]["down"]) /
       (q10["rule"]["up"] - q10["rule"]["down"])) < 1e-3)
 check("Q10 판정 가격은 기존 레벨에서만", {q10["rule"]["up"], q10["rule"]["down"]} <= lv_px)
-check("Q10 기준가 = 현재 확률표 기준가", q10["basis_px"] == ol["basis_px"])
-check("직전 표(10/09 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 81710.0)
+check("Q10 기준가 = 등록 당시(10/25 판) 확률표 기준가 — previous 에 보존", q10["basis_px"] == 80696.0
+      and any(t["basis_px"] == 80696.0 for t in ol["previous"]))
+check("10/09 판 표가 previous 에 보존", any(t["basis_px"] == 81710.0 for t in ol["previous"]))
 check("발동한 트리거(79,342)는 목록에서 빠짐", all(t["px"] != 79342.0 for t in ol["triggers"]))
 check("Q1~Q9 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
       for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9")] == [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51, 0.30])
+
+print("[21] 38.2% 이탈 재평가 (2026-11-04)")
+q11 = next(q for q in sb["questions"] if q["id"] == "Q11")
+check("Q11 무작위 보행 = 거리 비율", abs(q11["baselines"]["random_walk"] - (q11["basis_px"] - q11["rule"]["down"]) /
+      (q11["rule"]["up"] - q11["rule"]["down"])) < 1e-3)
+check("Q11 판정 가격은 기존 레벨에서만", {q11["rule"]["up"], q11["rule"]["down"]} <= {lv["px"] for lv in COUNT["levels"]})
+check("Q11 기준가 = 현재 확률표 기준가", q11["basis_px"] == ol["basis_px"] and q11["as_of"] == ol["as_of"])
+check("직전 표(10/25 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 80696.0
+      and ol["previous"][-1]["scenarios_pct"] == {"S1": 45, "S4": 5, "S2": 8, "S3": 42})
+check("발동한 트리거(76,059)는 목록에서 빠짐", all(t["px"] != 76059.0 for t in ol["triggers"]))
+check("50% 되돌림 이탈 트리거(72,557↓) 추가", any(t["px"] == 72557.0 and t["dir"] == "below" for t in ol["triggers"]))
+check("76,059 를 아래 기준으로 쓰던 다섯 질문은 down 으로 판정 기록", all(
+      q["status"] == "resolved" and q["outcome"] == "down" and q["resolved_on"] == "2026-11-04 00:00"
+      for q in sb["questions"] if q["id"] in ("Q1", "Q3", "Q5", "Q9", "Q10")))
+check("Q1~Q10 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
+      for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10")] ==
+      [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51, 0.30, 0.35])
+check("revisions 에 2026-11-04 트리거 재평가 항목", any(r["date"] == "2026-11-04" for r in COUNT["revisions"]))
 
 print()
 if FAIL:
