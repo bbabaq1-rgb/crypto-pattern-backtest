@@ -2783,8 +2783,12 @@
     '제약'(메인 BTC 롱이 AI 숏을 막는다)은 더 생기지 않는다.
   · 되돌리기: `program_exclude` 에서 BTC 빼기 — 사용자 결정. test_program_exclude.py(tests.yml 등록).
 
-- **대표님 수동 포지션 — ONT, 프로그램 손대지 않음 (2026-11-04, 사용자 지시 "지금 okx에 ont 15배 롱 내가 수동 매매했어
-  이건 너가 건드리지 마 내가 수동으로 처리하게")**: `universe.json["manual_positions"] = ["ONT"]` + `paper_executor.manual_symbols`.
+- **대표님 수동 포지션 — ONT·BAT, 프로그램 손대지 않음 (2026-11-04 ONT, 사용자 지시 "지금 okx에 ont 15배 롱 내가 수동 매매했어
+  이건 너가 건드리지 마 내가 수동으로 처리하게" / 2026-11-05 BAT 추가, "지금 포지션 잡혀있는 ont랑 bat는 내가 수동 매매할거니깐
+  이건 터치하지마")**: `universe.json["manual_positions"] = ["ONT", "BAT"]` + `paper_executor.manual_symbols`.
+  · **BAT 확인(11/04 23:3xZ = 11/05 08:3x KST)**: 장부(positions)의 BAT 행 2건은 둘 다 closed(7/04 marubozu·10/14 fvg) — 지금 OKX BAT 포지션은
+    대표님 수동 포지션이고 프로그램 장부 행이 없다(ONT 와 같은 경우라 목록 추가만으로 네 경로가 다 막힌다). 23:03Z 틱 로그:
+    `OKX 실포지션 6건` = 장부 실거래 4(equal_lows_4h×2·triple_bottom_4h·ai_elliott_btc) + ONT + BAT.
   · **계기**: 손절 자동점검 `exchange.ensure_stop_orders` 는 거래소의 **모든** 포지션을 돈다 — 손절 algo 가 없으면 진입가 ±8%
     손절을 걸고, 포지션이 없어진 종목의 algo 는 고아로 취소한다. 대표님 포지션에도 그대로 적용되는 구조였다.
   · **장치 4곳, 판정 함수 하나**: ① `ensure_stop_orders(skip=)` — 수동 종목은 손절 재등록·재정렬 취소·고아 취소를 전부 하지
@@ -2801,7 +2805,7 @@
   · 되돌리기: 대표님이 정리했다고 하시면 목록에서 뺀다. test_manual_positions.py(tests.yml 등록).
 
 ## 다음 할 일
-- [ ] **ONT 수동 포지션 — 대표님 정리 후 manual_positions 에서 빼기** (2026-11-04). 그 전까지 프로그램은 ONT 진입·손절 등록·algo 취소 안 함
+- [ ] **ONT·BAT 수동 포지션 — 대표님 정리 후 manual_positions 에서 빼기** (ONT 2026-11-04 · BAT 2026-11-05). 그 전까지 프로그램은 두 종목 진입·손절 등록·algo 취소 안 함
       · 04:00Z 에 프로그램이 건 ONT 손절 algo(0.04022) 처리 — 대표님 결정(그대로 / 앱에서 취소 / 취소 지시)
 - [ ] **메인 BTC 롱(vol_awakening_4h, 10-30 진입) 처리 (사용자 결정)** — 수동 청산 또는 30봉 만기(11-04 무렵) 대기.
       닫힌 뒤 첫 매시 :03 틱부터 AI 숏 가능. BTC 프로그램 매매 제외(2026-11-01)로 같은 막힘은 다시 생기지 않는다

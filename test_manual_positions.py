@@ -13,7 +13,7 @@ test_manual_positions.py — 대표님 수동 포지션 종목을 프로그램�
   3. manual_symbols — 키 없음·빈 목록·파일 없음·깨진 JSON → 빈 집합, 대소문자·공백 정규화
   4. reconcile_live_flag — 수동 종목 장부 행은 승격하지 않는다(기본은 manual_symbols 를 읽는다)
   5. 배선(소스) — 손절 점검 두 호출부가 skip 을 넘긴다 · 진입 루프 판정이 봉 조회·중복 방어·AI 판단·사이징보다 앞
-  6. 현재 universe.json — ONT 가 manual_positions 에 있고 program_exclude 와는 별개
+  6. 현재 universe.json — ONT·BAT 가 manual_positions 에 있고 program_exclude 와는 별개
   7. 오프라인 e2e — 같은 실행에 ONT·ETH 신호가 오면 ETH 만 진입, 목록을 비우면 둘 다 진입(종전 동작)
 
 실행: python test_manual_positions.py   (실패 시 exit 1)
@@ -227,8 +227,8 @@ check("AI 트레이더 예외 없음 — 수동 종목 판정은 ai_trader_patte
 
 # ── 6. 현재 universe.json ──────────────────────────────────────────────────
 U = json.load(io.open("universe.json", encoding="utf-8"))
-check("universe.json: ONT 가 manual_positions 에 있다(2026-11-04 대표님 수동 매매)",
-      U.get("manual_positions") == ["ONT"] and pe.manual_symbols() == {"ONT"}, U.get("manual_positions"))
+check("universe.json: ONT·BAT 가 manual_positions 에 있다(2026-11-04 ONT · 2026-11-05 BAT 대표님 수동 매매)",
+      U.get("manual_positions") == ["ONT", "BAT"] and pe.manual_symbols() == {"ONT", "BAT"}, U.get("manual_positions"))
 check("universe.json: 수동 목록은 program_exclude 와 별개(BTC 는 AI 전용, ONT 는 대표님 수동)",
       "ONT" not in (U.get("program_exclude") or []) and "BTC" not in (U.get("manual_positions") or []))
 check("universe.json: 설명 노트가 있다", "건드리지 마" in str(U.get("manual_positions_note", "")))
