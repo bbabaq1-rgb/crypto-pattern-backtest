@@ -6678,5 +6678,25 @@
       "prior_grade": "ADOPT 0.30 미채택 적중, never_best 0.55 적중, CURRENT_RETAINED 0.70 적중",
       "live_change": "none"
     }
+  },
+  "steward_ledger_prereg_2026_11_05": {
+    "status": "REGISTERED",
+    "DEPLOY_ON_PASS": true,
+    "backlog": "R-092",
+    "registered": "2026-11-05 (결과 열람 전 — 로컬은 합성 데이터 테스트만, 장부 수치 열람 없음)",
+    "hypothesis": "R-082 는 백테스트 prior 하에서 모든 정지 규칙이 NEVER 보다 나빴다. 배포 후 실거래 장부의 단위(pattern x direction) 평균을 경험적 베이즈로 수축한 prior 로 같은 8개 규칙을 다시 평가하면 최선 규칙의 J 가 NEVER(0) 와 현행 둘 다를 CI 로 넘는다(정지가 가치 있는 영역이 존재).",
+    "cells": "validate_steward_loss 의 규칙 8개(NEVER/C0 현행/C1·C2·C3/L1·L2·L3)·GRID·경로 생성·손익 정의·시드(82)·sims 400·lam{1,3}·52주 그대로. 새 규칙 추가 금지.",
+    "frozen": {
+      "prior": "steward.live_d(실거래 방식D) 를 (pattern,direction) 단위로 묶어 n>=20 단위 평균을 R-082 와 같은 경험적 베이즈(tau^2 하한 0.25)로 수축, GRID 최근접 점에 단위 동일 가중. 진단 prior: raw(수축 없음)·decay(-1%p)",
+      "noise_pool": "장부 실거래 수익률(%) 전체를 평균 0 으로 이동 — OKX 데이터 불필요",
+      "min_units": 3,
+      "min_total_n": 100
+    },
+    "criteria": "best = 후보 6개(NEVER·C0 제외) 중 J(주 prior) 최대. 전부 충족해야 ADOPT: c1 J(best)-J(C0) 짝지음 부트 95% CI 하한>0 / c2 lam=1·3 각각 J(best)>J(C0) / c3 raw·decay prior 에서도 J(best)>J(C0) / c4 mu=-2% lam=3 정지율>=0.70 / c5 J(best)-J(NEVER) CI 하한>0(R-082 의 J>0 를 CI 로 강화). 단위<3 또는 장부<100건이면 INCONCLUSIVE. 모두 NEVER 이하면 NEVER_PREFERRED, 그 밖은 CURRENT_RETAINED.",
+    "diagnostics": "규칙별 J(주/raw/decay/lam1/lam3), mu=-2 정지율, 단위 수·n·수축 mu 목록. 사후에 진단에서 규칙을 고르지 않는다.",
+    "prior_prob": "ADOPT 0.15, NEVER_PREFERRED 0.35, CURRENT_RETAINED 0.20, INCONCLUSIVE 0.30. 근거: 장부 단위 n>=20 은 소수(vol_awakening_4h 등)일 가능성이 높고, 10/10 이후 bull_btc 알트 롱 실거래 평균이 약 -5%라 음수 mu 질량이 생기면 정지 규칙이 NEVER 를 넘을 수 있으나, 단위 수가 3~5개로 작으면 CI 가 넓어 c5 에서 갈린다.",
+    "known_limits": "배포 후 장부는 한 국면(bull_btc 2주 포함)이고 단위 n 이 작아 prior 가 불안정 · 같은 장부가 규칙 평가와 prior 양쪽에 쓰이는 순환(시뮬은 prior 에서 mu 를 뽑고 장부 경로는 직접 쓰지 않음) · 수익률 독립 가정 · 단위를 pattern x direction 으로 묶어 steward 의 레짐 셀 층은 미반영 · 손익은 거래당 % 단위.",
+    "followup": "ADOPT 이면 새 판 steward_rules_<날짜> registry + steward.py 상수 교체 PR(이후 데이터에만 적용, 동작 불변 테스트). 그 밖이면 상수 무변경.",
+    "live_change": "none (시험 단계)"
   }
 }
