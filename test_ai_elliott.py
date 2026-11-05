@@ -726,9 +726,11 @@ check("entry_check: every_min 이 15 가 아니면 꺼짐", not ae.entry_check_a
       and not ae.entry_check_active(EC(every_min="x"), _T - 1))
 check("entry_check: 시간대 없는 until 은 UTC", ae._iso_ms("2026-11-05T06:30:00") == _T)
 _uec = next(t for t in uni["ai_traders"] if t["pattern"] == P).get("entry_check") or {}
-check("universe: 시험 설정(15분 · 2026-10-29 시작 · 11-05 종료 · 사용자 지시 기록)", _uec.get("every_min") == 15
-      and _uec.get("started") == "2026-10-29" and str(_uec.get("until", "")).startswith("2026-11-05")
+check("universe: 시험 설정(15분 · 2026-10-29 시작 · 11-12 종료(11-05 1주 연장) · 사용자 지시 기록)", _uec.get("every_min") == 15
+      and _uec.get("started") == "2026-10-29" and str(_uec.get("until", "")).startswith("2026-11-12")
       and ae._iso_ms(_uec.get("until")) and "1주일" in _uec.get("decided", ""), _uec)
+check("universe: 연장 기록(2026-11-05 → 11-12, 사용자 결정)", any(x.get("on") == "2026-11-05" and x.get("until") == _uec.get("until")
+      and "사용자 결정" in x.get("decided", "") for x in _uec.get("extensions", [])), _uec.get("extensions"))
 check("registry: 시험 기록(deploy_on_pass false)", rp.get("entry_check_test_2026_10_29", {}).get("deploy_on_pass") is False)
 
 # 정렬된 합성 봉 — TA = 2026-10-29 00:00Z. 00:20 = 15분 틱(15m 00:00 봉이 막 닫힘, 1h 00:00 봉 형성 중), 00:03 = 매시 틱.
