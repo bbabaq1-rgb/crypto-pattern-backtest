@@ -6680,7 +6680,7 @@
     }
   },
   "steward_ledger_prereg_2026_11_05": {
-    "status": "REGISTERED",
+    "status": "DONE_INCONCLUSIVE",
     "DEPLOY_ON_PASS": true,
     "backlog": "R-092",
     "registered": "2026-11-05 (결과 열람 전 — 로컬은 합성 데이터 테스트만, 장부 수치 열람 없음)",
@@ -6697,6 +6697,27 @@
     "prior_prob": "ADOPT 0.15, NEVER_PREFERRED 0.35, CURRENT_RETAINED 0.20, INCONCLUSIVE 0.30. 근거: 장부 단위 n>=20 은 소수(vol_awakening_4h 등)일 가능성이 높고, 10/10 이후 bull_btc 알트 롱 실거래 평균이 약 -5%라 음수 mu 질량이 생기면 정지 규칙이 NEVER 를 넘을 수 있으나, 단위 수가 3~5개로 작으면 CI 가 넓어 c5 에서 갈린다.",
     "known_limits": "배포 후 장부는 한 국면(bull_btc 2주 포함)이고 단위 n 이 작아 prior 가 불안정 · 같은 장부가 규칙 평가와 prior 양쪽에 쓰이는 순환(시뮬은 prior 에서 mu 를 뽑고 장부 경로는 직접 쓰지 않음) · 수익률 독립 가정 · 단위를 pattern x direction 으로 묶어 steward 의 레짐 셀 층은 미반영 · 손익은 거래당 % 단위.",
     "followup": "ADOPT 이면 새 판 steward_rules_<날짜> registry + steward.py 상수 교체 PR(이후 데이터에만 적용, 동작 불변 테스트). 그 밖이면 상수 무변경.",
-    "live_change": "none (시험 단계)"
+    "live_change": "none (시험 단계)",
+    "result": {
+      "run": 42066944346,
+      "verdict": "INCONCLUSIVE",
+      "why": "n>=20 단위 2개(하한 3 미달), 장부 222행",
+      "mu_shrunk": [
+        -0.66,
+        -0.62
+      ],
+      "J_main": {
+        "NEVER": 0,
+        "C0": 41.9,
+        "C1": 28.4,
+        "C2": 18.7,
+        "C3": 19.7,
+        "L1": 24.0,
+        "L2": 34.5,
+        "L3": 16.7
+      },
+      "prior_grade": "INCONCLUSIVE 0.30 적중, ADOPT 0.15 미채택 적중, NEVER_PREFERRED 0.35(최고) 빗나감",
+      "live_change": "none"
+    }
   }
 }
