@@ -1210,6 +1210,27 @@
       "source": "R-082·R-080: 평균 부호·부트 검정은 sd 17% 때문에 반복 평가에서 양의 mu 단위를 대량 오정지. 손실 한도형은 표본 크기가 아니라 누적 손실 크기로 발동",
       "hypothesis": "단위 누적 손익이 -K x pool_sd(K in 사전 고정 {3,5,8}) 아래로 내려가면 정지하는 규칙이 R-082 의 사전분포 J 에서 현행·L3 보다 높다(양의 mu 단위는 거의 안 걸리고 mu<=-1% 단위만 걸린다).",
       "notes": "R-082 와 같은 풀·prior·J·판정 기준 재사용, 규칙 3개만 추가. 새 규칙 가족이라 deploy_on_pass=false. c5(NEVER 보다 낫다) 를 같은 방식으로 요구."
+    },
+    {
+      "kind": "prereg_test",
+      "prerequisites": [],
+      "blocked_until": null,
+      "owner": "agent",
+      "added_by": "claude",
+      "added_on": "2026-11-05",
+      "started_at": null,
+      "session": null,
+      "result": null,
+      "status": "ready",
+      "id": "R-094",
+      "priority": 3,
+      "deploy_on_pass": false,
+      "est_cost_h": 5,
+      "prior": 0.1,
+      "title": "BTC 상승일 조건부 알트 참여율 — '알트 상승장' 상태 라벨러·라우터 시험",
+      "source": "사용자 제안 2026-11-05 '비트 상승한 날만 알트 총합이 오른 비율이 낮으면 알트상승장이 아니고 … 비트보다 높으면 알트 강세장'. 레포에 두 조각이 이미 있다 — up_capture(relative_strength.compute_capture, altcap 판 20/60일 REJECTED·부호 반대)와 폭(breadth 라벨러 9종 전부 연도 일관성 탈락, breadth_state ic_broad 20셀 음수). 시험된 적 없는 형태는 'BTC 상승일에 한정한 참여율(breadth | BTC up)'과 그것을 예측기가 아니라 상태 라우터로 쓰는 것(episode_profile: bull_btc 라벨 ≠ 알트 불장 — 2021 98% vs 2024-25 16%).",
+      "hypothesis": "상태 = P_up − P_dn (P_up: 창 안 BTC 상승일 중 PIT top30 알트가 오른 비율의 평균, P_dn: BTC 하락일 중 알트가 내린 비율의 평균; 창 20일·60일 사전 고정, 상승·하락일 각 8일 미만이면 중립). 히스테리시스 문턱 ±0.10 으로 strong/weak/neutral 라벨. (1) 라벨 품질: regime_quality 4규칙(분리폭·연도 일관성 75%·전환 지연·flips) 통과 (2) 2단계: method_q 식 짝지음 arm — 알트 롱 진입 필터 F_(weak 차단)·청산 D_(weak 전환 시 청산)·사이징 S_(weak ×0.5) 가 7기준 통과 (3) 음성 대조 AR(1)·사인파 2종 미통과. 사용자 가설 방향으로 부호 사전 선언: strong 이후 20·60일 알트 롱 성과 > weak.",
+      "notes": "판정 도구는 regime_quality/method_q·validate_altseason 의 회전 귀무·MDE 를 재사용(새 문턱 만들지 않는다). 조건부 통계라 20일 창은 상승일 약 10일·27종목으로 잡음이 크다 — 20일 결과가 60일과 부호가 다르면 INCONCLUSIVE. 사전 확률 0.10: 라벨러 9종·알트 시즌 30셀·altcap 10셀이 전부 잡음 수준이었고 altcap 의 avg_up_cap 은 선언과 반대 부호였다. 오늘 읽기(2026-11-05, 27종목 20일): BTC 상승일 참여 63%·up_cap 0.70 / 하락일 77%·down_cap 1.58 = 사용자 정의로 '알트 상승장 아님'. 실거래 avg_cap 오버레이(complacent → 롱 ×0.6)와 부호가 반대일 수 있으므로 통과 시에도 오버레이 교체는 별도 사전 등록·사용자 결정."
     }
   ]
 }
