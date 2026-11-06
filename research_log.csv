@@ -365,3 +365,4 @@
 2026-11-03T17:20:00+00:00,va_drop_R089,vol_awakening_4h 제거 반증,"{""run"": 41676722329, ""K1"": true, ""K2"": ""invalid"", ""K3"": false, ""K4"": true, ""live_change"": ""none""}",8285,,,,REJECTED,
 2026-11-04T18:30:00+00:00,steward_loss_R082,steward 정지 규칙 손실함수,"{""run"": 41869994761, ""best"": ""L3"", ""J_L3"": -11.23, ""J_C0"": -71.54, ""never_best"": true, ""live_change"": ""none""}",8285,,,,CURRENT_RETAINED,
 2026-11-05T17:10:00+00:00,steward_ledger_R092,steward 규칙 장부 prior,"{""run"": 42066944346, ""units"": 2, ""n"": 222, ""J_C0"": 41.9, ""J_L2"": 34.5, ""live_change"": ""none""}",222,,,,INCONCLUSIVE,
+2026-11-06T17:00:00+00:00,steward_ledger10_R096,steward 규칙 장부 prior n10,"{""run"": 42254456752, ""units"": 8, ""n"": 227, ""J_C0"": 109.5, ""J_L2"": 97.8, ""live_change"": ""none""}",227,,,,CURRENT_RETAINED,
