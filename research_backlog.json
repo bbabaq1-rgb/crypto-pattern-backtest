@@ -1262,8 +1262,41 @@
    "added_on": "2026-11-05",
    "started_at": "2026-11-06T16:39:00Z",
    "session": "routine_2026-11-06T16:39",
-   "result": null,
-   "status": "in_progress",
+   "result": {
+    "run": 42254456752,
+    "verdict": "CURRENT_RETAINED",
+    "best": "L2",
+    "units": 8,
+    "n": 227,
+    "mu_shrunk": [
+     -4.57,
+     -1.16,
+     -0.98,
+     -0.97,
+     -0.96,
+     -0.77,
+     -0.74,
+     -0.36
+    ],
+    "J": {
+     "NEVER": 0,
+     "C0": 109.5,
+     "C1": 86.0,
+     "C2": 67.1,
+     "C3": 64.6,
+     "L1": 75.4,
+     "L2": 97.8,
+     "L3": 51.9
+    },
+    "criteria": "c1 F c2 F c3 F c4 T c5 T",
+    "diff_cur": [
+     -11.64,
+     -12.48,
+     -10.83
+    ],
+    "live_change": "none"
+   },
+   "status": "done",
    "id": "R-096",
    "priority": 2,
    "deploy_on_pass": false,
@@ -1294,6 +1327,48 @@
    "source": "외부 문헌: https://en.wikipedia.org/wiki/CUSUM , https://en.wikipedia.org/wiki/Sequential_probability_ratio_test (전략 열화 모니터링 표준 도구)",
    "hypothesis": "R-082 격자(고정 n·부트 P 문턱)에 없는 순차 검정은 같은 오정지 확률에서 mu=-2% 탐지가 빠르다.",
    "notes": "새 규칙 가족이라 deploy_on_pass=false. R-082 의 경로 생성·손익 정의 재사용, 규칙만 추가(허용 mu0/mu1 사전 고정). 반증: 탐지 지연 중앙값이 L3 와 같거나 오정지 더 높음."
+  },
+  {
+   "id": "R-098",
+   "title": "steward S1/S2 문턱을 장부 prior 아래 격자로 재평가 — 현행이 최선인 이유 분해",
+   "hypothesis": "R-096 에서 현행(C0) J=+109.5 가 모든 후보를 이긴다(c1 CI 하한 -12.5). 현행의 이점이 S1(n10) 이른 정지에서 오는지 S2 에서 오는지 분해하면 문턱을 더 낮출수록(예: S1 n=8) J 가 오른다.",
+   "prior": 0.15,
+   "priority": 3,
+   "est_cost_h": 3,
+   "deploy_on_pass": false,
+   "source": "R-096 결과: L1(n 큼) 75 < 현행 110, 정지가 빠를수록 J 높은 단조 방향",
+   "notes": "반증: S1 n 8·12 가 현행과 CI 로 구분 안 되면 기각. prior 가 음수 mu 단위 8개라 순환(같은 장부로 규칙·prior)이므로 결과는 참고, 문턱 변경은 steward 규칙 신판(이후 데이터만)+사용자 알림.",
+   "kind": "prereg_test",
+   "prerequisites": [],
+   "blocked_until": null,
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-06",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "status": "ready"
+  },
+  {
+   "id": "R-099",
+   "title": "실거래 장부 단위 mu 시계열 — 음수 mu 가 국면 의존(bull_btc 2주)인지 단위 고유인지",
+   "hypothesis": "R-096 의 8단위 수축 mu 가 전부 음수인 것은 10/10 이후 bull_btc 국면 거래가 장부를 지배해서다; 국면 전/후로 나눠 prior 를 따로 만들면 국면 전 prior 에서는 정지 규칙의 J 가 NEVER 와 CI 로 구분 안 된다.",
+   "prior": 0.3,
+   "priority": 2,
+   "est_cost_h": 3,
+   "deploy_on_pass": false,
+   "source": "R-096/R-092 known_limits(한 국면 장부) · R-082(백테스트 prior 에서는 NEVER 최선)",
+   "notes": "steward 규칙의 가치가 prior 국면 의존이면 정지 규칙 상수 유지 근거가 약해진다는 결정 가치. 반증: 국면 전 prior 에서도 현행이 NEVER 를 CI 로 넘으면 기각. 장부는 entry_date 기준 2026-10-10 전후 분할(사전 고정).",
+   "kind": "prereg_test",
+   "prerequisites": [],
+   "blocked_until": null,
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-06",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "status": "ready"
   }
  ]
 }

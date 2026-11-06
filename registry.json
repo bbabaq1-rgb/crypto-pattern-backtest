@@ -6721,7 +6721,7 @@
   }
  },
  "steward_ledger10_prereg_2026_11_06": {
-  "status": "REGISTERED",
+  "status": "DONE_CURRENT_RETAINED",
   "DEPLOY_ON_PASS": false,
   "backlog": "R-096",
   "registered": "2026-11-06 (결과 열람 전 — 로컬은 합성 데이터 테스트만. 단 R-092 결과로 장부에 n>=20 단위가 2개뿐임은 알고 있다)",
@@ -6730,6 +6730,41 @@
   "criteria": "R-092 와 동일(c1 현행 대비 CI·c2 lam 1·3·c3 raw·decay·c4 mu=-2 정지율>=0.70·c5 NEVER 대비 CI). 단위<4 또는 장부<100이면 INCONCLUSIVE. 소표본 prior 라 통과해도 deploy 안 함 — R-095(단위>=3 재실행) 확인 후.",
   "prior_prob": "ADOPT 0.10, NEVER_PREFERRED 0.30, CURRENT_RETAINED 0.30, INCONCLUSIVE 0.30. 근거: R-092 에서 단위 평균이 둘 다 음수(-0.6%)여서 정지 규칙이 가치를 가졌으나 단위 SE 가 커 수축이 grand 로 쏠리면 CI 로 못 가른다.",
   "known_limits": "소표본 단위(n 10~19) 평균 SE 큼 · 한 국면 장부 · 규칙 평가와 prior 가 같은 장부(순환) · 문턱 완화는 R-092 결과를 본 뒤 정했지만 값은 실행 전 고정.",
-  "live_change": "none"
+  "live_change": "none",
+  "result": {
+   "run": 42254456752,
+   "verdict": "CURRENT_RETAINED",
+   "best": "L2",
+   "units": 8,
+   "n": 227,
+   "mu_shrunk": [
+    -4.57,
+    -1.16,
+    -0.98,
+    -0.97,
+    -0.96,
+    -0.77,
+    -0.74,
+    -0.36
+   ],
+   "J": {
+    "NEVER": 0,
+    "C0": 109.5,
+    "C1": 86.0,
+    "C2": 67.1,
+    "C3": 64.6,
+    "L1": 75.4,
+    "L2": 97.8,
+    "L3": 51.9
+   },
+   "criteria": "c1 F c2 F c3 F c4 T c5 T",
+   "diff_cur": [
+    -11.64,
+    -12.48,
+    -10.83
+   ],
+   "live_change": "none"
+  },
+  "prior_grade": "CURRENT_RETAINED 0.30 / NEVER_PREFERRED 0.30 / INCONCLUSIVE 0.30 / ADOPT 0.10 중 CURRENT_RETAINED 가 나옴 — 범주 적중, ADOPT 미채택 적중. 'SE 크면 수축이 grand 로 쏠려 정보 없음' 우려는 단위 8개·mu 전부 음수로 비적용"
  }
 }
