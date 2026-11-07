@@ -93,9 +93,12 @@ def main(argv=None):
     if os.environ.get("GITHUB_ACTIONS") == "true":
         parts = []
         for n, a in res["arms"].items():
-            parts.append(f"{n}=None" if a is None else
-                         f"{n}[units={a['prior']['units']} mu={a['prior']['mu']} cur-never={tuple(round(x,1) for x in a['cur_vs_never'])} "
-                         f"best={a['best']} J={' '.join(f'{r}={a['J'][r]:+.1f}' for r in L.RULES)}]")
+            if a is None:
+                parts.append(f"{n}=None")
+                continue
+            jt = " ".join("%s=%+.1f" % (r, a["J"][r]) for r in L.RULES)
+            cn = tuple(round(x, 1) for x in a["cur_vs_never"])
+            parts.append(f"{n}[units={a['prior']['units']} mu={a['prior']['mu']} cur-never={cn} best={a['best']} J={jt}]")
         print(f"::notice title=R-099 steward 국면 prior::{res['verdict']} n_pre={len(pre_b)} n_post={len(post_b)} " + " ".join(parts))
     json.dump(dict(prereg="steward_phase_prereg_2026_11_07", verdict=res["verdict"], arms=res["arms"],
                    n_pre=len(pre_b), n_post=len(post_b)),
