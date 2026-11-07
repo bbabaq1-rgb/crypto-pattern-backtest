@@ -6768,7 +6768,7 @@
   "prior_grade": "CURRENT_RETAINED 0.30 / NEVER_PREFERRED 0.30 / INCONCLUSIVE 0.30 / ADOPT 0.10 중 CURRENT_RETAINED 가 나옴 — 범주 적중, ADOPT 미채택 적중. 'SE 크면 수축이 grand 로 쏠려 정보 없음' 우려는 단위 8개·mu 전부 음수로 비적용"
  },
  "steward_phase_prereg_2026_11_07": {
-  "status": "PREREGISTERED",
+  "status": "DONE_PHASE_DEPENDENT",
   "DEPLOY_ON_PASS": false,
   "backlog": "R-099",
   "registered": "2026-11-07 (결과 열람 전 — 로컬은 합성 데이터 테스트만. R-096 결과로 전체 장부 8단위 mu 가 전부 음수임은 알고 있다)",
@@ -6777,6 +6777,47 @@
   "criteria": "주 판정은 국면 전 arm 의 J(현행)-J(NEVER) 2.5/97.5 CI. 전 arm 부족(단위<3 또는 n<60)이면 INCONCLUSIVE. 전 arm CI 하한>0 이면 UNIT_ROBUST(가설 기각). 전 arm 하한<=0 이고 후 arm 하한>0 이면 PHASE_DEPENDENT(가설 지지). 둘 다 하한<=0 이면 NOT_SEPARABLE. 최선 후보 대 현행은 진단.",
   "prior_prob": "PHASE_DEPENDENT 0.25, UNIT_ROBUST 0.20, NOT_SEPARABLE 0.15, INCONCLUSIVE 0.40. 근거: 10/10 이전 장부 대부분은 단위 n 이 작아(관찰 1개월 중 절반) 단위 3개·n60 요건을 못 채울 수 있다.",
   "known_limits": "국면 전 장부가 짧고(약 4주) 단위가 소수 · 국면 전/후가 곧 시간 전/후라 국면과 시간 감쇠 구분 불가 · 규칙 평가와 prior 가 같은 장부(순환) · bull_btc 가 후반을 지배한다는 전제는 레짐 라벨 기반이 아니라 날짜 분할로 단순화.",
-  "live_change": "none"
+  "live_change": "none",
+  "result": {
+   "run": 42392763384,
+   "verdict": "PHASE_DEPENDENT",
+   "n_pre": 137,
+   "n_post": 90,
+   "pre": {
+    "units": 5,
+    "mu": [
+     0.66,
+     1.32,
+     1.47,
+     1.53,
+     1.53
+    ],
+    "J_cur": -62.0,
+    "J_never": 0,
+    "cur_vs_never": [
+     -62.0,
+     -64.8,
+     -59.0
+    ],
+    "best": "L3"
+   },
+   "post": {
+    "units": 3,
+    "mu": [
+     -5.22,
+     -2.04,
+     -0.35
+    ],
+    "J_cur": 195.9,
+    "cur_vs_never": [
+     195.9,
+     194.6,
+     197.1
+    ],
+    "best": "L2"
+   },
+   "live_change": "none"
+  },
+  "prior_grade": "PHASE_DEPENDENT 0.25 범주 적중(두 번째 높은 사전). INCONCLUSIVE 0.40 빗나감(국면 전 단위 5·n137 로 요건 충족). 가설 문구 '구분 안 됨'보다 강하게 현행이 NEVER 보다 유의하게 나쁨."
  }
 }
