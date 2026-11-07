@@ -65,6 +65,7 @@ jobs:
                    test_steward_loss.py \
                    test_steward_ledger.py \
                    test_steward_ledger10.py \
+                   test_steward_phase.py \
                    test_dclose_vol.py \
                    test_dclose_port.py \
                    test_ma_breakout.py \
