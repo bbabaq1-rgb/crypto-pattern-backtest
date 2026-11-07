@@ -1,0 +1,44 @@
+name: steward value by prior phase (research, pre-registered R-099)
+
+# 연구 전용 — trades 를 select 만 한다(주문·DB 쓰기 없음). 규칙·기준은 validate_steward_phase.py 상단과 registry
+# steward_phase_prereg_2026_11_07 에 고정. DEPLOY_ON_PASS=False (backlog R-099).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "research/R-099"
+    paths:
+      - "validate_steward_phase.py"
+      - "validate_steward_loss.py"
+      - "steward.py"
+      - ".github/workflows/steward_phase.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt
+      - name: Logic tests (no network)
+        run: |
+          python test_steward_phase.py
+          python test_steward_ledger.py
+          python test_steward_loss.py
+      - name: Pre-registered test
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python validate_steward_phase.py
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: steward-phase-${{ github.run_number }}
+          path: _steward_phase.json
+          if-no-files-found: ignore
