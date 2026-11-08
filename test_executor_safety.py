@@ -383,8 +383,13 @@ check("halt: active=true → 정지 + 사유", _halt({"trading_halt": {"active":
 _bad = _halt(raw="{not json")
 check("halt: 파싱 실패 → fail-closed(정지)", _bad[0] is True and "fail-closed" in _bad[1], _bad)
 _u_now = json.load(open("universe.json", encoding="utf-8"))
-check("halt: 현재 universe.json 은 정지 꺼짐(머지가 매매를 멈추지 않는다)",
-      pe.trading_halt_state() == (False, "") and _u_now.get("trading_halt", {}).get("active") is False)
+_h_now = _u_now.get("trading_halt", {})
+check("halt: 현재 universe.json 은 사용자 지시 정지(2026-11-09 '모든 자동 매매 일시 중지') — active·since·reason·by=user·release=user_only",
+      pe.trading_halt_state()[0] is True and _h_now.get("active") is True and _h_now.get("by") == "user"
+      and _h_now.get("release") == "user_only" and bool(_h_now.get("since")) and "사용자 지시" in str(_h_now.get("reason")),
+      _h_now)
+check("halt: 사유 문자열이 엔진 로그로 그대로 나간다(사용자 지시 명시)",
+      "사용자 지시" in pe.trading_halt_state()[1])
 _run = src_pe.split("def run(", 1)[1]
 _i_stop, _i_kill = _run.find("ensure_stop_orders("), _run.find("[kill] equity")
 _i_halt, _i_exit = _run.find("trading_halt_state()"), _run.find("# 1) 오픈 포지션 청산 모니터링")

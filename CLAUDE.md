@@ -2823,7 +2823,20 @@
     지시하시면 정리한다. 목록에서 ONT 를 뺀 뒤 포지션이 없으면 다음 틱 고아 정리가 취소한다.
   · 되돌리기: 대표님이 정리했다고 하시면 목록에서 뺀다. test_manual_positions.py(tests.yml 등록).
 
+- **모든 자동 매매 일시 중지 (2026-11-09 KST, 사용자 지시 "모든 자동 매매 일시 중지")**: `universe.json trading_halt` active=true,
+  **by=user · release=user_only** — 신규 실거래 진입 전부 정지(프로그램 패턴·exit_spec 패턴·AI 엘리엇 BTC — AI 는 정지 중 평탄 판단 자체를 생략).
+  계기: 11-08 21:45Z 롱 청산 캐스케이드(BTC 73,385·ETH 2,052·WLD 0.3028, OKX 15분봉 거래량 1,118M = 11-06 클라이맥스의 1.7배). 그 시각
+  equity $123 → **$91.12** 로 킬스위치($100 하한)가 이미 발동해 있었고(−$32 의 대부분은 수동 포지션 — 실포지션 5→3, ONT 는 11/04
+  프로그램이 걸어둔 손절 0.04022 를 지나감), 11-05 이후 신호는 대부분 최소주문 문턱 size_skip 이라 신규 진입은 사실상 11-04 이후 없었다.
+  · **정지는 신규 진입만** — 열린 INJ(triple_bottom_4h)·RAY(equal_lows_4h) 는 손절 algo·방식D 만기(11-04 00:00Z 진입 → 30봉 = 11-09
+    00:00~04:00Z) 규칙대로 끝까지 간다. 청산 모니터링·손절 점검·정합성 보정·페이퍼 기록·브리핑·연구 사이클은 그대로 돈다.
+  · **by=user 정지는 에이전트가 끄지 않는다** — steward H 규칙·연구 사이클 B 단계("원인 해소 + 깨끗한 1틱이면 끈다")의 예외로
+    RESEARCH_LOOP.md·research_cycle_prompt.md·registry steward_rules.halt.user_halt 에 명시. 해제는 사용자 지시로만(한 줄: active=false).
+  · test_executor_safety 가 '현재 파일은 사용자 지시 정지' 를 고정(종전 '정지 꺼짐' 단언 교체).
+
 ## 다음 할 일
+- [ ] **자동 매매 재개 (사용자 지시로만)** — `universe.json trading_halt.active=false` 한 줄 + test_executor_safety 단언 복원.
+      재개 전 확인: equity > $100(킬스위치) · 최소주문 문턱(equity ≥ $156~206 이어야 vol_awakening/equal_lows 주문이 나간다)
 - [ ] **ONT·BAT 수동 포지션 — 대표님 정리 후 manual_positions 에서 빼기** (ONT 2026-11-04 · BAT 2026-11-05). 그 전까지 프로그램은 두 종목 진입·손절 등록·algo 취소 안 함
       · 지시 전에 프로그램이 건 손절 algo 처리 — ONT 0.04022(11/04 04:00Z) · BAT 0.12444(11/04 10:03Z) — 대표님 결정(그대로 / 앱에서 취소 / 취소 지시)
 - [ ] **메인 BTC 롱(vol_awakening_4h, 10-30 진입) 처리 (사용자 결정)** — 수동 청산 또는 30봉 만기(11-04 무렵) 대기.

@@ -20,7 +20,7 @@ registry `steward_rules_2026_10_26` 의 사전 등록 규칙으로만 한다 —
    (`ops sl_failed`·`ops stop_reregistered` — `paper_executor.ops_annotation` 이 찍는다)을 본다. 손절 등록 실패
    (`sl_failed`·'손절 등록 실패')가 연속 2틱 이상이거나 실포지션·장부 불일치로 손절 상태를 확인할 수 없으면 **H — `trading_halt`
    를 켠다**(active=true·since·reason). 이미 켜져 있으면 원인이 해소됐고 깨끗한 실행이 1틱 이상인지 보고 끈다. 특정 전략의
-   실행이 검증 규칙과 달라진 것이 확인되면 그 단위만 S3 로 정지.
+   실행이 검증 규칙과 달라진 것이 확인되면 그 단위만 S3 로 정지. `trading_halt.by == "user"`(사용자가 직접 지시한 정지, 첫 사례 2026-11-09)는 이 절차가 끄지 않는다 — 해제는 사용자 지시로만.
 3. **집행** — 발동한 조치를 그대로 PR 로 옮긴다(브랜치는 하네스가 지정한 것, 없으면 `ops/steward-<YYYYMMDD>`):
    패턴 층 → `universe.json` adopted_* 에서 suspended_* 로 이동(`suspended_date`·`suspended_reason` 에 규칙·n·평균·근거 run) /
    FOCUS(engulfing·fvg) → `direction_switch.ROUTING_OVERRIDES` 에 FLAT(주석에 근거) + 커밋된 `direction_switch.json` 의 routing·overrides 를
