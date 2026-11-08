@@ -6819,5 +6819,17 @@
    "live_change": "none"
   },
   "prior_grade": "PHASE_DEPENDENT 0.25 범주 적중(두 번째 높은 사전). INCONCLUSIVE 0.40 빗나감(국면 전 단위 5·n137 로 요건 충족). 가설 문구 '구분 안 됨'보다 강하게 현행이 NEVER 보다 유의하게 나쁨."
+ },
+ "steward_common_prereg_2026_11_08": {
+  "status": "PREREGISTERED",
+  "DEPLOY_ON_PASS": false,
+  "backlog": "R-100",
+  "registered": "2026-11-08 (결과 열람 전 — 로컬은 합성 데이터 테스트만. R-099 결과의 전 5단위 mu 양수·후 3단위 mu 음수는 알고 있다)",
+  "hypothesis": "R-099 전/후 prior 부호 반전은 단위 구성 차이가 아니라 국면에서 온다: 양 arm 에 n>=10 으로 공통 존재하는 단위만 써도 전 arm 평균 양수·후 arm 평균 음수이고 후-전 차이가 음수다.",
+  "frozen": "SPLIT=2026-10-10(entry_date<SPLIT 전), 단위=pattern|direction 실거래 방식D(steward.live_d), 공통 단위=양 arm 모두 n>=10, 공통 단위>=2·arm 공통 거래>=40. 통계=단위 안 거래 층화 부트스트랩 2000회 시드 20261108, 2.5/97.5. 진단=공통 단위 prior(수축)로 R-082 규칙의 현행-NEVER(R-099 와 같은 잡음 풀).",
+  "criteria": "PHASE_EFFECT: 전 평균 CI 하한>0 AND 후 평균 CI 상한<0 AND (후-전) CI 상한<0. UNIT_COMPOSITION: (후-전) CI 상한>=0(같은 단위에서 하락이 확인 안 됨). PARTIAL_DROP: 하락은 확인되나 부호 반전 미확인. INCONCLUSIVE: 공통 단위<2 또는 arm 공통 거래<40.",
+  "prior_prob": "INCONCLUSIVE 0.35, PHASE_EFFECT 0.25, PARTIAL_DROP 0.25, UNIT_COMPOSITION 0.15. 근거: 후 arm 단위가 3개뿐이라 공통 단위가 1~2개일 수 있다.",
+  "known_limits": "시간 전/후=국면 전/후 혼동(레짐 라벨 아님 — 장부에 entry_regime 가 없으면 불가) · 공통 단위가 소수라 패턴 하나가 결과를 정할 수 있음 · 생존 단위만 남는 선택 · 규칙과 prior 가 같은 장부.",
+  "live_change": "none"
  }
 }
