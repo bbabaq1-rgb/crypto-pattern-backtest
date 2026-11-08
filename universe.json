@@ -639,10 +639,16 @@
     "decision": "사용자 2026-09-04 '유니버스 80 적용'"
   },
   "trading_halt": {
-    "active": false,
-    "since": null,
-    "reason": null,
-    "note": "전체 신규 진입 정지 스위치(2026-10-26 사용자 위임 — registry steward_rules_2026_10_26 의 H). active=true 면 paper_executor.trading_halt_state() 가 킬스위치와 같은 경로로 신규 실거래 진입만 막는다(청산·손절 점검·페이퍼 기록 계속). 켜고 끄는 것은 운용 결함 확인·해소 시 에이전트가 PR 로 — since·reason 을 같이 적는다."
+    "active": true,
+    "since": "2026-11-08T23:05:10Z",
+    "reason": "사용자 지시 2026-11-09(KST) '모든 자동 매매 일시 중지' — 11-08 21:45Z 급락(BTC 73,385·ETH 2,052) 뒤. 신규 진입 전부 정지(프로그램 패턴·AI 엘리엇·exit_spec 패턴). 해제는 사용자 지시로만",
+    "by": "user",
+    "release": "user_only",
+    "open_positions_kept": [
+      "INJ",
+      "RAY"
+    ],
+    "note": "전체 신규 진입 정지 스위치(2026-10-26 사용자 위임 — registry steward_rules_2026_10_26 의 H). active=true 면 paper_executor.trading_halt_state() 가 킬스위치와 같은 경로로 신규 실거래 진입만 막는다(청산·손절 점검·페이퍼 기록 계속). 켜고 끄는 것은 운용 결함 확인·해소 시 에이전트가 PR 로 — since·reason 을 같이 적는다. [2026-11-09 추가] by='user' 인 정지는 사용자 지시라 운용 점검(steward·연구 사이클 B 단계)이 끄지 않는다 — 해제는 사용자 지시로만. 열린 포지션은 각자 청산 규칙(손절 algo·방식D 만기)대로 끝까지 간다."
   },
   "ai_traders": [
     {

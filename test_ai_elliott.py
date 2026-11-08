@@ -894,6 +894,8 @@ def _q_e2e():
         for t in u["ai_traders"]:
             if t["pattern"] == P:
                 t["entry_check"] = {"every_min": 15, "until": until}
+        # 운용 스위치(사용자 지시 정지 등)는 이 e2e 의 측정 대상이 아니다 — 레포 상태와 무관하게 꺼 둔다
+        u["trading_halt"] = {"active": False}
         json.dump(u, open("universe.json", "w", encoding="utf-8"), ensure_ascii=False)
 
     def auto_fetch(sym, tf):
@@ -1071,6 +1073,7 @@ def _q_live(open_keys, okx, rows_pos):
         for t in u["ai_traders"]:
             if t["pattern"] == P:
                 t["entry_check"] = {"every_min": 15, "until": "2026-10-30T00:00:00Z"}
+        u["trading_halt"] = {"active": False}   # 운용 스위치는 측정 대상 아님(위와 같음)
         json.dump(u, open("universe.json", "w", encoding="utf-8"), ensure_ascii=False)
         for sym, start in (("BTC", 80000.0), ("ETH", 2700.0)):
             r15 = mkrows(10 * 96 + 2, start=start, t0=TA - (10 * 96) * (H // 4), tf_ms=H // 4)
