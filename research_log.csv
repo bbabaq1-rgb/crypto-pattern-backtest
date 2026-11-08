@@ -367,3 +367,4 @@
 2026-11-05T17:10:00+00:00,steward_ledger_R092,steward 규칙 장부 prior,"{""run"": 42066944346, ""units"": 2, ""n"": 222, ""J_C0"": 41.9, ""J_L2"": 34.5, ""live_change"": ""none""}",222,,,,INCONCLUSIVE,
 2026-11-06T17:00:00+00:00,steward_ledger10_R096,steward 규칙 장부 prior n10,"{""run"": 42254456752, ""units"": 8, ""n"": 227, ""J_C0"": 109.5, ""J_L2"": 97.8, ""live_change"": ""none""}",227,,,,CURRENT_RETAINED,
 2026-11-07T17:10:00+00:00,steward_phase_R099,steward 규칙 prior 국면 분할,"{""run"": 42392763384, ""n_pre"": 137, ""n_post"": 90, ""cur_vs_never_pre"": -62.0, ""cur_vs_never_post"": 195.9, ""live_change"": ""none""}",227,,,,PHASE_DEPENDENT,
+2026-11-08T17:00:00+00:00,steward_common_R100,steward 공통 단위 전후,"{""run"": 42501217105, ""units"": 2, ""n_pre"": 59, ""n_post"": 34, ""diff"": -5.47, ""diff_ci"": [-8.39, -2.8], ""live_change"": ""none""}",93,,,,INCONCLUSIVE,

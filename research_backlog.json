@@ -1404,8 +1404,12 @@
    "added_on": "2026-11-07",
    "started_at": "2026-11-08T16:40:56Z",
    "session": "routine_2026-11-08T1640",
-   "result": null,
-   "status": "in_progress"
+   "result": {
+    "run": 42501217105,
+    "verdict": "INCONCLUSIVE",
+    "summary": "공통 단위 2개(tp1_engulfing_1h·vol_awakening_4h long), 전 n59 +1.21%[-1.04,3.77] / 후 n34 -4.26%[-5.48,-2.94], 후-전 -5.47[-8.39,-2.80]. 후 n<40 로 INCONCLUSIVE; 두 단위 모두 하락(방향은 국면/시간 효과 지지)이나 사전 기준 미충족."
+   },
+   "status": "done"
   },
   {
    "id": "R-101",
@@ -1423,6 +1427,50 @@
    "owner": "agent",
    "added_by": "claude",
    "added_on": "2026-11-07",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "status": "ready"
+  },
+  {
+   "id": "R-102",
+   "title": "vol_awakening_4h 단위 월별 평균 시계열 — 전→후 하락(+2.56→-5.44%)이 11월 첫 주 이후에도 지속되는지(전향 데이터)",
+   "hypothesis": "R-100 에서 가장 큰 공통 단위 vol_awakening_4h 의 하락은 bull_btc 국면 일시 효과다: 2026-11-08 이후 진입 거래 n>=30 이 쌓이면 평균이 전 arm(+2.56%) 쪽으로 복귀하거나 0 이상이다.",
+   "prior": 0.35,
+   "priority": 2,
+   "est_cost_h": 2,
+   "deploy_on_pass": false,
+   "kind": "prereg_test",
+   "source": "R-100 per_unit 결과(vol_awakening 전 n31 +2.56% → 후 n23 -5.44%)",
+   "notes": "이후 데이터만 사용(사전 고정 기준일 2026-11-08). steward S1/S2 규칙으로 vol_awakening_4h 가 이미 감시 대상(V등급이라 S1 면제). 반증: 이후 n>=30 평균<0 이고 CI 상한<0 이면 국면 일시설 기각 → 정지 규칙 R2 반대 방향(S2) 검토. 결정 가치: 배포 최다 거래 패턴의 정지 판단.",
+   "prerequisites": [],
+   "blocked_until": "2026-12-06",
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-08",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "status": "blocked"
+  },
+  {
+   "id": "R-103",
+   "title": "entry_regime 컬럼 적재 후 레짐 라벨 기준 장부 분할 — 시간 전/후와 국면 분리",
+   "hypothesis": "장부 거래를 positions.entry_regime(진입 시 raw 레짐) 로 분할하면 같은 단위의 bull_btc vs 비-bull_btc 평균 차가 시간 분할 차보다 크거나 같다(시간 감쇠가 아니라 레짐 효과).",
+   "prior": 0.3,
+   "priority": 3,
+   "est_cost_h": 3,
+   "deploy_on_pass": false,
+   "kind": "prereg_test",
+   "source": "R-099/R-100 known_limits(시간=국면 혼동, entry_regime 라벨 미사용)",
+   "notes": "선결: trades 테이블에 entry_regime 가 실제 적재돼 있는지 먼저 확인(supabase_schema_patch_2026_09 의 trades.entry_regime). 없으면 positions 조인. 반증: 레짐 분할 차가 시간 분할 차보다 작으면 시간 감쇠 우세. 결정 가치: 레짐 셀 정지(R1 regimes 제외) 근거.",
+   "prerequisites": [
+    "trades.entry_regime 적재 확인"
+   ],
+   "blocked_until": null,
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-08",
    "started_at": null,
    "session": null,
    "result": null,
