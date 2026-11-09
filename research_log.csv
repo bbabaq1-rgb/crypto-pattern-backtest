@@ -368,3 +368,4 @@
 2026-11-06T17:00:00+00:00,steward_ledger10_R096,steward 규칙 장부 prior n10,"{""run"": 42254456752, ""units"": 8, ""n"": 227, ""J_C0"": 109.5, ""J_L2"": 97.8, ""live_change"": ""none""}",227,,,,CURRENT_RETAINED,
 2026-11-07T17:10:00+00:00,steward_phase_R099,steward 규칙 prior 국면 분할,"{""run"": 42392763384, ""n_pre"": 137, ""n_post"": 90, ""cur_vs_never_pre"": -62.0, ""cur_vs_never_post"": 195.9, ""live_change"": ""none""}",227,,,,PHASE_DEPENDENT,
 2026-11-08T17:00:00+00:00,steward_common_R100,steward 공통 단위 전후,"{""run"": 42501217105, ""units"": 2, ""n_pre"": 59, ""n_post"": 34, ""diff"": -5.47, ""diff_ci"": [-8.39, -2.8], ""live_change"": ""none""}",93,,,,INCONCLUSIVE,
+2026-11-09T17:05:00+00:00,dist_layer_R070,분포 조건 층 제거,"{""run"": 42657186537, ""core"": 14, ""G_add"": 2, ""patterns"": 1, ""ho_add"": 0.0958, ""ho_keep"": 0.0318, ""live_change"": ""none""}",14,,,,INCONCLUSIVE,
