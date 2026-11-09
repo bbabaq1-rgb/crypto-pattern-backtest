@@ -53,6 +53,7 @@ jobs:
                    test_dclose.py \
                    test_ts_top30.py \
                    test_lottery_gate.py \
+                   test_dist_layer.py \
                    test_bull_btc.py \
                    test_gap.py \
                    test_risk_grid.py \
