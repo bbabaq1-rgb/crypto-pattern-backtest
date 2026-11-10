@@ -134,6 +134,7 @@ jobs:
                    test_revival.py \
                    test_adopted_regimes.py \
                    test_method_b.py \
+                   test_db_rls.py \
                    test_gate.py; do
             echo "::group::$t"
             if python "$t"; then echo "-> PASS"; else echo "-> FAIL"; fail=1; fi

@@ -12,7 +12,7 @@
 
 ```bash
 pip install -r requirements.txt
-# .env 파일에 SUPABASE_URL, SUPABASE_ANON_KEY 설정 후:
+# .env 파일에 SUPABASE_URL, SUPABASE_SERVICE_KEY 설정 후:
 streamlit run dashboard.py
 ```
 
@@ -25,13 +25,15 @@ streamlit run dashboard.py
 
 ```toml
 SUPABASE_URL = "https://<your-ref>.supabase.co"
-SUPABASE_ANON_KEY = "<your-anon-key>"
+SUPABASE_SERVICE_KEY = "<your-service-role-key>"
 ```
 
 5. **"Deploy!"** 클릭 → 배포 완료 후 URL 공유
 
 > Secrets는 Supabase 프로젝트 설정 → **Data API** 에서 확인합니다.  
-> `SUPABASE_ANON_KEY`(읽기 전용)만으로도 대시보드는 동작합니다.
+> 2026-11-10 부터 거래 장부 테이블(trades·positions·signals·daily_summary)은 RLS 로 막혀 있어
+> **anon 키로는 데이터가 안 보인다.** 대시보드는 서버에서만 도므로 service 키를 넣는다.
+> 앱 URL 을 공유하면 그 URL 을 아는 사람은 장부를 볼 수 있으니 Streamlit 앱은 비공개(viewer 제한)로 둔다.
 
 ---
 
@@ -65,8 +67,8 @@ scheduler.py         # 메인 스케줄러 (매일 UTC 00:00 자동 실행)
 | 변수 | 용도 |
 |---|---|
 | `SUPABASE_URL` | Supabase 프로젝트 URL |
-| `SUPABASE_SERVICE_KEY` | 쓰기(scheduler/paper_executor 용) |
-| `SUPABASE_ANON_KEY` | 읽기(dashboard 용) |
+| `SUPABASE_SERVICE_KEY` | 읽기·쓰기(scheduler/paper_executor/dashboard 용, 외부 노출 금지) |
+| `SUPABASE_ANON_KEY` | 거래 장부 테이블에는 권한 없음(2026-11-10 RLS) — 남아 있는 폴백용 |
 | `OKX_KEY` | OKX API 키 (3종 모두 있으면 선물 실거래 활성화) |
 | `OKX_SECRET` | OKX API Secret |
 | `OKX_PASSPHRASE` | OKX API Passphrase |

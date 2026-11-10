@@ -38,22 +38,26 @@ create table if not exists daily_summary (
   cumulative_return_a float8, cumulative_return_d float8,
   created_at timestamptz default now());
 
--- 백엔드 전용(공개 클라이언트 없음) -> RLS 비활성화로 permission denied(42501) 방지.
-alter table signals       disable row level security;
-alter table positions     disable row level security;
-alter table trades        disable row level security;
-alter table daily_summary disable row level security;
+-- 백엔드 전용 -> RLS 켜고 정책 없음 = anon/authenticated 차단. 쓰기는 service_role(RLS 우회)만.
+-- (2026-11-10 정정: 종전엔 RLS 를 끄고 anon 에 전체 권한을 줘서 anon 키만으로 장부를 고칠 수 있었다.)
+alter table signals       enable row level security;
+alter table positions     enable row level security;
+alter table trades        enable row level security;
+alter table daily_summary enable row level security;
+revoke all on signals, positions, trades, daily_summary from anon, authenticated;
+grant select, insert, update, delete on signals, positions, trades, daily_summary to service_role;
 """
-# RLS 끄기 + GRANT: 이미 테이블이 있을 때 즉시 적용용 (SQL Editor에서 1회 실행)
-FIX_RLS = """-- 1) RLS 비활성화 (permission denied 42501 방지)
-alter table signals       disable row level security;
-alter table positions     disable row level security;
-alter table trades        disable row level security;
-alter table daily_summary disable row level security;
+# 권한 정리: 이미 테이블이 있을 때 적용용 (SQL Editor에서 1회 실행, 멱등)
+# permission denied(42501)는 RLS 를 끄는 게 아니라 SUPABASE_SERVICE_KEY 에 진짜 service_role 키를 넣어 해결한다.
+FIX_RLS = """-- 1) RLS 켜기 (정책 없음 = anon/authenticated 차단, service_role 은 우회)
+alter table signals       enable row level security;
+alter table positions     enable row level security;
+alter table trades        enable row level security;
+alter table daily_summary enable row level security;
 
--- 2) 역할별 권한 부여 (hint: "Grant the required privileges" 해결)
-grant all on signals, positions, trades, daily_summary
-  to anon, authenticated, service_role;
+-- 2) 공개 키 권한 회수 + service_role 권한 유지
+revoke all on signals, positions, trades, daily_summary from anon, authenticated;
+grant select, insert, update, delete on signals, positions, trades, daily_summary to service_role;
 """
 TABLES = ["signals", "positions", "trades", "daily_summary"]
 
@@ -111,9 +115,10 @@ def main():
         msg = str(e)
         print(f"[2] 테스트 실패: {msg[:120]}")
         if "42501" in msg or "permission denied" in msg:
-            print("    -> 원인: 테이블에 RLS가 켜져 있어 막혔습니다(키 부재 아님).")
-            print("       해결: Supabase SQL Editor에서 fix_rls.sql 내용을 Run 하세요(4개 테이블 RLS 끔).")
-            print("       또는 SUPABASE_SERVICE_KEY 에 진짜 'service_role secret' 키를 넣으세요(RLS 우회).")
+            print("    -> 원인: service 슬롯의 키가 service_role 이 아니거나 service_role 권한이 빠졌습니다.")
+            print("       해결: SUPABASE_SERVICE_KEY 에 진짜 'service_role secret' 키를 넣으세요(RLS 우회).")
+            print("       권한이 빠졌으면 fix_rls.sql 을 SQL Editor 에서 Run(RLS 는 켠 채 service_role 권한 복구).")
+            print("       RLS 를 끄거나 anon 에 권한을 주지 마세요 — anon 키는 공개 전제라 장부가 열립니다.")
 
 
 if __name__ == "__main__":

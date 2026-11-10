@@ -2851,8 +2851,30 @@
   · **by=user 정지는 에이전트가 끄지 않는다** — steward H 규칙·연구 사이클 B 단계("원인 해소 + 깨끗한 1틱이면 끈다")의 예외로
     RESEARCH_LOOP.md·research_cycle_prompt.md·registry steward_rules.halt.user_halt 에 명시. 해제는 사용자 지시로만(한 줄: active=false).
   · test_executor_safety 가 '현재 파일은 사용자 지시 정지' 를 고정(종전 '정지 꺼짐' 단언 교체).
+- **거래 장부 4개 테이블 접근 제한(RLS) 적용 (2026-11-10 16:54 KST, 사용자 결정 "지금 적용")**: 다른 세션(육아킹 작업)이 지적한 것을
+  DB 에서 직접 확인했다 — trades·positions·signals·daily_summary 가 **RLS 꺼짐 + anon/authenticated 에 읽기·추가·수정·삭제 전체 권한**이라
+  이 프로젝트의 anon 키만 있으면 누구나 장부를 읽고 고치고 지울 수 있었다(Supabase 보안 점검 ERROR `rls_disabled_in_public` 4건).
+  · **원인은 레포 자신이었다** — 초기 설치 스크립트 `supabase_setup.py` 가 권한 오류(42501)를 피하려고 RLS 를 끄고 `grant all … to anon`
+    하는 SQL(schema.sql·fix_rls.sql)을 만들었다. 오류의 진짜 원인은 service 슬롯에 anon 키가 들어간 것이었고(그 뒤 key_role 검사 추가),
+    우회책만 남아 있었다. 이후 만든 테이블 4개(ai_judgments·perp_daily·funding_daily·gh_dispatch_log)는 이미 RLS 가 켜져 있었다.
+  · **급해진 이유** — 같은 날 16:43 KST 이 거래 DB 에 육아킹 기능(yugaking 스키마 + anon 실행 가능한 SECURITY DEFINER 함수
+    `public.yugaking_track_interest`, 마이그레이션 `yugaking_interest_events`)이 추가됐다. 공개 웹이 그 함수를 부르면 anon 키가 페이지에
+    실린다(anon 키는 공개 전제). 프로젝트 주소는 공개 레포에 이미 있으므로 사실상 키 하나가 유일한 문이었다. 엔진은 매 실행 DB 에서
+    포지션을 복원하므로 장부 오염은 실거래 동작 오염이다(적용 시점 장부 열린 행 0, 신규 진입 정지 중 — 피해 없음).
+  · **적용** — 마이그레이션 `rls_trading_tables_2026_11_10`(= `supabase_rls_2026_11_10.sql`): 4개 테이블 RLS 켜기·정책 없음 +
+    anon·authenticated 권한 전부 회수 + service_role 권한 명시(이미 있었음). 매매·기록 코드는 전부 service_role 키(rolbypassrls)라
+    동작 불변. 적용 뒤 보안 점검 ERROR 0건(남은 INFO 'RLS enabled no policy' 는 의도 — 외부 접근 전부 차단).
+  · **레포** — `supabase_setup.py` 의 SCHEMA·FIX_RLS 를 RLS 켜기·권한 회수로 바꾸고 schema.sql·fix_rls.sql 재생성. dashboard.py 는
+    service 키를 먼저 쓴다(anon 키로는 빈 결과 — Streamlit 앱은 서버 실행이라 키가 브라우저로 안 나간다, 앱은 비공개로 둘 것).
+    README·secrets 예시 갱신. **test_db_rls.py**(tests.yml 등록)가 적용 SQL·레포 전체 SQL·설치 스크립트 문자열·dashboard 키 순서·
+    anon 쓰기 부재를 고정 — 옛 설치 스크립트로 되돌리면 32건 실패.
+  · **남은 것(다른 세션·사용자 몫)** — 육아킹을 별도 Supabase 프로젝트로 옮기기 권장(공개 서비스와 거래 DB 동거 = 그쪽 실수가 거래 DB 문제).
+    점검의 WARN 2건(yugaking_track_interest anon 실행 — 공개 이벤트 기록용이라 의도로 보임, 입력값 검증 있음 / pg_net 이 public 스키마)은
+    건드리지 않았다. 되돌리기: `alter table public.<t> disable row level security` (권장하지 않음).
 
 ## 다음 할 일
+- [ ] **육아킹을 거래 DB 에서 분리 (사용자·육아킹 세션 몫)** — 2026-11-10 yugaking 스키마·anon 함수가 거래 DB 에 추가됨. 별도 Supabase
+      프로젝트로 옮기기 권장. 거래 장부 4개 테이블은 같은 날 RLS 로 막았다(`supabase_rls_2026_11_10.sql`)
 - [ ] **자동 매매 재개 (사용자 지시로만)** — `universe.json trading_halt.active=false` 한 줄 + test_executor_safety 단언 복원.
       재개 전 확인: equity > $100(킬스위치) · 최소주문 문턱(equity ≥ $156~206 이어야 vol_awakening/equal_lows 주문이 나간다)
 - [ ] **ONT·BAT 수동 포지션 — 대표님 정리 후 manual_positions 에서 빼기** (ONT 2026-11-04 · BAT 2026-11-05). 그 전까지 프로그램은 두 종목 진입·손절 등록·algo 취소 안 함
