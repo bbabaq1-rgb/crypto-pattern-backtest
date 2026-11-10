@@ -23,8 +23,11 @@ create table if not exists daily_summary (
   cumulative_return_a float8, cumulative_return_d float8,
   created_at timestamptz default now());
 
--- 백엔드 전용(공개 클라이언트 없음) -> RLS 비활성화로 permission denied(42501) 방지.
-alter table signals       disable row level security;
-alter table positions     disable row level security;
-alter table trades        disable row level security;
-alter table daily_summary disable row level security;
+-- 백엔드 전용 -> RLS 켜고 정책 없음 = anon/authenticated 차단. 쓰기는 service_role(RLS 우회)만.
+-- (2026-11-10 정정: 종전엔 RLS 를 끄고 anon 에 전체 권한을 줘서 anon 키만으로 장부를 고칠 수 있었다.)
+alter table signals       enable row level security;
+alter table positions     enable row level security;
+alter table trades        enable row level security;
+alter table daily_summary enable row level security;
+revoke all on signals, positions, trades, daily_summary from anon, authenticated;
+grant select, insert, update, delete on signals, positions, trades, daily_summary to service_role;

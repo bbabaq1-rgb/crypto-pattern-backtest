@@ -1,9 +1,9 @@
--- 1) RLS 비활성화 (permission denied 42501 방지)
-alter table signals       disable row level security;
-alter table positions     disable row level security;
-alter table trades        disable row level security;
-alter table daily_summary disable row level security;
+-- 1) RLS 켜기 (정책 없음 = anon/authenticated 차단, service_role 은 우회)
+alter table signals       enable row level security;
+alter table positions     enable row level security;
+alter table trades        enable row level security;
+alter table daily_summary enable row level security;
 
--- 2) 역할별 권한 부여 (hint: "Grant the required privileges" 해결)
-grant all on signals, positions, trades, daily_summary
-  to anon, authenticated, service_role;
+-- 2) 공개 키 권한 회수 + service_role 권한 유지
+revoke all on signals, positions, trades, daily_summary from anon, authenticated;
+grant select, insert, update, delete on signals, positions, trades, daily_summary to service_role;

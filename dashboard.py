@@ -63,7 +63,9 @@ except Exception:
 @st.cache_resource
 def _supabase():
     url = os.environ.get("SUPABASE_URL")
-    key = os.environ.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_SERVICE_KEY")
+    # 2026-11-10 거래 장부 4개 테이블에 RLS 를 켜고 anon 권한을 회수했다 — anon 키로는 빈 결과다.
+    # 서버에서만 도는 앱이라 service 키를 먼저 쓴다(브라우저로 키가 나가지 않는다).
+    key = os.environ.get("SUPABASE_SERVICE_KEY") or os.environ.get("SUPABASE_ANON_KEY")
     if not url or not key:
         return None
     try:
