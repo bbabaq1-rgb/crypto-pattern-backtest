@@ -6955,5 +6955,25 @@
    "첫 시험이라 통과해도 실거래 반영 없음"
   ],
   "live_change": false
+ },
+ "minorder_prereg_2026_11_11": {
+  "status": "preregistered",
+  "date": "2026-11-11",
+  "backlog": "R-107",
+  "DEPLOY_ON_PASS": false,
+  "hypothesis": "현 계좌 규모(equity $90~$355)에서 실거래 라우팅 복제 신호의 상당수가 변동성 배율 때문에 최소주문($10 증거금)에 못 미쳐 스킵된다 — 재개해도 검증된 거래 집합과 달라진다.",
+  "frame": "sizing_vol.collect_all(ROUTING_MODE) 거래열의 진입 시점 σ(20봉) -> sizing.vol_scale_raw/VOL_S_NORM -> sizing.min_equity_for 와 같은 식. 상수(RISK_FRAC·LEV_CAP·손절 8%)는 현행 sizing 모듈 값 그대로. 계산 전용, 판정 점수 없음.",
+  "equity_grid": [
+   90,
+   100,
+   160,
+   240,
+   355
+  ],
+  "criteria": "주문 가능 비율 = vol_scale >= min_margin*lev*stop/(risk*eq) 인 신호 비율. 반증: equity $100 에서도 전체 >=90% 이고 최근 90일 신호도 >=90% 이면 '문제 아님'. 그 밖이면 '문제 있음'. 전체 표본과 마지막 90일 신호를 병기(최근 변동성 국면 반영). 킬스위치 EQUITY_FLOOR $100 미만은 비율과 무관하게 전면 스킵으로 따로 표기.",
+  "diagnostics": "패턴별 비율, equity 대비 필요 최소 equity 분위(10/25/50/75/90/100%)",
+  "prior": "문제 있음 0.30(사전: 배율 하한 0.45 신호만 $240 밑에서 끊기고 $100 에서는 전부 끊긴다는 산식이 이미 알려져 있어 $100 이하는 자명, $160~$240 구간이 정보)",
+  "known_limits": "라우팅 표를 과거에 소급 적용한 표본(절대 수준 낙관); 정지·킬스위치·슬롯·증거금 free 제약은 반영 안 함(최소주문 하나만); 실거래 스킵 로그와 대조하지 않음.",
+  "decision_note": "재개·충전·위험 수준은 사용자 결정 — 이 항목은 표만 낸다."
  }
 }
