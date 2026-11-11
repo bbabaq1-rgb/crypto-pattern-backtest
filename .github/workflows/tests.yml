@@ -62,6 +62,7 @@ jobs:
                    test_vol_burst.py \
                    test_va_drop.py \
                    test_iso_skip.py \
+                   test_minorder.py \
                    test_steward_char.py \
                    test_steward_v2.py \
                    test_steward_loss.py \
