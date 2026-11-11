@@ -1557,8 +1557,50 @@
    "added_on": "2026-11-10",
    "started_at": "2026-11-11T16:40:02Z",
    "session": "routine_2026-11-11T16:36",
+   "result": "PROBLEM(run 43060687815): 라우팅 복제 n=667(fvg 537·engulfing 130 — 4h 배포 패턴은 collect_all 범위 밖). 주문 가능 비율 equity $90 0% / $100 10.8%(최근90일 13%) / $160 35% / $240 73%(최근 52%) / $355 93%(최근 74%). 필요 equity 중앙 $186. 계산 전용, 실거래 무변경.",
+   "status": "done"
+  },
+  {
+   "id": "R-108",
+   "kind": "prereg_test",
+   "priority": 2,
+   "prior": 0.35,
+   "deploy_on_pass": false,
+   "est_cost_h": 2,
+   "title": "재개 전 점검 — 4h 배포 패턴(vol_awakening·triple_bottom·equal_lows)의 최소주문 통과 비율",
+   "source": "R-107 한계: collect_all 이 adopted 4h 패턴을 포함하지 않음(n=667 중 4h 0건)",
+   "hypothesis": "R-107 은 1d 라우팅 표본(fvg·engulfing)만 쟀다. 4h 배포 패턴은 σ 가 4h 기준이라 분포가 다르고 신호 수가 훨씬 많아, $160~$355 에서 통과 비율이 1d 와 다르게 나온다.",
+   "notes": "반증: 4h 도 $240 에서 >=90% 면 R-107 결론이 1d 한정. 재개 판단 재료이며 충전·재개는 사용자 결정.",
+   "prerequisites": [],
+   "blocked_until": null,
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-11",
+   "started_at": null,
+   "session": null,
    "result": null,
-   "status": "in_progress"
+   "status": "ready"
+  },
+  {
+   "id": "R-109",
+   "kind": "prereg_test",
+   "priority": 3,
+   "prior": 0.2,
+   "deploy_on_pass": false,
+   "est_cost_h": 4,
+   "title": "재개 시 '실제 진입 가능 집합' 재측정 — 최소주문 스킵을 포트폴리오 프레임에 넣은 equity 대역별 Calmar",
+   "source": "R-107 결과: 최소주문이 σ 높은 신호부터 자른다 — 저변동 방어 효과와 같은 방향(xsec rvol20)",
+   "hypothesis": "validate_portfolio 의 증거금 제약에 최소주문($10) 스킵을 equity 경로 의존으로 넣으면 equity $100~$240 구간에서 검증 거래 집합 대비 체결 거래 평균이 달라지고(고변동 신호 편향 제거), 이 편향이 holdout 약세 일부를 설명한다.",
+   "notes": "반증: 최소주문 스킵 유무로 holdout Calmar 차이가 부트 CI 안이면 무관.",
+   "prerequisites": [],
+   "blocked_until": null,
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-11",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "status": "ready"
   }
  ]
 }
