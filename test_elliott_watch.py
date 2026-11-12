@@ -526,8 +526,9 @@ check("효과에 형태 언급이 없어 2파 형태 표는 직전 표와 같다
 check("Q1~Q11 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
       for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11")] ==
       [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51, 0.30, 0.35, 0.47])
-_ns = COUNT["correction"]["y_subcount_2026_11_09"]["C_count_A_impulse_in_progress"]["v"]["legs_2026_11_12"]["new_split_2026_11_12_1308"]
-check("브리핑 신규 저점 분할 합 100", _ns["completion_72517_is_low"] + sum(_ns["new_low_zones"].values()) == 100)
+_ns = COUNT["correction"]["y_subcount_2026_11_09"]["C_count_A_impulse_in_progress"]["v"]["legs_2026_11_12"]["new_split_2026_11_12_1310"]
+check("브리핑 신규 저점 분할 합 100", _ns["completion_low_is_end"] + sum(_ns["new_low_zones"].values()) == 100)
+check("분할 기준 저점 = 파일의 (v) 저점", _ns["low"] == COUNT["correction"]["y_subcount_2026_11_09"]["C_count_A_impulse_in_progress"]["v"]["low_so_far"])
 check("revisions 에 2026-11-12 트리거 재평가 항목", any(r["date"] == "2026-11-12" for r in COUNT["revisions"]))
 
 print()
