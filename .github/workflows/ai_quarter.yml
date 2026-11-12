@@ -10,6 +10,10 @@ name: AI Elliott entry check (15m)
 # 집행됐는지만 확인한다 — 집행됐으면 그 체결로 기록하고 같은 틱에서 평탄 판단(2026-10-29 체결가 조회 수정 뒤부터 작동).
 # 보유 판단 hold/close 는 매시 :03. 메인 전략의 탐지·청산 평가·손절 점검은 여기서 돌지 않는다.
 # 시험 기간(universe.json ai_traders[].entry_check.until)이 지나면 게이트에서 바로 끝난다 — 크론을 지우지 않아도 멈춘다.
+#
+# 2026-11-12 사용자 결정 '중단': universe.json 의 entry_check 를 지우고 Supabase 크론 gh_ai_quarter 를 해제했다.
+# 이 파일은 남겨 둔다 — 수동으로 dispatch 해도 게이트 ②(entry_check_active False)에서 바로 끝난다.
+# 재개 = entry_check 복원 + 크론 재등록(supabase_external_trigger.sql 6단계 주석).
 on:
   workflow_dispatch:
 

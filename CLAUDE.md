@@ -1199,8 +1199,9 @@
       완료 30%)·구조 판정선(**75,601↑ 1h 종가** = 임펄스 카운트 폐기 · 73,477↓ = (v) 진행 · 67,900↓ = 카운트 무효 · 81,131↑ = 대각 완전
       이탈)을 고정 — 상위 라벨 무변경, 진단 블록. 브리핑은 매일 이 표를 갱신하고 판정선 통과 여부를 먼저 적는다.
 - **자동화**: `daily_scheduler.yml` (--slow, oncefull@UTC00:00) + `fast_scheduler.yml`
-  (--fast, exit_spec 패턴만). 2026-10-29~11-05 시험으로 `ai_quarter.yml`(매시 :18/:33/:48, AI 엘리엇 진입 판단만 —
-  별도 concurrency 그룹·게이트, AI 엘리엇 항목 참조). 2026-09-02 분리. **발화는 Supabase pg_cron → workflow_dispatch
+  (--fast, exit_spec 패턴만). 2026-10-29~11-12 시험으로 `ai_quarter.yml`(매시 :18/:33/:48, AI 엘리엇 진입 판단만 —
+  별도 concurrency 그룹·게이트, AI 엘리엇 항목 참조) — **2026-11-12 사용자 결정 '중단'으로 크론 gh_ai_quarter 해제, 파일만 유지**.
+  2026-09-02 분리. **발화는 Supabase pg_cron → workflow_dispatch
   전용**(daily UTC 00/04/08/12/16/20 정각 / fast 매시 :03) — **두 워크플로 다 GitHub schedule 없음
   (2026-09-06 사용자 결정 "폴백 제거해줘")**. daily 폴백은 9/05~9/06 에 5회 연속 지각(최대 2시간
   19분)하며 이미 돈 느린틱을 재실행했고, 지각한 폴백은 같은 concurrency 그룹의 pending 을
@@ -2751,6 +2752,18 @@
       505 전부 성공, dispatch 실패 2(11-04 타임아웃·HTTP 500), 게이트 건너뜀은 종료 후 1회뿐. 15분 틱 진입 8건 +$1.31 vs 매시 틱 진입
       6건 −$8.32 는 **표본 14건 안의 흔들림** — 주기 우열 판정이 아니다. 중단을 고를 경우의 답도 받아 뒀다: ai_quarter.yml 은 유지하고 크론만
       해제. 11-12 에 같은 표로 다시 보고(예약 알림).
+    · **2주차 보고 → 사용자 결정 "중단" (2026-11-12)**: registry `entry_check_test_2026_10_29.week2_result_2026_11_12`.
+      2주차(11-05 06:30Z~11-12 06:30Z) **실가동 약 3.6일** — 11-08 21:45Z 청산 캐스케이드로 킬스위치($100 하한, 22:18~22:48 15분 틱 '평탄
+      판단 생략' 로그 확인), 23:10Z 대표님 전체 정지 이후 판단 0. 판단 **114**(매시 88 · 15분 26, 오류 0, 15분 틱 대기 81%) · 진입 **6**(15분 5 =
+      **83%**) · 청산 6건 **1승 5패 실현 −$8.17** — 손실은 11-05 하락장(79.7k→75.4k)에서 15분 틱이 3시간 안에 낸 롱 3건(−$8.24)이 전부 ·
+      1주차 진입분 11-04 21:00 롱 −$1.81 별도 · 비용 **$6.28**(15분 틱 $1.53) · 같은 봉 재진입 안내 1 · 숏 오독 0 · 15분 실행 503(성공 500 ·
+      startup_failure 3 = 11-11 20시 GitHub 쪽 · 게이트 건너뜀 1) · dispatch 실패 0. 포트 장부 **$88.24**(10-29 실제값 반영 $87.41).
+      **주의 두 건**: ① 11-05 22:00 숏은 장부 '손절'인데 청산가 75,645.7 ≠ 손절가 76,250(시세상 11-06 00:00Z 에야 도달) — 손익·수량이
+      75,645.7 청산과 정확히 맞아 손절 체결이 아닌 다른 청산(앱 수동 등)으로 보인다, 미확정 ② 11-06 이후 두 건은 계좌 가용잔고 부족으로
+      증거금 $13(포트 약 $87.7 의 15%)으로 축소 진입(place_swap_entry free×0.9). 2주 합계 진입 21건이라 주기 우열은 통계로 못 가른다.
+      **조치**: universe.json `entry_check` 제거(이력은 `entry_check_history`) · Supabase `cron.unschedule('gh_ai_quarter')` 실행(남은 크론
+      4개 확인) · ai_quarter.yml 유지(수동 dispatch 해도 게이트 ②에서 끝남) · supabase_external_trigger.sql 에서 등록 줄 제거, 재개 명령은 주석.
+      SYSTEM_Q15·entry_check_active 등 코드는 그대로(설정이 없으면 꺼짐). 지금은 매시 판단(v5)만, 전체 정지 중이라 실제 판단은 정지 해제 후부터.
     · **첫 실측 (10-29)** — 보유 경로 정상(05:48~14:18 '보유 중' 한 줄, 매시 hold 기록 v4q15 · tick hourly). 평탄 경로 첫 판단
       14:48Z wait — 빈 러너에서 BTC 1d/4h/1h·ETH 1h/4h 자동 수집 각 약 1초, 단계 29초, 오류 없음.
     · **결함 발견·수정 — 15분 틱이 OCO 청산을 못 봤다 (10-29)**: AI 롱 OCO 익절이 14:33:47Z 체결됐는데 6초 뒤 14:33 틱이 '보유 중'으로
@@ -2921,9 +2934,10 @@
       2026-10-29 engine_live_close 로 들어갔다 — 이 항목은 청산 이력 대조 경로만 남는다)
 - [x] **2026-11-05 15분 진입 판단 1주 시험 보고 → 사용자 결정 "계속 — 1주 연장" (2026-11-05 완료)** — 위 '1주 보고' 항목의 표.
       until 2026-11-12T06:30Z 로 연장(PR). 크론 gh_ai_quarter·ai_quarter.yml 그대로
-- [ ] **2026-11-12 15분 진입 판단 2주차 보고 → 계속·중단 여쭙기(예약 알림)** — 같은 표(판단 수·진입·거래·비용·오독·실행)를 1주차와
-      나란히. 답이 없어도 11-12T06:30Z 에 코드가 스스로 매시 판단으로 돌아간다. 계속이면 until 연장, 중단이면 entry_check 제거 +
-      cron.unschedule('gh_ai_quarter') (워크플로 파일은 유지 — 11-05 답)
+- [x] **2026-11-12 15분 진입 판단 2주차 보고 → 사용자 결정 "중단" (2026-11-12 완료)** — entry_check 제거 + cron.unschedule('gh_ai_quarter')
+      실행, ai_quarter.yml 유지. 위 '2주차 보고' 항목의 표
+- [ ] **11-05 22:00 AI 숏 청산 사유 확인 (대표님 확인 시)** — 장부 '손절' 75,645.7 −$0.50 이나 손절가 76,250 미도달 시점. 대표님 수동
+      청산이면 규칙 결과에서 따로 표시
 - [ ] **reconcile 수명주기 평균 결함 (사용자 결정 대기)** — ① 마루보주 BTC 10/11~10/28 기록 보정(+$1.19 → 실제 추정 약 −$0.7)
       ② 같은 종목·방향을 두 장부 행이 나눠 든 수명주기에서 청산가·손익을 행별로 가르기(행 자기 손절 algo 체결가 우선,
       수동 청산은 OKX fills-history). AI 롱 + 메인 BTC 롱 겹침에서 재발 가능
@@ -3381,8 +3395,8 @@
   v2(같은 날): 15m·1h·4h·1d 다중 시간대 입력(BTC_TFS/ETH_TFS), 작은 차수 셋업 매매, setup_tf 기록, 15m 짧은 창 FETCH_DAYS.
   v3(같은 날): rsi_series·ewo_series·divergence·tf_block(피벗에 RSI·EWO, 다이버전스 코드 계산), STRUCTURES·structure 기록.
   주문은 paper_executor 의 live_cap 경로(signal_barrier OCO, ledger 포트 cap_pot, ai_close, net_opposite_live). 스위치 universe.json `ai_traders`
-  15분 진입 판단 시험(2026-10-29~11-05): entry_check_active·SYSTEM_Q15·ref_bar·signal_bar·entered(같은 봉 같은 방향 안내)
-- .github/workflows/ai_quarter.yml: AI 엘리엇 15분 진입 판단(:18/:33/:48, pg_cron gh_ai_quarter) — 메인 스케줄러와 다른 concurrency
+  15분 진입 판단 시험(2026-10-29~11-12, 11-12 중단 — 설정 제거, 코드는 남음): entry_check_active·SYSTEM_Q15·ref_bar·signal_bar·entered
+- .github/workflows/ai_quarter.yml: AI 엘리엇 15분 진입 판단(:18/:33/:48 — 2026-11-12 중단, 크론 gh_ai_quarter 해제·파일 유지) — 메인 스케줄러와 다른 concurrency
   그룹 + 게이트(시각 창·시험 기간·메인 실행 중·조회 실패). `python paper_executor.py aitick` = run(ai_only=True)
 - supabase_schema_patch_2026_10_28.sql: trades.entry_ts(같은 날 반복 매매 구분) — 2026-10-28 적용 완료
 - ai_judge.py: AI 판단 레이어 — 진입 judge(take/reduce/skip, MODE shadow) + 청산 검토 judge_exits(hold/exit, 기록 전용 배치).
