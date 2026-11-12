@@ -725,13 +725,17 @@ check("entry_check: 항목 없음·until 없음·읽기 실패 → 꺼짐", not 
 check("entry_check: every_min 이 15 가 아니면 꺼짐", not ae.entry_check_active(EC(every_min=60), _T - 1)
       and not ae.entry_check_active(EC(every_min="x"), _T - 1))
 check("entry_check: 시간대 없는 until 은 UTC", ae._iso_ms("2026-11-05T06:30:00") == _T)
-_uec = next(t for t in uni["ai_traders"] if t["pattern"] == P).get("entry_check") or {}
-check("universe: 시험 설정(15분 · 2026-10-29 시작 · 11-12 종료(11-05 1주 연장) · 사용자 지시 기록)", _uec.get("every_min") == 15
-      and _uec.get("started") == "2026-10-29" and str(_uec.get("until", "")).startswith("2026-11-12")
-      and ae._iso_ms(_uec.get("until")) and "1주일" in _uec.get("decided", ""), _uec)
-check("universe: 연장 기록(2026-11-05 → 11-12, 사용자 결정)", any(x.get("on") == "2026-11-05" and x.get("until") == _uec.get("until")
-      and "사용자 결정" in x.get("decided", "") for x in _uec.get("extensions", [])), _uec.get("extensions"))
-check("registry: 시험 기록(deploy_on_pass false)", rp.get("entry_check_test_2026_10_29", {}).get("deploy_on_pass") is False)
+# 2026-11-12 사용자 결정 '중단' — entry_check 를 지우고 이력만 남긴다. 실제 설정으로 15분 판단이 꺼져 있어야 한다
+_uat = next(t for t in uni["ai_traders"] if t["pattern"] == P)
+check("universe: 15분 진입 판단 중단(entry_check 없음 → 실제 설정으로 꺼짐)", "entry_check" not in _uat
+      and not ae.entry_check_active(_uat, _T - 1), _uat.get("entry_check"))
+_ueh = (_uat.get("entry_check_history") or [{}])[-1]
+check("universe: 시험 이력(15분 · 2026-10-29 시작 · 11-12 종료 · 사용자 지시·연장·중단 기록)", _ueh.get("every_min") == 15
+      and _ueh.get("started") == "2026-10-29" and str(_ueh.get("ended", "")).startswith("2026-11-12")
+      and "1주일" in _ueh.get("decided", "") and "사용자 결정 2026-11-12" in _ueh.get("stopped", "")
+      and any(x.get("on") == "2026-11-05" and "사용자 결정" in x.get("decided", "") for x in _ueh.get("extensions", [])), _ueh)
+check("registry: 시험 기록(deploy_on_pass false · 2주차 결과·중단 결정)", rp.get("entry_check_test_2026_10_29", {}).get("deploy_on_pass") is False
+      and "중단" in rp.get("entry_check_test_2026_10_29", {}).get("week2_result_2026_11_12", {}).get("decision", ""))
 
 # 정렬된 합성 봉 — TA = 2026-10-29 00:00Z. 00:20 = 15분 틱(15m 00:00 봉이 막 닫힘, 1h 00:00 봉 형성 중), 00:03 = 매시 틱.
 TA = ae._iso_ms("2026-10-29T00:00:00Z")

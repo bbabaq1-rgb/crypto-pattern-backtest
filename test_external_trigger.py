@@ -11,6 +11,7 @@ supabase_external_trigger.sql 은 레포 밖(Supabase)에서 실행되는 SQL �
     이 SQL 이 멈추면 아무것도 돌지 않는다
   · 토큰 리터럴이 파일에 없다
   · (2026-10-29) AI 엘리엇 15분 진입 판단 ai_quarter.yml — 매시 :18/:33/:48, fast(:03)와 합쳐 15분 간격.
+    (2026-11-12 사용자 결정 '중단' — 크론은 등록하지 않고 재개용 명령만 주석으로 둔다. 파일·게이트 고정은 그대로)
     메인 스케줄러와 **다른 concurrency 그룹**(같은 그룹이면 큐 진입 순간 대기 중인 메인 실행이 취소된다)이고,
     게이트가 시각 창·시험 기간·메인 실행 중·대기를 보고 스스로 건너뛴다. :48 실행도 다음 메인 실행 전에 끝난다
 
@@ -44,11 +45,12 @@ jobs = {}
 for m in re.finditer(
         r"cron\.schedule\('([^']+)',\s*'([^']+)',\s*\$job\$(.*?)\$job\$\)", SQL, re.S):
     jobs[m.group(1)] = (m.group(2), m.group(3).strip())
-chk("크론 5개 등록", set(jobs) == {"gh_fast_scheduler", "gh_daily_oncefull",
-                                   "gh_daily_oncequick", "gh_dispatch_collect", "gh_ai_quarter"}, sorted(jobs))
+# 2026-11-12 사용자 결정 '중단' — 15분 진입 판단 크론(gh_ai_quarter)은 등록하지 않는다(정리 목록에는 남긴다)
+chk("크론 4개 등록(15분 진입 판단 gh_ai_quarter 는 2026-11-12 중단)", set(jobs) == {"gh_fast_scheduler", "gh_daily_oncefull",
+                                   "gh_daily_oncequick", "gh_dispatch_collect"}, sorted(jobs))
 _uns = re.search(r"foreach j in array array\[(.*?)\] loop", SQL, re.S)
-chk("재등록 전 정리 목록에 5개 모두", _uns is not None and all(f"'{j}'" in _uns.group(1) for j in jobs),
-    _uns and _uns.group(1))
+chk("재등록 전 정리 목록에 4개 + 중단한 gh_ai_quarter", _uns is not None
+    and all(f"'{j}'" in _uns.group(1) for j in list(jobs) + ["gh_ai_quarter"]), _uns and _uns.group(1))
 
 
 def cron_fields(expr):
@@ -121,7 +123,13 @@ chk("응답 수집은 10분 주기(pg_net 응답 보존 6h 내)", col_cron.start
 chk("수집 함수 호출", "gh_dispatch_collect()" in col_cmd)
 
 # ── 7. AI 엘리엇 15분 진입 판단 (2026-10-29 사용자 지시 "진입판단을 15분마다 … 1주일만 테스트") ─────────────
-q_cron, q_cmd = jobs["gh_ai_quarter"]
+# 2026-11-12 사용자 결정 '중단' — 크론은 등록하지 않고(위 1절) 재개용 명령만 주석으로 남는다. ai_quarter.yml 은 유지.
+# 아래는 그 재개용 명령이 레포와 맞는지(다시 켰을 때 케이던스가 종전과 같은지)를 고정한다.
+_re = re.search(r"cron\.schedule\('gh_ai_quarter',\s*'([^']+)',\s*(?:--\s*)?\$q\$(.*?)\$q\$\)", SQL, re.S)
+chk("재개용 gh_ai_quarter 명령이 주석으로 남아 있다", _re is not None
+    and all(line.lstrip().startswith("--") for line in SQL[SQL.rfind("\n", 0, _re.start()) + 1:_re.end()].splitlines()))
+chk("중단 기록(2026-11-12 사용자 결정)", "2026-11-12 사용자 결정 '중단'" in SQL)
+q_cron, q_cmd = _re.group(1), _re.group(2).strip()
 qf = cron_fields(q_cron)
 q_minutes = sorted(int(m) for m in qf[0].split(","))
 chk("15분 틱: 매시 :18/:33/:48", q_minutes == [18, 33, 48] and qf[1:] == ["*", "*", "*", "*"], q_cron)
