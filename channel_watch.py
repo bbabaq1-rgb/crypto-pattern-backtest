@@ -267,7 +267,10 @@ def _merge_touches(idx, gap):
 
 
 def lines_at(chn, t):
-    return chn["slope"] * t + chn["lo_icpt"], chn["slope"] * t + chn["hi_icpt"]
+    """(아래 선, 위 선) 값. 채널은 기울기 하나(slope), 삼각수렴은 선마다 기울기(lo_slope/hi_slope)."""
+    sl = chn.get("lo_slope", chn.get("slope"))
+    sh = chn.get("hi_slope", chn.get("slope"))
+    return sl * t + chn["lo_icpt"], sh * t + chn["hi_icpt"]
 
 
 def check_break(chn, bar, t, ch):
@@ -330,6 +333,178 @@ def current_state(rows, p, ch):
                 pos=pos, side=side, depth=depth)
 
 
+# ---------------------------------------------------------------- 삼각수렴 (2026-11-13 추가)
+#
+# 위 선 = 최근 고점 두 개, 아래 선 = 최근 저점 두 개를 각각 잇는다(평행 아님). 두 선이 앞쪽에서 만나야(수렴)
+# 삼각수렴이다. 모양은 위 선이 오르지 않고 아래 선이 내리지 않는 것만 — 둘 다 같은 쪽으로 기울면
+# 쐐기형이라 뺐다. 기준점 네 개는 고-저가 엇갈려야 한다(첫 고점·첫 저점이 둘째 고점·둘째 저점보다 앞).
+# 선 사이 폭이 꼭짓점으로 갈수록 좁아지므로 허용치·이탈 기준은 '그 봉의 폭' 비율과 ATR 하한 중 큰 값이다
+# (꼭짓점 근처에서 폭 비율만 쓰면 작은 흔들림도 이탈로 잡힌다).
+
+TRI_KO = {"tri_sym": "대칭 삼각형", "tri_asc": "상승 삼각형(위 선 수평)", "tri_desc": "하락 삼각형(아래 선 수평)"}
+
+
+def tri_kind(move_hi, move_lo, ftol):
+    flat_hi, flat_lo = abs(move_hi) <= ftol, abs(move_lo) <= ftol
+    if flat_hi and not flat_lo:
+        return "tri_asc"
+    if flat_lo and not flat_hi:
+        return "tri_desc"
+    return "tri_sym"
+
+
+def _tri_tol(frac, w, atr_mult, a_tr):
+    return max(frac * w, atr_mult * a_tr)
+
+
+def fit_triangle(rows, min_span, tri, piv_fn=None):
+    """rows(시험할 봉을 뺀 닫힌 봉 창)에 삼각수렴을 맞춘다. 없으면 None.
+
+    선은 창 안 인덱스 t 기준: 아래 = lo_slope*t + lo_icpt, 위 = hi_slope*t + hi_icpt.
+    apex = 두 선이 만나는 t(창 인덱스, 실수). prog = 마지막 봉이 시작~꼭짓점 사이 어디쯤인가(0~1).
+    """
+    n = len(rows)
+    if n < min_span + 5:
+        return None
+    piv_fn = piv_fn or pivot_fn_of(tri) or (lambda r: pivots(r, 3))
+    hi_p, lo_p = piv_fn(rows)
+    a_tr = atr(rows)
+    if a_tr <= 0:
+        return None
+    rp = int(tri.get("recent_pivots", 6))
+    H, L = hi_p[-rp:], lo_p[-rp:]
+    pmin, pmax = float(tri.get("min_progress", 0.25)), float(tri.get("max_progress", 0.9))
+    ftol_f = float(tri.get("flat_tol", 0.15))
+    min_w0 = float(tri.get("min_width_atr", 3.0)) * a_tr
+    cc, ca = float(tri.get("contain_close_tol", 0.15)), float(tri.get("contain_close_atr", 0.3))
+    wc, wa = float(tri.get("contain_wick_tol", 0.3)), float(tri.get("contain_wick_atr", 0.6))
+    tt, ta = float(tri.get("touch_tol", 0.1)), float(tri.get("touch_atr", 0.5))
+    need = int(tri.get("min_touches_total", 4))
+    gap = int(tri.get("touch_min_gap", 5))
+    best = None
+    for i in range(len(H)):
+        for j in range(i + 1, len(H)):
+            h1, h2 = H[i], H[j]
+            if h2 - h1 < 3:                                # 같은 봉·붙은 봉 피벗(지그재그는 같은 봉을 두 번 낼 수 있다)
+                continue
+            sh = (rows[h2]["h"] - rows[h1]["h"]) / (h2 - h1)
+            ich = rows[h1]["h"] - sh * h1
+            for k in range(len(L)):
+                for m in range(k + 1, len(L)):
+                    l1, l2 = L[k], L[m]
+                    if l2 - l1 < 3 or max(h1, l1) >= min(h2, l2):   # 고-저가 엇갈려야 한다
+                        continue
+                    sl = (rows[l2]["l"] - rows[l1]["l"]) / (l2 - l1)
+                    if sh >= sl:                           # 앞쪽에서 만나야(수렴) 한다
+                        continue
+                    icl = rows[l1]["l"] - sl * l1
+                    a = min(h1, l1)
+                    span = n - 1 - a
+                    if span < min_span:
+                        continue
+                    w0 = (sh * a + ich) - (sl * a + icl)
+                    if w0 < min_w0:
+                        continue
+                    apex = (ich - icl) / (sl - sh)
+                    prog = (n - 1 - a) / (apex - a)
+                    if not (pmin <= prog <= pmax):
+                        continue
+                    ftol = ftol_f * w0
+                    mh, ml = sh * span, sl * span
+                    if mh > ftol or ml < -ftol:            # 위 선이 오르거나 아래 선이 내리면 쐐기형
+                        continue
+                    ok = True
+                    for t in range(a, n):
+                        lo_t, hi_t = sl * t + icl, sh * t + ich
+                        w_t = hi_t - lo_t
+                        r = rows[t]
+                        tc, tw_ = _tri_tol(cc, w_t, ca, a_tr), _tri_tol(wc, w_t, wa, a_tr)
+                        if r["c"] < lo_t - tc or r["c"] > hi_t + tc or r["l"] < lo_t - tw_ or r["h"] > hi_t + tw_:
+                            ok = False
+                            break
+                    if not ok:
+                        continue
+                    tw = min(tt * w0, ta * a_tr)
+                    t_lo = _merge_touches([p for p in lo_p if p >= a and
+                                           abs(rows[p]["l"] - (sl * p + icl)) <= tw], gap)
+                    t_hi = _merge_touches([p for p in hi_p if p >= a and
+                                           abs(rows[p]["h"] - (sh * p + ich)) <= tw], gap)
+                    if len(t_lo) < 2 or len(t_hi) < 2 or len(t_lo) + len(t_hi) < need:
+                        continue
+                    score = (len(t_lo) + len(t_hi), span)
+                    if best is None or score > best["_score"]:
+                        best = dict(_score=score, pattern="triangle", kind=tri_kind(mh, ml, ftol),
+                                    a=a, h1=h1, h2=h2, l1=l1, l2=l2, lo_slope=sl, hi_slope=sh,
+                                    lo_icpt=icl, hi_icpt=ich, apex=apex, prog=prog, width0=w0,
+                                    span=span, touches_lo=t_lo, touches_hi=t_hi, atr=a_tr,
+                                    start_ts=rows[a]["ts"],
+                                    anchor_ts=(rows[h1]["ts"], rows[h2]["ts"], rows[l1]["ts"], rows[l2]["ts"]))
+    if best:
+        best.pop("_score")
+    return best
+
+
+def check_break_tri(tr, bar, t, tri):
+    """시험 봉(창 인덱스 t)의 종가가 삼각형 밖이면 ('up'|'down', 그 봉 폭 대비 이탈 깊이)."""
+    lo, hi = lines_at(tr, t)
+    w = hi - lo
+    if w <= 0:
+        return None, 0.0                                   # 꼭짓점을 지났다 — 삼각형이 끝났다
+    buf = _tri_tol(float(tri.get("break_buffer", 0.15)), w, float(tri.get("break_atr", 0.3)), tr["atr"])
+    if bar["c"] > hi + buf:
+        return "up", (bar["c"] - hi) / w
+    if bar["c"] < lo - buf:
+        return "down", (lo - bar["c"]) / w
+    return None, 0.0
+
+
+def alert_key_tri(sym, tf, tr, side):
+    """같은 삼각형(기준점 넷)이 같은 쪽으로 깨진 것은 한 번만 알린다."""
+    return f"{sym}|{tf}|tri|" + "|".join(str(x) for x in tr["anchor_ts"]) + f"|{side}"
+
+
+def scan_tri(sym, tf, rows, p, tri, only_latest=False):
+    """최근 닫힌 봉(recheck_bars 개)마다 '그 봉 직전까지로 그은 삼각형'을 깼는지 본다."""
+    out = []
+    n = len(rows)
+    recheck = 1 if only_latest else max(1, int(p.get("recheck_bars", 1)))
+    for j in range(max(1, n - recheck), n):
+        win_start = max(0, j - p["lookback"])
+        win = rows[win_start:j]
+        tr = fit_triangle(win, p["min_span"], tri)
+        if not tr:
+            continue
+        side, depth = check_break_tri(tr, rows[j], len(win), tri)
+        if not side:
+            continue
+        lo, hi = lines_at(tr, len(win))
+        vols = [r["v"] for r in rows[max(0, j - 20):j]]
+        vavg = sum(vols) / len(vols) if vols else 0.0
+        out.append(dict(pattern="triangle", symbol=sym, tf=tf, side=side, depth=depth, bar=rows[j], j=j,
+                        win_start=win_start, chn=tr, lower=lo, upper=hi,
+                        vol_ratio=(rows[j]["v"] / vavg) if vavg > 0 else None,
+                        key=alert_key_tri(sym, tf, tr, side)))
+    return out
+
+
+def current_state_tri(rows, p, tri):
+    """요약용 — 마지막 닫힌 봉 직전까지로 그은 삼각형과 마지막 봉 위치. 없으면 chn=None."""
+    if len(rows) < 2:
+        return None
+    j = len(rows) - 1
+    win_start = max(0, j - p["lookback"])
+    win = rows[win_start:j]
+    tr = fit_triangle(win, p["min_span"], tri)
+    if not tr:
+        return dict(chn=None, bar=rows[j], j=j, win_start=win_start)
+    lo, hi = lines_at(tr, len(win))
+    side, depth = check_break_tri(tr, rows[j], len(win), tri)
+    w = hi - lo
+    pos = (rows[j]["c"] - lo) / w if w > 0 else 0.5
+    return dict(chn=tr, bar=rows[j], j=j, win_start=win_start, lower=lo, upper=hi,
+                pos=pos, side=side, depth=depth, bars_to_apex=tr["apex"] - len(win))
+
+
 # ---------------------------------------------------------------- 표기
 
 def fmt_px(x):
@@ -380,6 +555,39 @@ def summary_line(sym, tf, st):
             f"종가 {fmt_px(st['bar']['c'])} · {where}")
 
 
+TRI_HISTORY_NOTE = "과거 BTC 기준(같은 규칙): {fb} — 관찰용 알림, 매매 신호 아님"
+
+
+def alert_text_tri(ev, note=""):
+    c = ev["chn"]
+    arrow = "🔺" if ev["side"] == "up" else "🔻"
+    what = "위로 돌파" if ev["side"] == "up" else "아래로 이탈"
+    vr = f" · 거래량 {ev['vol_ratio']:.1f}배(직전 20봉 평균 대비)" if ev.get("vol_ratio") else ""
+    w = ev["upper"] - ev["lower"]
+    return (f"{arrow} <b>{ev['symbol']} {ev['tf']} 삼각수렴 {what}</b>\n"
+            f"종가 {fmt_px(ev['bar']['c'])} ({kst(ev['bar']['ts'] + TF_MS[ev['tf']])} KST 마감 봉)\n"
+            f"위 선 {fmt_px(ev['upper'])} · 아래 선 {fmt_px(ev['lower'])} · 남은 폭 {fmt_px(w)}"
+            f" (시작 폭 {fmt_px(c['width0'])})\n"
+            f"{TRI_KO[c['kind']]} · {kst(c['start_ts'])} 부터 {c['span']}봉 · "
+            f"접점 위 {len(c['touches_hi'])} / 아래 {len(c['touches_lo'])} · 꼭짓점까지 {c['prog'] * 100:.0f}% 진행\n"
+            f"이탈 폭: 남은 폭의 {ev['depth'] * 100:.0f}%{vr}\n"
+            f"<i>{note or '관찰용 알림, 매매 신호 아님'}</i>")
+
+
+def summary_line_tri(sym, tf, st):
+    if st is None:
+        return f"△ {sym} {tf}: 데이터 없음"
+    if not st.get("chn"):
+        return f"△ {sym} {tf}: 삼각수렴 없음 (종가 {fmt_px(st['bar']['c'])})"
+    c = st["chn"]
+    if st.get("side"):
+        where = "위로 이탈 중" if st["side"] == "up" else "아래로 이탈 중"
+    else:
+        where = f"안쪽 {max(0.0, min(1.0, st['pos'])) * 100:.0f}% 위치"
+    return (f"△ {sym} {tf}: {TRI_KO[c['kind']]} {fmt_px(st['lower'])}~{fmt_px(st['upper'])} · "
+            f"종가 {fmt_px(st['bar']['c'])} · {where} · 꼭짓점까지 약 {max(0, st['bars_to_apex']):.0f}봉")
+
+
 def chart_png(sym, tf, rows, j, win_start, chn, side=None, bars=120):
     """마지막 bars 봉 캔들 + 채널 선. PNG bytes. 차트 글자는 영문(러너에 한글 글꼴이 없다)."""
     import matplotlib
@@ -401,34 +609,42 @@ def chart_png(sym, tf, rows, j, win_start, chn, side=None, bars=120):
         # 창 인덱스 t ↔ rows 인덱스 win_start + t ↔ 차트 x = win_start + t - lo_i
         t0 = chn["a"]
         t1 = (j - win_start) + 3
+        if chn.get("apex") is not None:          # 삼각수렴은 꼭짓점에서 선을 멈춘다
+            t1 = min(t1, int(chn["apex"]))
         xs, los, his = [], [], []
         for t in range(t0, t1 + 1):
             x = win_start + t - lo_i
             if x < 0:
                 continue
+            lo_v, hi_v = lines_at(chn, t)
             xs.append(x)
-            los.append(chn["slope"] * t + chn["lo_icpt"])
-            his.append(chn["slope"] * t + chn["hi_icpt"])
-        ax.plot(xs, his, color="#1e88e5", linewidth=1.4)
-        ax.plot(xs, los, color="#1e88e5", linewidth=1.4)
+            los.append(lo_v)
+            his.append(hi_v)
+        col = "#fb8c00" if chn.get("apex") is not None else "#1e88e5"   # 삼각수렴 주황 / 채널 파랑
+        ax.plot(xs, his, color=col, linewidth=1.4)
+        ax.plot(xs, los, color=col, linewidth=1.4)
         for p in chn["touches_lo"]:
             x = win_start + p - lo_i
             if x >= 0:
-                ax.plot(x, rows[win_start + p]["l"], "o", color="#1e88e5", markersize=4)
+                ax.plot(x, rows[win_start + p]["l"], "o", color=col, markersize=4)
         for p in chn["touches_hi"]:
             x = win_start + p - lo_i
             if x >= 0:
-                ax.plot(x, rows[win_start + p]["h"], "o", color="#1e88e5", markersize=4)
+                ax.plot(x, rows[win_start + p]["h"], "o", color=col, markersize=4)
     if side:
+        # 글자를 종가 위/아래로 비켜 둔다 — 같은 높이에 두면 선·접점 표시와 겹친다
+        yr = max(r["h"] for r in seg) - min(r["l"] for r in seg)
+        y_txt = seg[-1]["c"] + (0.08 if side == "up" else -0.08) * yr
         ax.annotate("BREAK UP" if side == "up" else "BREAK DOWN",
                     xy=(len(seg) - 1, seg[-1]["c"]),
-                    xytext=(len(seg) - 18, seg[-1]["c"]),
+                    xytext=(len(seg) - 18, y_txt),
                     color="#d81b60", fontsize=10, fontweight="bold",
                     arrowprops=dict(arrowstyle="->", color="#d81b60"))
     ticks = list(range(0, len(seg), max(1, len(seg) // 6)))
     ax.set_xticks(ticks)
     ax.set_xticklabels([kst(seg[i]["ts"]) for i in ticks], fontsize=8)
-    ax.set_title(f"{sym}/USDT {tf}  (KST)", fontsize=11)
+    label = "  triangle" if (chn and chn.get("apex") is not None) else ""
+    ax.set_title(f"{sym}/USDT {tf}{label}  (KST)", fontsize=11)
     ax.grid(alpha=0.2)
     ax.set_xlim(-1, len(seg) + 4)
     fig.tight_layout()
@@ -475,17 +691,25 @@ def tg_photo(png, caption):
 
 
 def tg_album(items):
-    """items = [(png, caption)] 최대 10장(텔레그램 한도)."""
+    """items = [(png, caption)]. 텔레그램 앨범은 한 번에 10장까지라 10장씩 나눠 보낸다
+    (채널 10장 + 삼각수렴 3장 = 13장 — 한 번에 보내면 뒤 3장이 잘린다)."""
     if not tg_available() or not items:
         return False
-    media, files = [], {}
-    for i, (png, cap) in enumerate(items[:10]):
-        name = f"p{i}"
-        media.append({"type": "photo", "media": f"attach://{name}", "caption": cap[:1000]})
-        files[name] = (f"{name}.png", png, "image/png")
-    return _tg("sendMediaGroup", data={"chat_id": os.environ["TELEGRAM_CHAT_ID"],
-                                       "media": json.dumps(media, ensure_ascii=False)},
-               files=files)
+    ok = True
+    for k in range(0, len(items), 10):
+        chunk = items[k:k + 10]
+        if len(chunk) == 1:                       # 앨범은 2장 이상이어야 한다
+            ok = tg_photo(*chunk[0]) and ok
+            continue
+        media, files = [], {}
+        for i, (png, cap) in enumerate(chunk):
+            name = f"p{i}"
+            media.append({"type": "photo", "media": f"attach://{name}", "caption": cap[:1000]})
+            files[name] = (f"{name}.png", png, "image/png")
+        ok = _tg("sendMediaGroup", data={"chat_id": os.environ["TELEGRAM_CHAT_ID"],
+                                         "media": json.dumps(media, ensure_ascii=False)},
+                 files=files) and ok
+    return ok
 
 
 # ---------------------------------------------------------------- 기록 저장소
@@ -562,11 +786,14 @@ def open_store():
 
 def alert_row(ev, sent):
     c = ev["chn"]
+    tri = ev.get("pattern") == "triangle"
     return dict(symbol=ev["symbol"], tf=ev["tf"], side=ev["side"], bar_ts=ev["bar"]["ts"],
                 bar_time=datetime.fromtimestamp(ev["bar"]["ts"] / 1000, tz=timezone.utc)
                 .strftime("%Y-%m-%d %H:%M"),
-                close=ev["bar"]["c"], upper=ev["upper"], lower=ev["lower"], width=c["width"],
-                depth=ev["depth"], kind=c["kind"], anchor=c["anchor"], start_ts=c["start_ts"],
+                close=ev["bar"]["c"], upper=ev["upper"], lower=ev["lower"],
+                width=(ev["upper"] - ev["lower"]) if tri else c["width"],
+                depth=ev["depth"], kind=c["kind"], anchor="triangle" if tri else c["anchor"],
+                start_ts=c["start_ts"],
                 span=c["span"], touches_lo=len(c["touches_lo"]), touches_hi=len(c["touches_hi"]),
                 vol_ratio=ev.get("vol_ratio"), alert_key=ev["key"], sent=sent)
 
@@ -610,13 +837,24 @@ def run(argv=None, now_ms=None, fetch=fetch_rows, store=None, send=True):
           f"기록 {'Supabase' if store.persistent else '없음'} · 요약 {'예' if want_summary else '아니오'}"
           f"{' · 드라이런' if dry else ''}")
 
-    data, events, summaries = {}, [], []
+    tri = cfg.get("triangle") or {}
+    # 종목·시간대마다 한 번만 받는다 — 채널과 삼각수렴 중 더 긴 쪽 기준
+    need = {}
+    for w in cfg["watch"]:
+        for tf in w["tfs"]:
+            k = (w["symbol"], tf)
+            need[k] = max(need.get(k, 0), cfg["params"][tf]["lookback"] + 60)
+    for w in tri.get("watch", []):
+        for tf in w["tfs"]:
+            k = (w["symbol"], tf)
+            need[k] = max(need.get(k, 0), tri["params"][tf]["lookback"] + 60)
+    data = {k: closed_only(fetch(k[0], k[1], lim), k[1], now_ms) for k, lim in need.items()}
+
+    events, summaries, tri_summaries = [], [], []
     for w in cfg["watch"]:
         for tf in w["tfs"]:
             p = cfg["params"][tf]
-            raw = fetch(w["symbol"], tf, p["lookback"] + 60)
-            rows = closed_only(raw, tf, now_ms)
-            data[(w["symbol"], tf)] = rows
+            rows = data[(w["symbol"], tf)]
             if len(rows) < p["min_span"] + 10:
                 print(f"  {w['symbol']} {tf}: 봉 부족({len(rows)}) — 건너뜀")
                 summaries.append((w["symbol"], tf, None))
@@ -630,6 +868,24 @@ def run(argv=None, now_ms=None, fetch=fetch_rows, store=None, send=True):
             if want_summary:
                 summaries.append((w["symbol"], tf, current_state(rows, p, ch)))
 
+    # 삼각수렴 — 설정에 적힌 종목·시간대만(2026-11-13: BTC 1h/4h/1d)
+    for w in tri.get("watch", []):
+        for tf in w["tfs"]:
+            p = tri["params"][tf]
+            rows = data[(w["symbol"], tf)]
+            if len(rows) < p["min_span"] + 10:
+                print(f"  △ {w['symbol']} {tf}: 봉 부족({len(rows)}) — 건너뜀")
+                tri_summaries.append((w["symbol"], tf, None))
+                continue
+            only_latest = not store.persistent
+            evs = scan_tri(w["symbol"], tf, rows, p, tri, only_latest=only_latest)
+            if only_latest:
+                close_ms = rows[-1]["ts"] + TF_MS[tf]
+                evs = [e for e in evs if now_ms - close_ms <= NONPERSIST_MAX_AGE_MIN * 60_000]
+            events.extend(evs)
+            if want_summary:
+                tri_summaries.append((w["symbol"], tf, current_state_tri(rows, p, tri)))
+
     # 이탈 알림 — 같은 채널은 한 번만
     seen = store.seen({e["key"] for e in events})
     fresh, used = [], set()
@@ -639,7 +895,8 @@ def run(argv=None, now_ms=None, fetch=fetch_rows, store=None, send=True):
         used.add(e["key"])
         fresh.append(e)
     for e in fresh:
-        txt = alert_text(e)
+        is_tri = e.get("pattern") == "triangle"
+        txt = alert_text_tri(e, tri.get("history_note", "")) if is_tri else alert_text(e)
         print("  [이탈] " + txt.replace("\n", " | ").replace("<b>", "").replace("</b>", "")
               .replace("<i>", "").replace("</i>", ""))
         if dry:
@@ -670,9 +927,11 @@ def run(argv=None, now_ms=None, fetch=fetch_rows, store=None, send=True):
     # 요약
     if want_summary:
         lines = [summary_line(s, tf, st) for s, tf, st in summaries]
+        tlines = [summary_line_tri(s, tf, st) for s, tf, st in tri_summaries]
         head = f"📊 <b>채널 현황</b> ({now_utc.astimezone(KST):%m-%d %H:%M} KST)\n"
-        body = head + "\n".join(lines) + "\n<i>관찰용 — 검증된 매매 신호가 아님</i>"
-        print("  [요약] " + " | ".join(lines))
+        body = (head + "\n".join(lines) + ("\n\n" + "\n".join(tlines) if tlines else "")
+                + "\n<i>관찰용 — 검증된 매매 신호가 아님</i>")
+        print("  [요약] " + " | ".join(lines + tlines))
         if send and tg_available():
             items = []
             for s, tf, st in summaries:
@@ -680,6 +939,11 @@ def run(argv=None, now_ms=None, fetch=fetch_rows, store=None, send=True):
                     png = chart_png(s, tf, data[(s, tf)], st["j"], st["win_start"], st["chn"],
                                     st.get("side"), cfg.get("chart_bars", 120))
                     items.append((png, summary_line(s, tf, st)))
+            for s, tf, st in tri_summaries:
+                if st and st.get("chn"):
+                    png = chart_png(s, tf, data[(s, tf)], st["j"], st["win_start"], st["chn"],
+                                    st.get("side"), cfg.get("chart_bars", 120))
+                    items.append((png, summary_line_tri(s, tf, st)))
             tg_text(body)
             if items:
                 tg_album(items)

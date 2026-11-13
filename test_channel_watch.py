@@ -13,6 +13,13 @@ test_channel_watch.py — 채널 이탈 알림 봇(channel_watch.py) 고정 테�
   §10 표기 — 알림·요약 문구
   §11 설정 파일 정합
   §12 SQL — RLS·권한 회수·유니크 키
+  §17 삼각수렴 맞춤 — 합성 대칭·상승·하락 삼각형을 찾고 꼭짓점은 앞쪽
+  §18 삼각수렴 이탈 — 위·아래·ATR 하한 버퍼 안·꼭짓점 지나면 없음
+  §19 삼각수렴이 아닌 것 — 평행 채널·쐐기형·고-저가 안 엇갈린 기준점
+  §20 삼각수렴 실행 — 설정 종목(BTC)만, 기록 kind/anchor, 중복 방지 키
+  §21 삼각수렴 설정 — BTC 만·1시간봉 이상·유지 한도 = 이탈 기준·근거 문구
+  §22 삼각수렴 표기 — 알림·요약 문구
+  §23 앨범 — 10장씩 나눠 보낸다
 """
 import os
 import re
@@ -153,7 +160,8 @@ import json as _json
 orig_load = cw.load_cfg
 cw.load_cfg = lambda path=None: dict(CFG, watch=[{"symbol": "TST", "tfs": ["1h"]}], channel=CH,
                                       params={"1h": {"lookback": 168, "pivot_k": 3, "min_span": 20,
-                                                     "recheck_bars": 3}}, summary_hour_utc=99)
+                                                     "recheck_bars": 3}}, summary_hour_utc=99,
+                                      triangle={})
 st = PStore()
 now_ms = brk[-1]["ts"] + H + 60_000
 cw.run([], now_ms=now_ms, fetch=fake, store=st, send=False)
@@ -265,6 +273,177 @@ deep = [dict(r) for r in base]
 deep[t] = dict(deep[t], c=lo_t - 0.25 * w0, l=lo_t - 0.40 * w0)
 cd = cw.fit_channel(deep, 3, 20, CH2)
 check("깊은 종가 이탈(25%)이 있었던 구간은 같은 채널로 잇지 않는다", cd is None or cd["a"] > t)
+
+
+# ---------------------------------------------------------------- 삼각수렴 (2026-11-13)
+
+
+def bars_triangle(n=110, apex=160, top0=120.0, bot0=100.0, kind="sym", period=12,
+                  t0=1_700_000_000_000, step=H):
+    """두 선이 apex 봉에서 만나는 삼각형 안을 period 봉 주기로 오가는 합성 봉."""
+    meet = {"sym": (top0 + bot0) / 2, "asc": top0, "desc": bot0}[kind]
+    rows = []
+    for t in range(n):
+        hi = top0 + (meet - top0) * t / apex
+        lo = bot0 + (meet - bot0) * t / apex
+        w = hi - lo
+        ph = (t % period) / period
+        frac = 1 - abs(2 * ph - 1)
+        mid = lo + w * (0.05 + 0.9 * frac)
+        h = min(mid + 0.04 * w, hi)
+        l = max(mid - 0.04 * w, lo)
+        rows.append(dict(ts=t0 + t * step, o=mid, h=h, l=l, c=mid, v=100.0))
+    return rows
+
+
+TRI = dict(cw.load_cfg()["triangle"])
+
+print("[17] 삼각수렴 맞춤")
+for kind, want in (("sym", "tri_sym"), ("asc", "tri_asc"), ("desc", "tri_desc")):
+    rows = bars_triangle(kind=kind)
+    tr = cw.fit_triangle(rows, 20, TRI)
+    check(f"합성 {kind} 삼각형을 찾는다", tr is not None)
+    if tr:
+        check(f"{kind}: 모양 분류 {want}", tr["kind"] == want)
+        check(f"{kind}: 꼭짓점은 마지막 봉보다 앞쪽(아직 수렴 중)", tr["apex"] > len(rows) - 1)
+        check(f"{kind}: 위 선 기울기 < 아래 선 기울기(수렴)", tr["hi_slope"] < tr["lo_slope"])
+        check(f"{kind}: 기준점 고-저가 엇갈린다", max(tr["h1"], tr["l1"]) < min(tr["h2"], tr["l2"]))
+        check(f"{kind}: 진행도 0.25~0.9", TRI["min_progress"] <= tr["prog"] <= TRI["max_progress"])
+        lo_e, hi_e = cw.lines_at(tr, len(rows) - 1)
+        check(f"{kind}: 마지막 봉 종가가 두 선 사이", lo_e <= rows[-1]["c"] <= hi_e)
+
+print("[18] 삼각수렴 이탈")
+rows = bars_triangle(kind="sym")
+tr = cw.fit_triangle(rows, 20, TRI)
+t = len(rows)
+lo_v, hi_v = cw.lines_at(tr, t)
+w = hi_v - lo_v
+buf = max(TRI["break_buffer"] * w, TRI["break_atr"] * tr["atr"])
+up_bar = dict(ts=rows[-1]["ts"] + H, o=hi_v, h=hi_v + buf + 1, l=hi_v, c=hi_v + buf + 0.5, v=100.0)
+dn_bar = dict(ts=rows[-1]["ts"] + H, o=lo_v, h=lo_v, l=lo_v - buf - 1, c=lo_v - buf - 0.5, v=100.0)
+in_bar = dict(ts=rows[-1]["ts"] + H, o=hi_v, h=hi_v + 0.5 * buf, l=hi_v, c=hi_v + 0.5 * buf, v=100.0)
+check("위로 돌파", cw.check_break_tri(tr, up_bar, t, TRI)[0] == "up")
+check("아래로 이탈", cw.check_break_tri(tr, dn_bar, t, TRI)[0] == "down")
+check("버퍼 안(선을 조금 넘음)은 이탈 아님", cw.check_break_tri(tr, in_bar, t, TRI)[0] is None)
+check("이탈 기준은 그 봉 폭 비율과 ATR 하한 중 큰 값",
+      abs(buf - max(TRI["break_buffer"] * w, TRI["break_atr"] * tr["atr"])) < 1e-9 and TRI["break_atr"] > 0)
+far = int(tr["apex"]) + 5
+check("꼭짓점을 지나면 삼각형이 끝났다 — 이탈로 보지 않는다",
+      cw.check_break_tri(tr, dict(up_bar, c=1e9), far, TRI)[0] is None)
+try:
+    cw.fit_triangle(rows, 20, TRI, piv_fn=lambda r: ([10, 10, 34, 58], [22, 22, 46, 70]))
+    _zero_ok = True
+except ZeroDivisionError:
+    _zero_ok = False
+check("같은 봉을 두 번 낸 피벗도 0 나누기 없이 넘어간다", _zero_ok)
+
+print("[19] 삼각수렴이 아닌 것")
+check("평행 채널은 삼각수렴이 아니다", cw.fit_triangle(bars_channel(110), 20, TRI) is None)
+flat_box = bars_channel(110, slope=0.0)
+check("수평 박스는 삼각수렴이 아니다", cw.fit_triangle(flat_box, 20, TRI) is None)
+
+
+def bars_wedge(n=110, period=12):
+    """둘 다 오르는 선(아래가 더 가파름) — 상승 쐐기형."""
+    rows = []
+    for t in range(n):
+        hi = 120.0 + 0.10 * t
+        lo = 100.0 + 0.20 * t
+        w = hi - lo
+        ph = (t % period) / period
+        frac = 1 - abs(2 * ph - 1)
+        mid = lo + w * (0.05 + 0.9 * frac)
+        rows.append(dict(ts=1_700_000_000_000 + t * H, o=mid, h=min(mid + 0.04 * w, hi),
+                         l=max(mid - 0.04 * w, lo), c=mid, v=100.0))
+    return rows
+
+
+check("쐐기형(두 선이 같은 쪽으로 기움)은 뺀다", cw.fit_triangle(bars_wedge(), 20, TRI) is None)
+seq = bars_triangle(kind="sym")
+hp, lp = cw.pivot_fn_of(TRI)(seq)
+bad = cw.fit_triangle(seq, 20, TRI, piv_fn=lambda r: (hp[:2], lp[-2:]))
+check("고점 둘이 모두 저점 둘보다 앞이면(엇갈리지 않음) 삼각형으로 보지 않는다", bad is None)
+
+print("[20] 삼각수렴 실행")
+tri_rows = bars_triangle(kind="sym")
+tr0 = cw.fit_triangle(tri_rows, 20, TRI)
+lo_n, hi_n = cw.lines_at(tr0, len(tri_rows))
+wn = hi_n - lo_n
+bufn = max(TRI["break_buffer"] * wn, TRI["break_atr"] * tr0["atr"])
+pxn = hi_n + bufn + 0.5
+tri_brk = tri_rows + [dict(ts=tri_rows[-1]["ts"] + H, o=pxn, h=pxn + 0.1, l=pxn - 0.1, c=pxn, v=300.0)]
+calls = []
+
+
+def fake_tri(sym, tf, limit):
+    calls.append((sym, tf, limit))
+    return tri_brk
+
+
+TRIP = dict(TRI, watch=[{"symbol": "BTC", "tfs": ["1h"]}],
+            params={"1h": {"lookback": 168, "min_span": 20, "recheck_bars": 3}})
+cw.load_cfg = lambda path=None: dict(CFG, watch=[{"symbol": "ETH", "tfs": ["1h"]}], channel=CH,
+                                      params={"1h": {"lookback": 100, "pivot_k": 3, "min_span": 20,
+                                                     "recheck_bars": 3}}, summary_hour_utc=99,
+                                      triangle=TRIP)
+stt = PStore()
+nowt = tri_brk[-1]["ts"] + H + 60_000
+cw.run([], now_ms=nowt, fetch=fake_tri, store=stt, send=False)
+tri_rec = [r for r in stt.rows if r["anchor"] == "triangle"]
+check("삼각수렴 이탈 1건 기록", len(tri_rec) == 1 and tri_rec[0]["side"] == "up")
+check("삼각수렴은 설정 종목(BTC)만 — 다른 종목엔 삼각수렴을 안 본다",
+      all(r["symbol"] == "BTC" for r in tri_rec))
+check("기록 kind 는 tri_*, width 는 그 봉의 남은 폭",
+      tri_rec and tri_rec[0]["kind"].startswith("tri_") and
+      abs(tri_rec[0]["width"] - (tri_rec[0]["upper"] - tri_rec[0]["lower"])) < 1e-9)
+check("중복 방지 키에 삼각형 표식과 기준점 넷", tri_rec and tri_rec[0]["alert_key"].count("|") == 7
+      and "|tri|" in tri_rec[0]["alert_key"])
+check("종목·시간대마다 한 번만 받는다(더 긴 창 기준)",
+      sorted(calls) == [("BTC", "1h", 228), ("ETH", "1h", 160)])
+cw.run([], now_ms=nowt + H, fetch=fake_tri, store=stt, send=False)
+check("같은 삼각형 이탈은 다음 실행에서 다시 기록하지 않는다",
+      len([r for r in stt.rows if r["anchor"] == "triangle"]) == 1)
+cw.load_cfg = orig_load
+
+print("[21] 삼각수렴 설정")
+tcfg = orig_load()["triangle"]
+check("삼각수렴은 BTC 만", [w["symbol"] for w in tcfg["watch"]] == ["BTC"])
+check("1시간봉 이상만", all(tf in ("1h", "4h", "1d") for w in tcfg["watch"] for tf in w["tfs"]))
+check("watch 시간대마다 params", all(tf in tcfg["params"] for w in tcfg["watch"] for tf in w["tfs"]))
+check("받는 봉 수가 OKX 한 번 한도(300) 안", all(v["lookback"] + 60 <= 300 for v in tcfg["params"].values()))
+check("종가 유지 한도 = 이탈 기준(얕은 종가 이탈로 삼각형이 알림 없이 사라지지 않게)",
+      tcfg["contain_close_tol"] == tcfg["break_buffer"] and tcfg["contain_close_atr"] == tcfg["break_atr"])
+check("이탈 기준 남은 폭 35%·0.7ATR 이상(가짜 이탈 22.7%→15.0% 실측)",
+      tcfg["break_buffer"] >= 0.35 and tcfg["break_atr"] >= 0.7)
+check("근거 문구가 설정에 남아 있다", "가짜 이탈" in tcfg.get("design_evidence", "")
+      and "매매 신호 아님" in tcfg.get("history_note", ""))
+check("피벗은 채널과 같은 ATR 지그재그", tcfg["pivot_method"] == "zigzag_atr")
+
+print("[22] 삼각수렴 표기")
+evt = dict(pattern="triangle", symbol="BTC", tf="4h", side="down", depth=0.4,
+           bar=dict(ts=tri_rows[-1]["ts"], c=99.0), chn=tr0, upper=112.0, lower=108.0, vol_ratio=2.1)
+tt_ = cw.alert_text_tri(evt, tcfg["history_note"])
+check("알림에 종목·시간대·삼각수렴·아래로 이탈", "BTC 4h 삼각수렴 아래로 이탈" in tt_)
+check("알림에 모양·꼭짓점 진행·남은 폭", "대칭 삼각형" in tt_ and "꼭짓점까지" in tt_ and "남은 폭" in tt_)
+check("알림에 '매매 신호 아님'과 과거 기준", "매매 신호 아님" in tt_ and "15%" in tt_)
+check("요약: 없음", "삼각수렴 없음" in cw.summary_line_tri("BTC", "1h", dict(chn=None, bar=dict(c=70000.0))))
+sline = cw.summary_line_tri("BTC", "4h", dict(chn=tr0, bar=dict(c=110.0), lower=105.0, upper=115.0,
+                                              pos=0.5, side=None, bars_to_apex=12.4))
+check("요약: 모양·범위·꼭짓점", "△ BTC 4h" in sline and "대칭 삼각형" in sline and "약 12봉" in sline)
+check("문구의 모양 이름이 셋 다 있다", set(cw.TRI_KO) == {"tri_sym", "tri_asc", "tri_desc"})
+
+print("[23] 앨범 — 10장씩")
+sent_calls = []
+orig_tg, orig_av = cw._tg, cw.tg_available
+cw._tg = lambda method, data=None, files=None: sent_calls.append((method, len(files or {}))) or True
+cw.tg_available = lambda: True
+os.environ.setdefault("TELEGRAM_CHAT_ID", "0")
+cw.tg_album([(b"png", f"c{i}") for i in range(13)])
+check("13장 → 10장 앨범 + 3장 앨범", sent_calls == [("sendMediaGroup", 10), ("sendMediaGroup", 3)])
+sent_calls.clear()
+cw.tg_album([(b"png", f"c{i}") for i in range(11)])
+check("11장 → 10장 앨범 + 사진 1장(앨범은 2장 이상)", sent_calls == [("sendMediaGroup", 10), ("sendPhoto", 1)])
+cw._tg, cw.tg_available = orig_tg, orig_av
 
 print("[12] SQL")
 SQL = open(os.path.join(HERE, "supabase_schema_channel_alerts.sql"), encoding="utf-8").read().lower()
