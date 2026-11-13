@@ -1,0 +1,45 @@
+name: Channel watch — 채널 이탈 텔레그램 알림 (관찰 전용)
+
+# 대표님 개인용 채널 이탈 알림 봇(channel_watch.py, 2026-11-13). OKX 공개 캔들만 읽고 텔레그램으로 알린다.
+# 주문·포지션과 무관 — 매매 시크릿(OKX 키)을 받지 않는다. 기록은 Supabase channel_alerts(중복 방지·이후 수익).
+# 발화: Supabase pg_cron → workflow_dispatch (매시 :06, gh_channel_watch). GitHub schedule 은 이 레포에서 반복 누락돼
+# 쓰지 않는다. 매매 스케줄러와 concurrency 그룹을 공유하지 않는다 — 같은 그룹이면 대기 중인 매매 실행이 취소된다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check(기본) / summary(현황 요약 지금 보내기) / test-telegram(연결 확인)"
+        required: false
+        default: "check"
+
+concurrency:
+  group: channel-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install -r requirements.txt matplotlib
+      - name: Logic tests (no network)
+        run: python test_channel_watch.py
+      - name: Channel watch
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MODE: ${{ github.event.inputs.mode || 'check' }}
+        run: |
+          case "$MODE" in
+            summary)        python channel_watch.py --summary ;;
+            test-telegram)  python channel_watch.py --test-telegram ;;
+            *)              python channel_watch.py ;;
+          esac

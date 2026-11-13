@@ -181,6 +181,9 @@ revoke execute on function public.gh_dispatch_collect() from public, anon, authe
 --                ai_quarter.yml 은 유지. 재개하려면 universe.json ai_traders[].entry_check 를 다시 넣고 아래를 실행:
 --                  select cron.schedule('gh_ai_quarter', '18,33,48 * * * *',
 --                    $q$select public.gh_dispatch('ai_quarter.yml')$q$);
+--   channel_watch : 매시 :06 — 대표님 개인용 채널 이탈 텔레그램 알림(2026-11-13, channel_watch.py). 관찰 전용이라
+--                매매와 무관하고, channel_watch.yml 은 별도 concurrency 그룹이라 매매 실행을 취소시키지 않는다.
+--                inputs 없이 부르면 mode=check(기본값). 매일 UTC 00 시 실행이 현황 요약도 보낸다.
 -- daily_scheduler.yml 의 workflow_dispatch 입력 mode 기본값이 oncefull 이므로 반드시 명시.
 --
 -- 같은 이름으로 다시 부르면 갱신된다(pg_cron 1.4+). 구버전 대비로 먼저 정리한다.
@@ -189,7 +192,8 @@ declare
   j text;
 begin
   foreach j in array array['gh_fast_scheduler', 'gh_daily_oncefull',
-                           'gh_daily_oncequick', 'gh_dispatch_collect', 'gh_ai_quarter'] loop
+                           'gh_daily_oncequick', 'gh_dispatch_collect', 'gh_ai_quarter',
+                           'gh_channel_watch'] loop
     begin
       perform cron.unschedule(j);
     exception when others then
@@ -210,6 +214,9 @@ select cron.schedule('gh_daily_oncequick', '0 4,8,12,16,20 * * *',
 
 select cron.schedule('gh_dispatch_collect', '*/10 * * * *',
   $job$select public.gh_dispatch_collect()$job$);
+
+select cron.schedule('gh_channel_watch', '6 * * * *',
+  $job$select public.gh_dispatch('channel_watch.yml')$job$);
 
 
 
@@ -242,4 +249,7 @@ select jobname, schedule, active
 --
 -- ⑤ 15분 진입 판단만 해제(시험 중단 — 메인 실행은 그대로) — 2026-11-12 실행됨
 --      select cron.unschedule('gh_ai_quarter');
+--
+-- ⑥ 채널 알림만 해제(매매와 무관)
+--      select cron.unschedule('gh_channel_watch');
 -- ============================================================================

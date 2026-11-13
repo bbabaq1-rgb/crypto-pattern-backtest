@@ -1,0 +1,27 @@
+{
+ "_doc": "채널 이탈 알림 봇(channel_watch.py) 설정 — 대표님 개인용, 관찰 전용. 매매 코드는 이 파일을 읽지 않는다. 종목·시간대는 여기만 고치면 된다(커밋하면 다음 정시 실행부터 반영).",
+ "watch": [
+  {"symbol": "BTC", "tfs": ["1h", "4h", "1d"]},
+  {"symbol": "ETH", "tfs": ["1h", "4h", "1d"]},
+  {"symbol": "SOL", "tfs": ["4h", "1d"]},
+  {"symbol": "XRP", "tfs": ["4h", "1d"]}
+ ],
+ "params": {
+  "1h": {"lookback": 168, "pivot_k": 3, "min_span": 24, "recheck_bars": 3},
+  "4h": {"lookback": 180, "pivot_k": 3, "min_span": 18, "recheck_bars": 2},
+  "1d": {"lookback": 180, "pivot_k": 3, "min_span": 15, "recheck_bars": 2}
+ },
+ "channel": {
+  "_doc": "모든 비율은 채널 폭 대비(ATR 상한 있는 것은 따로 표기). touch_tol = 선에서 폭의 이만큼 안이면 '닿음'(단 touch_atr×ATR14 를 넘지 않음), contain_tol = 채널 안 봉의 꼬리가 이만큼까지는 선 밖으로 나가도 채널 유지, break_buffer = 종가가 선 밖으로 이만큼 넘어야 이탈, min_touches_each = 위·아래 선이 각각 최소 몇 번 닿아야 채널로 인정, min_width_atr = 채널 폭이 ATR14 의 몇 배 이상, max_width_range = 채널 폭이 그 구간 실제 고저 범위의 몇 배 이하(가파른 기울기의 거대한 띠 방지). recent_pivots = 기준점(선이 지나는 두 점)을 최근 고점·저점 몇 개 안에서만 고를지.",
+  "touch_tol": 0.1,
+  "contain_tol": 0.05,
+  "break_buffer": 0.05,
+  "min_touches_each": 2,
+  "min_width_atr": 2.0,
+  "touch_atr": 1.0,
+  "max_width_range": 1.0,
+  "recent_pivots": 6
+ },
+ "summary_hour_utc": 0,
+ "chart_bars": 120
+}
