@@ -1,0 +1,22 @@
+name: R-110 minimum-order skip ladder (research)
+# 계산 전용 — 매매/DB 접근 없음. registry minorder_ladder_prereg_2026_11_13
+on:
+  workflow_dispatch:
+  push:
+    branches: ["research/minorder_ladder_R110"]
+    paths: ["validate_minorder_ladder.py", "validate_minorder.py", ".github/workflows/minorder_ladder.yml"]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -r requirements.txt
+      - run: mkdir -p data
+      - run: python test_minorder_ladder.py
+      - run: python validate_minorder_ladder.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: minorder_ladder, path: _minorder_ladder.json, if-no-files-found: ignore}
