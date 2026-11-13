@@ -512,24 +512,51 @@ q12 = next(q for q in sb["questions"] if q["id"] == "Q12")
 check("Q12 무작위 보행 = 거리 비율", abs(q12["baselines"]["random_walk"] - (q12["basis_px"] - q12["rule"]["down"]) /
       (q12["rule"]["up"] - q12["rule"]["down"])) < 1e-3)
 check("Q12 판정 가격은 기존 레벨에서만", {q12["rule"]["up"], q12["rule"]["down"]} <= {lv["px"] for lv in COUNT["levels"]})
-check("Q12 기준가 = 현재 확률표 기준가", q12["basis_px"] == ol["basis_px"] and q12["as_of"] == ol["as_of"])
-check("Q12 는 미결로 등록", q12["status"] == "open" and "outcome" not in q12)
-check("직전 표(11/04 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 76369.0
-      and ol["previous"][-1]["scenarios_pct"] == {"S1": 47, "S4": 3, "S2": 4, "S3": 46})
+check("Q12 기준가 = 등록 당시(11/12 판) 확률표 기준가 — previous 에 보존", q12["basis_px"] == 72692.0
+      and any(t["basis_px"] == 72692.0 and t["as_of"] == q12["as_of"] for t in ol["previous"]))
+check("11/04 판 표가 previous 에 보존", any(t["basis_px"] == 76369.0
+      and t["scenarios_pct"] == {"S1": 47, "S4": 3, "S2": 4, "S3": 46} for t in ol["previous"]))
 check("발동한 트리거(72,557)는 목록에서 빠짐", all(t["px"] != 72557.0 for t in ol["triggers"]))
-check("효과 문구의 두 갈림선이 트리거로 추가(78,762↑ · 69,055↓)",
-      any(t["px"] == 78762.0 and t["dir"] == "above" for t in ol["triggers"])
-      and any(t["px"] == 69055.0 and t["dir"] == "below" for t in ol["triggers"]))
-check("효과대로 큰 3파·네 번째는 사실상 종료(각 1 이하)", ol["scenarios_pct"]["S2"] <= 1 and ol["scenarios_pct"]["S4"] <= 1)
-check("효과에 형태 언급이 없어 2파 형태 표는 직전 표와 같다",
-      ol["wave2_shape_pct_within_S1"] == ol["previous"][-1]["wave2_shape_pct_within_S1"])
 check("Q1~Q11 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
       for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11")] ==
       [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51, 0.30, 0.35, 0.47])
-_ns = COUNT["correction"]["y_subcount_2026_11_09"]["C_count_A_impulse_in_progress"]["v"]["legs_2026_11_12"]["new_split_2026_11_12_1310"]
+_v = COUNT["correction"]["y_subcount_2026_11_09"]["C_count_A_impulse_in_progress"]["v"]
+_ns = _v["legs_2026_11_12"]["new_split_2026_11_12_1310"]
 check("브리핑 신규 저점 분할 합 100", _ns["completion_low_is_end"] + sum(_ns["new_low_zones"].values()) == 100)
-check("분할 기준 저점 = 파일의 (v) 저점", _ns["low"] == COUNT["correction"]["y_subcount_2026_11_09"]["C_count_A_impulse_in_progress"]["v"]["low_so_far"])
+check("11/12 분할 기준 저점 = 그때의 (v) 저점 72,160.51", _ns["low"] == 72160.51)
 check("revisions 에 2026-11-12 트리거 재평가 항목", any(r["date"] == "2026-11-12" for r in COUNT["revisions"]))
+
+print("[23] 61.8% 되돌림 이탈 재평가 (2026-11-13)")
+q13 = next(q for q in sb["questions"] if q["id"] == "Q13")
+check("Q12 는 하락으로 판정 기록", q12["status"] == "resolved" and q12["outcome"] == "down"
+      and q12["resolved_on"] == "2026-11-13 03:23")
+check("Q12 예측은 등록 당시 그대로", q12["forecast"] == 0.63)
+check("Q13 무작위 보행 = 거리 비율", abs(q13["baselines"]["random_walk"] - (q13["basis_px"] - q13["rule"]["down"]) /
+      (q13["rule"]["up"] - q13["rule"]["down"])) < 1e-3)
+check("Q13 판정 가격은 기존 레벨에서만", {q13["rule"]["up"], q13["rule"]["down"]} <= {lv["px"] for lv in COUNT["levels"]})
+check("Q13 기준가 = 현재 확률표 기준가", q13["basis_px"] == ol["basis_px"] and q13["as_of"] == ol["as_of"])
+check("Q13 은 미결로 등록", q13["status"] == "open" and "outcome" not in q13)
+check("직전 표(11/12 판)가 previous 끝에 보존", ol["previous"][-1]["basis_px"] == 72692.0
+      and ol["previous"][-1]["scenarios_pct"] == {"S1": 50, "S4": 1, "S2": 1, "S3": 48})
+check("발동한 트리거(69,055)는 목록에서 빠짐", all(t["px"] != 69055.0 for t in ol["triggers"]))
+check("효과 문구가 가리킨 다음 구간 64,069↓ 가 트리거로 추가, 78,762↑ 는 유지",
+      any(t["px"] == 64069.0 and t["dir"] == "below" for t in ol["triggers"])
+      and any(t["px"] == 78762.0 and t["dir"] == "above" for t in ol["triggers"]))
+check("효과대로 더 큰 조정 가중(48 → 더 큼), 큰 3파·네 번째는 1 이하",
+      ol["scenarios_pct"]["S3"] > ol["previous"][-1]["scenarios_pct"]["S3"]
+      and ol["scenarios_pct"]["S2"] <= 1 and ol["scenarios_pct"]["S4"] <= 1)
+check("시나리오 확률 합 100", sum(ol["scenarios_pct"].values()) == 100)
+check("효과에 형태 언급이 없어 2파 형태 표는 직전 표와 같다",
+      ol["wave2_shape_pct_within_S1"] == ol["previous"][-1]["wave2_shape_pct_within_S1"])
+check("Q1~Q12 예측 무변경", [next(q for q in sb["questions"] if q["id"] == i)["forecast"]
+      for i in ("Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8", "Q9", "Q10", "Q11", "Q12")] ==
+      [0.275, 0.40, 0.20, 0.55, 0.35, 0.40, 0.48, 0.51, 0.30, 0.35, 0.47, 0.63])
+_ns13 = _v["legs_2026_11_13"]["new_split_2026_11_13_0324"]
+check("11/13 신규 저점 분할 합 100", _ns13["completion_low_is_end"] + sum(_ns13["new_low_zones"].values()) == 100)
+check("11/13 분할 기준 저점 = 파일의 (v) 저점 = Y.C 저점", _ns13["low"] == _v["low_so_far"]
+      == COUNT["correction"]["y_subcount_2026_11_09"]["Y"]["C"]["low_so_far"])
+check("새 저점 68,825.57 은 69,055 아래 · 하한 67,696 위", 67696 < _v["low_so_far"] < 69055)
+check("revisions 에 2026-11-13 트리거 재평가 항목", any(r["date"] == "2026-11-13" for r in COUNT["revisions"]))
 
 print()
 if FAIL:
