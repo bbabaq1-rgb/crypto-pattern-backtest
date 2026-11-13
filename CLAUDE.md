@@ -2918,7 +2918,43 @@
     점검의 WARN 2건(yugaking_track_interest anon 실행 — 공개 이벤트 기록용이라 의도로 보임, 입력값 검증 있음 / pg_net 이 public 스키마)은
     건드리지 않았다. 되돌리기: `alter table public.<t> disable row level security` (권장하지 않음).
 
+- **채널 이탈 텔레그램 알림 봇 (2026-11-13, 사용자 요청 "투자 지원용 — 자동으로 채널링을 그어주고 깨지면 알림" → 선택 "내가 쓰는 용도, 코인만, 텔레그램")**:
+  `channel_watch.py` / `channel_watch.json` / `.github/workflows/channel_watch.yml` / `supabase_schema_channel_alerts.sql` /
+  `test_channel_watch.py`. **관찰 전용 — 매매와 완전히 분리**(매매·연구 모듈과 양방향 import 0, 워크플로에 OKX 키 없음,
+  별도 concurrency 그룹 `channel-watch`, test_channel_watch §1 이 고정). 엘리엇 브리핑과 별개다.
+  · **동작**: 매시 :06(Supabase pg_cron `gh_channel_watch` → workflow_dispatch) — 관심 종목·시간대(channel_watch.json, 기본
+    BTC·ETH 1h/4h/1d · SOL·XRP 4h/1d)마다 OKX 무기한 공개 캔들의 **닫힌 봉만** 받아 평행 채널을 긋고, 최근 닫힌 봉 종가가 채널
+    밖으로 폭의 5% 넘게 나가면 차트 이미지와 함께 텔레그램 알림. 매일 UTC 00 시 실행은 현황 요약(차트 앨범)도 보낸다.
+  · **채널 긋기 v2 (같은 날 사용자 지시 "유효한 채널을 어떻게 긋는지 조사하고 긋는 방법 설계")** — 문헌 조사(Bulkowski·Murphy·
+    Lo/Mamaysky/Wang·자동 채널 스크립트) + **설계용 실데이터 비교**(코인베이스 BTC·ETH·SOL·XRP 1h 1년/6h 4년/1d 6년, 방식 8 × 이탈 규칙 3).
+    잣대: 채널 선에서 튕긴 비율 − **같은 채널 가운데 선(대조)**에서 튕긴 비율 / 3봉 안 재진입(가짜 이탈) / 20봉 뒤 방향.
+    · **결론 ① 어떤 방식으로 그어도 자동 채널 선은 가운데 선보다 지지·저항 역할을 더 하지 않았다**(차이 −3.0~+1.1%p). v1(양옆 3봉
+      프랙탈)은 −3.0%p 로 오히려 나빴다. 거래량 상위 지점만 기준점으로(+1.1%p, 채널 시간 52→32%)·접점 3회 이상·긴 기간 —
+      전부 잡음 수준. 문헌에서도 거래량으로 기준점을 고르는 방법은 없었다(거래량은 이탈 확인용이고 Bulkowski 데이터상 그 효과도 작다).
+    · **결론 ② 갈리는 건 이탈 판정** — 종가가 선 밖으로 채널 폭의 15% 미만이면 가짜 이탈 30~33%, 15~35% 17~19%, 35% 이상 9~13%.
+      이탈 봉 거래량(평균 2배 이상)은 차이 없음. 20봉 뒤 방향은 모든 방식·조건에서 50% 안팎.
+    · **v2 규칙**: 고점·저점 = ATR14 2배 이상 되돌려야 확정되는 지그재그(인과적) · 최근 스윙 6개 안 두 점 + 평행선 · 독립 접점
+      (5봉 안 연속은 하나) 위·아래 각 2 이상 · 접점 허용 min(폭 10%, ATR 0.5배) · 그 구간 종가는 선 밖 폭 15%·꼬리 30% 이내 ·
+      폭 ATR 2배 이상·구간 고저 범위 이하 · **이탈 = 종가가 폭의 15% 이상 밖**(유지 한도와 같게 — 얕은 종가 이탈로 채널이 알림 없이
+      사라지지 않게). 결과: 가짜 이탈 26.7% → **12.7%**, 채널 시간 52% → 47%, 알림 1천 봉당 84 → 54(관심 종목 기준 하루 약 3건).
+    · **비교 중 잡은 결함 셋**: 폭 비례 접점 허용만 쓰면 가파른 기울기의 거대한 띠(BTC 4h 아래 선 25,918)가 이김 → ATR·범위 상한 /
+      전체 피벗을 쓰면 오래된 넓은 채널이 이김 → 최근 스윙만 / 붙은 봉의 접점이 각각 세어져 한 번 닿은 선이 채널로 인정(SOL 1h) → 독립 접점.
+    · 알림 문구에 과거 기준을 함께 적는다: "약 12% 가 3봉 안에 채널로 되돌아왔고 20봉 뒤 방향은 반반 — 매매 신호 아님".
+    · 근거 수치는 channel_watch.json `design_evidence`, 비교 코드는 레포 밖(세션 스크래치) — 매매 검증이 아니라 도구 설계용이다.
+  · **기록**: Supabase `channel_alerts`(RLS 켜고 정책 없음 + anon/authenticated 회수, 2026-11-13 생성 확인). alert_key = 종목·시간대·
+    두 기준점·방향 — 같은 채널 이탈은 한 번만 알린다. 이후 1·5·20봉 수익(이탈 방향 부호)을 채워 **어떤 이탈이 의미 있었나**를
+    쌓는다(엘리엇 채점 장부와 같은 장치). 텔레그램 전송이 실패하면 기록하지 않아 다음 실행에서 다시 보낸다.
+  · **검증된 매매 신호가 아니다** — 이 레포의 돌파 계열 진입 규칙은 백테스트에서 기각됐다. 알림 문구에 매번 적는다.
+  · **선결(사용자)**: GitHub Secrets `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID` 등록 — 2026-11-12 steward 실행 로그에서 둘 다 빈 값으로
+    확인(레포의 다른 텔레그램 알림도 지금까지 한 번도 나가지 않았다). 등록 전에는 매시 실행이 감지·기록만 하고 보내지 않는다
+    (그동안의 이탈은 sent=false 로 남고 다시 보내지 않는다). 확인: Actions → Channel watch → Run workflow → mode `test-telegram`.
+  · 되돌리기: `select cron.unschedule('gh_channel_watch');` (파일은 남아도 아무 동작을 안 한다).
 ## 다음 할 일
+- [ ] **채널 알림 봇 텔레그램 연결 (사용자)** — @BotFather 로 봇 생성 → 토큰, 봇에게 아무 메시지 보낸 뒤 chat id 확인
+      → GitHub Settings → Secrets → Actions 에 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`. 그 뒤 Channel watch 워크플로를
+      mode `test-telegram` 으로 한 번 실행해 메시지 수신 확인. 이 두 값은 레포의 다른 텔레그램 알림(steward 등)도 함께 살린다
+- [ ] **채널 알림 품질 점검 (2주 뒤)** — channel_alerts 의 알림 수·종목/시간대별 빈도·이후 1·5·20봉 수익을 표로. 너무 잦으면
+      break_buffer·min_touches_each 조정, 원하는 종목 추가는 channel_watch.json 한 줄
 - [ ] **육아킹을 거래 DB 에서 분리 (사용자·육아킹 세션 몫)** — 2026-11-10 yugaking 스키마·anon 함수가 거래 DB 에 추가됨. 별도 Supabase
       프로젝트로 옮기기 권장. 거래 장부 4개 테이블은 같은 날 RLS 로 막았다(`supabase_rls_2026_11_10.sql`)
 - [ ] **자동 매매 재개 (사용자 지시로만)** — `universe.json trading_halt.active=false` 한 줄 + test_executor_safety 단언 복원.
@@ -3457,6 +3493,8 @@
 - funding_accrual.py / supabase_schema_funding.sql: 펀딩비 일별 적재 (시험용 축적 전용, 매매 무관)
 - report_exit_regime_axis.md: 위 3종 판정 + 검토 중 확인한 레포 사실(docs/research 부재, Signal
   인터페이스 이중화, 봉 데이터 DB 미저장, OI 수집 없음)
+- channel_watch.py / channel_watch.json / channel_watch.yml / supabase_schema_channel_alerts.sql: 채널 이탈 텔레그램 알림 봇
+  (2026-11-13, 관찰 전용 — 매매와 import·시크릿·concurrency 전부 분리). test_channel_watch.py
 - elliott_count.json / elliott_watch.py: BTC 엘리엇 카운트 동결 + 일일 판정 (브리핑 전용, 매매 무관).
   라벨은 JSON 에만 있고 코드는 판정만 한다 — 재라벨은 revisions 에 사유와 함께 커밋으로 남긴다. test_elliott_watch.py(33)
 - research_log.csv: 106건 시험 기록

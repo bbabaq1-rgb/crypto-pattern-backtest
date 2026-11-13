@@ -46,10 +46,11 @@ for m in re.finditer(
         r"cron\.schedule\('([^']+)',\s*'([^']+)',\s*\$job\$(.*?)\$job\$\)", SQL, re.S):
     jobs[m.group(1)] = (m.group(2), m.group(3).strip())
 # 2026-11-12 사용자 결정 '중단' — 15분 진입 판단 크론(gh_ai_quarter)은 등록하지 않는다(정리 목록에는 남긴다)
-chk("크론 4개 등록(15분 진입 판단 gh_ai_quarter 는 2026-11-12 중단)", set(jobs) == {"gh_fast_scheduler", "gh_daily_oncefull",
-                                   "gh_daily_oncequick", "gh_dispatch_collect"}, sorted(jobs))
+chk("크론 5개 등록(15분 진입 판단 gh_ai_quarter 는 2026-11-12 중단, 채널 알림 gh_channel_watch 는 2026-11-13 추가)",
+    set(jobs) == {"gh_fast_scheduler", "gh_daily_oncefull", "gh_daily_oncequick", "gh_dispatch_collect",
+                  "gh_channel_watch"}, sorted(jobs))
 _uns = re.search(r"foreach j in array array\[(.*?)\] loop", SQL, re.S)
-chk("재등록 전 정리 목록에 4개 + 중단한 gh_ai_quarter", _uns is not None
+chk("재등록 전 정리 목록에 5개 + 중단한 gh_ai_quarter", _uns is not None
     and all(f"'{j}'" in _uns.group(1) for j in list(jobs) + ["gh_ai_quarter"]), _uns and _uns.group(1))
 
 
