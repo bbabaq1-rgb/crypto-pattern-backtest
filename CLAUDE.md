@@ -2949,10 +2949,22 @@
     확인(레포의 다른 텔레그램 알림도 지금까지 한 번도 나가지 않았다). 등록 전에는 매시 실행이 감지·기록만 하고 보내지 않는다
     (그동안의 이탈은 sent=false 로 남고 다시 보내지 않는다). 확인: Actions → Channel watch → Run workflow → mode `test-telegram`.
   · 되돌리기: `select cron.unschedule('gh_channel_watch');` (파일은 남아도 아무 동작을 안 한다).
+  · **텔레그램 연결 완료 (2026-11-13 05:32Z)** — 사용자가 Secrets 등록, 두 번은 값이 빈 채로 들어와(이름·위치 문제) 고친 뒤 세 번째
+    test-telegram 실행에서 `전송: True`, 수신 확인. 같은 두 값을 쓰는 레포의 다른 알림(steward·ai_judge_report 등)도 이제 실제로 나간다.
+  · **삼각수렴 이탈 알림 추가 (2026-11-13, 사용자 지시 "채널뿐 아니라 삼각수렴도 위든 아래든 깨지면 보내게 — 1시간봉 이상, 비트만")**:
+    같은 봇(channel_watch.py)·같은 피벗(ATR 지그재그)·차트·텔레그램·channel_alerts(anchor='triangle', kind tri_sym/tri_asc/tri_desc)를 쓴다.
+    대상은 `channel_watch.json["triangle"]` — BTC 1h/4h/1d.
+    · **긋는 법**: 위 선 = 최근 고점 둘, 아래 선 = 최근 저점 둘(최근 6개 안), 앞쪽에서 만나야(수렴) 한다. 대칭·상승(위 수평)·하락
+      (아래 수평)만 — 두 선이 같은 쪽으로 기울면 쐐기형이라 뺐다. 기준점 넷은 고-저가 엇갈려야 하고, 시작 폭 ATR 3배 이상,
+      마지막 봉이 시작~꼭짓점의 25~90% 사이. 폭이 꼭짓점으로 좁아지므로 허용치·이탈 기준은 그 봉 폭 비율과 ATR 배수 중 큰 값.
+    · **이탈 기준은 실데이터로 정했다**(코인베이스 BTC 1h 1년·1h→4h 1년·6h 4년·1d 6년, 봉마다 직전 봉까지로 긋고 첫 이탈만): 3봉 안
+      재진입(가짜 이탈) 폭 15%·0.3ATR **22.7%**(506건) → 25%·0.5ATR 19.1% → **35%·0.7ATR 15.0%**(247건, 채택). 접점 5개 요구·지그재그
+      1.5ATR·진행 상한 0.75 는 개선 없음. **20봉 뒤 방향 43~55% — 채널과 같이 방향 정보 없음.** 1년 알림 약 1h 100 · 4h 32 · 1d 5.5건,
+      삼각형이 그어져 있는 시간 약 30%. 근거는 channel_watch.json triangle.design_evidence, 비교 코드는 레포 밖(설계용).
+    · 같이 고친 것: 요약 앨범을 10장씩 나눠 보낸다(채널 10장 + 삼각수렴 3장이면 한 번에 보낼 때 뒤 3장이 잘렸다) · 이탈 표시 글자를
+      종가 위/아래로 비켜 그린다(선·접점과 겹쳤다). 채널 판정·설정은 불변. test_channel_watch §17~§23.
 ## 다음 할 일
-- [ ] **채널 알림 봇 텔레그램 연결 (사용자)** — @BotFather 로 봇 생성 → 토큰, 봇에게 아무 메시지 보낸 뒤 chat id 확인
-      → GitHub Settings → Secrets → Actions 에 `TELEGRAM_BOT_TOKEN`·`TELEGRAM_CHAT_ID`. 그 뒤 Channel watch 워크플로를
-      mode `test-telegram` 으로 한 번 실행해 메시지 수신 확인. 이 두 값은 레포의 다른 텔레그램 알림(steward 등)도 함께 살린다
+- [x] **채널 알림 봇 텔레그램 연결 (2026-11-13 완료)** — test-telegram 수신 확인
 - [ ] **채널 알림 품질 점검 (2주 뒤)** — channel_alerts 의 알림 수·종목/시간대별 빈도·이후 1·5·20봉 수익을 표로. 너무 잦으면
       break_buffer·min_touches_each 조정, 원하는 종목 추가는 channel_watch.json 한 줄
 - [ ] **육아킹을 거래 DB 에서 분리 (사용자·육아킹 세션 몫)** — 2026-11-10 yugaking 스키마·anon 함수가 거래 DB 에 추가됨. 별도 Supabase
@@ -3493,7 +3505,7 @@
 - funding_accrual.py / supabase_schema_funding.sql: 펀딩비 일별 적재 (시험용 축적 전용, 매매 무관)
 - report_exit_regime_axis.md: 위 3종 판정 + 검토 중 확인한 레포 사실(docs/research 부재, Signal
   인터페이스 이중화, 봉 데이터 DB 미저장, OI 수집 없음)
-- channel_watch.py / channel_watch.json / channel_watch.yml / supabase_schema_channel_alerts.sql: 채널 이탈 텔레그램 알림 봇
+- channel_watch.py / channel_watch.json / channel_watch.yml / supabase_schema_channel_alerts.sql: 채널·삼각수렴(BTC) 이탈 텔레그램 알림 봇
   (2026-11-13, 관찰 전용 — 매매와 import·시크릿·concurrency 전부 분리). test_channel_watch.py
 - elliott_count.json / elliott_watch.py: BTC 엘리엇 카운트 동결 + 일일 판정 (브리핑 전용, 매매 무관).
   라벨은 JSON 에만 있고 코드는 판정만 한다 — 재라벨은 revisions 에 사유와 함께 커밋으로 남긴다. test_elliott_watch.py(33)
