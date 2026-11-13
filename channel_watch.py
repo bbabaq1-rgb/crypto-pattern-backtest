@@ -112,7 +112,7 @@ def kind_of(slope, span, width):
 KIND_KO = {"up": "상승 채널", "down": "하락 채널", "box": "박스(횡보)"}
 
 
-def fit_channel(rows, k, min_span, ch):
+def fit_channel(rows, k, min_span, ch, piv_fn=None):
     """rows(시험할 봉을 뺀 닫힌 봉 창)에 평행 채널을 맞춘다. 없으면 None.
 
     선은 창 안 인덱스 t 기준: 아래 = slope*t + lo_icpt, 위 = slope*t + hi_icpt.
@@ -120,7 +120,7 @@ def fit_channel(rows, k, min_span, ch):
     n = len(rows)
     if n < min_span + 2 * k + 2:
         return None
-    hi_p, lo_p = pivots(rows, k)
+    hi_p, lo_p = piv_fn(rows) if piv_fn else pivots(rows, k)
     a_tr = atr(rows)
     tt, ct, need = ch["touch_tol"], ch["contain_tol"], ch["min_touches_each"]
     min_w = ch["min_width_atr"] * a_tr
