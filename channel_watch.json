@@ -12,16 +12,21 @@
   "1d": {"lookback": 180, "pivot_k": 3, "min_span": 15, "recheck_bars": 2}
  },
  "channel": {
-  "_doc": "모든 비율은 채널 폭 대비(ATR 상한 있는 것은 따로 표기). touch_tol = 선에서 폭의 이만큼 안이면 '닿음'(단 touch_atr×ATR14 를 넘지 않음), contain_tol = 채널 안 봉의 꼬리가 이만큼까지는 선 밖으로 나가도 채널 유지, break_buffer = 종가가 선 밖으로 이만큼 넘어야 이탈, min_touches_each = 위·아래 선이 각각 최소 몇 번 닿아야 채널로 인정, min_width_atr = 채널 폭이 ATR14 의 몇 배 이상, max_width_range = 채널 폭이 그 구간 실제 고저 범위의 몇 배 이하(가파른 기울기의 거대한 띠 방지). recent_pivots = 기준점(선이 지나는 두 점)을 최근 고점·저점 몇 개 안에서만 고를지.",
+  "_doc": "v2(2026-11-13, 실데이터 비교로 정함). pivot_method=zigzag_atr — 고점·저점은 ATR14 의 zigzag_atr_mult 배 이상 되돌려야 확정(양옆 3봉 프랙탈은 자잘한 흔들림까지 잡았다). 비율은 채널 폭 대비. break_buffer = 종가가 선 밖으로 이만큼 넘어야 이탈(5%→15%: 3봉 안 재진입하는 가짜 이탈 26%→12%), contain_close_tol = 채널 유지 중 종가가 선 밖으로 나가도 되는 한도(break_buffer 와 같게 — 알림 없이 채널만 사라지는 일 방지), contain_wick_tol = 꼬리 한도, touch_tol = 선에서 폭의 이만큼 안이면 '닿음'(단 touch_atr×ATR14 이하), min_touches_each = 위·아래 각 최소 접점, min_width_atr / max_width_range = 폭 하한(ATR 배수)·상한(구간 고저 범위 배수), touch_min_gap = 이 봉 수 안에서 연달아 닿은 것은 접점 한 번으로 센다(독립 접점). recent_pivots = 기준점을 최근 고점·저점 몇 개 안에서 고를지. 거래량은 고점·저점 선택에 쓰지 않는다(효과 없음) — 알림에 참고로만 표시.",
+  "pivot_method": "zigzag_atr",
+  "zigzag_atr_mult": 2.0,
+  "recent_pivots": 6,
   "touch_tol": 0.1,
-  "contain_tol": 0.05,
-  "break_buffer": 0.05,
+  "touch_atr": 0.5,
   "min_touches_each": 2,
+  "touch_min_gap": 5,
   "min_width_atr": 2.0,
-  "touch_atr": 1.0,
   "max_width_range": 1.0,
-  "recent_pivots": 6
+  "contain_close_tol": 0.15,
+  "contain_wick_tol": 0.3,
+  "break_buffer": 0.15
  },
+ "design_evidence": "2026-11-13 코인베이스 BTC·ETH·SOL·XRP 1h 1년/6h 4년/1d 6년 실측(설계용 비교, 매매 검증 아님). 채널 선에서 튕긴 비율 − 가운데 선(대조)에서 튕긴 비율: v1 −3.0%p, v2 −0.3%p, 거래량 필터 +1.1%p — 어떤 방식도 자동 채널 선이 가운데 선보다 지지·저항 역할을 더 하지 않았다. 3봉 안 재진입(가짜 이탈): v1 26.7% → v2 11.7%. 이탈 뒤 20봉 이탈 방향 비율 v1 50.2% · v2 49.8% — 방향 정보 없음. 알림 빈도 1천 봉당 v1 84 → v2 65. 채널이 그어져 있는 시간 v1 52% → v2 47%(접점 허용 ATR 1배→0.5배·5봉 안 연속 접점 하나로 묶음 — 넉넉하게 세면 62% 였으나 실제로 한 번 닿은 선이 채널로 인정되거나 접점이 선에서 떨어져 보였다). v2 최종: 튕김 차이 −0.4%p · 가짜 이탈 12.7% · 20봉 방향 49.9%. 문헌(Bulkowski·Murphy·Lo/Mamaysky/Wang·자동 채널 스크립트들) 조사도 같은 방향 — 거래량으로 기준점을 고르는 방법은 찾지 못했고 거래량은 이탈 확인용, 이탈은 종가 기준, 짧은 프랙탈은 극점이 너무 많다.",
  "summary_hour_utc": 0,
  "chart_bars": 120
 }

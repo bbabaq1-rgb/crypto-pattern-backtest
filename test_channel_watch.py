@@ -191,7 +191,7 @@ ev = dict(symbol="BTC", tf="4h", side="down", depth=0.12, bar=dict(ts=base[-1]["
           chn=c, upper=110.0, lower=100.0, vol_ratio=1.8)
 txt = cw.alert_text(ev)
 check("알림에 종목·시간대·하단 이탈", "BTC 4h" in txt and "하단 이탈" in txt)
-check("알림에 '검증된 매매 신호가 아님'", "검증된 매매 신호가 아님" in txt)
+check("알림에 '매매 신호 아님'과 과거 기준 표기", "매매 신호 아님" in txt and "3봉 안에 채널로 되돌아왔고" in txt)
 check("거래량 배수 표기", "1.8배" in txt)
 check("채널 없음 요약", "채널 아직 없음" in cw.summary_line("ETH", "1h", dict(chn=None, bar=dict(c=2000.0))))
 lb = dict(side="down", upper=2100.0, lower=2050.0, bar=dict(ts=1_700_000_000_000, c=2000.0))
@@ -202,8 +202,14 @@ print("[11] 설정 파일")
 cfg = orig_load()
 check("watch 의 모든 시간대에 params 가 있다", all(tf in cfg["params"] for w in cfg["watch"] for tf in w["tfs"]))
 check("모든 시간대가 TF_MS 에 있다", all(tf in cw.TF_MS for tf in cfg["params"]))
-check("채널 설정 키", {"touch_tol", "contain_tol", "break_buffer", "min_touches_each", "min_width_atr",
-                    "touch_atr", "max_width_range", "recent_pivots"} <= set(cfg["channel"]))
+check("채널 설정 키", {"touch_tol", "contain_close_tol", "contain_wick_tol", "break_buffer", "min_touches_each",
+                    "min_width_atr", "touch_atr", "max_width_range", "recent_pivots", "pivot_method",
+                    "zigzag_atr_mult"} <= set(cfg["channel"]))
+check("v2: 고점·저점은 ATR 지그재그", cfg["channel"]["pivot_method"] == "zigzag_atr")
+check("v2: 종가 유지 한도 = 이탈 기준(얕은 종가 이탈로 채널이 알림 없이 사라지지 않게)",
+      cfg["channel"]["contain_close_tol"] == cfg["channel"]["break_buffer"])
+check("v2: 이탈 기준은 채널 폭의 15% 이상(가짜 이탈 26%→12% 실측)", cfg["channel"]["break_buffer"] >= 0.15)
+check("설계 근거가 설정 파일에 남아 있다", "가짜 이탈" in cfg.get("design_evidence", ""))
 check("요약 시앨범 한도(10장) 안", sum(len(w["tfs"]) for w in cfg["watch"]) <= 10)
 
 print("[13] 정시 실행(Supabase pg_cron)")
@@ -216,6 +222,49 @@ if m:
     check("channel_watch.yml 을 inputs 없이 호출(기본 mode=check)",
           m.group(2).strip() == "select public.gh_dispatch('channel_watch.yml')")
 check("재등록 전 정리 목록에 포함", "'gh_channel_watch'" in EXT.split("$unsched$")[1])
+
+print("[14] v2 — ATR 지그재그 고점·저점")
+import math
+zz_rows = []
+for i in range(300):
+    big = 10.0 * math.sin(i / 15.0)          # 큰 스윙(주기 약 94봉)
+    small = 0.6 * math.sin(i * 1.7)           # 자잘한 흔들림
+    m = 100.0 + big + small
+    zz_rows.append(dict(ts=i, o=m, h=m + 0.4, l=m - 0.4, c=m, v=1.0))
+zh, zl = cw.pivots_zigzag_atr(zz_rows, 2.0)
+fh, fl = cw.pivots(zz_rows, 3)
+check(f"지그재그는 자잘한 흔들림을 고점·저점으로 안 잡는다(지그재그 {len(zh) + len(zl)} < 프랙탈 {len(fh) + len(fl)})",
+      0 < len(zh) + len(zl) < len(fh) + len(fl))
+check("지그재그 고점·저점은 번갈아 나온다", all(a < b for a, b in zip(sorted(zh + zl), sorted(zh + zl)[1:])))
+ok = True
+for m in (80, 150, 220, 299):
+    ph, pl = cw.pivots_zigzag_atr(zz_rows[:m], 2.0)
+    if not (set(ph) <= set(zh) and set(pl) <= set(zl)):
+        ok = False
+check("인과적 — 나중 봉이 생겨도 이미 확정된 고점·저점은 바뀌지 않는다", ok)
+check("pivot_method 없으면 종전 프랙탈(v1 호환)", cw.pivot_fn_of({}) is None)
+check("pivot_method=zigzag_atr 면 지그재그", cw.pivot_fn_of({"pivot_method": "zigzag_atr"})(zz_rows) == (zh, zl))
+
+print("[16] v2 — 독립 접점")
+check("5봉 안에 붙은 접점은 하나로", cw._merge_touches([10, 11, 13, 20, 24, 40], 5) == [10, 20, 40])
+check("gap 1 이면 전부 따로(종전 동작)", cw._merge_touches([3, 4, 5], 1) == [3, 4, 5])
+cfgc = orig_load()["channel"]
+check("설정: touch_min_gap 5", cfgc.get("touch_min_gap") == 5)
+
+print("[15] v2 — 종가·꼬리 유지 한도")
+base = bars_channel(100)
+c0 = cw.fit_channel(base, 3, 20, CH)
+CH2 = dict(CH, contain_close_tol=0.15, contain_wick_tol=0.30, break_buffer=0.15)
+t = 60
+lo_t, hi_t = cw.lines_at(c0, t)
+w0 = c0["width"]
+poke = [dict(r) for r in base]
+poke[t] = dict(poke[t], c=hi_t + 0.10 * w0, h=hi_t + 0.20 * w0)
+check("얕은 종가 이탈(10%)·꼬리(20%)는 채널을 깨지 않는다(v2 한도)", cw.fit_channel(poke, 3, 20, CH2) is not None)
+deep = [dict(r) for r in base]
+deep[t] = dict(deep[t], c=lo_t - 0.25 * w0, l=lo_t - 0.40 * w0)
+cd = cw.fit_channel(deep, 3, 20, CH2)
+check("깊은 종가 이탈(25%)이 있었던 구간은 같은 채널로 잇지 않는다", cd is None or cd["a"] > t)
 
 print("[12] SQL")
 SQL = open(os.path.join(HERE, "supabase_schema_channel_alerts.sql"), encoding="utf-8").read().lower()

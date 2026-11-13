@@ -7,18 +7,22 @@ channel_watch.py — 채널 이탈 알림 봇 (2026-11-13, 대표님 개인용 �
 
 무엇을 하나
   1. channel_watch.json 의 종목·시간대마다 OKX 무기한 공개 캔들을 받아 **닫힌 봉만** 쓴다.
-  2. 최근 고점·저점(프랙탈 피벗)으로 평행 채널을 자동으로 긋는다.
-     - 저점 둘을 이은 아래 선 + 같은 기울기로 그 구간 최고점에 닿는 위 선(또는 그 반대).
-     - 위·아래 선이 각각 min_touches_each 번 이상 닿고, 그 구간 봉이 채널 안에 머문
-       후보 중에서 접점이 가장 많은 것(같으면 더 긴 것)을 고른다.
-  3. 최근 닫힌 봉의 종가가 채널 밖으로 채널 폭의 break_buffer 이상 나가면 텔레그램으로
-     차트 이미지와 함께 알린다.
+  2. 최근 고점·저점으로 평행 채널을 자동으로 긋는다(v2, 2026-11-13 실데이터 비교로 정함).
+     - 고점·저점 = ATR14 의 2배 이상 되돌려야 확정되는 지그재그 스윙(인과적). 양옆 N봉
+       프랙탈은 자잘한 흔들림까지 잡아 의미 없는 선을 그었다.
+     - 최근 스윙 6개 안의 두 점을 이은 선 + 같은 기울기로 반대쪽 극값에 닿는 평행선.
+     - 위·아래가 각각 독립 접점(5봉 안 연속 접점은 하나) 2번 이상, 접점 허용 = 폭의 10%·ATR 0.5배 중
+       작은 쪽, 그 구간 종가는 선 밖 폭의 15%·꼬리는 30% 이내, 폭은 ATR 2배 이상·구간 고저 범위 이하.
+     - 후보 중 접점이 가장 많은 것(같으면 더 긴 것). 거래량은 고점·저점 고르기에 쓰지 않는다(효과 없음).
+  3. 최근 닫힌 봉의 종가가 채널 밖으로 채널 폭의 15% 이상 나가면 텔레그램으로 차트 이미지와 함께 알린다.
+     (5% 기준은 3봉 안에 채널로 되돌아오는 가짜 이탈이 26%, 15% 기준은 13%.)
   4. 알림은 Supabase `channel_alerts` 에 남겨 같은 채널을 두 번 알리지 않고, 이후 1·5·20봉
      수익(이탈 방향 기준)을 채워 '어떤 이탈이 실제로 의미 있었나'를 쌓는다.
   5. 매일 summary_hour_utc 시 실행에서 지금 채널 현황 요약(차트 앨범)을 보낸다.
 
-검증된 매매 신호가 아니다. 이 레포에서 돌파 계열 진입 규칙은 백테스트에서 기각됐다 —
-차트를 대신 지켜봐 주는 도구로 쓴다.
+검증된 매매 신호가 아니다. 설계 비교(4종목 수년치)에서 어떤 방식으로 그어도 채널 선이 가운데 선보다
+지지·저항 역할을 더 하지 않았고(차이 ±1%p 안), 이탈 뒤 20봉 방향 일치도 50% 였다 — 이 레포의 돌파
+계열 기각과 같은 결과. 차트를 대신 지켜봐 주는 도구로 쓴다. 근거는 channel_watch.json design_evidence.
 
 실행
   python channel_watch.py               # 정시 점검(이탈 알림 + 정해진 시각이면 요약)
@@ -90,6 +94,69 @@ def pivots(rows, k):
     return hi, lo
 
 
+def pivots_zigzag_atr(rows, mult=2.0, n=14):
+    """ATR 배수 지그재그 피벗 (highs, lows) — 고점에서 mult×ATR14 이상 되돌려야 고점 확정, 저점도 같다(인과적).
+
+    v2 기본 피벗. 양옆 N봉 프랙탈은 자잘한 흔들림까지 고점·저점으로 잡아 의미 없는 선을 그었다
+    (2026-11-13 실측: 채널 선 존중률이 가운데 선보다 3%p 낮음, 알림 1천 봉당 84건 → 지그재그 54건).
+    """
+    hi, lo = [], []
+    if len(rows) < n + 3:
+        return hi, lo
+    trs = [0.0]
+    for i in range(1, len(rows)):
+        p = rows[i - 1]["c"]
+        r = rows[i]
+        trs.append(max(r["h"] - r["l"], abs(r["h"] - p), abs(r["l"] - p)))
+
+    def atr_at(i):
+        seg = trs[max(1, i - n + 1):i + 1]
+        return sum(seg) / len(seg)
+
+    start = n
+    up_i = dn_i = start
+    dirn, ext = 0, start
+    for i in range(start + 1, len(rows)):
+        thr = mult * atr_at(i)
+        r = rows[i]
+        if dirn == 0:
+            if r["h"] > rows[up_i]["h"]:
+                up_i = i
+            if r["l"] < rows[dn_i]["l"]:
+                dn_i = i
+            if up_i < i and rows[up_i]["h"] - r["l"] >= thr:
+                hi.append(up_i)
+                dirn = -1
+                ext = min(range(up_i, i + 1), key=lambda k: rows[k]["l"])
+            elif dn_i < i and r["h"] - rows[dn_i]["l"] >= thr:
+                lo.append(dn_i)
+                dirn = 1
+                ext = max(range(dn_i, i + 1), key=lambda k: rows[k]["h"])
+        elif dirn == 1:
+            if r["h"] > rows[ext]["h"]:
+                ext = i
+            elif rows[ext]["h"] - r["l"] >= thr:
+                hi.append(ext)
+                dirn = -1
+                ext = min(range(ext, i + 1), key=lambda k: rows[k]["l"])
+        else:
+            if r["l"] < rows[ext]["l"]:
+                ext = i
+            elif r["h"] - rows[ext]["l"] >= thr:
+                lo.append(ext)
+                dirn = 1
+                ext = max(range(ext, i + 1), key=lambda k: rows[k]["h"])
+    return hi, lo
+
+
+def pivot_fn_of(ch):
+    """설정의 pivot_method 로 피벗 함수를 고른다. 없으면 None(= 프랙탈, 종전 동작)."""
+    if ch.get("pivot_method") == "zigzag_atr":
+        m = float(ch.get("zigzag_atr_mult", 2.0))
+        return lambda rows: pivots_zigzag_atr(rows, m)
+    return None
+
+
 def atr(rows, n=14):
     if len(rows) < 2:
         return 0.0
@@ -120,9 +187,14 @@ def fit_channel(rows, k, min_span, ch, piv_fn=None):
     n = len(rows)
     if n < min_span + 2 * k + 2:
         return None
+    piv_fn = piv_fn or pivot_fn_of(ch)
     hi_p, lo_p = piv_fn(rows) if piv_fn else pivots(rows, k)
     a_tr = atr(rows)
-    tt, ct, need = ch["touch_tol"], ch["contain_tol"], ch["min_touches_each"]
+    tt, need = ch["touch_tol"], ch["min_touches_each"]
+    # 채널 유지 허용치 — 종가와 꼬리를 따로 본다(v2). 종가 허용치는 이탈 기준(break_buffer)과 같게 둬야
+    # '알림 없이 채널만 조용히 사라지는' 얕은 종가 이탈이 생기지 않는다. 키가 없으면 종전 contain_tol 하나.
+    ct_c = ch.get("contain_close_tol", ch.get("contain_tol", 0.05))
+    ct_w = ch.get("contain_wick_tol", ch.get("contain_tol", 0.05))
     min_w = ch["min_width_atr"] * a_tr
     best = None
 
@@ -147,16 +219,22 @@ def fit_channel(rows, k, min_span, ch, piv_fn=None):
         rng = max(rows[t]["h"] for t in range(a, n)) - min(rows[t]["l"] for t in range(a, n))
         if w > ch.get("max_width_range", 1.0) * rng:
             return
-        # 그 구간 봉이 채널 안에 머물렀나(꼬리는 폭의 contain_tol 까지 허용)
-        tol = ct * w
+        # 그 구간 봉이 채널 안에 머물렀나 — 종가는 폭의 contain_close_tol, 꼬리는 contain_wick_tol 까지 허용
+        tc, tw_ = ct_c * w, ct_w * w
         for t in range(a, n):
-            if rows[t]["l"] < s * t + lo_c - tol or rows[t]["h"] > s * t + hi_c + tol:
+            lo_t, hi_t = s * t + lo_c, s * t + hi_c
+            r = rows[t]
+            if r["c"] < lo_t - tc or r["c"] > hi_t + tc or r["l"] < lo_t - tw_ or r["h"] > hi_t + tw_:
                 return
         # '닿음' 허용 범위는 폭에 비례하되 ATR 상한을 둔다 — 폭 비례만 쓰면 채널이 클수록
         # 접점이 많이 세어져 거대한 채널이 점수에서 이긴다.
         tw = min(tt * w, ch.get("touch_atr", 1.0) * a_tr)
         t_lo = [p for p in lo_p if p >= a and abs(rows[p]["l"] - (s * p + lo_c)) <= tw]
         t_hi = [p for p in hi_p if p >= a and abs(rows[p]["h"] - (s * p + hi_c)) <= tw]
+        # 몇 봉 안에서 연달아 닿은 것은 한 번으로 센다(독립 접점) — 장대봉 하나가 고점·저점으로 동시에
+        # 잡히거나 붙은 봉들이 각각 세어져, 실제로는 한 번 닿은 선이 채널로 인정되던 문제(SOL 1h 실측).
+        gap = int(ch.get("touch_min_gap", 1))
+        t_lo, t_hi = _merge_touches(t_lo, gap), _merge_touches(t_hi, gap)
         if len(t_lo) < need or len(t_hi) < need:
             return
         score = (len(t_lo) + len(t_hi), span)
@@ -177,6 +255,15 @@ def fit_channel(rows, k, min_span, ch, piv_fn=None):
     if best:
         best.pop("_score")
     return best
+
+
+def _merge_touches(idx, gap):
+    """정렬된 접점 인덱스에서 gap 봉 미만으로 붙은 것은 첫 번째 하나만 남긴다."""
+    out = []
+    for i in sorted(idx):
+        if not out or i - out[-1] >= gap:
+            out.append(i)
+    return out
 
 
 def lines_at(chn, t):
@@ -268,7 +355,8 @@ def alert_text(ev):
             f"{KIND_KO[c['kind']]} · {kst(c['start_ts'])} 부터 {c['span']}봉 · "
             f"접점 아래 {len(c['touches_lo'])} / 위 {len(c['touches_hi'])}\n"
             f"이탈 폭: 채널 폭의 {ev['depth'] * 100:.0f}%{vr}\n"
-            f"<i>관찰용 알림 — 검증된 매매 신호가 아님</i>")
+            f"<i>과거 같은 기준(4종목 수년치): 약 12% 가 3봉 안에 채널로 되돌아왔고 20봉 뒤 방향은 반반 — "
+            f"관찰용 알림, 매매 신호 아님</i>")
 
 
 def summary_line(sym, tf, st):
