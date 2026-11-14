@@ -70,6 +70,7 @@ jobs:
                    test_steward_loss.py \
                    test_steward_ledger.py \
                    test_steward_ledger10.py \
+                   test_ledger_recent.py \
                    test_steward_phase.py \
                    test_steward_common.py \
                    test_dclose_vol.py \

@@ -7019,5 +7019,16 @@
   "known_limits": "라우팅/레짐 표를 과거 소급 적용한 표본; 정적 top30; 슬롯·증거금 free·킬스위치 미반영(최소주문 하나만); 스킵은 σ 로만 결정(포지션별 equity 경로 미반영); 월 블록이 15~30개 수준이라 부트 검정력 제한.",
   "decision_note": "진단 전용 — 재개·충전·위험 수준은 사용자 결정. 실거래 무변경.",
   "result": "SKIP_PRESERVES (run 43466744024, 경계): E=240 통과 5921 +2.07% vs 스킵 2174 +1.01%, 차 -1.06%p, P(차>=0)=.099(문턱 .10 바로 안), 전후반 -1.68/-1.01. E=160 -0.78%p P .14 / E=355 -0.76%p P .26. 패턴별 스킵평균: fvg +1.48 vs 통과 +11.06, engulfing -5.56 vs +3.57, three_soldiers -0.63 vs +2.43, vol_awakening/triple_bottom/equal_lows 동률. 사전 PRESERVES 0.25 적중(최빈 INDETERMINATE 0.40 은 오답). 실거래 무변경."
+ },
+ "ledger_recent_prereg_2026_11_14": {
+  "status": "PREREGISTERED",
+  "DEPLOY_ON_PASS": false,
+  "hypothesis": "R-105: 2026-11-04 이후 진입한 실거래 방식D 결과가 같은 단위(pattern|direction)의 그 이전 실거래 분포 안인가 밖인가 (운 vs 국면 변화).",
+  "frozen": "POST_FROM 2026-11-04(entry_date) · 단위 기준풀 n>=10 · 최근 합산 n>=10 · 부트 10000 시드 20261114 · 단위별 백분위는 기준풀에서 최근 n건 복원추출 합 <= 관측합",
+  "criteria": "최근 합산 n<10 INCONCLUSIVE / 합산 백분위 <0.05 REGIME_CHANGE_CANDIDATE / 그 외 WITHIN_DISTRIBUTION. 단위별 백분위는 진단.",
+  "prior": "WITHIN_DISTRIBUTION 0.50, REGIME_CHANGE_CANDIDATE 0.20, INCONCLUSIVE 0.30. 근거: 11-04 이후 신호 대부분이 최소주문 스킵(R-107/108)이고 11-09 정지라 최근 거래가 소수이며, 반면 기준 풀 자체가 10/10 이후 bull_btc 손실 국면을 포함해 분포가 넓다.",
+  "known_limits": "기준 풀과 최근이 같은 장부·시간 인접(국면 연속) · 기준 풀이 이미 손실 국면 포함 · 단위별 n 작음 · 청산 라벨 오귀속 4건 미보정 · 진단 전용(재개 권고 아님).",
+  "decision_note": "재개·위험 수준은 사용자 결정. 실거래 무변경.",
+  "live_change": "none"
  }
 }
