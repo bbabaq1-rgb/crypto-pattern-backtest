@@ -7030,5 +7030,15 @@
   "known_limits": "기준 풀과 최근이 같은 장부·시간 인접(국면 연속) · 기준 풀이 이미 손실 국면 포함 · 단위별 n 작음 · 청산 라벨 오귀속 4건 미보정 · 진단 전용(재개 권고 아님).",
   "decision_note": "재개·위험 수준은 사용자 결정. 실거래 무변경.",
   "live_change": "none"
+ },
+ "halt_shadow_prereg_2026_11_15": {
+  "status": "PREREGISTERED",
+  "DEPLOY_ON_PASS": false,
+  "hypothesis": "R-114: 정지(2026-11-09) 이후 신호를 주문 없이 방식D 로 재평가한 그림자 수익이 같은 단위(pattern|direction)의 정지 전 실거래 방식D 분포 안인가 밖인가. 재개 판단 재료, 재개 권고 아님.",
+  "frozen": "SHADOW_FROM 2026-11-09 · 재생 = validate_portfolio 배포 집합(1d 라우팅 복제 + 4h adopted 4종, 방식D, 레짐 전환 청산 on) · 기준풀 = trades 실거래 방식D entry_date<SHADOW_FROM, 단위 n>=10 · 그림자 합산 n>=30 · 부트 10000 시드 20261115 · 미해소(데이터 끝에서 잘린) 거래 제외",
+  "criteria": "합산 n<30 INCONCLUSIVE / 합산 백분위 <0.05 REGIME_CHANGE_CANDIDATE / 그 외 WITHIN_DISTRIBUTION. 단위별 백분위는 진단.",
+  "prior": "INCONCLUSIVE 0.50, WITHIN_DISTRIBUTION 0.35, REGIME_CHANGE_CANDIDATE 0.15. 근거: 6일 창이라 해소된 4h 거래가 30건 안팎이고 기준풀 단위는 vol_awakening_4h·equal_lows_4h·triple_bottom_4h 정도라 합산 n 이 문턱 근처. 해소 거래는 일찍 끝나는(손절) 쪽으로 치우쳐 평균이 낮게 나올 수 있다.",
+  "known_limits": "우측 중도절단(해소된 거래는 손절·조기 청산 편향) · 재생은 지연 0·닫힌 봉 탐지 모델이라 실거래 신호 집합과 다르다(forming_bar MATERIAL) · 기준풀이 10/10 이후 bull_btc 손실 지배 · 사이징·슬롯 경합 무시한 건당 비교 · 정적 top30 순위.",
+  "not_a_resume_recommendation": "재개는 사용자 결정(trading_halt.by=user)."
  }
 }
