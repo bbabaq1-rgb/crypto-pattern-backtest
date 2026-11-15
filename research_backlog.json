@@ -1703,10 +1703,10 @@
    "owner": "agent",
    "added_by": "claude",
    "added_on": "2026-11-14",
-   "started_at": null,
-   "session": null,
+   "started_at": "2026-11-15T16:39:35Z",
+   "session": "routine_2026-11-15T1639",
    "result": null,
-   "status": "ready"
+   "status": "in_progress"
   },
   {
    "id": "R-115",
