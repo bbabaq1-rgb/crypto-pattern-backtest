@@ -1705,8 +1705,8 @@
    "added_on": "2026-11-14",
    "started_at": "2026-11-15T16:39:35Z",
    "session": "routine_2026-11-15T1639",
-   "result": null,
-   "status": "in_progress"
+   "result": "INCONCLUSIVE (run 43736841117): 해소 그림자 n=16<30, 평균 -8.20% 전부 손절(우측 중도절단). 사전 INCONCLUSIVE 0.50 적중. 재개 근거 아님.",
+   "status": "done"
   },
   {
    "id": "R-115",
@@ -1728,6 +1728,50 @@
    "session": null,
    "result": null,
    "status": "ready"
+  },
+  {
+   "id": "R-116",
+   "title": "그림자 재생 재시험 — 정지 후 3주 경과 시점(우측 중도절단 해소)",
+   "kind": "prereg_test",
+   "source": "R-114 INCONCLUSIVE: 해소 16건이 전부 -8.2% 손절 — 조기 해소 편향",
+   "hypothesis": "R-114 를 SHADOW_FROM 이후 진입 중 진입 후 최소 보유 한도(4h 30봉=5일, 1d 30일)가 지난 거래만으로 재실행하면 절단 편향 없이 합산 n>=30 에 도달하고 백분위 판정이 가능하다.",
+   "prior": 0.3,
+   "expected_gain": "재개/정지 판단 재료",
+   "deploy_on_pass": false,
+   "prerequisites": [],
+   "blocked_until": "2026-12-05",
+   "est_cost_h": 2,
+   "priority": 2,
+   "status": "ready",
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-15",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "notes": "blocked_until 2026-12-05 로 두는 것이 정직(4h 30봉 성숙 + n 확보). 사전 규칙은 R-114 와 동일, 미해소 제외 대신 성숙 거래만."
+  },
+  {
+   "id": "R-117",
+   "title": "그림자 재생 편향 분해 — 정지 전 구간에서 같은 '조기 해소만' 필터를 적용한 기준풀 재구성",
+   "kind": "prereg_test",
+   "source": "R-114: 16건 모두 -8.2% — 손절이 가장 빨리 해소되는 구조적 편향",
+   "hypothesis": "R-114 처럼 6일 창에서 해소된 거래만 보면 실제 정지 전 기준풀에서도 평균이 크게 낮게 나온다(중도절단 편향). 기준풀의 임의 6일 창 해소분 평균 분포를 구해 -8.2% 가 그 분포 안인지 본다.",
+   "prior": 0.25,
+   "expected_gain": "재개/정지 판단 재료",
+   "deploy_on_pass": false,
+   "prerequisites": [],
+   "blocked_until": null,
+   "est_cost_h": 2,
+   "priority": 3,
+   "status": "ready",
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-15",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "notes": "진단 전용. R-114 와 같은 재생 데이터 재사용 가능."
   }
  ]
 }
