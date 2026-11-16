@@ -998,7 +998,7 @@
    "exit_spec": {
     "type": "signal_barrier",
     "horizon_bars": 168,
-    "min_stop_pct": 0.003,
+    "min_stop_pct": 0.01,
     "max_stop_pct": 0.08,
     "min_target_pct": 0.003
    },
@@ -1014,10 +1014,10 @@
    "ai_trader": {
     "model": "ai_elliott.MODEL (사용자 지정)",
     "effort": "high",
-    "prompt_version": "elliott_v5_2026_10_30",
+    "prompt_version": "elliott_v6_2026_11_16",
     "cadence": "매시 fast 틱(:03, scheduler --fast)에서 1회 — daily(--slow) 틱에서는 부르지 않는다. 2026-10-29~11-05 시험: 평탄일 때 :18/:33/:48 에도 진입 판단(entry_check_test_2026_10_29)",
     "symbol": "BTC",
-    "inputs": "BTC 닫힌 봉 15m96·1h120·4h90·1d100 + 시간대별 스윙 피벗(피벗마다 RSI14·EWO 5/35) + 시간대별 최근 RSI·EWO·다이버전스 요약(코드 계산), ETH 15m·1h·4h 피벗(RSI·EWO 포함), 동결 카운트 요약(elliott_count.json), 포지션·포트·최근 거래·직전 판단 3개. 15m 은 매시 7일 창만 수집(ai_elliott.FETCH_DAYS)",
+    "inputs": "BTC 닫힌 봉 15m96·1h120·4h90·1d100 + 시간대별 스윙 피벗(피벗마다 RSI14·EWO 5/35) + 시간대별 최근 RSI·EWO·다이버전스 요약(코드 계산), ETH 15m·1h·4h 피벗(RSI·EWO 포함), 동결 카운트 요약(elliott_count.json), 포지션·포트·최근 거래·직전 판단 3개. 15m 은 매시 7일 창만 수집(ai_elliott.FETCH_DAYS) · v6: 추세(4h EMA50·6봉 / 1d EMA20·5봉, 코드 계산) · 매매 계획(elliott_plan.json — 현재 카운트 요약·방향별 트리거·무효화·목표, valid_until)",
     "method": "v2(2026-10-28 사용자 지시 '일봉상의 관점뿐 아니라 시간마다 15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매') — 4h·1d 로 큰 차수 위치·방향 편향, 1h 로 현재 스윙, 15m 로 내부 파동을 세어 작은 차수 셋업(조정 완료·1-2 뒤 3파 진입·5파 완성 반전·삼각형 돌파)을 매매. 손절은 그 작은 차수 카운트의 무효화 지점(보통 0.3~2%), 익절은 같은 카운트의 피보나치 목표, 비용 0.2% 차감 후 손익비 1.5 이상. 응답에 setup_tf(판단을 이끈 시간대) 필수. v3(같은 날 사용자 질문 'RSI 나 이중 지그재그 등 유사 패턴을 전부 보는 거겠지'): 엘리엇 형태 전체 목록(연장·5파 미달 임펄스, 리딩·엔딩 다이애고널, 단일·이중·삼중 지그재그, 정규·확장·러닝 플랫, 수렴·배리어·확산 삼각형, 이중·삼중 결합)과 판별 지침(교대·채널·동등·거래량·모멘텀 — 3파 최강 RSI/EWO, 5파·C파 다이버전스, 4파 EWO 0 근처 복귀) 추가, 지표·다이버전스 단독 매매 금지, 응답에 structure(근거 형태) 필수",
     "prompt_versions": [
      {
@@ -1044,6 +1044,13 @@
       "effort": "high",
       "from": "머지 후 첫 틱(2026-10-30)",
       "note": "숏 금지로 읽히는 문장 정리(사용자 지시 'AI 엘리엇 숏도 허용이야 숏 허용되지 않는다는 문장 있으면 삭제해'). 숏이 허용 목록에 있는데도 판단문에 '숏은 허용되지 않는다'가 두 번 나왔다(10-28 23:08Z · 10-30 01:07Z). ① 지시문의 '(a direction can be blocked because the account nets BTC exposure with another strategy)' 삭제 → 'long and short entries are both allowed' ② 보유 중 안내 제거 — 거래소 실측에 AI 자신의 포지션이 들어 있어 반대 방향이 막힘으로 계산돼 'open_short blocked: another strategy …' 라는 거짓 문장이 붙었다(10-29 06:08Z) ③ 평탄일 때 실제로 막히는 두 경우(다른 전략의 반대 방향 BTC 포지션 — OKX net 모드라 주문이 그 포지션을 상쇄 / 같은 1h 봉 같은 방향 재진입)는 'unavailable on this call only … Both directions are otherwise allowed' 처럼 이번 호출에 한정된 사정으로만 적는다. 코드의 net 가드·중복 방어 자체는 그대로"
+     },
+     {
+      "version": "elliott_v6_2026_11_16",
+      "q15_version": "elliott_v6q15_2026_11_16",
+      "effort": "high",
+      "from": "머지 후 첫 틱(실거래는 정지·킬스위치 해제 뒤)",
+      "note": "사용자 지시 2026-11-16 '①②③④ 다 반영해서 v6 만들어줘'. 근거: 실거래 24건(10-28~11-06) 7승 17패 −$11.75 부검 — 하락장 바닥 잡는 롱 15건 −$11.87, 숏 9건 +$0.12, 조정 끝(지그재그·삼각형) 판단 10건 1승 −$11.76, 15분봉 셋업 22/24, 평균 이익 +1.23% / 손실 −0.75%(손익분기 승률 38% vs 실제 29%), 확신도 전부 0.40~0.50, 첫 사흘 8건 4승 +$11.21 → 이후 16건 3승 −$22.96. 코드 강제 네 가지: ① 4h(EMA50·6봉 기울기)·1d(EMA20·5봉) 중 하나라도 하락이면 롱·상승이면 숏 불가(unknown 이면 둘 다) ② confidence = 목표가가 손절보다 먼저 닿을 확률, 0.6 이상만 진입 ③ setup_tf 1h/4h/1d · 손절 1~8%(exit_spec min_stop_pct 0.003→0.01) · 비용 0.2% 차감 손익비 1.5 이상 ④ elliott_plan.json 방향별 트리거(close_above/close_below, 마지막 닫힌 봉) 충족 방향만 · 손절은 계획 invalidation_px 보다 안쪽 금지 · 계획 없음/만료면 진입 없음. 두 방향 다 막히면 판단 호출 생략(code_action gated). 검증된 개선 아님 — 소급하면 24건 전부 걸러짐(② 단독으로도), 실거래로 재확인 필요"
      }
     ],
     "fallbacks": "default (server-side-fallback-2026-07-01)",
@@ -1055,7 +1062,8 @@
     "킬스위치(equity < $100)·trading_halt 적용 — 그 동안 평탄 상태 판단을 부르지 않는다",
     "AI 오류·거절·파싱 실패·허용 밖 응답 → 아무것도 하지 않는다(보유는 거래소 OCO 가 계속 지킨다)",
     "조기 청산은 자기 몫만(close_qty_for), OCO 가 이미 집행됐으면 시장가를 또 내지 않는다(paper_executor.ai_close)",
-    "엘리엇 카운트는 읽기만 — 라벨 변경은 브리핑 규칙(트리거 발동 시 revisions 기록)으로만"
+    "엘리엇 카운트는 읽기만 — 라벨 변경은 브리핑 규칙(트리거 발동 시 revisions 기록)으로만",
+    "v6(2026-11-16): 추세 역행 금지(4h·1d) · confidence 0.6 이상 · setup_tf 1h 이상 · 손절 1% 이상 · 비용 차감 손익비 1.5 이상 · 계획 파일 트리거 충족 방향만·무효화 안쪽 손절 금지·계획 만료 시 진입 없음 — 전부 ai_elliott.validate/plan_gate/trend_gate 가 강제"
    ],
    "steward_scope": "운용 점검(steward_rules_2026_10_26) 대상 아님 — steward 는 universe adopted_* 목록만 읽는다. 손실 한도는 사용자가 정한 포트 $100($10 미만 자동 정지)",
    "evidence": "검증되지 않은 전략. 레포의 엘리엇 환원 패턴은 전부 게이트에서 기각됐고, 엘리엇 채점 장부 누적 브리어 0.243(무작위 보행 0.205). 사용자가 한도를 정한 소액 실험",

@@ -22,6 +22,9 @@ test_ai_elliott.py — AI 엘리엇 BTC 자율매매(2026-10-28 사용자 결정
  14. 15분 진입 판단 시험(2026-10-29 사용자 지시 "진입판단을 15분마다 … 1주일만 테스트") — 기간 판정, 지시문 변형은
      호출 주기 문장뿐, 기준 봉(15m)·신호 1h 봉(형성 중)·같은 봉 같은 방향 안내, 꺼져 있으면 종전과 같음,
      체결 엔진 ai_only 경로(메인 전략 무접촉·보유 중 판단 없음·메인 신호 무시) 오프라인 e2e
+ 16. v6 게이트(2026-11-16 사용자 지시 "①②③④ 다 반영해서 v6 만들어줘") — ① 4h·1d 추세 역행 금지 ② confidence 0.6
+     ③ setup_tf 1h 이상·손절 1%·손익비 1.5 ④ 계획 파일 트리거·무효화·만료, 두 방향 다 막히면 판단 호출 없음(gated),
+     실제 elliott_plan.json 의 형식·방향 정합. §1~§15 는 게이트를 연 상태(추세 flat·계획 양방향 무장)에서 종전 동작을 본다
 
 실행: python test_ai_elliott.py
 """
@@ -47,6 +50,15 @@ def check(name, cond, detail=""):
 
 H = 3_600_000
 
+# v6 게이트(§16 에서 실제 함수로 시험)를 §1~§15 동안은 연다 — 추세 flat · 계획 양방향 무장 · 무효화 없음.
+# 종전 시험들은 게이트와 무관한 경로(입력·검증·기록·체결 엔진 배선)를 보는 것이라 게이트가 끼어들면 안 된다.
+_ORIG_TREND_GATE, _ORIG_LOAD_PLAN = ae.trend_gate, ae.load_plan
+PLAN_OPEN = {"as_of": "2026-01-01T00:00:00Z", "valid_until": "2099-01-01T00:00:00Z", "context": "test",
+             "long": {"enabled": True, "trigger": {"tf": "1h", "type": "close_above", "px": 1}},
+             "short": {"enabled": True, "trigger": {"tf": "1h", "type": "close_below", "px": 10 ** 9}}}
+ae.trend_gate = lambda btc: (set(), {"4h": {"state": "flat"}, "1d": {"state": "flat"}})
+ae.load_plan = lambda path=None: PLAN_OPEN
+
 
 def mkrows(n, start=80000.0, step=None, t0=1_761_000_000_000, tf_ms=H):
     """결정론적 합성 봉 — 지그재그(10봉 올림·7봉 내림)."""
@@ -69,8 +81,8 @@ SPEC, CAP = rp["exit_spec"], rp["live_cap"]
 # ── 1. 사양·등재 ─────────────────────────────────────────────────────────────
 check("모델 = 사용자 선택값", ae.MODEL == "claude-sonnet-5-5")
 # v2(같은 날 사용자 지시 "15분봉~4시간봉 등 여러 봉을 분석해 가며 더 작은 사이즈의 신호를 찾아서 매매")
-check("v3 — 버전·effort high·토큰 상한(비스트리밍 10분 한도 안)",
-      ae.PROMPT_VERSION == "elliott_v5_2026_10_30" and ae.EFFORT == "high"
+check("v6 — 버전·effort high·토큰 상한(비스트리밍 10분 한도 안)",
+      ae.PROMPT_VERSION == "elliott_v6_2026_11_16" and ae.EFFORT == "high"
       and 3600 * ae.MAX_TOKENS / 128000 < 600, (ae.PROMPT_VERSION, ae.EFFORT, ae.MAX_TOKENS))
 check("v2 — BTC 15m·1h·4h·1d, ETH 15m·1h·4h", ae.BTC_TFS == ("15m", "1h", "4h", "1d")
       and ae.ETH_TFS == ("15m", "1h", "4h") and all(tf in ae.BARS and tf in ae.ZZ_PCT and tf in ae.TF_MS
@@ -78,11 +90,11 @@ check("v2 — BTC 15m·1h·4h·1d, ETH 15m·1h·4h", ae.BTC_TFS == ("15m", "1h",
 check("v2 — 15m 96봉(24시간)·피벗 임계가 시간대와 함께 커진다", ae.BARS["15m"] == 96
       and ae.ZZ_PCT["15m"] < ae.ZZ_PCT["1h"] < ae.ZZ_PCT["4h"] < ae.ZZ_PCT["1d"])
 check("v2 — 15m 수집 창은 짧게(OKX 일반 캔들 범위 15일 안)", 0 < ae.FETCH_DAYS["15m"] <= 14)
-check("v2 — 프롬프트가 15m·1h·4h 작은 차수 매매를 지시하고 '대부분 대기' 기본값이 없다",
-      all(k in ae.SYSTEM for k in ("15m", "1h and 4h", "lower-degree", "setup_tf"))
-      and "most hours should be wait" not in ae.SYSTEM and "Waiting is the default" not in ae.SYSTEM)
-check("v2 — 손익비 1.5·비용 차감·무효화 지점 손절은 그대로", all(k in ae.SYSTEM for k in
-      ("1.5 times the stop distance", "0.2% of round-trip cost", "invalidates the lower-degree count")))
+check("v6 — 프롬프트: 15m·1h·4h 를 함께 읽되 진입은 1h 이상 셋업만, 15m 는 타이밍용",
+      all(k in ae.SYSTEM for k in ("read the 15m, 1h and 4h charts together", "1h-or-higher setup", "setup_tf",
+                                   "use 15m only to read its internal waves and to time an entry")))
+check("v6 — 손익비 1.5·비용 차감·무효화 지점 손절(1h 이상 카운트)", all(k in ae.SYSTEM for k in
+      ("1.5 times the stop distance", "0.2% of round-trip cost", "invalidates the 1h-or-higher count")))
 check("v2 — 응답 스키마에 setup_tf(필수, 시간대 열거)", ae.SCHEMA["properties"]["setup_tf"]["enum"]
       == list(ae.SETUP_TFS) and "setup_tf" in ae.SCHEMA["required"])
 # v3(같은 날 사용자 질문 "RSI 나 이중 지그재그 등 유사 패턴을 전부 보는 거겠지")
@@ -99,8 +111,8 @@ check("v3 — 프롬프트: 판별 지침(교대·채널·동등·거래량·모
 check("v3 — 프롬프트가 피벗 형식[type, price, time, rsi14, ewo_pct]·다이버전스 요약을 설명",
       "[type, price, time, rsi14, ewo_pct]" in ae.SYSTEM and "divergence summary computed by code" in ae.SYSTEM)
 check("종목 BTC 하나 · 1h 판단", ae.SYMBOL == "BTC" and ae.TF == "1h")
-check("exit_spec = signal_barrier, 손절 0.3~8% · 익절 0.3%+ · 168봉 시간청산",
-      SPEC == {"type": "signal_barrier", "horizon_bars": 168, "min_stop_pct": 0.003, "max_stop_pct": 0.08,
+check("exit_spec = signal_barrier, 손절 1~8%(v6) · 익절 0.3%+ · 168봉 시간청산",
+      SPEC == {"type": "signal_barrier", "horizon_bars": 168, "min_stop_pct": 0.01, "max_stop_pct": 0.08,
                "min_target_pct": 0.003}, SPEC)
 check("live_cap = 전용 포트 $100(ledger) · 건당 상한 $100 · 3배 · 1포지션",
       CAP["pot_mode"] == "ledger" and CAP["start_margin"] == 100.0 and CAP["max_margin"] == 100.0
@@ -269,7 +281,8 @@ check("보유 허용 = 유지·청산", ae.allowed_actions({"direction": "long"}
 check("막힌 방향 제외", ae.allowed_actions(None, {}, {"short"}, True) == ["open_long", "wait"])
 check("진입 불가(정지·포트 소진)면 대기만", ae.allowed_actions(None, {}, set(), False) == ["wait"])
 check("롱만 설정이면 숏 없음", ae.allowed_actions(None, {"directions": ["long"]}, set(), True) == ["open_long", "wait"])
-base = {"stop": 0, "target": 0, "confidence": 0.5, "wave_view": "", "invalidation": "", "rationale": ""}
+base = {"stop": 0, "target": 0, "confidence": 0.65, "setup_tf": "1h", "structure": "zigzag", "wave_view": "",
+        "invalidation": "", "rationale": ""}
 a, plan, why = ae.validate(dict(base, action="open_long", stop=79000, target=84000), None, flat_all, 80500.0, SPEC)
 check("검증: 정상 롱 → 계획", a == "open_long" and plan["stop"] == 79000 and plan["target"] == 84000 and why is None)
 a, plan, why = ae.validate(dict(base, action="open_short", stop=81000, target=78000), None, ["open_long", "wait"],
@@ -385,26 +398,26 @@ def answer(d):
 
 kw = dict(trades=[], rows_of=ro, cap=CAP, pot=100.0, margin_next=100.0, spec=SPEC, now_ms=NOW,
           cfg={"directions": ["long", "short"]}, count=ae.load_count(), history=[])
-ae._create = answer(dict(action="open_long", setup_tf="15m", structure="double_zigzag", stop=round(last_c * 0.99),
-                         target=round(last_c * 1.03), wave_view="15m: (ii) 끝 → (iii)", invalidation="저점 이탈"))
+ae._create = answer(dict(action="open_long", setup_tf="1h", structure="double_zigzag", stop=round(last_c * 0.985),
+                         target=round(last_c * 1.03), wave_view="1h: (ii) 끝 → (iii)", invalidation="저점 이탈"))
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, **kw)
 check("tick 이 BTC 15m·1h·4h·1d, ETH 15m·1h·4h 를 읽는다", set(asked) == {("BTC", t) for t in ae.BTC_TFS}
       | {("ETH", t) for t in ae.ETH_TFS}, sorted(set(asked)))
 _f = json.loads(rec["features"])
-check("기록 특성에 setup_tf·15m 봉 수·15m 피벗", _f["setup_tf"] == "15m" and _f["bars_15m"] > 90
+check("기록 특성에 setup_tf·15m 봉 수·15m 피벗", _f["setup_tf"] == "1h" and _f["bars_15m"] > 90
       and _f["pivots_15m"])
 check("기록 특성에 structure·시간대별 RSI·다이버전스", _f["structure"] == "double_zigzag"
       and set(_f["rsi14"]) == set(ae.BTC_TFS) and set(_f["divergence"]) == set(ae.BTC_TFS))
 check("입력에 RSI·EWO·다이버전스", all(k in seen["user"] for k in ('"rsi14"', '"ewo_pct"', '"divergence"')))
 check("입력에 15m 데이터", '"15m":{"bars_t_o_h_l_c_v"' in seen["user"])
-check("로그 한 줄에 시간대·형태", ae.summary_line(rec).startswith("[ai-elliott] open_long 15m/double_zigzag "))
+check("로그 한 줄에 시간대·형태", ae.summary_line(rec).startswith("[ai-elliott] open_long 1h/double_zigzag "))
 check("평탄 + 롱 → 진입 신호(손절·익절 가격 그대로)", sg and sg["direction"] == "long" and cp is None
-      and sg["stop"] == round(last_c * 0.99) and sg["target"] == round(last_c * 1.03)
+      and sg["stop"] == round(last_c * 0.985) and sg["target"] == round(last_c * 1.03)
       and sg["pattern"] == ae.PATTERN and sg["ai_elliott"] is True and sg["_ai_rec"] is rec)
 check("신호봉 = 마지막 닫힌 봉", sg["ts"] == ae.closed(R1, "1h", NOW)[-1]["ts"])
 check("기록 행: kind·모델·버전·결정·크기 1.0·근거(JSON)", rec["kind"] == "elliott_btc" and rec["model"] == ae.MODEL
       and rec["prompt_version"] == ae.PROMPT_VERSION and rec["decision"] == "open_long" and rec["size_mult"] == 1.0
-      and json.loads(rec["reasons"])[0] == "15m: (ii) 끝 → (iii)" and rec["direction"] == "long")
+      and json.loads(rec["reasons"])[0] == "1h: (ii) 끝 → (iii)" and rec["direction"] == "long")
 check("기록 행의 키가 ai_judgments 컬럼에 전부 있다",
       all(k in io.open("supabase_schema_ai_judge.sql", encoding="utf-8").read() for k in rec),
       [k for k in rec if k not in io.open("supabase_schema_ai_judge.sql", encoding="utf-8").read()])
@@ -690,8 +703,8 @@ check("숏 익절가가 이미 시세 위 → 주문 전 거부", res is None an
 # 2026-10-29 사용자 지시 "진입판단을 15분마다 변경하는걸로 1주일만 테스트해보자 1주일 후에 계속할지 중단할지 나한테
 # 다시 물어봐줘". 평탄일 때 :18/:33/:48 에도 진입 판단, 보유 판단은 매시 그대로, until 이 지나면 스스로 꺼진다.
 import hashlib
-check("지시문 v5(SYSTEM) 불변 — 고치면 PROMPT_VERSION 을 올리고 이 값을 갱신",
-      hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16] == "823245e0f306763c",
+check("지시문 v6(SYSTEM) 불변 — 고치면 PROMPT_VERSION 을 올리고 이 값을 갱신",
+      hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16] == "bc2c5ab4e879496f",
       hashlib.sha256(ae.SYSTEM.encode("utf-8")).hexdigest()[:16])
 _s = ae.SYSTEM_Q15
 for _o, _n in reversed(ae._Q15_EDITS):
@@ -699,11 +712,11 @@ for _o, _n in reversed(ae._Q15_EDITS):
 check("SYSTEM_Q15 는 호출 주기 문장만 다르다(편집을 되돌리면 SYSTEM 과 같다)", _s == ae.SYSTEM and ae.SYSTEM_Q15 != ae.SYSTEM)
 check("SYSTEM_Q15: 평탄이면 15분마다·보유면 매시", "every 15 minutes, just after a 15m candle closes" in ae.SYSTEM_Q15
       and "while a position is open you are called once per hour" in ae.SYSTEM_Q15
-      and "Open position: each hour re-read 15m and 1h." in ae.SYSTEM_Q15)
+      and "Open position: each hour re-read 1h and 4h, with 15m for detail." in ae.SYSTEM_Q15)
 check("SYSTEM_Q15: 자주 불러도 진입 기준은 그대로", "it does not lower these entry criteria" in ae.SYSTEM_Q15)
 check("SYSTEM_Q15: ref_tf 설명(v3 에는 없다)", "ref_tf" in ae.SYSTEM_Q15 and "ref_tf" not in ae.SYSTEM)
-check("버전: 시험 중 v5q15 · 아니면 v5", ae.PROMPT_VERSION == "elliott_v5_2026_10_30"
-      and ae.PROMPT_VERSION_Q15 == "elliott_v5q15_2026_10_30")
+check("버전: 15분 판단 중 v6q15 · 아니면 v6", ae.PROMPT_VERSION == "elliott_v6_2026_11_16"
+      and ae.PROMPT_VERSION_Q15 == "elliott_v6q15_2026_11_16")
 try:
     ae._swap_once("abc", "x", "y")
     _sw = False
@@ -781,8 +794,8 @@ def answer_q(d):
 CFG_Q = dict({"directions": ["long", "short"]}, **EC())
 kwq = dict(trades=[], rows_of=roq_f(), cap=CAP, pot=100.0, margin_next=100.0, spec=SPEC, now_ms=NOWQ, cfg=CFG_Q,
            count=ae.load_count(), history=[])
-OPEN_L = dict(action="open_long", setup_tf="15m", structure="zigzag", stop=round(REFC * 0.99), target=round(REFC * 1.03),
-              wave_view="15m: c 끝", invalidation="저점 이탈")
+OPEN_L = dict(action="open_long", setup_tf="1h", structure="zigzag", stop=round(REFC * 0.985), target=round(REFC * 1.03),
+              wave_view="1h: c 끝", invalidation="저점 이탈")
 ae._create = answer_q(OPEN_L)
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="quarter", **kwq)
 _f = json.loads(rec["features"])
@@ -813,14 +826,14 @@ rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_ki
 check("신호를 가리킬 1h 봉이 없으면 호출하지 않는다(no_entry_bar)", rec["error"] == "no_entry_bar" and sg is None
       and len(calls) == _n)
 C1H = ae.closed(Q1, "1h", NOWH)[-1]["c"]                 # 매시 틱의 기준 가격 = 마지막 닫힌 1h 종가
-ae._create = answer_q(dict(OPEN_L, stop=round(C1H * 0.99), target=round(C1H * 1.03)))
+ae._create = answer_q(dict(OPEN_L, stop=round(C1H * 0.985), target=round(C1H * 1.03)))
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="hourly", **dict(kwq, now_ms=NOWH))
 check("시험 중 매시 :03 틱: 신호 = 마지막 닫힌 1h 봉(종전과 같다) · 지시문은 Q15", sg is not None
       and sg["ts"] == ae.closed(Q1, "1h", NOWH)[-1]["ts"] and calls[-1][0] == ae.SYSTEM_Q15
       and '"ref_tf":"1h"' in calls[-1][1] and json.loads(rec["features"]).get("tick") == "hourly")
 rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, tick_kind="hourly",
                       **dict(kwq, cfg={"directions": ["long", "short"]}))
-check("시험이 꺼져 있으면 종전과 같다 — v5 지시문·버전, ref_tf 없음, 15분 시각이어도 신호 = 마지막 닫힌 1h 봉",
+check("시험이 꺼져 있으면 종전과 같다 — v6 지시문·버전, ref_tf 없음, 15분 시각이어도 신호 = 마지막 닫힌 1h 봉",
       calls[-1][0] == ae.SYSTEM and rec["prompt_version"] == ae.PROMPT_VERSION and '"ref_tf"' not in calls[-1][1]
       and rec["mark_ts"] == ae.closed(Q1, "1h", NOWQ)[-1]["ts"]
       and sg is not None and sg["ts"] == ae.closed(Q1, "1h", NOWQ)[-1]["ts"])
@@ -938,8 +951,8 @@ def _q_e2e():
 
         def create(s, u):
             got["calls"].append((s, u))
-            return fake_resp(json.dumps(dict(base, action="open_long", setup_tf="15m", structure="zigzag",
-                                             stop=round(ref_c * 0.99), target=round(ref_c * 1.03))))
+            return fake_resp(json.dumps(dict(base, action="open_long", setup_tf="1h", structure="zigzag",
+                                             stop=round(ref_c * 0.985), target=round(ref_c * 1.03))))
         ae._create = create
         got["out"].append(pe.run(ai_only=True))                       # ① 평탄 → 판단 → 진입(페이퍼)
         got["pos1"] = json.load(open("paper_positions.json"))
@@ -972,7 +985,7 @@ check("e2e ① 진입봉 = 형성 중인 1h 봉(정확한 ts) · tf 1h · 진입
       _ai_pos and _ai_pos[0]["entry_ts"] == TA and _ai_pos[0]["tf"] == "1h"
       and abs(_ai_pos[0]["entry_price"] - round(g["h1_last"]["c"], 8)) < 1e-9 and g["h1_last"]["ts"] == TA,
       _ai_pos and {k: _ai_pos[0][k] for k in ("entry_ts", "tf", "entry_price")})
-check("e2e ① 손절·익절 = AI 가격 그대로(OCO 대상)", _ai_pos and _ai_pos[0]["stop"] == round(g["ref_c"] * 0.99)
+check("e2e ① 손절·익절 = AI 가격 그대로(OCO 대상)", _ai_pos and _ai_pos[0]["stop"] == round(g["ref_c"] * 0.985)
       and _ai_pos[0]["target"] == round(g["ref_c"] * 1.03))
 check("e2e ① 메인 신호(signals_today)는 무시, 메인 포지션은 손대지 않는다", len(g["pos1"]) == 2 and len(_sol) == 1
       and _sol[0]["d_closed"] is False and _sol[0]["a_closed"] is False)
@@ -1156,6 +1169,212 @@ check("e2e ⑧ OCO 대기 중 → 보유 유지 · 판단 호출 0 · 주문 조
       not q8["trades"] and len(q8["pos"]) == 2 and q8["calls"] == [] and o8.order_calls == [],
       (q8["trades"], len(q8["pos"]), len(q8["calls"])))
 os.environ.pop("ANTHROPIC_API_KEY", None)
+
+# ── 16. v6 게이트 ────────────────────────────────────────────────────────────
+# 2026-11-16 사용자 지시 "①②③④ 다 반영해서 v6 만들어줘". 실거래 24건 7승 17패 −$11.75 부검 — 하락장 바닥 잡는 롱
+# (15건 −$11.87)·15분봉 셋업(22/24)·평균 손실 −0.75%·확신도 전부 0.40~0.50. 네 가지를 코드가 강제하는지 본다.
+ae.trend_gate, ae.load_plan = _ORIG_TREND_GATE, _ORIG_LOAD_PLAN
+
+
+def lin(n, start, mult, tf_ms, t0=1_761_000_000_000):
+    out, px = [], start
+    for i in range(n):
+        o, c = px, px * mult
+        out.append(dict(ts=t0 + i * tf_ms, date="2026-10-01", o=o, h=max(o, c) * 1.001, l=min(o, c) * 0.999,
+                        c=c, v=10.0))
+        px = c
+    return out
+
+
+UP4, DN4 = lin(80, 60000, 1.003, 4 * H), lin(80, 90000, 0.997, 4 * H)
+UPD, DND = lin(40, 60000, 1.01, 24 * H), lin(40, 90000, 0.99, 24 * H)
+check("v6 상수 — 확신도 0.6 · 셋업 1h/4h/1d · 손절 1% · 손익비 1.5 · 비용 0.2% · 추세 EMA(4h 50·6봉 / 1d 20·5봉)",
+      ae.MIN_CONF_ENTRY == 0.6 and ae.ENTRY_SETUP_TFS == ("1h", "4h", "1d") and ae.MIN_STOP_PCT == 0.01
+      and ae.MIN_RR == 1.5 and ae.RR_COST == 0.002 and ae.TREND_SPEC == {"4h": (50, 6), "1d": (20, 5)})
+_e = ae.ema_series([1.0, 2.0, 3.0, 4.0], 2)
+check("EMA — 첫 값은 앞 n개 평균, 이후 k=2/(n+1)", _e[:2] == [None, 1.5] and abs(_e[2] - 2.5) < 1e-9
+      and abs(_e[3] - 3.5) < 1e-9 and ae.ema_series([1.0], 2) == [])
+check("추세: 오르는 4h → up · 내리는 4h → down · 봉 부족 → unknown",
+      ae.trend_of(UP4, "4h")["state"] == "up" and ae.trend_of(DN4, "4h")["state"] == "down"
+      and ae.trend_of(UP4[:50], "4h")["state"] == "unknown")
+check("추세: 1d 도 같은 규칙(EMA20·5봉)", ae.trend_of(UPD, "1d")["state"] == "up"
+      and ae.trend_of(DND, "1d")["state"] == "down")
+_flat4 = lin(80, 70000, 1.0, 4 * H)
+check("추세: 평평하면 flat", ae.trend_of(_flat4, "4h")["state"] == "flat")
+check("추세 게이트 ① — 4h 하락이면 롱만 막는다", ae.trend_gate({"4h": DN4, "1d": _flat4[:40]})[0] == {"long"})
+check("추세 게이트 ① — 1d 하락이면 4h 가 상승이어도 롱 금지, 4h 상승이라 숏도 금지(충돌 = 둘 다)",
+      ae.trend_gate({"4h": UP4, "1d": DND})[0] == {"long", "short"})
+check("추세 게이트 ① — 둘 다 상승이면 숏만 막는다", ae.trend_gate({"4h": UP4, "1d": UPD})[0] == {"short"})
+check("추세 게이트 ① — 데이터 부족(unknown)이면 둘 다 막는다", ae.trend_gate({"4h": UP4[:10], "1d": UPD})[0]
+      == {"long", "short"})
+
+NOW6 = ae._iso_ms("2026-11-16T05:00:00Z")
+B1 = {"1h": [dict(ts=NOW6 - 2 * H, date="2026-11-16", o=65000, h=65200, l=64800, c=65000, v=1)]}
+
+
+def PL(**k):
+    pl = {"as_of": "2026-11-16T04:00:00Z", "valid_until": "2026-11-17T16:00:00Z", "context": "c",
+          "long": {"enabled": True, "trigger": {"tf": "1h", "type": "close_above", "px": 66100},
+                   "invalidation_px": 63726, "targets": [69580]},
+          "short": {"enabled": True, "trigger": {"tf": "1h", "type": "close_below", "px": 63726},
+                    "invalidation_px": 65500, "targets": [60350]}}
+    pl.update(k)
+    return pl
+
+
+check("계획 게이트 ④ — 계획 없음 → 둘 다 막힘(missing)", ae.plan_gate(None, B1, NOW6)[0] == {"long", "short"}
+      and ae.plan_gate(None, B1, NOW6)[1]["status"] == "missing")
+check("계획 게이트 ④ — 만료(valid_until 정각부터) → 둘 다 막힘",
+      ae.plan_gate(PL(valid_until="2026-11-16T05:00:00Z"), B1, NOW6)[0] == {"long", "short"}
+      and ae.plan_gate(PL(valid_until="2026-11-16T05:00:00Z"), B1, NOW6)[1]["status"] == "expired")
+check("계획 게이트 ④ — valid_until 없음 → 둘 다 막힘", ae.plan_gate(PL(valid_until=None), B1, NOW6)[0] == {"long", "short"})
+check("계획 게이트 ④ — 65,000 은 두 트리거 사이 → 둘 다 막힘(무장 없음)", ae.plan_gate(PL(), B1, NOW6)[0] == {"long", "short"})
+_b_up = {"1h": [dict(B1["1h"][0], c=66200)]}
+_b_dn = {"1h": [dict(B1["1h"][0], c=63600)]}
+_g, _i = ae.plan_gate(PL(), _b_up, NOW6)
+check("계획 게이트 ④ — 1h 종가 66,200 > 66,100 → 롱만 무장", _g == {"short"} and _i["long"]["armed"] is True
+      and _i["long"]["invalidation_px"] == 63726 and _i["status"] == "active")
+check("계획 게이트 ④ — 1h 종가 63,600 < 63,726 → 숏만 무장", ae.plan_gate(PL(), _b_dn, NOW6)[0] == {"long"})
+check("계획 게이트 ④ — 같은 가격(경계)은 무장 아님(초과·미만만)",
+      ae.plan_gate(PL(), {"1h": [dict(B1["1h"][0], c=66100)]}, NOW6)[0] == {"long", "short"})
+check("계획 게이트 ④ — enabled false · 모르는 트리거 · 모르는 시간대 → 막힘",
+      ae.plan_gate(PL(long={"enabled": False, "trigger": {"tf": "1h", "type": "close_above", "px": 1}}), _b_up, NOW6)[0]
+      >= {"long"}
+      and ae.plan_gate(PL(long={"enabled": True, "trigger": {"tf": "1h", "type": "touch", "px": 1}}), _b_up, NOW6)[0]
+      >= {"long"}
+      and ae.plan_gate(PL(long={"enabled": True, "trigger": {"tf": "5m", "type": "close_above", "px": 1}}), _b_up, NOW6)[0]
+      >= {"long"})
+
+# ②③④ — 검증
+FA = ["open_long", "open_short", "wait"]
+_pi = {"long": {"invalidation_px": 63726}, "short": {"invalidation_px": 65500}}
+_ok = dict(base, action="open_long", setup_tf="1h", confidence=0.65, stop=63500, target=69580)
+check("검증 ③ — 1h 셋업·확신 0.65·손절 2.3%·손익비 충족·무효화 바깥 → 계획",
+      ae.validate(_ok, None, FA, 65000.0, SPEC, _pi)[0] == "open_long")
+check("검증 ③ — setup_tf 15m → setup_tf_below_1h",
+      ae.validate(dict(_ok, setup_tf="15m"), None, FA, 65000.0, SPEC, _pi)[2] == "setup_tf_below_1h")
+check("검증 ③ — setup_tf 누락 → setup_tf_below_1h", ae.validate(dict(_ok, setup_tf=""), None, FA, 65000.0, SPEC)[2]
+      == "setup_tf_below_1h")
+check("검증 ② — confidence 0.55 → low_confidence(0.6 정확히는 통과)",
+      ae.validate(dict(_ok, confidence=0.55), None, FA, 65000.0, SPEC, _pi)[2] == "low_confidence"
+      and ae.validate(dict(_ok, confidence=0.6), None, FA, 65000.0, SPEC, _pi)[0] == "open_long")
+check("검증 ③ — 손절 0.6% → stop_below_1pct(registry 가 0.3% 여도 1% 를 강제)",
+      ae.validate(dict(_ok, stop=64610, target=67000), None, FA, 65000.0,
+                  dict(SPEC, min_stop_pct=0.003))[2] == "stop_below_1pct")
+check("검증 ③ — 손익비: 손절 2% · 익절 3% → (3−0.2) < 1.5×2 → rr_below_1_5",
+      ae.validate(dict(_ok, stop=63700, target=66950), None, FA, 65000.0, SPEC)[2] == "rr_below_1_5")
+check("검증 ③ — 손익비 경계: 손절 2% · 익절 3.2% → 통과",
+      ae.validate(dict(_ok, stop=63700, target=67080), None, FA, 65000.0, SPEC)[0] == "open_long")
+check("검증 ④ — 롱 손절이 계획 무효화(63,726)보다 안쪽(63,900) → stop_inside_plan_invalidation",
+      ae.validate(dict(_ok, stop=63900, target=69580), None, FA, 65000.0, SPEC, _pi)[2]
+      == "stop_inside_plan_invalidation")
+check("검증 ④ — 숏 손절이 계획 무효화(65,500)보다 안쪽(65,200) → stop_inside_plan_invalidation",
+      ae.validate(dict(_ok, action="open_short", stop=65200, target=59000), None, FA, 63500.0, SPEC, _pi)[2]
+      == "stop_inside_plan_invalidation")
+check("검증 ④ — 숏 손절이 무효화 바깥(65,600) · 손익비 충족 → 계획",
+      ae.validate(dict(_ok, action="open_short", stop=65600, target=59000), None, FA, 63500.0, SPEC, _pi)[0]
+      == "open_short")
+check("검증 — 보유 중 hold/close 는 v6 조건과 무관", ae.validate(dict(base, action="hold", setup_tf="15m", confidence=0.1),
+                                                          {"x": 1}, ["hold", "close"], 1.0, SPEC)[0] == "hold")
+
+# tick — 게이트 통합(실제 trend_gate·plan_gate)
+os.environ["ANTHROPIC_API_KEY"] = "test"
+called = []
+
+
+def must_not_call(s, u):
+    called.append(1)
+    raise AssertionError("v6 게이트로 막힌 틱에서 API 를 불렀다")
+
+
+def ro6(t4, td, last_1h):
+    r1 = mkrows(200, t0=NOW6 - 200 * H)
+    r1[-1] = dict(r1[-1], c=last_1h, h=max(r1[-1]["h"], last_1h), l=min(r1[-1]["l"], last_1h))   # 마지막 닫힌 1h 봉
+    r15 = mkrows(120, start=last_1h, t0=NOW6 - 120 * (H // 4), tf_ms=H // 4)
+
+    def f(sym, tf):
+        return {"15m": r15, "1h": r1, "4h": t4, "1d": td}[tf]
+    return f
+
+
+T4D = lin(80, 90000, 0.997, 4 * H, t0=NOW6 - 81 * 4 * H)       # 4h 하락
+TDF = lin(40, 66000, 1.0, 24 * H, t0=NOW6 - 41 * 24 * H)        # 1d 평평
+kw6 = dict(trades=[], cap=CAP, pot=100.0, margin_next=100.0, spec=SPEC, now_ms=NOW6,
+           cfg={"directions": ["long", "short"]}, count=ae.load_count(), history=[], tick_kind="hourly")
+ae._create = must_not_call
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, rows_of=ro6(T4D, TDF, 65000.0), plan=PL(),
+                      **kw6)
+_f6 = json.loads(rec["features"])
+check("tick ① ④ — 4h 하락(롱 금지) + 숏 트리거 미충족 → 판단 호출 없음 · gated · 대기", not called and sg is None
+      and cp is None and rec["code_action"] == "gated" and rec["decision"] == "wait"
+      and _f6["v6"]["gate_blocked"] == ["long", "short"], (called, rec["code_action"], _f6.get("v6")))
+check("tick gated — 이유 두 줄(추세·계획)이 기록·로그에 남는다",
+      any("v6 trend rule" in n for n in _f6["notes"]) and any("v6 plan rule" in n for n in _f6["notes"])
+      and ae.summary_line(rec).startswith("[ai-elliott] 대기 — v6 게이트"))
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, rows_of=ro6(T4D, TDF, 65000.0), plan=None,
+                      **dict(kw6, now_ms=NOW6))
+check("tick ④ — 계획 인자 없음 → 계획 파일을 읽는다(load_plan)", rec["code_action"] in ("gated", None)
+      and json.loads(rec["features"])["v6"]["plan"]["status"] in ("active", "expired", "missing"))
+seen6 = {}
+
+
+def ans6(d):
+    def f(s, u):
+        seen6["user"] = u
+        return fake_resp(json.dumps(dict(base, **d)))
+    return f
+
+
+ae._create = ans6(dict(action="open_short", setup_tf="1h", confidence=0.65, stop=65600, target=59000))
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, rows_of=ro6(T4D, TDF, 63600.0), plan=PL(),
+                      **kw6)
+check("tick ① ④ — 4h 하락 + 숏 트리거 충족 → 허용 = 숏·대기, 판단 호출, 숏 진입 신호",
+      '"allowed_actions":["open_short","wait"]' in seen6["user"] and sg is not None and sg["direction"] == "short"
+      and sg["stop"] == 65600, (sg, seen6.get("user", "")[:200]))
+check("tick — 입력에 trend·plan·v6 진입 규칙", all(k in seen6["user"] for k in ('"trend"', '"plan"', '"entry_rules_v6"',
+                                                                              '"min_confidence":0.6')))
+ae._create = ans6(dict(action="open_short", setup_tf="1h", confidence=0.5, stop=65600, target=59000))
+rec, sg, cp = ae.tick(position=None, blocked_dirs=set(), can_enter=True, rows_of=ro6(T4D, TDF, 63600.0), plan=PL(),
+                      **kw6)
+check("tick ② — 확신 0.5 숏 → 진입 없음 · ignored:low_confidence", sg is None
+      and rec["code_action"] == "ignored:low_confidence")
+_pos6 = dict(symbol="BTC", pattern=ae.PATTERN, direction="long", entry_price=64000.0, stop=63000.0, target=67000.0,
+             entry_ts=NOW6 - 5 * H, entry_date="2026-11-16", live_mode=True, size_usd=100.0)
+ae._create = ans6(dict(action="hold"))
+rec, sg, cp = ae.tick(position=_pos6, blocked_dirs=set(), can_enter=True, rows_of=ro6(T4D, TDF, 65000.0), plan=None,
+                      **kw6)
+check("tick — 보유 중엔 게이트가 판단을 막지 않는다(hold/close 판단은 계속)", rec["decision"] == "hold"
+      and rec["code_action"] != "gated" and '"allowed_actions":["hold","close"]' in seen6["user"])
+ae._create = _orig_create
+os.environ.pop("ANTHROPIC_API_KEY", None)
+
+# 지시문 v6 · registry
+check("지시문 v6 — 24건 부검 사실·네 규칙을 적는다", all(k in ae.SYSTEM for k in (
+    "This is version 6", "7 wins, 17 losses", "setup_tf is 1h, 4h or 1d", "confidence is at least 0.6",
+    "the stop is 1%-8%", "not inside the plan's invalidation price", "1.5 times the stop distance",
+    "trend is computed by code", "a long is unavailable while either is down", "plan is the desk's current trade plan",
+    "honest probability that price reaches the target before the stop", "Do not raise it to get a trade through")))
+check("지시문 v6 — 바닥 잡기·추세 역행 셋업 문구가 없다(v5 의 '4h 반대 셋업 허용' 삭제)",
+      "setups that trade against the 4h" not in ae.SYSTEM and "Do not buy a decline or sell a rally" in ae.SYSTEM)
+check("registry — v6 버전·이력·가드", rp["ai_trader"]["prompt_version"] == ae.PROMPT_VERSION
+      and rp["ai_trader"]["prompt_versions"][-1]["version"] == ae.PROMPT_VERSION
+      and rp["ai_trader"]["prompt_versions"][-1]["q15_version"] == ae.PROMPT_VERSION_Q15
+      and any(g.startswith("v6(2026-11-16)") for g in rp["guards"]))
+
+# 실제 계획 파일 — 형식·방향 정합(무효화·목표가 트리거의 맞는 쪽)
+REAL = json.load(io.open(ae.PLAN_FILE, encoding="utf-8"))
+_a, _v = ae._iso_ms(REAL.get("as_of")), ae._iso_ms(REAL.get("valid_until"))
+check("elliott_plan.json — as_of < valid_until ≤ as_of + 48시간", _a and _v and _a < _v <= _a + 48 * H, (_a, _v))
+for _d, _typ in (("long", "close_above"), ("short", "close_below")):
+    _p = REAL.get(_d) or {}
+    _tr = _p.get("trigger") or {}
+    _px, _inv, _tg = _tr.get("px"), _p.get("invalidation_px"), _p.get("targets") or []
+    _side = (lambda x: x < _px) if _d == "long" else (lambda x: x > _px)
+    check(f"elliott_plan.json {_d} — 트리거 {_typ}·tf ∈ 입력 시간대·무효화는 진입 반대쪽·목표는 진입 쪽",
+          _tr.get("type") == _typ and _tr.get("tf") in ae.BTC_TFS and isinstance(_px, (int, float))
+          and _inv is not None and _side(_inv) and _tg and all(not _side(t) for t in _tg), _p)
+check("elliott_plan.json — context(현재 카운트, 한국어)와 문서 설명이 있다", len(REAL.get("context") or "") > 50
+      and "검증된 신호가 아니다" in REAL.get("_doc", ""))
 
 print(f"\n{len(fails)} failed")
 raise SystemExit(1 if fails else 0)

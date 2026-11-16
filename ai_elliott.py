@@ -18,6 +18,14 @@ ai_elliott.py — AI 엘리엇 BTC 자율매매 (2026-10-28 사용자 결정)
   15m)이며, 진입 신호는 그 봉이 속한 1h 봉을 가리킨다(signal_bar). 같은 1h 봉 안에서 같은 방향 재진입은 체결 엔진의 중복
   방어(봉 시각 키)가 막으므로 그 방향을 미리 막고 이유를 알린다(entered).
 
+v6(2026-11-16 사용자 지시 "①②③④ 다 반영해서 v6 만들어줘"): 실거래 24건(10-28~11-06) 7승 17패 −$11.75 를 부검한
+  뒤 — 하락장 바닥 잡는 롱 15건 −$11.87 · 15분봉 셋업 22/24 · 평균 손실 −0.75% · 확신도 전부 0.40~0.50 — 진입 조건 넷을
+  코드가 강제한다. ① 4h(EMA50·6봉)·1d(EMA20·5봉) 추세 역행 금지 ② confidence(목표가가 손절보다 먼저 닿을 확률) 0.6 이상
+  ③ setup_tf 1h 이상 · 손절 1% 이상 · 비용 0.2% 차감 손익비 1.5 이상 ④ 계획 파일(elliott_plan.json — 브리핑이 갱신)의
+  방향별 트리거가 마지막 닫힌 봉에서 충족된 방향만, 손절은 계획의 무효화 가격보다 안쪽 금지, 계획이 없거나 valid_until 이
+  지나면 진입 없음. 두 방향이 다 막히면 판단을 부르지 않는다(code_action "gated", 비용 0). 검증된 개선이 아니다 — 손실
+  원인을 막는 설계 변경이고 실거래로 다시 확인해야 한다.
+
 무엇을 하나
   매시 fast 틱(:03)마다 한 번, BTC 닫힌 봉(15m/1h/4h/1d)·시간대별 스윙 피벗·동결 엘리엇 카운트(elliott_count.json)·
   자기 포지션과 포트 상태를 LLM 에 넘겨 엘리엇 구조에 따른 결정을 JSON 으로 받는다.
@@ -66,13 +74,14 @@ SYMBOL = "BTC"
 TF = "1h"
 MODEL = "claude-sonnet-5-5"           # 사용자 선택(2026-10-28)
 EFFORT = "high"                       # v2: 세 시간대를 맞춰 읽는 판단이라 medium 에서 올렸다. 생각은 기본으로 켜져 있다
-PROMPT_VERSION = "elliott_v5_2026_10_30"           # v5: 숏 금지로 읽히는 문장 정리(2026-10-30 사용자 지시)
-PROMPT_VERSION_Q15 = "elliott_v5q15_2026_10_30"   # 15분 진입 판단 시험 중(entry_check_active) — 지시문 SYSTEM_Q15
+PROMPT_VERSION = "elliott_v6_2026_11_16"           # v6: 추세 필터·확신도·1h 이상 셋업·계획 파일(2026-11-16 사용자 지시)
+PROMPT_VERSION_Q15 = "elliott_v6q15_2026_11_16"   # 15분 진입 판단(entry_check_active) 때 — 지시문 SYSTEM_Q15
 ENTRY_CHECK_EVERY_MIN = 15            # universe.json ai_traders[].entry_check.every_min 이 이 값이어야 켜진다
 FALLBACK_BETA = "server-side-fallback-2026-07-01"   # 안전 분류기 거절 시 서버가 다른 모델로 재시도("default")
 MAX_TOKENS = 16000                    # 생각 토큰 포함 상한(SDK 비스트리밍 한도 안 — 예상 7.5분 < 10분)
 TIMEOUT_S = 150
 COUNT_FILE = "elliott_count.json"
+PLAN_FILE = "elliott_plan.json"       # v6 매매 계획(브리핑이 갱신) — 방향별 트리거·무효화·목표, valid_until 지나면 진입 없음
 UNIVERSE_FILE = "universe.json"
 BTC_TFS = ("15m", "1h", "4h", "1d")    # 작은 차수(15m~4h)를 읽고 1d 는 배경
 ETH_TFS = ("15m", "1h", "4h")          # 교차 확인용 피벗
@@ -81,6 +90,22 @@ ZZ_PCT = {"15m": 0.003, "1h": 0.006, "4h": 0.015, "1d": 0.05}   # 스윙 피벗(
 TF_MS = {"15m": 900_000, "1h": 3_600_000, "4h": 14_400_000, "1d": 86_400_000}
 FETCH_DAYS = {"15m": 7}                # 15m 는 7일만 받는다 — 기본 창(45일)은 OKX 호출이 약 35회라 매시간 낭비다
 SETUP_TFS = ("15m", "1h", "4h", "1d")
+# ── v6 게이트(2026-11-16 사용자 지시 "①②③④ 다 반영해서 v6 만들어줘") ─────────────────────────────
+# 근거: 실거래 24건(10-28~11-06) 7승 17패 −$11.75 — 하락장 바닥 잡는 롱(15건 −$11.87), 15분봉 셋업(22/24)·좁은 손절
+# (평균 손실 −0.75%), 확신도 전부 0.40~0.50. 아래 네 가지를 코드가 강제한다(AI 가 바꿀 수 없다).
+#   ① 큰 추세 역행 금지 — 4h(EMA50·6봉 기울기)·1d(EMA20·5봉 기울기) 중 하나라도 하락이면 롱, 상승이면 숏 불가
+#   ② 확신도 문턱 — 진입은 confidence(목표가가 손절보다 먼저 닿을 확률) 0.6 이상만
+#   ③ 1h 이상 셋업 — setup_tf 1h/4h/1d, 손절 1% 이상, 비용 0.2% 차감 후 손익비 1.5 이상
+#   ④ 기준 고정형 — 계획 파일(PLAN_FILE)의 방향별 트리거가 마지막 닫힌 봉에서 충족된 방향만, 손절은 계획의 무효화
+#      가격보다 안쪽 금지. 계획이 없거나 valid_until 이 지나면 양방향 진입 없음
+# 두 방향이 모두 게이트에 막히면 판단을 부르지 않는다(비용 0, 기록만 — code_action "gated").
+MIN_CONF_ENTRY = 0.6
+ENTRY_SETUP_TFS = ("1h", "4h", "1d")
+MIN_STOP_PCT = 0.01
+MIN_RR = 1.5
+RR_COST = 0.002
+TREND_SPEC = {"4h": (50, 6), "1d": (20, 5)}     # (EMA 기간, 기울기 비교 봉 수)
+PLAN_TRIGGERS = ("close_above", "close_below")
 RSI_N = 14                             # Wilder RSI — detector_rsi_divergence.rsi_series 와 같은 계산(테스트가 고정)
 EWO_FAST, EWO_SLOW = 5, 35             # 엘리엇 오실레이터 = 중간가 SMA5 − SMA35, 종가 대비 %
 STRUCTURES = ("impulse", "leading_diagonal", "ending_diagonal", "zigzag", "double_zigzag", "triple_zigzag",
@@ -93,16 +118,21 @@ ACTIONS = FLAT_ACTIONS + OPEN_ACTIONS
 SYSTEM = (
     "You run a small, separately funded BTC-USDT perpetual futures account on OKX for the desk owner, trading from "
     "Elliott Wave structure. You are called once per hour, just after a 1h candle closes, and you decide one action. "
-    "The owner wants this account to trade lower-degree structure: every hour, read the 15m, 1h and 4h charts "
-    "together and look for small-degree setups that can be traded now, rather than waiting for the daily picture to "
-    "resolve.\n\n"
+    "This is version 6. The owner reviewed the first 24 trades (7 wins, 17 losses, -$11.75): most of the losses were "
+    "longs bought against a falling market on 'correction complete' calls, set up on 15m with stops under 1%, and "
+    "every entry was taken at a confidence of 0.5 or lower. Version 6 therefore trades less and only with the "
+    "higher-degree trend: every hour, read the 15m, 1h and 4h charts together, but enter only on a 1h-or-higher "
+    "setup that agrees with the trend and with the desk's trade plan.\n\n"
     "What the code enforces (you cannot change it): one BTC position at a time; margin = min(pot, $100) at 3x "
     "isolated leverage; every entry carries a stop and a target that are placed on the exchange as an OCO bracket and "
-    "fire between your hourly calls; the stop must be 0.3%-8% from the last close and the target at least 0.3% away, "
-    "otherwise the entry is rejected; long and short entries are both allowed, and only the actions listed in "
-    "allowed_actions are possible on each call; if the pot falls below $10 trading stops; "
-    "a position still open after max_hold_1h_bars is closed by time. Costs: about 0.1-0.2% of notional per round trip "
-    "plus funding every 8 hours.\n\n"
+    "fire between your hourly calls; long and short entries are both allowed, but a direction is removed from "
+    "allowed_actions while the higher-degree trend is against it (see trend) or while the desk's trade plan has not "
+    "armed it (see plan), and only the actions listed in allowed_actions are possible on each call. An entry is "
+    "accepted only if all of these hold, otherwise it is discarded: setup_tf is 1h, 4h or 1d; confidence is at least "
+    "0.6; the stop is 1%-8% from the last close and not inside the plan's invalidation price for that direction; "
+    "the target distance minus 0.2% is at least 1.5 times the stop distance. If the pot falls below $10 trading "
+    "stops; a position still open after max_hold_1h_bars is closed by time. Costs: about 0.1-0.2% of notional per "
+    "round trip plus funding every 8 hours.\n\n"
     "Data: btc holds closed candles and swing pivots for 15m (the last 24 hours), 1h, 4h and 1d. Pivots are high/low "
     "zigzags whose threshold grows with the timeframe; the last pivot of each list is still forming. Each pivot is "
     "[type, price, time, rsi14, ewo_pct]: rsi14 is Wilder RSI(14) at that pivot bar's close and ewo_pct is the Elliott "
@@ -110,15 +140,22 @@ SYSTEM = (
     "timeframe also carries its latest rsi14 and ewo_pct and a divergence summary computed by code: it compares the "
     "last two swing highs and the last two swing lows (regular divergence: price makes a new extreme and RSI does "
     "not; hidden divergence: the reverse); last_forming marks a comparison whose later pivot is still forming. eth "
-    "holds pivots in the same format on 15m, 1h and 4h for cross-confirmation. elliott_count is the desk's frozen "
+    "holds pivots in the same format on 15m, 1h and 4h for cross-confirmation. trend is computed by code from closed "
+    "bars: for 4h, the close against the 50-bar EMA and that EMA's change over the last 6 bars; for 1d, the close "
+    "against the 20-bar EMA and its change over 5 bars. Each is up (close above a rising EMA), down (close below a "
+    "falling EMA) or flat; a long is unavailable while either is down and a short while either is up. plan is the "
+    "desk's current trade plan, refreshed by the desk: context (the current count, in Korean) and, for each "
+    "direction, a trigger (a close above or below a price on a timeframe), an invalidation price and targets; a "
+    "direction is armed only while its trigger holds on the latest closed bar and the plan has not expired. "
+    "plan.context is newer than elliott_count; where they differ, follow plan. elliott_count is the desk's frozen "
     "higher-degree count: treat its labels as fixed context and do not relabel them.\n\n"
-    "Method: count top-down. Use 4h and 1d to place the current move inside the higher-degree count and to set your "
-    "directional bias. Count the current swing on 1h, then its internal waves on 15m. Respect the rules: wave 2 never "
-    "retraces beyond the start of wave 1; wave 3 is never the shortest of waves 1, 3 and 5; wave 4 does not enter "
-    "wave 1's territory except in diagonals; zigzags are 5-3-5, flats 3-3-5, triangles 3-3-3-3-3 and occur only as "
-    "wave 4, B, X or the final wave of a combination; combinations are W-X-Y(-X-Z). Use common Fibonacci "
-    "relationships (wave 2 at 50-61.8%, wave 3 at 1.618x wave 1, wave 4 at 23.6-38.2%, C equal to A or 1.618x A) as "
-    "guides, not rules.\n\n"
+    "Method: count top-down. Use 4h and 1d to place the current move inside the higher-degree count. Count the "
+    "current swing on 1h and 4h; use 15m only to read its internal waves and to time an entry inside a "
+    "1h-or-higher setup. Respect the rules: wave 2 never retraces beyond the start of wave 1; wave 3 is never the "
+    "shortest of waves 1, 3 and 5; wave 4 does not enter wave 1's territory except in diagonals; zigzags are 5-3-5, "
+    "flats 3-3-5, triangles 3-3-3-3-3 and occur only as wave 4, B, X or the final wave of a combination; "
+    "combinations are W-X-Y(-X-Z). Use common Fibonacci relationships (wave 2 at 50-61.8%, wave 3 at 1.618x wave 1, "
+    "wave 4 at 23.6-38.2%, C equal to A or 1.618x A) as guides, not rules.\n\n"
     "Consider the whole Elliott catalog, not only the basic forms: impulses with an extended wave (1, 3 or 5) and "
     "truncated fifths; leading diagonals (wave 1 or A) and ending diagonals (wave 5 or C: overlapping, wedge-shaped, "
     "usually followed by a fast retracement to where the diagonal began); single, double (W-X-Y) and triple "
@@ -130,22 +167,24 @@ SYSTEM = (
     "strongest RSI and EWO reading of its sequence, wave 5 and C often end with divergence against wave 3 or A, wave "
     "4 pulls EWO back toward zero, and B and X waves usually show weak momentum. Use RSI, EWO and divergence to rank "
     "counts and to confirm that a wave is ending; never trade a divergence or an oscillator level on its own.\n\n"
-    "Tradable lower-degree setups (examples, not a closed list): a correction (wave 2, 4, B or X; zigzag, flat, "
-    "triangle or W-X-Y) that looks complete on 15m/1h at a Fibonacci zone, entered as price starts to move away "
-    "from it; waves 1 and 2 done on 15m with the turn into wave 3 under way; a completed five-wave sequence on "
-    "15m/1h ending a C wave or a fifth wave, traded for the reversal; a finished triangle traded for its thrust. A "
-    "lower-degree setup does not need the daily picture to be resolved first, but setups that trade against the 4h "
-    "and higher-degree bias need a completed lower-degree pattern and should aim for the nearer target.\n\n"
-    "Entries: put the stop just beyond the price that invalidates the lower-degree count you are trading (for 15m/1h "
-    "setups that is usually 0.3-2% away), never at an arbitrary percentage. Put the target at a Fibonacci projection "
-    "or retracement that the same count implies. Take the trade only if the target distance, after about 0.2% of "
-    "round-trip cost, is at least 1.5 times the stop distance; if the invalidation is closer than 0.3% or farther "
-    "than 8%, or the timeframes conflict so that no count is clearly favored, wait and say what you are watching "
-    "for. Do not trade just to be active, but do not wait for certainty either: a clear lower-degree setup with a "
-    "close invalidation is exactly what this account is for.\n\n"
-    "Open position: each hour re-read 15m and 1h. Close early if the lower-degree count you entered on has been "
-    "invalidated (for example the move you expected as an impulse unfolded in three waves and is retracing) or its "
-    "target structure is complete; otherwise hold and let the stop and target work.\n\n"
+    "Tradable setups (examples, not a closed list), all on 1h or higher and only in a direction that the trend and "
+    "the plan allow: a correction against the trend (wave 2, 4, B or X; zigzag, flat, triangle or W-X-Y) that looks "
+    "complete at a Fibonacci zone, entered as price starts to resume the trend; waves 1 and 2 done with the turn "
+    "into wave 3 under way; a finished triangle traded for its thrust in the trend direction. Do not buy a decline "
+    "or sell a rally on the idea that it is about to end; the code already removes counter-trend directions, so do "
+    "not argue for them.\n\n"
+    "Entries: put the stop just beyond the price that invalidates the 1h-or-higher count you are trading, never at "
+    "an arbitrary percentage, never closer than 1% and never inside the plan's invalidation price, so that ordinary "
+    "15m noise does not reach it. Put the target at a Fibonacci projection or retracement that the same count "
+    "implies, using the plan's targets as reference. Take the trade only if the target distance, after about 0.2% "
+    "of round-trip cost, is at least 1.5 times the stop distance. confidence is your honest probability that price "
+    "reaches the target before the stop; enter only when it is at least 0.6. Do not raise it to get a trade "
+    "through: every confidence is recorded and will be compared with outcomes. If no 1h-or-higher setup is clear, "
+    "or the timeframes conflict, wait and say what you are watching for. Do not trade just to be active; in version "
+    "6 waiting through most hours is expected.\n\n"
+    "Open position: each hour re-read 1h and 4h, with 15m for detail. Close early if the count you entered on has "
+    "been invalidated (for example the move you expected as an impulse unfolded in three waves and is retracing) or "
+    "its target structure is complete; otherwise hold and let the stop and target work.\n\n"
     "Output: one JSON object matching the schema. setup_tf is the timeframe whose structure drives the decision "
     "(15m, 1h, 4h or 1d), including for wait, hold and close; structure is the Elliott structure that decision rests "
     "on (unclear when no structure is favored). stop and target are absolute BTC prices for open_long "
@@ -168,9 +207,9 @@ _Q15_EDITS = (
      "btc holds closed candles and swing pivots for 15m (the last 24 hours), 1h, 4h and 1d; last_close and "
      "last_bar_utc belong to the latest closed candle, on the timeframe named in ref_tf (15m when a 15m candle has "
      "closed since the last 1h close)."),
-    ("Do not trade just to be active, but do not wait for certainty either:",
+    ("Do not trade just to be active;",
      "Being called more often gives earlier looks at the same kinds of setups; it does not lower these entry "
-     "criteria. Do not trade just to be active, but do not wait for certainty either:"),
+     "criteria. Do not trade just to be active;"),
 )
 
 
@@ -477,6 +516,122 @@ def count_summary(count):
     }
 
 
+# ── v6 게이트: 추세(①)·계획(④) ────────────────────────────────────────────────
+def ema_series(vals, n):
+    """지수이동평균(첫 값 = 앞 n개 단순평균). 길이가 n 보다 짧으면 빈 목록."""
+    if len(vals) < n:
+        return []
+    k = 2.0 / (n + 1)
+    out = [None] * (n - 1) + [sum(vals[:n]) / n]
+    for v in vals[n:]:
+        out.append(out[-1] + k * (v - out[-1]))
+    return out
+
+
+def trend_of(rows, tf):
+    """
+    한 시간대의 추세 상태 — 닫힌 봉만 넣는다. up = 종가가 오르는 EMA 위, down = 종가가 내리는 EMA 아래, 그 밖 flat.
+    봉이 모자라면 unknown(게이트는 그때 양방향을 막는다 — 모르면 들어가지 않는 쪽).
+    """
+    n, sb = TREND_SPEC[tf]
+    closes = [float(r["c"]) for r in (rows or [])]
+    if len(closes) < n + sb + 1:
+        return {"state": "unknown", "bars": len(closes), "ema_n": n, "slope_bars": sb}
+    e = ema_series(closes, n)
+    c, now, before = closes[-1], e[-1], e[-1 - sb]
+    slope = (now - before) / before if before else 0.0
+    state = "down" if (c < now and slope < 0) else "up" if (c > now and slope > 0) else "flat"
+    return {"state": state, "close": _px(c), "ema": _px(now), "ema_change_pct": round(slope * 100, 3),
+            "ema_n": n, "slope_bars": sb}
+
+
+def trend_gate(btc):
+    """(막힌 방향 집합, 정보). 4h·1d 중 하나라도 down 이면 롱, up 이면 숏을 막는다. unknown 이 있으면 둘 다 막는다."""
+    t4, td = trend_of(btc.get("4h") or [], "4h"), trend_of(btc.get("1d") or [], "1d")
+    states = (t4["state"], td["state"])
+    if "unknown" in states:
+        return {"long", "short"}, {"4h": t4, "1d": td}
+    blocked = set()
+    if "down" in states:
+        blocked.add("long")
+    if "up" in states:
+        blocked.add("short")
+    return blocked, {"4h": t4, "1d": td}
+
+
+def load_plan(path=None):
+    """매매 계획 파일(PLAN_FILE). 없거나 읽을 수 없으면 None — 그때 게이트가 양방향을 막는다."""
+    try:
+        return json.load(open(path or PLAN_FILE, encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def _num_or_none(v):
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) and f > 0 else None
+
+
+def plan_gate(plan, btc, now_ms):
+    """
+    (막힌 방향 집합, 정보). 계획이 없거나 valid_until 이 지났으면 양방향을 막는다. 방향별로 enabled 이고 트리거
+    (close_above / close_below, 시간대 tf 의 마지막 닫힌 봉 종가)가 지금 충족될 때만 그 방향이 열린다(armed).
+    """
+    info = {"status": None, "as_of": None, "valid_until": None, "context": None, "long": None, "short": None}
+    if not isinstance(plan, dict):
+        info["status"] = "missing"
+        return {"long", "short"}, info
+    info.update(as_of=plan.get("as_of"), valid_until=plan.get("valid_until"),
+                context=_short(plan.get("context") or "", 900))
+    vu = _iso_ms(plan.get("valid_until"))
+    if vu is None or now_ms >= vu:
+        info["status"] = "expired" if vu is not None else "no_valid_until"
+        return {"long", "short"}, info
+    info["status"] = "active"
+    blocked = set()
+    for d in ("long", "short"):
+        p = plan.get(d) if isinstance(plan.get(d), dict) else {}
+        trig = p.get("trigger") if isinstance(p.get("trigger"), dict) else {}
+        tf, typ, px = trig.get("tf") or "1h", trig.get("type"), _num_or_none(trig.get("px"))
+        rows = btc.get(tf) if tf in BTC_TFS else None
+        last = float(rows[-1]["c"]) if rows else None
+        armed = bool(p.get("enabled")) and typ in PLAN_TRIGGERS and px is not None and last is not None and (
+            (typ == "close_above" and last > px) or (typ == "close_below" and last < px))
+        info[d] = {"enabled": bool(p.get("enabled")), "trigger": {"tf": tf, "type": typ, "px": px},
+                   "last_close": _px(last) if last is not None else None, "armed": armed,
+                   "invalidation_px": _num_or_none(p.get("invalidation_px")),
+                   "targets": [t for t in (p.get("targets") or []) if _num_or_none(t)][:5],
+                   "note": _short(p.get("note") or "", 300)}
+        if not armed:
+            blocked.add(d)
+    return blocked, info
+
+
+def gate_notes(trend_blk, trend_info, plan_blk, plan_info):
+    """막힌 방향마다 이유 한 줄(영문 — 모델 입력·기록용)."""
+    notes = []
+    for d in ("long", "short"):
+        if d in trend_blk:
+            notes.append(f"open_{d} unavailable (v6 trend rule): 4h is {trend_info['4h']['state']} and 1d is "
+                         f"{trend_info['1d']['state']}; no {d} against the higher-degree trend.")
+        if d in plan_blk:
+            st = plan_info.get("status")
+            if st != "active":
+                why = {"missing": "no trade plan file", "expired": f"trade plan expired at {plan_info.get('valid_until')}",
+                       "no_valid_until": "trade plan has no valid_until"}.get(st, st)
+            else:
+                pd = plan_info.get(d) or {}
+                tr = pd.get("trigger") or {}
+                why = ("disabled in the trade plan" if not pd.get("enabled") else
+                       f"trade plan trigger not met (needs a {tr.get('tf')} {tr.get('type')} {tr.get('px')}, "
+                       f"last close {pd.get('last_close')})")
+            notes.append(f"open_{d} unavailable (v6 plan rule): {why}.")
+    return notes
+
+
 def position_state(pos, last):
     """보유 포지션 상태(마크 = 마지막 닫힌 1h 봉 종가). 없으면 None."""
     if not pos:
@@ -541,7 +696,7 @@ def allowed_actions(pos, cfg, blocked_dirs, can_enter):
 
 
 def build_payload(now_ms, btc, eth, count, pos_state, pot, margin_next, lev, allowed, notes, spec,
-                  trades_recent, decisions_recent, ref=None, ref_tf=None):
+                  trades_recent, decisions_recent, ref=None, ref_tf=None, trend=None, plan=None):
     """
     모델 입력(JSON). btc/eth = {tf: 닫힌 봉 목록}. 전부 now_ms 이전에 닫힌 봉에서 나온다.
     ref/ref_tf 는 15분 진입 판단 시험 중에만 준다 — last_close·last_bar_utc 를 그 봉에서 잡고 ref_tf 를 적는다.
@@ -557,10 +712,15 @@ def build_payload(now_ms, btc, eth, count, pos_state, pot, margin_next, lev, all
                     "stop_range_pct": [float(spec.get("min_stop_pct", xb.SIGNAL_MIN_STOP)) * 100,
                                        float(spec.get("max_stop_pct", xb.SIGNAL_MAX_STOP)) * 100],
                     "min_target_pct": float(spec.get("min_target_pct", xb.SIGNAL_MIN_TARGET)) * 100,
-                    "max_hold_1h_bars": spec.get("horizon_bars")},
+                    "max_hold_1h_bars": spec.get("horizon_bars"),
+                    "entry_rules_v6": {"setup_tf": list(ENTRY_SETUP_TFS), "min_confidence": MIN_CONF_ENTRY,
+                                       "min_stop_pct": MIN_STOP_PCT * 100, "min_reward_risk": MIN_RR,
+                                       "cost_pct": RR_COST * 100}},
         "position": pos_state,
         "recent_trades": trades_recent,
         "recent_decisions": decisions_recent,
+        "trend": trend,
+        "plan": plan,
         "elliott_count": count_summary(count),
         "btc": {"last_close": _px(b1[-1]["c"]) if b1 else None,
                 "last_bar_utc": _t(b1[-1]["ts"]) if b1 else None,
@@ -695,10 +855,12 @@ def call(user_text, system=None):
 
 
 # ── 검증 — 코드가 실행할 계획 ──────────────────────────────────────────────────
-def validate(parsed, pos, allowed, price, spec):
+def validate(parsed, pos, allowed, price, spec, plan_info=None):
     """
     AI 응답 → (action, plan | None, why). 규칙 밖이면 아무것도 하지 않는 쪽(wait / hold)으로 떨어진다.
       plan = dict(direction, stop, target, stop_pct, target_pct) — open_long / open_short 일 때만.
+    v6 진입 조건(코드 강제): setup_tf 1h 이상 · confidence 0.6 이상 · 손절 1~8% · 비용 차감 손익비 1.5 이상 ·
+    계획 파일 무효화 가격보다 안쪽 손절 금지(plan_info 가 있을 때).
     """
     idle = "hold" if pos else "wait"
     if not parsed:
@@ -709,16 +871,31 @@ def validate(parsed, pos, allowed, price, spec):
     if a in ("wait", "hold", "close"):
         return a, None, None
     d = "long" if a == "open_long" else "short"
-    bar = xb.signal_barriers(spec, {"stop": parsed["stop"], "target": parsed["target"]}, price, d)
+    if parsed.get("setup_tf") not in ENTRY_SETUP_TFS:
+        return "wait", None, "setup_tf_below_1h"
+    if float(parsed.get("confidence") or 0) < MIN_CONF_ENTRY:
+        return "wait", None, "low_confidence"
+    spec6 = dict(spec or {})
+    spec6["min_stop_pct"] = max(float(spec6.get("min_stop_pct", xb.SIGNAL_MIN_STOP)), MIN_STOP_PCT)
+    bar = xb.signal_barriers(spec6, {"stop": parsed["stop"], "target": parsed["target"]}, price, d)
     if bar is None:
+        loose = xb.signal_barriers(dict(spec6, min_stop_pct=0.0), {"stop": parsed["stop"], "target": parsed["target"]},
+                                   price, d)
+        if loose is not None and loose[2]["stop_pct"] < MIN_STOP_PCT:
+            return "wait", None, "stop_below_1pct"
         return "wait", None, "bad_barriers"
     stop, tgt, info = bar
+    if info["target_pct"] - RR_COST < MIN_RR * info["stop_pct"]:
+        return "wait", None, "rr_below_1_5"
+    inv = ((plan_info or {}).get(d) or {}).get("invalidation_px")
+    if inv and ((d == "long" and stop > inv) or (d == "short" and stop < inv)):
+        return "wait", None, "stop_inside_plan_invalidation"
     return a, dict(direction=d, stop=stop, target=tgt, **info), None
 
 
 # ── 한 틱 ─────────────────────────────────────────────────────────────────────
 def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_enter, spec,
-         now_ms=None, cfg=None, count=None, history=None, entered=None, tick_kind=None):
+         now_ms=None, cfg=None, count=None, history=None, entered=None, tick_kind=None, plan=None):
     """
     결정 1회. 반환 (rec, signal | None, close_pos | None).
       rec       — ai_judgments 기록 행. code_action 은 체결 엔진이 채운다(실제로 한 일).
@@ -728,6 +905,7 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
     entered   — 이 프로젝트가 이미 낸 진입의 {(방향, 진입봉 시각)}. 신호 1h 봉에 같은 방향 진입이 있으면 그 방향을 막는다
                 (체결 엔진 중복 방어가 어차피 막는다 — 모델에게 미리 알려 헛판단을 줄인다).
     tick_kind — 기록용("hourly" 매시 :03 / "quarter" 15분 진입 판단 틱).
+    plan      — 매매 계획(dict). None 이면 PLAN_FILE 을 읽는다(v6 게이트 ④).
     """
     now_ms = now_ms or int(time.time() * 1000)
     cfg = cfg if cfg is not None else (config() or {})
@@ -783,7 +961,12 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
     dup = set()
     if not position and sbar is not None:
         dup = {d for d in ("long", "short") if (d, int(sbar["ts"])) in (entered or set())}
-    allowed = allowed_actions(position, cfg, blocked0 | dup, can_enter and margin_next is not None)
+    # v6 게이트 — ① 추세 · ④ 계획. 평탄일 때만 진입 방향을 막는다(보유 중엔 진입 행동이 없다).
+    trend_blk, trend_info = trend_gate(btc)
+    plan = plan if plan is not None else load_plan()
+    plan_blk, plan_info = plan_gate(plan, btc, now_ms)
+    gate_blk = (trend_blk | plan_blk) if not position else set()
+    allowed = allowed_actions(position, cfg, blocked0 | dup | gate_blk, can_enter and margin_next is not None)
     notes = []
     # 방향 안내는 평탄일 때만 — 보유 중엔 진입 행동이 없고, 거래소 실측에 AI 자신의 포지션이 들어 있어 '다른 전략'
     # 이라는 말이 거짓이 된다(2026-10-29 실측: 자기 롱 보유 중 'open_short blocked: another strategy …').
@@ -801,11 +984,23 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
         notes.append("pot below $10 — entries disabled")
     if not position and not can_enter:
         notes.append("account kill switch or trading halt is on — entries disabled")
+    if not position:
+        notes.extend(gate_notes(trend_blk, trend_info, plan_blk, plan_info))
+    v6feat = {"trend": trend_info, "plan": plan_info, "gate_blocked": sorted(gate_blk)}
+    if not position and gate_blk >= {"long", "short"}:
+        # 두 방향 모두 v6 게이트에 막혔다 — 판단을 부르지 않는다(가능한 행동이 대기뿐이라 비용만 든다)
+        rec.update(decision="wait", code_action="gated",
+                   reasons=json.dumps(notes, ensure_ascii=False),
+                   features=json.dumps({"allowed": allowed, "notes": notes, "price": price, "pot": pot,
+                                        "margin_next": margin_next, "v6": v6feat, "tick": tick_kind,
+                                        "model_requested": MODEL}, ensure_ascii=False, sort_keys=True))
+        return rec, None, None
     count = count if count is not None else load_count()
     history = history if history is not None else recent_decisions()
     payload = build_payload(now_ms, btc, eth, count, pstate, pot, margin_next, lev, allowed, notes, spec,
                             recent_trades(trades), history,
-                            ref=(ref if q15 else None), ref_tf=(ref_tf if q15 else None))
+                            ref=(ref if q15 else None), ref_tf=(ref_tf if q15 else None),
+                            trend=trend_info, plan=plan_info)
     text = prompt_text(payload)
     system = SYSTEM_Q15 if q15 else SYSTEM
     rec["prompt_hash"] = hashlib.sha256((system + "\n" + text).encode("utf-8")).hexdigest()[:16]
@@ -813,7 +1008,7 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
     rec.update(latency_ms=ms, tokens_in=usage.get("in"), tokens_out=usage.get("out"), error=err)
     if served:
         rec["model"] = served
-    action, plan, why = validate(parsed, position, allowed, price, spec)
+    action, plan, why = validate(parsed, position, allowed, price, spec, plan_info)
     rec["decision"] = action
     if parsed:
         rec["confidence"] = parsed["confidence"]
@@ -829,7 +1024,7 @@ def tick(*, position, trades, rows_of, cap, pot, margin_next, blocked_dirs, can_
             "rsi14": {tf: payload["btc"][tf].get("rsi14") for tf in BTC_TFS},
             "pivots_15m": payload["btc"]["15m"]["pivots"][-10:],
             "pivots_1h": payload["btc"]["1h"]["pivots"][-10:], "pivots_4h": payload["btc"]["4h"]["pivots"][-8:],
-            "raw": raw, "tick": tick_kind}
+            "raw": raw, "tick": tick_kind, "v6": v6feat}
     if q15:
         feat.update(q15=True, ref_tf=ref_tf, ref_ts=ref["ts"], signal_bar_ts=sbar["ts"] if sbar else None,
                     dup_dirs=sorted(dup))
@@ -853,6 +1048,12 @@ def summary_line(rec):
         return "[ai-elliott] -"
     if rec.get("error") and not rec.get("reasons"):
         return f"[ai-elliott] 판단 실패({rec['error']}) — 아무것도 안 함 | {rec.get('model')}"
+    if rec.get("code_action") == "gated":
+        try:
+            ns = json.loads(rec.get("reasons") or "[]")
+        except Exception:
+            ns = []
+        return "[ai-elliott] 대기 — v6 게이트로 진입 가능한 방향 없음(판단 호출 안 함): " + " / ".join(ns)
     try:
         f = json.loads(rec.get("features") or "{}")
     except Exception:
