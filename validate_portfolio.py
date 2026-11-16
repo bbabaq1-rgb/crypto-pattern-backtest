@@ -163,7 +163,7 @@ def collect_4h(rows_by, ranked, regmap, outcome_fn=None):
     return out
 
 
-def simulate(trades, arm, cap=None, size_mult=None, path=None):
+def simulate(trades, arm, cap=None, size_mult=None, path=None, taken_out=None):
     """
     시간순 포트폴리오 시뮬 — sizing_study/sizing_vol 과 같은 회계.
     arm 이 바꾸는 것은 **슬롯 배분뿐**: 진입 우선순위와 패턴별 상한. 사이징은 실거래 고정.
@@ -176,6 +176,9 @@ def simulate(trades, arm, cap=None, size_mult=None, path=None):
     path (2026-10-26, validate_bull_btc 용): 리스트를 주면 같은 시각 청산 처리 직후의 (t, equity) 를
     append 한다 — 레짐 구간별 수익을 자산곡선에서 잘라 보기 위한 읽기 전용 기록. **None 이면 종전
     동작과 완전히 같다**(test_bull_btc 가 고정).
+
+    taken_out (2026-11-16, validate_minorder_equity 용): 리스트를 주면 체결된 거래 인덱스를 append 하는
+    읽기 전용 기록. **None 이면 종전 동작과 완전히 같다**(test_minorder_equity 가 고정).
     """
     evs = []
     for i, t in enumerate(trades):
@@ -256,6 +259,8 @@ def simulate(trades, arm, cap=None, size_mult=None, path=None):
                 continue
             free -= r["margin_usd"]
             open_pos[idx] = (r["margin_usd"], r["notional"])
+            if taken_out is not None:
+                taken_out.append(idx)
             lev_sum += r["notional"] / equity          # J6 노출 정합 — 진입 시점 레버리지
             taken += 1
     span = max(1.0, evs[-1][0] - evs[0][0]) if evs else 1.0
