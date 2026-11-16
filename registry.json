@@ -7050,7 +7050,7 @@
   "not_a_resume_recommendation": "재개는 사용자 결정(trading_halt.by=user)."
  },
  "minorder_equity_prereg_2026_11_16": {
-  "status": "registered",
+  "status": "done",
   "date": "2026-11-16",
   "backlog": "R-109",
   "DEPLOY_ON_PASS": false,
@@ -7064,6 +7064,7 @@
   "files": [
    "validate_minorder_equity.py",
    "test_minorder_equity.py"
-  ]
+  ],
+  "result": "NO_EFFECT (run 43911499371): 주 판정 eq=240 대 1000 holdout Calmar -0.62 vs -0.78(차 +0.15, 부트 P(d<=0)=.29 P(d>=0)=.71 — CI 안), train 차 -0.03 로 부호 반대. eq=160 차 +0.31(P .34/.66), eq=355 차 +0.12. holdout 체결 1250(1000) -> 503/606/772(160/240/355), 체결평균 -0.6% -> -0.2/-0.5/-0.7%. 낮은 equity 는 증거금 스킵으로 거래가 반 이하로 줄고 MDD 가 얕아지나(-93% -> -70/-73/-82%) 유의하지 않다. 사전 NO_EFFECT 0.55(최빈) 적중, HELPS 0.25·HURTS 0.15 오답 아님(발생 안 함). 킬스위치 미반영 한계 그대로 -> R-118."
  }
 }
