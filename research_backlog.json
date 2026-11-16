@@ -1597,10 +1597,10 @@
    "owner": "agent",
    "added_by": "claude",
    "added_on": "2026-11-11",
-   "started_at": null,
-   "session": null,
+   "started_at": "2026-11-16T16:45:23Z",
+   "session": "routine_2026-11-16T16:39",
    "result": null,
-   "status": "ready"
+   "status": "in_progress"
   },
   {
    "id": "R-110",
