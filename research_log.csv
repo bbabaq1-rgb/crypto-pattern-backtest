@@ -376,3 +376,4 @@
 2026-11-14T17:00:00+00:00,ledger_recent_R105,최근 실거래 vs 이전 분포,"{""run"": 43616805805, ""n_post"": 9, ""live_change"": ""none""}",9,,,,INCONCLUSIVE,
 2026-11-15T17:00:00+00:00,halt_shadow_R114,정지 기간 그림자 재생,"{""run"": 43736841117, ""n_post"": 16, ""mu_post"": -8.2, ""live_change"": ""none""}",16,,,,INCONCLUSIVE,
 2026-11-16T17:10:00+00:00,minorder_equity_R109,최소주문 스킵 equity 경로 포트폴리오,"{""run"": 43911499371, ""calmar_diff_ho_240"": 0.154, ""p_ge0"": 0.707, ""live_change"": ""none""}",1250,,,,NO_EFFECT,
+2026-11-17T17:00:00+00:00,killswitch_R118,재개 equity 별 킬스위치 도달 확률,"{""run"": 44128637975, ""p_reach"": {""160"": 0.482, ""240"": 0.232, ""355"": 0.126, ""500"": 0.066}, ""live_change"": ""none""}",500,,,,NO_SAFE_LEVEL,
