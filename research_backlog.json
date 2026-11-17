@@ -21,7 +21,7 @@
   "deploy_on_pass": "true 면 사전 등록 기준 전부 통과 시 자율 반영 규칙(2026-09-05) 적용 대상",
   "lock": "in_progress + started_at + session — 36시간 지나면 다른 세션이 이어받을 수 있다"
  },
- "updated": "2026-11-04",
+ "updated": "2026-11-17",
  "procedure": "RESEARCH_LOOP.md",
  "items": [
   {
@@ -1782,8 +1782,8 @@
    "added_on": "2026-11-16",
    "started_at": "2026-11-17T16:39:04Z",
    "session": "routine_2026-11-17T1639",
-   "result": null,
-   "status": "in_progress",
+   "result": "NO_SAFE_LEVEL (run 44128637975): 전체 풀 1년 7일창 T7 부트 500회, P(킬스위치 도달) eq160 48.2% / 240 23.2% / 355 12.6% / 500 6.6% — 단조 감소이나 사다리 안에 5% 미만 없음. holdout(bear 지배) 풀 75.8/56.6/36.2/24.6%. 파산 0%. 도달일 중앙 125/184/239/260일. 사전 NO_SAFE_LEVEL 0.45(최빈) 적중, THRESHOLD 0.25·INSENSITIVE 0.30 빗나감(둔감 가설은 반증: equity 에 민감). 닫힌 거래 기준이라 도달 확률은 하한.",
+   "status": "done",
    "id": "R-118",
    "priority": 2,
    "prior": 0.2,
@@ -1814,6 +1814,48 @@
    "source": "R-107/R-108/R-110: equity $240 이하에서 고변동 신호가 최소주문으로 스킵 — 올림 허용 시 위험 예산(RISK_FRAC)을 초과해 체결",
    "hypothesis": "스킵되는 신호를 증거금 $10 로 올려 체결하면(건당 위험이 목표보다 커짐) 같은 equity 에서 holdout Calmar 가 스킵 arm 보다 낮다 — 즉 스킵이 위험 규율로 옳다.",
    "notes": "위험 수준 변경이라 사용자 결정 영역 — 시험·보고까지. R-109 의 vp.simulate taken_out/START_EQ 프레임 재사용, sizing.risk_based_size 최소주문 분기만 arm 으로 교체. 반증: 올림 arm 이 Calmar 같거나 높으면 스킵은 규율이 아니라 기회 손실."
+  },
+  {
+   "kind": "prereg_test",
+   "prerequisites": [],
+   "blocked_until": null,
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-17",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "status": "ready",
+   "deploy_on_pass": false,
+   "id": "R-120",
+   "priority": 2,
+   "prior": 0.3,
+   "est_cost_h": 3,
+   "title": "재개 위험 수준 x equity — 킬스위치 5% 미만을 만족하는 (RISK_FRAC, equity) 조합",
+   "source": "R-118: risk 1.5% 에서 equity 500 도 도달 6.6% — 사다리 안에 안전 equity 없음",
+   "hypothesis": "RISK_FRAC {0.5,1.0,1.5}% x equity {240,355,500,750} 에서 R-118 프레임(T7 52창 부트)으로 재면 킬스위치 도달 5% 미만 조합이 존재하고, 그 최소 equity 는 risk 에 거의 비례해 내려간다(risk 0.5% 면 355 이하).",
+   "notes": "위험 수준은 사용자 결정 — 시험·보고까지. validate_killswitch 재사용(vg.simulate risk= 인자). 반증: 0.5% 에서도 equity 500 이 5% 초과면 위험 축소로 해결 안 됨 -> 재개는 충전 규모 문제."
+  },
+  {
+   "kind": "prereg_test",
+   "prerequisites": [],
+   "blocked_until": null,
+   "owner": "agent",
+   "added_by": "claude",
+   "added_on": "2026-11-17",
+   "started_at": null,
+   "session": null,
+   "result": null,
+   "status": "ready",
+   "deploy_on_pass": false,
+   "id": "R-121",
+   "priority": 3,
+   "prior": 0.25,
+   "est_cost_h": 5,
+   "title": "킬스위치 미실현 손익 반영 — 봉 저가 기준 mark-to-market 도달 확률 상향 보정",
+   "source": "R-118 known_limits: 닫힌 거래 기준 자산곡선이라 실제(실시간 equity) 킬스위치보다 늦게 걸림",
+   "hypothesis": "열린 포지션의 봉 저가 기준 미실현 손익을 equity 에 넣으면 R-118 의 도달 확률이 equity 별로 상대 20% 이상 올라간다(하한이 느슨했다).",
+   "notes": "거래 레코드에 경로 최저 수익(mae) 필요 — validate_portfolio 거래 수집이 mae 를 갖는지 먼저 확인, 없으면 collect 확장. 반증: 상승폭 상대 10% 미만이면 R-118 수치 그대로 써도 된다."
   }
  ]
 }
