@@ -7086,7 +7086,7 @@
   "result": "NO_SAFE_LEVEL (run 44128637975): 전체 풀 1년 7일창 T7 부트 500회, P(킬스위치 도달) eq160 48.2% / 240 23.2% / 355 12.6% / 500 6.6% — 단조 감소이나 사다리 안에 5% 미만 없음. holdout(bear 지배) 풀 75.8/56.6/36.2/24.6%. 파산 0%. 도달일 중앙 125/184/239/260일. 사전 NO_SAFE_LEVEL 0.45(최빈) 적중, THRESHOLD 0.25·INSENSITIVE 0.30 빗나감(둔감 가설은 반증: equity 에 민감). 닫힌 거래 기준이라 도달 확률은 하한."
  },
  "risk_equity_prereg_2026_11_18": {
-  "status": "preregistered",
+  "status": "done",
   "date": "2026-11-18",
   "backlog": "R-120",
   "DEPLOY_ON_PASS": false,
@@ -7101,6 +7101,7 @@
    "validate_risk_equity.py",
    "test_risk_equity.py",
    "risk_equity.yml"
-  ]
+  ],
+  "result": "RISK_SCALES (run 44349788011): P(킬스위치 도달) risk0.5%·1.0% 는 equity 240~750 전부 0.0%, risk1.5% 는 21.4/10.6/6.6/3.4%(eq240/355/500/750, 최소 안전 750). holdout 풀: 0.5·1.0% 0.0%, 1.5% 57.2/40.6/28.0/15.2%. 사전 RISK_SCALES 0.30 적중(최빈 SAFE_BUT_LARGE 0.40 빗나감). 닫힌 거래 기준 하한·도달 0% 는 '1% 이하에선 $100 하한이 닿지 않는다'이지 손실이 작다는 뜻 아님(MDD는 별도). 실거래 무변경."
  }
 }
