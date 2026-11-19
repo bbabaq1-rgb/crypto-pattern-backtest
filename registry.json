@@ -7103,5 +7103,23 @@
    "risk_equity.yml"
   ],
   "result": "RISK_SCALES (run 44349788011): P(킬스위치 도달) risk0.5%·1.0% 는 equity 240~750 전부 0.0%, risk1.5% 는 21.4/10.6/6.6/3.4%(eq240/355/500/750, 최소 안전 750). holdout 풀: 0.5·1.0% 0.0%, 1.5% 57.2/40.6/28.0/15.2%. 사전 RISK_SCALES 0.30 적중(최빈 SAFE_BUT_LARGE 0.40 빗나감). 닫힌 거래 기준 하한·도달 0% 는 '1% 이하에선 $100 하한이 닿지 않는다'이지 손실이 작다는 뜻 아님(MDD는 별도). 실거래 무변경."
+ },
+ "risk_cost_prereg_2026_11_19": {
+  "status": "registered",
+  "date": "2026-11-19",
+  "backlog": "R-122",
+  "DEPLOY_ON_PASS": false,
+  "hypothesis": "R-120 프레임(T7 창 52개 1년 부트 500회, 시드 122, 킬스위치 $100, 같은 재표집을 12셀에 적용)에서 risk 1.0% 의 성장배수 수익분((중앙 최종 equity/시작 equity)-1)이 risk 1.5% 의 70% 이상을 eq 355/500/750 전부에서 유지하고, risk 1.0% eq 240 의 스킵 비율 중앙이 20% 미만이다.",
+  "frame": "validate_risk_equity 의 풀·창·경로·floor 그대로(vg.simulate risk=). 측정만 바꿔 도달 확률 대신 최종 equity 중앙·성장배수·MDD 중앙(실현, vg.simulate mdd)·체결 수·스킵 비율·손실 확률을 12셀 모두 기록. 스킵 비율은 슬롯·증거금·최소주문 스킵 합산이라 최소주문 스킵의 상한 추정.",
+  "criteria": "COST_SMALL = eq 355/500/750 전부 수익분 비율>=0.70 AND (1.0%, eq240) 스킵 중앙<0.20 / COST_LARGE = 355/500/750 중 2개 이상이 비율<0.70 / INCONCLUSIVE = 어느 eq 에서 1.5% 성장배수<=1 이라 비율 정의 불가 / MIXED = 그 외. 수익분 비율=(g1.0-1)/(g1.5-1) (원 가설의 '최종 equity 중앙 비율'을 시작 equity 를 뺀 수익분으로 사전 정의 — 결과 전). 진단(판정 아님): holdout 풀 단독, 0.5% 행, MDD·손실확률.",
+  "prior": "COST_SMALL 0.30 / COST_LARGE 0.15 / MIXED 0.45 / INCONCLUSIVE 0.10. 근거: R-084 부트상 CAGR 1.0%~+49% vs 1.5%~+69% 로 수익분 비율 약 0.7 근처(문턱 경계), 1.0% 최소주문 문턱 equity $533 이라 eq240 스킵이 20% 를 넘길 가능성이 커 MIXED 최빈. 크기는 예측하지 않는다.",
+  "known_limits": "R-118·R-120 과 동일(닫힌 거래 기준, 정적 top30, bear 지배 풀, 7일 창 부트는 연간 군집만 보존 — R-084 에서 부트가 실현 경로보다 낙관임을 확인). MDD 는 청산 시점 실현 기준(vg.simulate)이라 미실현 낙폭 미반영. 스킵 비율에서 최소주문 스킵을 분리하지 않는다.",
+  "decision_note": "위험 수준·충전은 사용자 결정 — 보고까지. 실거래 무변경(trading_halt by user 유지).",
+  "workflow": "risk_cost.yml",
+  "files": [
+   "validate_risk_cost.py",
+   "test_risk_cost.py",
+   "risk_cost.yml"
+  ]
  }
 }

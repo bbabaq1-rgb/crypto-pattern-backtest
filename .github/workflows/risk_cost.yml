@@ -1,0 +1,26 @@
+name: R-122 risk cost (MDD·수익) (research)
+# 계산 전용 — 매매/DB 접근 없음. registry risk_cost_prereg_2026_11_19
+on:
+  workflow_dispatch:
+  push:
+    branches: ["research/R-122"]
+    paths: ["validate_risk_cost.py", "validate_killswitch.py", "validate_risk_equity.py", "validate_gap.py", "validate_portfolio.py", ".github/workflows/risk_cost.yml"]
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.11'}
+      - run: pip install -r requirements.txt
+      - run: mkdir -p data
+      - run: python test_killswitch.py
+      - run: python test_risk_equity.py
+      - run: python test_risk_cost.py
+      - run: python test_portfolio.py
+      - run: python test_gap.py
+      - run: python validate_risk_cost.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: risk_cost, path: _risk_cost.json, if-no-files-found: ignore}
