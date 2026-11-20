@@ -25,7 +25,20 @@ FACTOR = {"G1": "a_vol_weight", "G2": "c_slot_margin", "G3": "c_slot_margin",
 INF = 10 ** 9
 
 
-def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=None, path=None, open_at=None, floor=None):
+def size_skip_cause(equity, free, vol_scale, open_pos, risk, no_caps):
+    """risk_based_size 가 None 일 때 원인(R-124, 사전 규칙): 총 노출 상한·가용 증거금을 풀어도 None 이면
+    'minorder'(증거금 < 최소주문), 가용 증거금만 풀어 되면 'total_cap'(노출 상한 여유 부족), 아니면 'free'."""
+    kw = {} if risk is None else dict(risk_frac=risk)
+    open_n = sum(n for _, n in open_pos.values())
+    if sz.risk_based_size(equity, 1e18, vp.STOP, vol_scale=vol_scale, open_notional=open_n,
+                          max_total_frac=1e9, **kw) is None:
+        return "minorder"
+    if sz.risk_based_size(equity, 1e18, vp.STOP, vol_scale=vol_scale, open_notional=open_n, **kw) is None:
+        return "total_cap"
+    return "free"
+
+
+def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=None, path=None, open_at=None, floor=None, skips=None):
     """vp.simulate(arm=current) 와 같은 회계 + 설정 해제 노브. 기본 인자면 vp.simulate 와 동일(test 고정).
     rng 를 주면 같은 시각 진입 후보의 우선순위를 무작위로(G8)."""
     max_pos = vp.MAX_POS if max_pos is None else max_pos
@@ -64,6 +77,8 @@ def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=
             continue
         if floor is not None and equity < floor:
             skipped += len(batch)     # 킬스위치(R-118): equity<floor 면 신규 진입 중지. None=종전 동일
+            if skips is not None:
+                skips["kill"] = skips.get("kill", 0) + len(batch)
             continue
         if rng is not None:
             rng.shuffle(batch)
@@ -75,6 +90,8 @@ def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=
             tr = trades[idx]
             if len(open_pos) >= max_pos:
                 skipped += 1
+                if skips is not None:
+                    skips["slot"] = skips.get("slot", 0) + 1
                 continue
             s = 1.0 if flat else vp._live_scale(tr["vol"])
             kw = {}
@@ -86,6 +103,9 @@ def simulate(trades, *, max_pos=None, flat=False, no_caps=False, risk=None, rng=
                                    open_notional=sum(n for _, n in open_pos.values()), **kw)
             if r is None:
                 skipped += 1
+                if skips is not None:     # R-124: 스킵 원인 분리(읽기 전용 — 판정에 쓰이는 동작은 불변)
+                    k = size_skip_cause(equity, free, s, open_pos, risk, no_caps)
+                    skips[k] = skips.get(k, 0) + 1
                 continue
             if open_at is not None:
                 open_at[idx] = len(open_pos)
