@@ -7122,5 +7122,25 @@
    "risk_cost.yml"
   ],
   "result": "MIXED (run 44568881977): 전체 풀 성장배수 중앙(eq355/500/750) risk 0.5% 1.35/1.36/1.35x MDD -25~-31% · 1.0% 1.41/1.46/1.38x MDD -53~-55% · 1.5% 1.19/1.14/1.11x MDD -65~-68%. 수익분 비율 1.0%/1.5% = 2.1/3.2/3.4 (>=0.70 통과 — 1.0% 가 1.5% 보다 낫다), 그러나 (1.0%,eq240) 스킵 중앙 77.7% >= 20% 로 COST_SMALL 탈락. 0.5%/eq240 은 체결 0. holdout(bear) 전부 손실: 성장 0.5% 0.87~0.91 / 1.0% 0.56~0.58 / 1.5% 0.35~0.42. 사전 MIXED 0.45 최빈 적중, 스킵 기준은 슬롯 스킵이 섞여 설계 약점. 실거래 무변경."
+ },
+ "minorder_split_prereg_2026_11_20": {
+  "status": "done",
+  "date": "2026-11-20",
+  "backlog": "R-124",
+  "DEPLOY_ON_PASS": false,
+  "hypothesis": "R-122 프레임(T7 창 52개 1년 부트 500회, 시드 124, 킬스위치 $100)에서 스킵 원인을 분리하면 risk 1.0% 의 최소주문 스킵 비율(중앙)이 eq240 에서 20% 이상, eq355 에서 10% 미만이다.",
+  "frame": "validate_gap.simulate(skips=) 읽기 전용 훅(None=종전과 동일, test 고정)으로 킬스위치·슬롯·최소주문·노출상한·가용증거금 스킵을 분리. 원인 규칙(결과 전 고정): risk_based_size None 일 때 총노출 상한·가용증거금을 풀어도 None 이면 minorder, 가용증거금만 풀어 되면 total_cap, 아니면 free. 주 지표 = minorder/(체결+minorder+total_cap+free) (킬스위치·슬롯 제외 사이징 도달 신호 기준). 진단: 전체 신호 분모 비율, risk 1.5%, eq500/750, holdout 풀.",
+  "criteria": "CONFIRMED = eq240 비율>=0.20 AND eq355 비율<0.10 / MINORDER_NOT_BINDING = eq240 비율<0.20 / THRESHOLD_HIGHER = eq240>=0.20 이나 eq355>=0.10.",
+  "prior": "CONFIRMED 0.15 / MINORDER_NOT_BINDING 0.10 / THRESHOLD_HIGHER 0.75. 근거: risk 1.0% 문턱 equity $533(R-110 배율 1.0 기준 $240) — risk 1.0% 의 eq355 는 risk 1.5% 의 eq237 과 같은 증거금 척도이고 R-107/R-108 에서 그 척도 통과 비율이 약 72~73% 라 스킵 약 27% 로 10% 를 넘길 것. eq240(≈1.5% 의 $160)은 통과 35~44% 라 스킵 50% 이상 예상. 크기는 약속하지 않는다.",
+  "known_limits": "R-118~R-122 와 동일(닫힌 거래 기준, 정적 top30, bear 지배 풀, 7일 창 부트는 연간 군집만 보존). 비율은 시뮬 equity 경로 위에서 측정돼 equity 가 줄면 스킵이 늘어나는 경로 의존을 포함. 슬롯 스킵을 분모에서 뺀 주 지표는 슬롯 경합이 먼저 걸러낸 신호의 최소주문 여부를 모른다.",
+  "decision_note": "위험 수준·충전은 사용자 결정 — 보고까지. 실거래 무변경(trading_halt by user 유지).",
+  "workflow": "minorder_split.yml",
+  "files": [
+   "validate_minorder_split.py",
+   "test_minorder_split.py",
+   "minorder_split.yml"
+  ],
+  "smoke_disclosure": "로컬은 합성 거래 테스트만 돌렸고 실데이터 주 판정 수치는 보지 않았다.",
+  "result": "THRESHOLD_HIGHER (run 44776008771): risk 1.0% 최소주문/사이징도달 eq240 55.6% / eq355 29.7% / eq500 11.9% / eq750 0.6%; risk 1.5% 29.1/12.4/3.5/0.0%. 전체 신호 분모 1.0% 37.2/13.7/4.4/0.2%. 슬롯 스킵이 별도로 713(eq240)→1372(eq750). holdout 1.0% 70.9/52.6/31.6/10.7%. 사전 THRESHOLD_HIGHER 0.75 최빈 적중. 실거래 무변경."
  }
 }
