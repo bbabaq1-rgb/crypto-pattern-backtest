@@ -7144,7 +7144,7 @@
   "result": "THRESHOLD_HIGHER (run 44776008771): risk 1.0% 최소주문/사이징도달 eq240 55.6% / eq355 29.7% / eq500 11.9% / eq750 0.6%; risk 1.5% 29.1/12.4/3.5/0.0%. 전체 신호 분모 1.0% 37.2/13.7/4.4/0.2%. 슬롯 스킵이 별도로 713(eq240)→1372(eq750). holdout 1.0% 70.9/52.6/31.6/10.7%. 사전 THRESHOLD_HIGHER 0.75 최빈 적중. 실거래 무변경."
  },
  "turtle_soup_prereg_2026_11_21": {
-  "status": "preregistered",
+  "status": "REJECTED",
   "asked": "자율 연구 사이클 R-009 (report_trader_rules §9 ③ — Turtle Soup 4h 롱, 사전 확률 17%)",
   "hypothesis": "20봉 최저가(4봉 이상 전 형성)를 같은 봉 저가로 이탈하고 종가가 그 위로 복귀하는 4h 롱이 게이트 v2 + frame_v3 국면 홀드아웃 + C2b + C3 를 통과한다",
   "cells": "주 판정 1셀 = (turtle_soup_4h, 레짐 ALL, 코호트 top30, 롱). 진단(판정 아님): 레짐 4셀(bull_btc/bull_altseason/bear/sideways), all 코호트, liquidity_sweep 겹침",
@@ -7174,6 +7174,13 @@
    "test_turtle_soup.py",
    ".github/workflows/turtle_soup.yml"
   ],
-  "disclosure": "로컬에서는 합성 데이터 테스트만 돌렸고 실데이터 주 판정 수치는 보지 않았다."
+  "disclosure": "로컬에서는 합성 데이터 테스트만 돌렸고 실데이터 주 판정 수치는 보지 않았다.",
+  "result_2026_11_21": {
+   "run": "44925941138",
+   "primary": "turtle_soup_4h|ALL top30 롱 n=2913 mean -0.08% med -1.35% 승률 42% 엣지 +0.27%p boot_p .063 OOS 2/4 → C1 탈락(mean<=0·boot_p); 국면 홀드아웃 n=1067 -0.21%; C2b train n=1846 탈락; C3 Calmar -0.65",
+   "diagnostic": "레짐: bull_btc/bull_altseason/sideways REJECTED, bear INCONCLUSIVE(C1·C2 성능 통과, train 0 · 4h bear 에피소드 2). liquidity_sweep 겹침 turtle 중 6% / sweep 중 37%",
+   "prior_grade": "사전 17%·예상 실패 지점(boot_p·엣지 얇음) 적중. 'E 에피소드 부족 INCONCLUSIVE' 병기는 ALL 셀에서 틀림(COV 통과)",
+   "live_change": "none"
+  }
  }
 }
