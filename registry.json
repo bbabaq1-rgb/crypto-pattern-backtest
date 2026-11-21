@@ -7142,5 +7142,38 @@
   ],
   "smoke_disclosure": "로컬은 합성 거래 테스트만 돌렸고 실데이터 주 판정 수치는 보지 않았다.",
   "result": "THRESHOLD_HIGHER (run 44776008771): risk 1.0% 최소주문/사이징도달 eq240 55.6% / eq355 29.7% / eq500 11.9% / eq750 0.6%; risk 1.5% 29.1/12.4/3.5/0.0%. 전체 신호 분모 1.0% 37.2/13.7/4.4/0.2%. 슬롯 스킵이 별도로 713(eq240)→1372(eq750). holdout 1.0% 70.9/52.6/31.6/10.7%. 사전 THRESHOLD_HIGHER 0.75 최빈 적중. 실거래 무변경."
+ },
+ "turtle_soup_prereg_2026_11_21": {
+  "status": "preregistered",
+  "asked": "자율 연구 사이클 R-009 (report_trader_rules §9 ③ — Turtle Soup 4h 롱, 사전 확률 17%)",
+  "hypothesis": "20봉 최저가(4봉 이상 전 형성)를 같은 봉 저가로 이탈하고 종가가 그 위로 복귀하는 4h 롱이 게이트 v2 + frame_v3 국면 홀드아웃 + C2b + C3 를 통과한다",
+  "cells": "주 판정 1셀 = (turtle_soup_4h, 레짐 ALL, 코호트 top30, 롱). 진단(판정 아님): 레짐 4셀(bull_btc/bull_altseason/bear/sideways), all 코호트, liquidity_sweep 겹침",
+  "frozen": {
+   "LOOKBACK": 20,
+   "MIN_AGE": 4,
+   "entry": "신호봉 종가(닫힌 봉)",
+   "exit": "방식D(−8% 손절·레짐 전환·30봉)",
+   "frame": "validate_revival --new --tf 4h --frame v3 --long",
+   "baseline": "같은 레짐·코호트 무작위 진입 k=n 같은 청산",
+   "cohort": "정적 top30(turnover_rank)"
+  },
+  "criteria": "v3 verdict == CONFIRMED (C1 게이트 v2 n>=20·mean>0·승률>=35%·boot_p<.05·OOS>=2/4 + E 에피소드 OOS + C2 국면 홀드아웃 n>=10 mean>0 + C2b train 자체 게이트 + C3 자산곡선 CAGR>0·Calmar>0). 성능 통과·COV 실패는 INCONCLUSIVE(기각 아님)",
+  "prior": "약 17% 통과. 예상 실패 지점: C1 boot_p(신호가 많고 건당 엣지 얇음 — equal_lows_4h 와 같은 구조) 또는 C2 국면 홀드아웃(2025~ 하락). liquidity_sweep 이 유사 개념으로 기각된 전례. 4h 이력 약 3년이라 E 에피소드 부족 → INCONCLUSIVE 가능성 병기.",
+  "known_limits": [
+   "정적 top30 코호트(PIT 아님 — 기각 결론 강화 방향)",
+   "4h 이력 약 3년",
+   "신호봉 종가 진입 가정(실거래 지연 미반영)",
+   "20봉·4봉은 문헌 값을 그대로 쓴 것이며 격자 탐색 없음(사후 선택 금지)"
+  ],
+  "differs_from_liquidity_sweep": "sweep 은 Equal Lows 풀(저점 2개 이상 0.5% 이내)·침투 0.5%·3봉 내 회복·거래량 2배를 요구. Turtle Soup 은 단일 20봉 저점의 같은 봉 복귀만. test_turtle_soup 이 합성으로 신호 집합 차이를 고정하고 러너가 겹침 비율을 진단으로 찍는다.",
+  "deploy_on_pass": true,
+  "deploy_note": "통과(CONFIRMED·경계값 아님) 시 adopted_4h_patterns 에 cohort top30·detect_on_closed_bar·regimes ALL 로 등재(자율 반영 2026-09-05). universe trading_halt(by=user) 중이라 즉시 주문은 없다.",
+  "files": [
+   "detector_turtle_soup_4h.py",
+   "validate_turtle_soup.py",
+   "test_turtle_soup.py",
+   ".github/workflows/turtle_soup.yml"
+  ],
+  "disclosure": "로컬에서는 합성 데이터 테스트만 돌렸고 실데이터 주 판정 수치는 보지 않았다."
  }
 }
