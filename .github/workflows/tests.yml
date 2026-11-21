@@ -114,6 +114,7 @@ jobs:
                    test_port_vol.py \
                    test_closed_bar.py \
                    test_time_prop.py \
+                   test_turtle_soup.py \
                    test_ai_judge.py \
                    test_ai_judge_report.py \
                    test_ai_elliott.py \

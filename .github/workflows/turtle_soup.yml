@@ -1,0 +1,36 @@
+name: Turtle Soup 4h — R-009 사전 등록 시험 (research)
+
+# 연구 전용 — 매매/DB 접근 없음. registry turtle_soup_prereg_2026_11_21.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "research/R-009"
+    paths:
+      - "validate_turtle_soup.py"
+      - "detector_turtle_soup_4h.py"
+      - ".github/workflows/turtle_soup.yml"
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: mkdir -p data
+      - name: Logic tests (no network)
+        run: python test_turtle_soup.py
+      - name: R-009 Turtle Soup 4h (v3 frame)
+        run: python validate_turtle_soup.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: turtle-soup-${{ github.run_number }}
+          path: |
+            _revival_new_v3.json
+            _turtle_soup.json
+          if-no-files-found: ignore
