@@ -52,6 +52,7 @@ jobs:
                    test_exit_consistency.py \
                    test_dclose.py \
                    test_ts_top30.py \
+                   test_ts_phase.py \
                    test_lottery_gate.py \
                    test_dist_layer.py \
                    test_bull_btc.py \

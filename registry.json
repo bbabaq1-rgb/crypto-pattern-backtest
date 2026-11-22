@@ -7182,5 +7182,25 @@
    "prior_grade": "사전 17%·예상 실패 지점(boot_p·엣지 얇음) 적중. 'E 에피소드 부족 INCONCLUSIVE' 병기는 ALL 셀에서 틀림(COV 통과)",
    "live_change": "none"
   }
+ },
+ "ts_phase_prereg_2026_11_22": {
+  "status": "PREREGISTERED",
+  "DEPLOY_ON_PASS": false,
+  "backlog": "R-030",
+  "registered": "2026-11-22 (결과 열람 전, 로컬 스모크 없음 — test_ts_phase 는 합성 입력만)",
+  "hypothesis": "three_soldiers_4h 의 holdout 약세는 순위가 아니라 bull 라벨 국면에서 나온다: bull 에피소드 층화 시 train 양수가 에피소드 2개 이상에서 재현되고 holdout 손실은 일부 에피소드에 몰린다.",
+  "cells": "validate_portfolio.collect_4h 의 three_soldiers_4h 거래(bull_btc∪bull_altseason 게이트·전 종목 = 실거래 복제), frame_v3.episodes(bull 병합 레짐맵, 30일 병합), 분할 2025-01-01",
+  "frozen": {
+   "min_train": 30,
+   "min_holdout": 10,
+   "episode_min_n": 5,
+   "split": "2025-01-01",
+   "seed": 42
+  },
+  "criteria": "NO_WEAKNESS(holdout n>=10 평균>=0) / INCONCLUSIVE(표본·적격 에피소드 부족) / EPISODE_PHASE(train 평균>0·양수 적격 에피소드>=2·holdout 평균<0·음수 에피소드 제외 나머지 n>=10 평균>0) / PATTERN_DECAY(train 평균>0·holdout 적격 에피소드>=2 전부 음수) / MIXED. 위에서부터 상호 배타",
+  "diagnostics": "레짐별 평균, 순위 상/하 반분, holdout 월 블록 부트 P(<0) — 판정 아님",
+  "prior": "EPISODE_PHASE 0.20 · PATTERN_DECAY 0.30 · MIXED 0.30 · INCONCLUSIVE 0.15 · NO_WEAKNESS 0.05. 근거: 4h 이력 약 2년이라 bull 에피소드가 2~3개뿐이어서 적격 에피소드 부족·MIXED 가 최빈. exit_consistency 의 국면 홀드아웃 n=92 -0.42% 는 하락기 탓이 아니라고 이미 적혀 있어 감쇠 쪽 무게.",
+  "deploy_if_passed": "없음 — 진단 전용. 어떤 결과도 실거래·universe 무변경",
+  "known_limits": "4h 이력 짧아 에피소드 수 적음 / 정적 순위 / 에피소드 단위 표본이 작아 판정은 서술적 / 방식D 단일 청산 프레임"
  }
 }
